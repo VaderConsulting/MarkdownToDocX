@@ -9,6 +9,21 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class FlowchartSugiyamaLayoutEngineTests
 {
     [Test]
+    public void TryLayout_RetainsTheSuppliedRenderContextPerLayout()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TD\nA --> B");
+        FlowchartRenderContext FirstContext = new();
+        FlowchartRenderContext SecondContext = new();
+
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, FirstContext, out FlowchartLayoutResult First), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, SecondContext, out FlowchartLayoutResult Second), Is.True);
+
+        Assert.That(First.RenderContext, Is.SameAs(FirstContext));
+        Assert.That(Second.RenderContext, Is.SameAs(SecondContext));
+        Assert.That(First.RenderContext, Is.Not.SameAs(Second.RenderContext));
+    }
+
+    [Test]
     public void TryLayout_Chain_Fixture_Produces_Separated_Node_Centres()
     {
         string MmdPath = Path.Combine(FindFlowchartFixtureDirectory(), "chain-a-b-c.mmd");

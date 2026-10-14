@@ -22,8 +22,15 @@ public static class FlowchartSugiyamaLayoutEngine
     /// Coordinates are Y-up, matching the SVG renderer.
     /// </summary>
     public static bool TryLayout(DiagramContract Contract, out FlowchartLayoutResult Result)
+        => TryLayout(Contract, new FlowchartRenderContext(), out Result);
+
+    /// <summary>Lays out a diagram using the supplied per-render state.</summary>
+    public static bool TryLayout(
+        DiagramContract Contract,
+        FlowchartRenderContext RenderContext,
+        out FlowchartLayoutResult Result)
     {
-        Result = new FlowchartLayoutResult();
+        Result = new FlowchartLayoutResult { RenderContext = RenderContext };
         if (Contract == null || Contract.Nodes.Count == 0)
         {
             return false;
@@ -39,7 +46,7 @@ public static class FlowchartSugiyamaLayoutEngine
             return false;
         }
 
-        Result = DiagramGridLayout.Apply(Contract, Placed);
+        Result = DiagramGridLayout.Apply(Contract, Placed, RenderContext);
         return Result.NodeBounds.Count > 0;
     }
 

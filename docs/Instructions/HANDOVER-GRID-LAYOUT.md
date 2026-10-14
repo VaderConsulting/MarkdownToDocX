@@ -8,8 +8,8 @@ Replace the curved flowchart routing with a grid layout. Every node sits on one 
 
 ## Where the work is
 
-- Repository: VaderConsulting/MarkdownToDocX. Master is at `f09cb89` after the docs tidy; the grid work is not on master.
-- Working branch: `cursor/many-to-many-routing-3834`, which is pull request #9, last pushed commit `a63aeb1` (8 October, about 4:37 AM WST). It holds all earlier grid work. Pull requests #8 and #12 to #18 are superseded and closed.
+  Repository: VaderConsulting/MarkdownToDocX. Master is at `f09cb89` after the docs tidy; the grid work is not on master.
+  Working branch: `cursor/many-to-many-routing-3834`, which is pull request #9, last pushed commit `a63aeb1` (8 October, about 4:37 AM WST). It holds all earlier grid work. Pull requests #8 and #12 to #18 are superseded and closed.
 - Authoritative specification: `LAYOUT-RULEBOOK.md` (attached). It is 129 lines: terms, sections 1 to 10, an on-hold list, and resolved conflicts. Its top block "Decisions applied" overrides any conflicting text below it.
 - Working practices for the agent: `CLOUD-AGENT-WORKING-PRACTICES.md` (attached). Commit messages follow `docs/COMMIT-MESSAGE-STYLE.md` in the repository.
 - Dave's marked-up pictures and the longer brief are in `/workspace/briefs/` on my computer (`webshop-target-rules.md`, `md2docx-grid-layout-brief.md`, and the `*-markup.png` files). They can be sent on request.

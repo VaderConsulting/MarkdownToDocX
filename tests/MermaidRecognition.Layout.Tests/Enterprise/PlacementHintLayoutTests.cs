@@ -41,6 +41,43 @@ public sealed class PlacementHintLayoutTests
     }
 
     [Test]
+    public void AgainstFlowLineHints_NeverRouteThroughEndpointBodies()
+    {
+        const string Source = """
+            enterprise TB
+              application-component c1 "Node 1"
+              application-component c2 "Node 2"
+              application-component c3 "Node 3"
+              application-component c4 "Node 4"
+              application-component c5 "Node 5"
+              application-component c6 "Node 6"
+              application-component c7 "Node 7"
+              application-component c8 "Node 8"
+              c1 -flow-> c2 [leave N]
+              c2 -flow-> c3 [leave N]
+              c3 -flow-> c4 [leave N]
+              c4 -flow-> c5 [leave N]
+              c5 -flow-> c6 [leave N]
+              c6 -flow-> c7 [leave N]
+              c7 -flow-> c8 [leave N]
+            """;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds
+            .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            Assert.That(Route.Points, Has.Count.GreaterThanOrEqualTo(2));
+            foreach ((FlowchartLayoutPoint A, FlowchartLayoutPoint B) in Route.Points.Zip(Route.Points.Skip(1)))
+            foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
+                Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                    A.X, A.Y, B.X, B.Y, Box), Is.False,
+                    $"Hinted route {Route.SourceId}->{Route.TargetId} enters node {Box.NodeId}: "
+                    + string.Join(" ", Route.Points.Select(Point => $"({Point.X},{Point.Y})")));
+        }
+    }
+
+    [Test]
     public void RelativeHints_KeepSourceOrderedRow()
     {
         const string Source = """

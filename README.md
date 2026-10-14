@@ -32,7 +32,7 @@ Non-flowchart kinds still render through Naiad until per-kind native adapters ex
 
 ### Diagram types rendered in DOCX
 
-| Kind | Parser | Renderer |
+| Diagram type | Parser | Renderer |
 | --- | --- | --- |
 | Flowchart / graph | MermaidRecognition (default) | Native layout (default) or Naiad |
 | Sequence, class, state, ER | MermaidRecognition | Naiad |

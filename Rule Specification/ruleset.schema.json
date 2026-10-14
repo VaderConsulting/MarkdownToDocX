@@ -94,6 +94,27 @@
           }
         }
       }
+    },
+    "LayoutRules": {
+      "items": {
+        "type": "object"
+      },
+      "description": "Generated layout rules from docs/Instructions/rules.yaml.",
+      "type": "array"
+    },
+    "LayoutParameters": {
+      "items": {
+        "type": "object"
+      },
+      "description": "Generated parameter definitions from docs/Instructions/rules.yaml.",
+      "type": "array"
+    },
+    "LayoutPrecedence": {
+      "items": {
+        "type": "object"
+      },
+      "description": "Generated stage order from docs/Instructions/rules.yaml.",
+      "type": "array"
     }
   }
 }

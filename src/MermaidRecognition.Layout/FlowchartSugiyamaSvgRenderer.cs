@@ -72,7 +72,8 @@ public static class FlowchartSugiyamaSvgRenderer
             return string.Empty;
         }
 
-        FlowchartRenderContext.Current.BeginRender();
+        using IDisposable ContextScope = FlowchartRenderContext.Activate(Layout.RenderContext);
+        Layout.RenderContext.BeginRender();
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         double DiagramPaddingPx = RenderOptions.DiagramPaddingPx;
 
@@ -140,7 +141,8 @@ public static class FlowchartSugiyamaSvgRenderer
             Layout,
             BoundsById,
             NodeById,
-            Direction);
+            Direction,
+            Layout.RenderContext);
         Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
             new Dictionary<EdgeContract, FlowchartResolvedGuide>();
         foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
@@ -593,10 +595,9 @@ public static class FlowchartSugiyamaSvgRenderer
                 }
                 else
                 {
-                    string FanOutPathData = Direction == FlowchartDirection.LeftToRight
-                        || Direction == FlowchartDirection.RightToLeft
-                        ? FlowchartCurvePathBuilder.BuildHorizontalFanRoutePathData(FanOutSvgPoints)
-                        : FlowchartCurvePathBuilder.BuildVerticalFanRoutePathData(FanOutSvgPoints);
+                    string FanOutPathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                        FanOutSvgPoints,
+                        DiagramGridRouteBuilder.CORNER_RADIUS_PX);
                     AppendStyledEdgePath(Builder, FanOutPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
                     if (FanOutSvgPoints.Count > 2)
@@ -666,10 +667,9 @@ public static class FlowchartSugiyamaSvgRenderer
                 }
                 else
                 {
-                    string FanInPathData = Direction == FlowchartDirection.LeftToRight
-                        || Direction == FlowchartDirection.RightToLeft
-                        ? FlowchartCurvePathBuilder.BuildHorizontalFanRoutePathData(FanInSvgPoints)
-                        : FlowchartCurvePathBuilder.BuildVerticalFanRoutePathData(FanInSvgPoints);
+                    string FanInPathData = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+                        FanInSvgPoints,
+                        DiagramGridRouteBuilder.CORNER_RADIUS_PX);
                     AppendStyledEdgePath(Builder, FanInPathData, EdgeStyle, Edge.SourceId, Edge.TargetId);
 
                     if (FanInSvgPoints.Count > 2)

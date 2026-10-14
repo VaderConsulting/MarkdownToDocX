@@ -250,8 +250,48 @@ public sealed class UnnecessaryBendCheckerTests
         Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Crossing, [], [Other])?.Check, Is.EqualTo('j'));
     }
 
+    [Test]
+    public void LongRouteWithWrongExitSide_IsReportedWhenACloserLegalRouteExists()
+    {
+        BendRoute LongRoute = Route("right", "left", (300, 380), (-160, 380), (-160, -10),
+            (1200, -10), (1200, 30)) with
+        {
+            LineId = "dplhAdmin->collaborator:5",
+            SourceId = "dplhAdmin",
+            TargetId = "collaborator"
+        };
+
+        UnnecessaryBendViolation? Finding = UnnecessaryBendChecker.CheckRoute("unit", LongRoute, []);
+
+        Assert.That(Finding?.Check, Is.EqualTo('k'));
+        Assert.That(Length(Finding!.BetterRoute), Is.LessThan(Length(LongRoute.Points)));
+    }
+
+    [Test]
+    public void HintedTopEntry_CanBeReportedForAnAvoidableCrossing()
+    {
+        BendRoute Crossing = Route("bottom", "top", (1020, 360), (1020, 180), (1275, 180), (1275, 90))
+            with
+            {
+                LineId = "westernPower->collaborator:8",
+                SourceId = "westernPower", TargetId = "collaborator",
+                SourceBox = new BendBox(1020, 390, 180, 60), TargetBox = new BendBox(1230, 60, 180, 60),
+                HintNeedsExtraCorners = true, HintOverridesRoutingFault = true, RoutedCrossings = 1, AllowedCrossings = 1
+            };
+        BendSegment Other = new("otherAgencies---collaborator:12", new BendPoint(1230, 270),
+            new BendPoint(1230, 90), "otherAgencies", "collaborator");
+        BendObstacle Note = new("otherAgencies", 1140, 270, 1320, 330);
+
+        Assert.That(UnnecessaryBendChecker.CheckRoute("unit", Crossing, [Note], [Other])?.Check, Is.EqualTo('j'));
+    }
+
     private static UnnecessaryBendViolation? Check(BendRoute Route, IReadOnlyList<BendObstacle>? Obstacles = null) =>
         UnnecessaryBendChecker.CheckRoute("unit", Route, Obstacles ?? []);
+
+    private static double Length(IReadOnlyList<BendPoint> Points) =>
+        Enumerable.Range(1, Points.Count - 1).Sum(Index =>
+            Math.Abs(Points[Index - 1].X - Points[Index].X)
+            + Math.Abs(Points[Index - 1].Y - Points[Index].Y));
 
     private static BendRoute Route(string Exit, string Entry, params (double X, double Y)[] Points) =>
         new("line", "source", "target", Exit, Entry,

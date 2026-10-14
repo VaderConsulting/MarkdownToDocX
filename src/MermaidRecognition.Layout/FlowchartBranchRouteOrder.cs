@@ -21,7 +21,8 @@ internal static class FlowchartBranchRouteOrder
             && Nodes.ContainsKey(Route.SourceId) && Nodes.ContainsKey(Route.TargetId)
             && !Contract.Edges.Any(Edge => (Edge.Id == Route.EdgeId
                 || string.IsNullOrEmpty(Edge.Id) && Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
-                && string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                && (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    || Edge.RoutingHint?.IsActive == true))
             && !Back.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)).ToList();
         foreach (bool SourceEnd in new[] { true, false })
         foreach (var Fan in Routes.GroupBy(Route => SourceEnd ? Route.SourceId : Route.TargetId))

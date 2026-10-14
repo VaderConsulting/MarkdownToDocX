@@ -22,6 +22,30 @@ public sealed class DiagramGridLayoutTests
     }
 
     [Test]
+    public void LayoutStages_RunPlacementHintsBeforeAutomaticPlacementAndRouting()
+    {
+        DiagramContract Contract = Parse("""
+            flowchart TB
+            A[Start] --> B[Finish]
+            """);
+
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(Layout.RenderContext.LayoutStageTrace, Is.EqualTo(new[]
+        {
+            "grid-and-measured-geometry",
+            "placement-hints-2.21",
+            "automatic-node-placement-2.x",
+            "group-frame-fitting",
+            "route-coordinate-preparation",
+            "joint-port-allocation-4.7",
+            "line-routing-hints-3.1-3.7",
+            "rule-specific-route-construction",
+            "coupled-route-repair",
+            "final-legality-validation-section-10"
+        }));
+    }
+
+    [Test]
     public void TrackOffsets_FollowTheCentreOutwardPattern()
     {
         Assert.That(DiagramGridMetrics.TrackOffsets(1, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15 }));

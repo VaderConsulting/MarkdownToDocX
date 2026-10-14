@@ -8,9 +8,8 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>
-/// Mutable data owned by one flowchart render. The ambient accessor keeps the
-/// existing public diagnostic APIs source-compatible while isolating concurrent
-/// renders by asynchronous execution context.
+/// Mutable state owned by one flowchart layout and render. The ambient accessor
+/// is scoped to that context while legacy renderer helpers are migrated.
 /// </summary>
 public sealed class FlowchartRenderContext
 {
@@ -19,7 +18,19 @@ public sealed class FlowchartRenderContext
     /// <summary>Context associated with the current render or direct layout call.</summary>
     public static FlowchartRenderContext Current => Ambient.Value ??= new FlowchartRenderContext();
 
+    /// <summary>Temporarily activates this state for legacy helpers during a render.</summary>
+    internal static IDisposable Activate(FlowchartRenderContext Context)
+    {
+        FlowchartRenderContext? Previous = Ambient.Value;
+        Ambient.Value = Context;
+        return new AmbientScope(Previous);
+    }
+
     internal List<FlowchartLayoutQualityFailure> Justifications { get; } = [];
+
+    internal List<string> LayoutStageTrace { get; } = [];
+
+    internal List<FlowchartLayoutQualityFailure> LayoutStageViolations { get; } = [];
 
     internal List<FlowchartSvgLineJump.DrawnJump> Jumps { get; } = [];
 
@@ -35,12 +46,16 @@ public sealed class FlowchartRenderContext
 
     internal void BeginRender()
     {
-        Justifications.Clear();
         Jumps.Clear();
         CachedRouteContract = null;
         CachedRouteGuides = null;
         DeferredMarkerDraws.Clear();
         FlushingDeferredMarkers = false;
         ActiveRenderSession = null;
+    }
+
+    private sealed class AmbientScope(FlowchartRenderContext? Previous) : IDisposable
+    {
+        public void Dispose() => Ambient.Value = Previous;
     }
 }

@@ -20,6 +20,7 @@ public sealed class CompactLayoutMetricTests
     [TestCase("A", 114)]
     [TestCase("A", 117)]
     [TestCase("A", 142)]
+    [TestCase("A", 163)]
     [TestCase("A", 168)]
     public void CatalogueDiagram_ReportsCompactLayoutMetrics(string Catalogue, int Number)
     {
@@ -93,7 +94,6 @@ public sealed class CompactLayoutMetricTests
     {
         FlowchartLayoutResult Layout = LayoutScenario(72, out DiagramContract Contract);
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
-
         Assert.Multiple(() =>
         {
             Assert.That(Metrics.Disconnections, Is.Zero);
@@ -156,6 +156,28 @@ public sealed class CompactLayoutMetricTests
             Assert.That(Metrics.Score, Is.Not.Null,
                 string.Join("; ", Metrics.Violations.Select(Failure => Failure.Description)));
         });
+    }
+
+    [Test]
+    public void A52_EnterprisePostRoutingPass_RemovesEveryAvoidableCrossing()
+    {
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(ReadScenario("A", 52)).Document;
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        int Crossings = 0;
+        List<string> CrossingPairs = [];
+        for (int First = 0; First < Routes.Count; First++)
+        for (int Second = First + 1; Second < Routes.Count; Second++)
+        {
+            int PairCrossings = FlowchartBranchRouteOrder.Intersections(
+                Routes[First].SvgPoints.Select(Point => (Point.X, Point.Y)).ToList(),
+                Routes[Second].SvgPoints.Select(Point => (Point.X, Point.Y)).ToList()).Crossings;
+            Crossings += PairCrossings;
+            if (PairCrossings > 0)
+                CrossingPairs.Add($"{Routes[First].Relationship.SourceId}->{Routes[First].Relationship.TargetId}"
+                    + $" x {Routes[Second].Relationship.SourceId}->{Routes[Second].Relationship.TargetId}: {PairCrossings}");
+        }
+        Assert.That(Crossings, Is.Zero, "A52 has avoidable final route crossings: " + string.Join("; ", CrossingPairs));
     }
 
     [TestCase(167, "australia", "trusted")]

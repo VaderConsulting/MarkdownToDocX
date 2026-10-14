@@ -1,5 +1,7 @@
 # Mermaid Flowchart Rule Validation Specification
 
+> **Authority:** `docs/Instructions/LAYOUT-RULEBOOK.md` governs all layout and routing rules. Once `docs/Instructions/rules.yaml` exists (task 2 in `docs/currentstatus.md`), that file governs them and the rulebook is generated from it. Where this specification differs on layout or routing, the rulebook wins.
+
 **Document status:** Build specification  
 **Schema version:** 2.0.0  
 **Primary purpose:** Define the file contracts and rule execution model for validating Mermaid flowchart recognition, node placement, edge routing, labels, markers, geometry diagnostics, and feedback before visual inspection.  
@@ -863,7 +865,7 @@ The tests must be built against this specification, not against fixture-specific
 
 ## 20. Appendix — reference diagrams (Mermaid source)
 
-Appendix diagrams are **structural patterns** for tests and documentation. Rules must not branch on `DiagramId`, catalogue scenario numbers, or node display text. Authoritative prose: `spec.md` §5.5–§5.6, `Mermaid_Specification.md` §17.5.
+Appendix diagrams are **structural patterns** for tests and documentation. Rules must not branch on `DiagramId`, catalogue scenario numbers, or node display text. Authoritative prose: `spec.md` §5.5–§5.6, `docs/Instructions/LAYOUT-RULEBOOK.md`.
 
 ### 20.1 Multi-route TB integration
 

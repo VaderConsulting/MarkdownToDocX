@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using MermaidRecognition.Contract;
@@ -14,6 +15,22 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartPaddedVisibilityRouter
 {
+    internal static long GridPathCallCount { get; private set; }
+    internal static double GridPathElapsedMilliseconds { get; private set; }
+    internal static int GridPathLastVertexCount { get; private set; }
+    internal static int GridPathMaximumVertexCount { get; private set; }
+    internal static int GridPathLastVisitedStateCount { get; private set; }
+    internal static int GridPathMaximumVisitedStateCount { get; private set; }
+
+    internal static void ResetDiagnostics()
+    {
+        GridPathCallCount = 0;
+        GridPathElapsedMilliseconds = 0;
+        GridPathLastVertexCount = 0;
+        GridPathMaximumVertexCount = 0;
+        GridPathLastVisitedStateCount = 0;
+        GridPathMaximumVisitedStateCount = 0;
+    }
     private const double OBSTACLE_PADDING_PX = 10.0;
 
     private const double BEND_PENALTY_FRACTION = 0.04;
@@ -218,88 +235,97 @@ public static class FlowchartPaddedVisibilityRouter
         IReadOnlyList<PaddedBox> Boxes,
         out List<(double X, double Y)> Points)
     {
+        GridPathCallCount++;
+        Stopwatch Timer = Stopwatch.StartNew();
         Points = [];
-        List<double> Xs = [StartX, EndX];
-        List<double> Ys = [StartY, EndY];
-        foreach (PaddedBox Box in Boxes)
+        PaddedBoxSpatialIndex Spatial = new(Boxes);
+        double MinX = Math.Min(StartX, EndX), MaxX = Math.Max(StartX, EndX);
+        double MinY = Math.Min(StartY, EndY), MaxY = Math.Max(StartY, EndY);
+        double Margin = 160;
+        double FullMinX = Boxes.Count == 0 ? MinX : Math.Min(MinX, Boxes.Min(Box => Box.Left));
+        double FullMaxX = Boxes.Count == 0 ? MaxX : Math.Max(MaxX, Boxes.Max(Box => Box.Right));
+        double FullMinY = Boxes.Count == 0 ? MinY : Math.Min(MinY, Boxes.Min(Box => Box.Bottom));
+        double FullMaxY = Boxes.Count == 0 ? MaxY : Math.Max(MaxY, Boxes.Max(Box => Box.Top));
+        while (true)
         {
-            Xs.Add(Box.Left);
-            Xs.Add(Box.Right);
-            Ys.Add(Box.Bottom);
-            Ys.Add(Box.Top);
-        }
-
-        SortUnique(Xs);
-        SortUnique(Ys);
-
-        List<(double X, double Y)> Vertices = [];
-        AddVertex(Vertices, StartX, StartY);
-        AddVertex(Vertices, EndX, EndY);
-        foreach (double X in Xs)
-        {
-            foreach (double Y in Ys)
+            double SearchLeft = Math.Max(FullMinX, MinX - Margin);
+            double SearchRight = Math.Min(FullMaxX, MaxX + Margin);
+            double SearchBottom = Math.Max(FullMinY, MinY - Margin);
+            double SearchTop = Math.Min(FullMaxY, MaxY + Margin);
+            List<PaddedBox> LocalBoxes = Spatial.Query(SearchLeft, SearchBottom, SearchRight, SearchTop);
+            List<(double X, double Y)> Vertices = [ (StartX, StartY), (EndX, EndY) ];
+            List<double> CornerXs = [], CornerYs = [];
+            foreach (PaddedBox Box in LocalBoxes)
             {
-                if (PointInsideAny(X, Y, Boxes))
-                {
-                    continue;
-                }
-
-                if ((Math.Abs(X - StartX) <= VERTEX_MERGE_PX && Math.Abs(Y - StartY) <= VERTEX_MERGE_PX)
-                    || (Math.Abs(X - EndX) <= VERTEX_MERGE_PX && Math.Abs(Y - EndY) <= VERTEX_MERGE_PX)) continue;
-                Vertices.Add((X, Y));
+                CornerXs.Add(Box.Left); CornerXs.Add(Box.Right);
+                CornerYs.Add(Box.Bottom); CornerYs.Add(Box.Top);
+                AddVertex(Vertices, Box.Left, Box.Bottom);
+                AddVertex(Vertices, Box.Left, Box.Top);
+                AddVertex(Vertices, Box.Right, Box.Bottom);
+                AddVertex(Vertices, Box.Right, Box.Top);
             }
-        }
-
-        int Count = Vertices.Count;
-        if (Count < 2)
-        {
-            return false;
-        }
-
-        List<int>[] Neighbours = new List<int>[Count];
-        for (int Index = 0; Index < Count; Index++)
-        {
-            Neighbours[Index] = [];
-        }
-
-        void Connect(bool Vertical)
-        {
-            var Ordered = Enumerable.Range(0, Count).OrderBy(Index => Vertical ? Vertices[Index].X : Vertices[Index].Y)
-                .ThenBy(Index => Vertical ? Vertices[Index].Y : Vertices[Index].X).ToArray();
-            for (int Index = 1; Index < Ordered.Length; Index++)
+            SortUnique(CornerXs); SortUnique(CornerYs);
+            // Add only endpoint projections to the obstacle-corner visibility graph.
+            // This keeps candidate vertices linear in the local obstacle count.
+            foreach (double X in CornerXs)
             {
-                int Left = Ordered[Index - 1], Right = Ordered[Index];
-                if (!IsAxisAligned(Vertices[Left].X, Vertices[Left].Y, Vertices[Right].X, Vertices[Right].Y))
-                {
-                    continue;
-                }
-
-                if (!SegmentClears(Vertices[Left].X, Vertices[Left].Y, Vertices[Right].X, Vertices[Right].Y, Boxes))
-                {
-                    continue;
-                }
-
-                Neighbours[Left].Add(Right);
-                Neighbours[Right].Add(Left);
+                AddVertex(Vertices, X, StartY);
+                AddVertex(Vertices, X, EndY);
             }
-        }
-        Connect(true);
-        Connect(false);
+            foreach (double Y in CornerYs)
+            {
+                AddVertex(Vertices, StartX, Y);
+                AddVertex(Vertices, EndX, Y);
+            }
+            // Keep only candidates inside this search window; endpoints always remain.
+            Vertices = Vertices.Where((Point, Index) => Index < 2
+                || (Point.X >= SearchLeft && Point.X <= SearchRight && Point.Y >= SearchBottom && Point.Y <= SearchTop))
+                .ToList();
+            int Count = Vertices.Count;
+            GridPathLastVertexCount = Count;
+            GridPathMaximumVertexCount = Math.Max(GridPathMaximumVertexCount, Count);
+            List<int>[] Neighbours = Enumerable.Range(0, Count).Select(_ => new List<int>()).ToArray();
+            foreach (var SameX in Enumerable.Range(0, Count).GroupBy(Index => Vertices[Index].X))
+                Connect(SameX.OrderBy(Index => Vertices[Index].Y).ToArray(), Vertices, Neighbours, Spatial);
+            foreach (var SameY in Enumerable.Range(0, Count).GroupBy(Index => Vertices[Index].Y))
+                Connect(SameY.OrderBy(Index => Vertices[Index].X).ToArray(), Vertices, Neighbours, Spatial);
 
-        double Manhattan = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
-        double BendCost = Math.Max(1.0, Manhattan * BEND_PENALTY_FRACTION);
-        if (!TryShortestPath(Vertices, Neighbours, 0, 1, BendCost, out List<int> Path))
+            double Manhattan = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
+            double BendCost = Math.Max(1.0, Manhattan * BEND_PENALTY_FRACTION);
+            if (Count >= 2 && TryAStarVisibilityPath(Vertices, Neighbours, BendCost,
+                out List<int> Path, out int VisitedStates))
+            {
+                GridPathLastVisitedStateCount = VisitedStates;
+                GridPathMaximumVisitedStateCount = Math.Max(GridPathMaximumVisitedStateCount, VisitedStates);
+                foreach (int Index in Path) Points.Add(Vertices[Index]);
+                SimplifyColinear(Points);
+                GridPathElapsedMilliseconds += Timer.Elapsed.TotalMilliseconds;
+                return Points.Count >= 2;
+            }
+            GridPathLastVisitedStateCount = Count * 3;
+            GridPathMaximumVisitedStateCount = Math.Max(GridPathMaximumVisitedStateCount, GridPathLastVisitedStateCount);
+            if (SearchLeft <= FullMinX && SearchRight >= FullMaxX
+                && SearchBottom <= FullMinY && SearchTop >= FullMaxY)
+            {
+                GridPathElapsedMilliseconds += Timer.Elapsed.TotalMilliseconds;
+                return false;
+            }
+            Margin *= 2;
+        }
+
+    }
+
+    private static void Connect(int[] Ordered, IReadOnlyList<(double X, double Y)> Vertices,
+        List<int>[] Neighbours, PaddedBoxSpatialIndex Spatial)
+    {
+        for (int Index = 1; Index < Ordered.Length; Index++)
         {
-            return false;
+            int First = Ordered[Index - 1], Second = Ordered[Index];
+            if (!Spatial.SegmentClears(Vertices[First].X, Vertices[First].Y,
+                Vertices[Second].X, Vertices[Second].Y)) continue;
+            Neighbours[First].Add(Second);
+            Neighbours[Second].Add(First);
         }
-
-        foreach (int Index in Path)
-        {
-            Points.Add(Vertices[Index]);
-        }
-
-        SimplifyColinear(Points);
-        return Points.Count >= 2;
     }
 
     private static bool IsSkippedEndpoint(DiagramContract Contract, EdgeContract Edge, string NodeId)
@@ -549,84 +575,56 @@ public static class FlowchartPaddedVisibilityRouter
         return TMin <= TMax;
     }
 
-    private static bool TryShortestPath(
+    private static bool TryAStarVisibilityPath(
         IReadOnlyList<(double X, double Y)> Vertices,
         IReadOnlyList<List<int>> Neighbours,
-        int Source,
-        int Target,
         double BendCost,
-        out List<int> Path)
+        out List<int> Path,
+        out int VisitedStates)
     {
         Path = [];
-        int Count = Vertices.Count;
-        double[] Distance = new double[Count];
-        int[] Previous = new int[Count];
-        int[] Incoming = new int[Count];
-        bool[] Visited = new bool[Count];
-        for (int Index = 0; Index < Count; Index++)
+        VisitedStates = 0;
+        const int Directions = 3; // 0 = source, 1 = horizontal, 2 = vertical.
+        int Source = 0, Target = 1;
+        int StateCount = Vertices.Count * Directions;
+        double[] Distance = Enumerable.Repeat(double.PositiveInfinity, StateCount).ToArray();
+        int[] Previous = Enumerable.Repeat(-1, StateCount).ToArray();
+        bool[] Closed = new bool[StateCount];
+        int StartState = Source * Directions;
+        Distance[StartState] = 0;
+        var Queue = new PriorityQueue<int, (double Estimate, double Cost, int State)>();
+        Queue.Enqueue(StartState, (Manhattan(Vertices[Source], Vertices[Target]), 0, StartState));
+        int GoalState = -1;
+        while (Queue.TryDequeue(out int CurrentState, out var Priority))
         {
-            Distance[Index] = double.PositiveInfinity;
-            Previous[Index] = -1;
-            Incoming[Index] = -1;
-        }
-
-        Distance[Source] = 0.0;
-        var Queue = new PriorityQueue<int, (double Cost, int Index)>();
-        Queue.Enqueue(Source, (0, Source));
-        while (Queue.TryDequeue(out int Current, out var Priority))
-        {
-            if (Visited[Current] || Priority.Cost > Distance[Current]) continue;
-            if (Current == Target)
-            {
-                break;
-            }
-
-            Visited[Current] = true;
+            if (Closed[CurrentState] || Priority.Cost > Distance[CurrentState]) continue;
+            Closed[CurrentState] = true;
+            VisitedStates++;
+            int Current = CurrentState / Directions;
+            int Direction = CurrentState % Directions;
+            if (Current == Target) { GoalState = CurrentState; break; }
             foreach (int Next in Neighbours[Current])
             {
-                if (Visited[Next])
-                {
-                    continue;
-                }
-
-                double Length = Hypot(
-                    Vertices[Next].X - Vertices[Current].X,
-                    Vertices[Next].Y - Vertices[Current].Y);
-                double Extra = 0.0;
-                if (Incoming[Current] >= 0
-                    && !SameDirection(
-                        Vertices[Incoming[Current]],
-                        Vertices[Current],
-                        Vertices[Next]))
-                {
-                    Extra = BendCost;
-                }
-
-                double Candidate = Distance[Current] + Length + Extra;
-                if (Candidate < Distance[Next])
-                {
-                    Distance[Next] = Candidate;
-                    Previous[Next] = Current;
-                    Incoming[Next] = Current;
-                    Queue.Enqueue(Next, (Candidate, Next));
-                }
+                int NextDirection = Math.Abs(Vertices[Next].X - Vertices[Current].X) <= 0.6 ? 2 : 1;
+                int NextState = Next * Directions + NextDirection;
+                if (Closed[NextState]) continue;
+                double Length = Manhattan(Vertices[Current], Vertices[Next]);
+                double Candidate = Distance[CurrentState] + Length
+                    + (Direction != 0 && Direction != NextDirection ? BendCost : 0);
+                if (Candidate >= Distance[NextState]) continue;
+                Distance[NextState] = Candidate;
+                Previous[NextState] = CurrentState;
+                double Estimate = Candidate + Manhattan(Vertices[Next], Vertices[Target]);
+                Queue.Enqueue(NextState, (Estimate, Candidate, NextState));
             }
         }
-
-        if (double.IsPositiveInfinity(Distance[Target]))
-        {
-            return false;
-        }
-
-        int Cursor = Target;
-        while (Cursor >= 0)
-        {
-            Path.Add(Cursor);
-            Cursor = Previous[Cursor];
-        }
-
+        if (GoalState < 0) return false;
+        for (int State = GoalState; State >= 0; State = Previous[State]) Path.Add(State / Directions);
         Path.Reverse();
-        return Path.Count >= 2 && Path[0] == Source;
+        return Path.Count >= 2 && Path[0] == Source && Path[^1] == Target;
+
+        static double Manhattan((double X, double Y) A, (double X, double Y) B) =>
+            Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y);
     }
 
     private static bool SameDirection(
@@ -840,5 +838,77 @@ public static class FlowchartPaddedVisibilityRouter
         public double Top { get; }
 
         public double Bottom { get; }
+    }
+
+    /// <summary>Cell index used by the grid visibility search for local point and segment checks.</summary>
+    private sealed class PaddedBoxSpatialIndex
+    {
+        private const double CELL_SIZE = 120;
+        private readonly record struct Cell(int X, int Y);
+        private readonly Dictionary<Cell, List<PaddedBox>> _cells = [];
+
+        public PaddedBoxSpatialIndex(IReadOnlyList<PaddedBox> Boxes)
+        {
+            foreach (PaddedBox Box in Boxes)
+            {
+                (int MinX, int MinY, int MaxX, int MaxY) = CellRange(
+                    Box.Left, Box.Bottom, Box.Right, Box.Top);
+                for (int X = MinX; X <= MaxX; X++)
+                for (int Y = MinY; Y <= MaxY; Y++)
+                {
+                    if (!_cells.TryGetValue(new Cell(X, Y), out List<PaddedBox>? Items))
+                        _cells[new Cell(X, Y)] = Items = [];
+                    Items.Add(Box);
+                }
+            }
+        }
+
+        public bool PointInsideAny(double X, double Y)
+        {
+            (int MinX, int MinY, int MaxX, int MaxY) = CellRange(X, Y, X, Y);
+            for (int CellX = MinX; CellX <= MaxX; CellX++)
+            for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
+                foreach (PaddedBox Box in Items)
+                    if (X > Box.Left + 0.6 && X < Box.Right - 0.6
+                        && Y > Box.Bottom + 0.6 && Y < Box.Top - 0.6) return true;
+            }
+            return false;
+        }
+
+        public List<PaddedBox> Query(double Left, double Bottom, double Right, double Top)
+        {
+            (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Bottom, Right, Top);
+            HashSet<PaddedBox> Found = [];
+            for (int CellX = MinX; CellX <= MaxX; CellX++)
+            for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
+                foreach (PaddedBox Box in Items)
+                    if (Box.Left <= Right && Box.Right >= Left && Box.Bottom <= Top && Box.Top >= Bottom)
+                        Found.Add(Box);
+            }
+            return Found.ToList();
+        }
+
+        public bool SegmentClears(double X1, double Y1, double X2, double Y2)
+        {
+            (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Math.Min(X1, X2), Math.Min(Y1, Y2),
+                Math.Max(X1, X2), Math.Max(Y1, Y2));
+            for (int CellX = MinX; CellX <= MaxX; CellX++)
+            for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
+                foreach (PaddedBox Box in Items)
+                    if (SegmentHitsInterior(X1, Y1, X2, Y2, Box)) return false;
+            }
+            return true;
+        }
+
+        private static (int MinX, int MinY, int MaxX, int MaxY) CellRange(
+            double Left, double Top, double Right, double Bottom) =>
+            ((int)Math.Floor(Left / CELL_SIZE) - 1, (int)Math.Floor(Top / CELL_SIZE) - 1,
+             (int)Math.Floor(Right / CELL_SIZE) + 1, (int)Math.Floor(Bottom / CELL_SIZE) + 1);
     }
 }

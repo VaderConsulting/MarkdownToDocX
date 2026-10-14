@@ -18,6 +18,19 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class FlowchartPerpendicularAttachTests
 {
     [Test]
+    public void BasisStyle_RendersTheOrthogonalRouteWithRoundedCorners()
+    {
+        (double X, double Y)[] Points = [(0, 0), (0, 100), (100, 100)];
+
+        string Actual = FlowchartCurvePathBuilder.BuildPathDataFromGuidePoints(Points, "basis");
+        string Rounded = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+            Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+
+        Assert.That(Actual, Is.EqualTo(Rounded));
+        Assert.That(Actual, Does.Contain("C"));
+    }
+
+    [Test]
     public void BuildCurveBasisPathData_EmitsSmoothTerminalApproachIntoBoundary()
     {
         List<(double X, double Y)> Points =

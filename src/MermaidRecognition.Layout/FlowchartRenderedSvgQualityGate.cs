@@ -46,7 +46,7 @@ public static class FlowchartRenderedSvgQualityGate
 
     private const double SOURCE_DOGLEG_PX = 16.0;
 
-    private const double CLEAN_CROSSING_MIN_DEGREES = 50.0;
+    private const double CLEAN_CROSSING_MIN_DEGREES = 90.0;
 
     private const double CLEAN_CROSSING_LABEL_GAP_PX = 12.0;
 
@@ -301,7 +301,7 @@ public static class FlowchartRenderedSvgQualityGate
         DiagramGridQuality.Collect(Contract, Layout, Violations);
 
         IReadOnlyList<FlowchartLayoutQualityFailure> Justifications = ApplyJustifications
-            ? FlowchartSharedEdgeRouter.LastJustifications
+            ? Layout.RenderContext.Justifications
             : [];
         foreach (FlowchartLayoutQualityFailure Violation in Violations)
         {

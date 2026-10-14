@@ -16,13 +16,15 @@ internal static class FlowchartRoutingHints
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         IReadOnlyDictionary<string, NodeContract> Nodes,
         FlowchartDirection Direction,
-        bool RepairAutomaticRoutesEnabled = true)
+        bool RepairAutomaticRoutesEnabled = true,
+        bool PreserveValidSideHintRoutes = false)
     {
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> HintedPorts =
             SelectHintedPorts(Layout, Contract, Bounds);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
+            if (Route.Points.Count < 2) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             RoutingHintContract? Hint = Edge?.RoutingHint;
             if (Hint?.IsActive != true
@@ -34,6 +36,14 @@ internal static class FlowchartRoutingHints
                 ? DiagramGridLayout.HintSide(Hint.Leave.Value) : Route.ExitSide;
             string Entry = Hint.Enter.HasValue
                 ? DiagramGridLayout.HintSide(Hint.Enter.Value) : Route.EntrySide;
+            if (PreserveValidSideHintRoutes && Hint.Travel == null
+                && (Hint.Leave == null || Route.ExitSide == Exit)
+                && (Hint.Enter == null || Route.EntrySide == Entry)
+                && OnOutline(Route.Points[0], Source) && OnOutline(Route.Points[^1], Target))
+            {
+                Hint.UnhonouredReason = null;
+                continue;
+            }
             (double StartX, double StartY) = HintedPorts.TryGetValue((Route, true), out var StartPort)
                 ? StartPort : ResolveEndpoint(Route, Source, Exit, true);
             (double EndX, double EndY) = HintedPorts.TryGetValue((Route, false), out var EndPort)
@@ -43,7 +53,8 @@ internal static class FlowchartRoutingHints
             List<(double X, double Y)> Path = DiagramGridRouteBuilder.BuildRoute(
                 StartX, StartY, Source, SourceNode?.Shape, Exit,
                 EndX, EndY, Target, TargetNode?.Shape, Entry,
-                Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal, Hint.Travel);
+                Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal, Hint.Travel,
+                RequireLegal: true);
             if (Path.Count < 2)
             {
                 Hint.UnhonouredReason = Hint.Travel.HasValue
@@ -117,6 +128,17 @@ internal static class FlowchartRoutingHints
             && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
     }
 
+    private static bool OnOutline(FlowchartLayoutPoint Point, FlowchartLayoutNodeBounds Box)
+    {
+        double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
+        double Top = Box.CenterY - Box.Height / 2.0, Bottom = Box.CenterY + Box.Height / 2.0;
+        bool OnVertical = (Math.Abs(Point.X - Left) < 0.01 || Math.Abs(Point.X - Right) < 0.01)
+            && Point.Y >= Top - 0.01 && Point.Y <= Bottom + 0.01;
+        bool OnHorizontal = (Math.Abs(Point.Y - Top) < 0.01 || Math.Abs(Point.Y - Bottom) < 0.01)
+            && Point.X >= Left - 0.01 && Point.X <= Right + 0.01;
+        return OnVertical || OnHorizontal;
+    }
+
     private static void RepairAutomaticRoutes(
         FlowchartLayoutResult Layout,
         DiagramContract Contract,
@@ -128,6 +150,7 @@ internal static class FlowchartRoutingHints
         string[] Sides = ["top", "bottom", "left", "right"];
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
+            if (Route.Points.Count < 2) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             List<(double X, double Y)> CurrentPath = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
             bool BadTerminal = !LeavesBy(CurrentPath, Route.ExitSide) || !EntersBy(CurrentPath, Route.EntrySide);

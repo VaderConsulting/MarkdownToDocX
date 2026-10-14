@@ -1,7 +1,20 @@
-# Generates ruleset.json (v2.0.0) from the validation specification and ruleset-org.json catalogue.
+# Generates the recognition rules plus canonical layout-rule metadata in ruleset.json.
+# Layout and routing rules come from docs/Instructions/rules.yaml; this script only
+# retains the syntax/recognition rules from the legacy validation catalogue.
 $ErrorActionPreference = 'Stop'
 $OutputPath = Join-Path $PSScriptRoot 'ruleset.json'
 $OrgPath = Join-Path $PSScriptRoot 'ruleset-org.json'
+$RepositoryRoot = Split-Path -Parent $PSScriptRoot
+$RulesYamlPath = Join-Path $RepositoryRoot 'docs/Instructions/rules.yaml'
+$RulesJsonPath = [System.IO.Path]::ChangeExtension($RulesYamlPath, '.json')
+$RulebookBuilder = Join-Path (Split-Path -Parent $RulesYamlPath) 'Build-Rulebook.ps1'
+
+if (-not (Test-Path $RulesYamlPath)) { throw "Canonical rules file missing: $RulesYamlPath" }
+if (-not (Test-Path $RulebookBuilder)) { throw "Rulebook builder missing: $RulebookBuilder" }
+# Use the canonical parser/validator to produce the generated JSON twin, then
+# embed its rule definitions in the validation bundle for consumers and tests.
+& $RulebookBuilder -RulesFile $RulesYamlPath -CompareTo '' -JsonTwin | Out-Null
+$LayoutRuleDocument = Get-Content -Raw -Path $RulesJsonPath | ConvertFrom-Json
 
 $OrgData = Get-Content -Raw -Path $OrgPath | ConvertFrom-Json
 $OrgDescriptions = @{}
@@ -996,6 +1009,11 @@ foreach ($Shape in $NodeShapes)
     [void]$ExistingRuleIds.Add($ShapeRuleId)
 }
 
+$RecognitionRules = @($Rules | Where-Object {
+    $_.RuleGroup -eq 'Recognition' -or $_.RuleId.StartsWith('Recognition.', [System.StringComparison]::Ordinal)
+})
+foreach ($RecognitionRule in $RecognitionRules) { $RecognitionRule.RuleGroup = 'Recognition' }
+
 $Ruleset = [ordered]@{
     SchemaVersion = '2.0.0'
     Name = 'MermaidFlowchartUniversalRuleset'
@@ -1004,24 +1022,14 @@ $Ruleset = [ordered]@{
         PrimaryKind = 'flowchart'
     }
     DefaultToleranceProfileId = 'DefaultGeometry'
-    RuleGroups = @(
-        'Recognition',
-        'Layout',
-        'NeighbourRelationships',
-        'RoutingClassification',
-        'PortSelection',
-        'PathShape',
-        'Markers',
-        'Labels',
-        'ObstacleAvoidance',
-        'Subgraphs',
-        'Diagnostics',
-        'AntiPatterns'
-    )
-    Rules = $Rules
+    RuleGroups = @('Recognition')
+    Rules = $RecognitionRules
+    LayoutRules = @($LayoutRuleDocument.rules)
+    LayoutParameters = @($LayoutRuleDocument.parameters)
+    LayoutPrecedence = @($LayoutRuleDocument.precedence)
 }
 
 $Ruleset | ConvertTo-Json -Depth 20 | Set-Content -Path $OutputPath -Encoding UTF8
 
 $RuleCount = $Rules.Count
-Write-Host "Wrote $OutputPath with $RuleCount rules."
+Write-Host "Wrote $OutputPath with $($RecognitionRules.Count) recognition rules and $($LayoutRuleDocument.rules.Count) YAML layout rules."

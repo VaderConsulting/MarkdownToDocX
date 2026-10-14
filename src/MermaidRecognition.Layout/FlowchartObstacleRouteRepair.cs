@@ -9,28 +9,63 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartObstacleRouteRepair
 {
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        HashSet<string>? AttemptedRouteStates = null)
     {
+        AttemptedRouteStates ??= new(StringComparer.Ordinal);
+        FlowchartRouteSpatialIndex Spatial = new(Layout);
         foreach (var Route in Layout.EdgeRoutes)
         {
             if (Route.Points.Count < 2) continue;
+            if (!AttemptedRouteStates.Add(RouteStateKey(Route) + "|"
+                    + Spatial.DependencySignature(Route.Points))) continue;
             var Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
             if (Edge == null) continue;
             var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge);
-            bool Blocked = Route.Points.Zip(Route.Points.Skip(1)).Any(Pair => Obstacles.Any(Box =>
-                FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
-                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Box, 0)));
+            HashSet<FlowchartLayoutNodeBounds> ObstacleSet = [.. Obstacles];
+            List<FlowchartLayoutNodeBounds> Nearby = Spatial.QueryBoxes(Route.Points)
+                .Where(ObstacleSet.Contains).ToList();
+            bool Blocked = IsBlocked(Route.Points, Nearby);
             if (!Blocked) continue;
             Bounds.TryGetValue(Route.SourceId, out var Source);
             Bounds.TryGetValue(Route.TargetId, out var Target);
-            if (Source != null) Obstacles.Add(Source);
-            if (Target != null && Target != Source) Obstacles.Add(Target);
+            if (Source != null) { Obstacles.Add(Source); ObstacleSet.Add(Source); }
+            if (Target != null && Target != Source) { Obstacles.Add(Target); ObstacleSet.Add(Target); }
+            List<FlowchartLayoutNodeBounds> NearbyWithEndpoints = Spatial.QueryBoxes(Route.Points)
+                .Where(ObstacleSet.Contains).ToList();
+            if (Source != null) NearbyWithEndpoints.Add(Source);
+            if (Target != null && Target != Source) NearbyWithEndpoints.Add(Target);
             var Start = Route.Points[0]; var End = Route.Points[^1];
-            if (!FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
-                Obstacles, Source, Target, out var Points,
-                DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10, DiagramGridRouteBuilder.CORNER_RADIUS_PX)) continue;
+            bool Routed = FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
+                NearbyWithEndpoints, Source, Target, out var Points,
+                DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            FlowchartLayoutPoint[] CandidatePoints = Points.Select(Point =>
+                new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToArray();
+            if (Routed && IsBlocked(Points, Spatial.QueryBoxes(CandidatePoints).Where(ObstacleSet.Contains).ToArray()))
+                Routed = FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
+                    Obstacles, Source, Target, out Points,
+                    DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            if (!Routed) continue;
             Route.Points.Clear();
             foreach (var Point in Points) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            Spatial.ReplaceRoute(Route);
         }
     }
+
+    private static bool IsBlocked(IReadOnlyList<FlowchartLayoutPoint> Points,
+        IReadOnlyCollection<FlowchartLayoutNodeBounds> Obstacles) =>
+        Points.Zip(Points.Skip(1)).Any(Pair => Obstacles.Any(Box =>
+            FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Box, 0)));
+
+    private static bool IsBlocked(IReadOnlyList<(double X, double Y)> Points,
+        IReadOnlyCollection<FlowchartLayoutNodeBounds> Obstacles) =>
+        Points.Zip(Points.Skip(1)).Any(Pair => Obstacles.Any(Box =>
+            FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Box, 0)));
+
+    private static string RouteStateKey(FlowchartLayoutEdgeRoute Route) => Route.EdgeId + "|"
+        + string.Join(";", Route.Points.Select(Point =>
+            BitConverter.DoubleToInt64Bits(Point.X).ToString("X16") + ","
+            + BitConverter.DoubleToInt64Bits(Point.Y).ToString("X16")));
 }

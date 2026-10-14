@@ -28,7 +28,7 @@ public enum FlowchartRenderedPathKind
 }
 
 /// <summary>
-/// Builds SVG path data from routed guide points using Mermaid edge curve styles (d3.line / spec §3.17).
+/// Builds orthogonal SVG paths from routed guide points, preserving rounded right-angle corners.
 /// </summary>
 public static class FlowchartCurvePathBuilder
 {
@@ -50,10 +50,10 @@ public static class FlowchartCurvePathBuilder
     private const double RETRY_LOOP_CORNER_RADIUS_PX = 28.0;
 
     /// <summary>
-    /// Builds SVG path data for a multi-point routed edge using <paramref name="CurveStyle"/>.
+    /// Builds a multi-point routed edge. Linear style stays sharp; other styles retain rounded corners.
     /// </summary>
     /// <param name="Points">Guide points in SVG coordinates (top-left origin).</param>
-    /// <param name="CurveStyle">Mermaid flowchart.curve value (default basis).</param>
+    /// <param name="CurveStyle">Mermaid flowchart.curve value; only linear disables rounded corners.</param>
     public static string BuildPathDataFromGuidePoints(
         IReadOnlyList<(double X, double Y)> Points,
         string CurveStyle)
@@ -74,7 +74,7 @@ public static class FlowchartCurvePathBuilder
             return BuildLinearPathData(StraightSegment);
         }
 
-        return BuildCurveBasisPathData(Points);
+        return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
     }
 
     /// <summary>
@@ -250,63 +250,11 @@ public static class FlowchartCurvePathBuilder
     }
 
     /// <summary>
-    /// Corridor routes keep straight perpendicular terminal stubs and smooth only the exterior body.
+    /// Corridor routes keep straight perpendicular terminal stubs and rounded right-angle corners.
     /// </summary>
     private static string BuildCorridorCurveBasisPathData(IReadOnlyList<(double X, double Y)> Points)
     {
-        if (Points.Count < 4)
-        {
-            return BuildCurveBasisPathData(Points);
-        }
-
-        if (TryBuildStubBridgeCurvePathData(Points, out string StubBridgePathData))
-        {
-            return StubBridgePathData;
-        }
-
-        StringBuilder Builder = new StringBuilder();
-        Builder.Append('M');
-        Builder.Append(FormatCoordinate(Points[0].X));
-        Builder.Append(',');
-        Builder.Append(FormatCoordinate(Points[0].Y));
-        Builder.Append('L');
-        Builder.Append(FormatCoordinate(Points[1].X));
-        Builder.Append(',');
-        Builder.Append(FormatCoordinate(Points[1].Y));
-
-        List<(double X, double Y)> BodyPoints = [];
-        int CurveEndIndex = ResolveCorridorCurveEndIndex(Points);
-        for (int Index = 1; Index <= CurveEndIndex; Index++)
-        {
-            BodyPoints.Add(Points[Index]);
-        }
-
-        string BodyPath = BuildPureD3CurveBasisPathData(BodyPoints);
-        int CubicIndex = BodyPath.IndexOf('C', StringComparison.Ordinal);
-        if (CubicIndex >= 0)
-        {
-            Builder.Append(BodyPath.AsSpan(CubicIndex));
-        }
-
-        if (CurveEndIndex >= Points.Count - 1)
-        {
-            Builder.Append('L');
-            Builder.Append(FormatCoordinate(Points[Points.Count - 1].X));
-            Builder.Append(',');
-            Builder.Append(FormatCoordinate(Points[Points.Count - 1].Y));
-        }
-        else
-        {
-            for (int Index = CurveEndIndex; Index < Points.Count - 1; Index++)
-            {
-                Builder.Append('L');
-                Builder.Append(FormatCoordinate(Points[Index + 1].X));
-                Builder.Append(',');
-                Builder.Append(FormatCoordinate(Points[Index + 1].Y));
-            }
-        }
-
-        return Builder.ToString();
+        return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
     }
 
     /// <summary>
@@ -470,49 +418,11 @@ public static class FlowchartCurvePathBuilder
     }
 
     /// <summary>
-    /// F29/F30/F35 decision branches: pure d3 curveBasis on boundary → guide → boundary (Naiad / spec §15).
+    /// Renders decision-branch guide points with rounded right-angle corners.
     /// </summary>
     public static string BuildDecisionBranchPathData(IReadOnlyList<(double X, double Y)> Points)
     {
-        if (TryBuildStubBridgeCurvePathData(Points, out string StubBridgePathData))
-        {
-            return StubBridgePathData;
-        }
-
-        if (Points.Count == 5)
-        {
-            StringBuilder Builder = new StringBuilder();
-            Builder.Append('M');
-            Builder.Append(FormatCoordinate(Points[0].X));
-            Builder.Append(',');
-            Builder.Append(FormatCoordinate(Points[0].Y));
-            Builder.Append('L');
-            Builder.Append(FormatCoordinate(Points[1].X));
-            Builder.Append(',');
-            Builder.Append(FormatCoordinate(Points[1].Y));
-
-            List<(double X, double Y)> BranchCurvePoints =
-            [
-                Points[1],
-                Points[2],
-                Points[3]
-            ];
-            string BranchBody = BuildPureD3CurveBasisPathData(BranchCurvePoints);
-            int CubicIndex = BranchBody.IndexOf('C', StringComparison.Ordinal);
-            if (CubicIndex >= 0)
-            {
-                Builder.Append(BranchBody.AsSpan(CubicIndex));
-            }
-
-            Builder.Append('L');
-            Builder.Append(FormatCoordinate(Points[4].X));
-            Builder.Append(',');
-            Builder.Append(FormatCoordinate(Points[4].Y));
-
-            return Builder.ToString();
-        }
-
-        return BuildCurveBasisPathData(Points);
+        return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
     }
 
     /// <summary>
@@ -864,7 +774,7 @@ public static class FlowchartCurvePathBuilder
     {
         if (Points.Count >= 5)
         {
-            return BuildCurveBasisPathData(Points);
+            return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
         }
 
         if (Points.Count == 4)
@@ -877,20 +787,20 @@ public static class FlowchartCurvePathBuilder
                     StartY,
                     EndX,
                     EndY);
-            return BuildPureD3CurveBasisPathData(BoundaryCurvePoints);
+            return BuildRoundedCornerPathData(BoundaryCurvePoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
         }
 
-        return BuildCurveBasisPathData(Points);
+        return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
     }
 
     /// <summary>
-    /// F33 LR side fan routes: pure d3 curveBasis on boundary S-route (Naiad / spec §15).
+    /// F33 LR side fan routes use a boundary S-route with rounded right-angle corners.
     /// </summary>
     public static string BuildHorizontalFanRoutePathData(IReadOnlyList<(double X, double Y)> Points)
     {
         if (Points.Count >= 5)
         {
-            return BuildCurveBasisPathData(Points);
+            return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
         }
 
         if (Points.Count == 4)
@@ -903,10 +813,10 @@ public static class FlowchartCurvePathBuilder
                     StartY,
                     EndX,
                     EndY);
-            return BuildPureD3CurveBasisPathData(BoundaryCurvePoints);
+            return BuildRoundedCornerPathData(BoundaryCurvePoints, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
         }
 
-        return BuildCurveBasisPathData(Points);
+        return BuildRoundedCornerPathData(Points, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
     }
 
     /// <summary>

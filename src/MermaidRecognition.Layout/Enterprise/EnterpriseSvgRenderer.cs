@@ -29,7 +29,10 @@ public static class EnterpriseSvgRenderer
         }
 
         EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
-        List<EnterpriseRoutedEdge> RoutedEdges = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        EnterpriseFlowchartRoutingContext? RoutingContext = Layout.RoutingContext;
+        List<EnterpriseRoutedEdge> RoutedEdges = RoutingContext == null
+            ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
+            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext);
         var Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
         double Width = Math.Ceiling(Math.Max(Layout.Width, 40));
