@@ -44,7 +44,17 @@ public sealed class FrameInvariantTests
             {
                 TestContext.Progress.WriteLine($"FRAME_STAGE|{Direction}|{Stage}");
                 InvokeStage(Stage, State);
-                if (Stage == "GroupFrameStage") Fitted = true;
+                if (Stage == "GroupFrameStage")
+                {
+                    Fitted = true;
+                    // Fit an empty frame after node packing so every repair
+                    // boundary sees it without exercising the unrelated empty-
+                    // group packing convergence fault.
+                    Contract.GroupsMutable.Add(CreateEmptyGroup());
+                    var Frames = Property<List<DiagramGridLayout.GridFrame>>(State, "Frames");
+                    Frames.Clear();
+                    Invoke("BuildFrames", Contract, Property<List<DiagramGridLayout.GridNode>>(State, "Placed"), Frames);
+                }
                 if (Stage == "RouteCoordinateStage") YUp = true;
                 CheckState(State, Contract, YUp, Stage, Fitted);
                 Boundaries++;
@@ -79,6 +89,9 @@ public sealed class FrameInvariantTests
         var Model = Property<FlowchartLayoutResult>(State, "Copy");
         var Placed = Property<List<DiagramGridLayout.GridNode>>(State, "Placed");
         var Frames = Property<List<DiagramGridLayout.GridFrame>>(State, "Frames");
+        Contract.GroupsMutable.Add(CreateEmptyGroup());
+        Frames.Clear();
+        Invoke("BuildFramesYUp", Contract, Placed, Frames);
         Invoke("WriteBack", Model, Placed, Frames);
         // Two complete, deliberately shared paths force the rollback branch.
         // Neither has an internal run or a gap-growth candidate. The frame
@@ -128,7 +141,7 @@ public sealed class FrameInvariantTests
         int OldHeight = Frames.Single(Frame => Frame.Id == "Outer").Top - Frames.Single(Frame => Frame.Id == "Outer").Bottom;
         var Member = Placed.Single(Node => Node.Id == "A");
         Member.SetPositionFromFrameFit(Member.X, Member.Y + OldHeight + DiagramGridMetrics.GRID_UNIT_PX);
-        Contract.GroupsMutable.Add(new GroupContract { Id = "Empty", Title = "Empty title" });
+        Contract.GroupsMutable.Add(CreateEmptyGroup());
         Frames.Clear();
         Invoke("BuildFramesYUp", Contract, Placed, Frames);
         CheckState(State, Contract, true, "repair frame growth");
@@ -155,6 +168,11 @@ public sealed class FrameInvariantTests
         A --> C
         B --> D
         """);
+
+    /// <summary>Places an empty frame beyond the measured fixture, preserving a real group hint through repair and rollback.</summary>
+    /// <returns>An empty root frame whose right-of hint prevents incidental overlap with the fixture's nodes.</returns>
+    private static GroupContract CreateEmptyGroup() => new() { Id = "Empty", Title = "Empty title",
+        PlacementHint = new() { Kind = PlacementHintKind.RightOf, PeerId = "D" } };
 
     /// <summary>Constructs the real private stage state without adding production-only testing APIs.</summary>
     /// <param name="Contract">The fixture to place.</param>
