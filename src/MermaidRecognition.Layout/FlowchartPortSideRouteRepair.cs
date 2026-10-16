@@ -585,16 +585,19 @@ internal static class FlowchartPortSideRouteRepair
         IReadOnlyDictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> RoutePointCache)
     {
         double BeforeOverlap = 0.0, AfterOverlap = 0.0;
+        int BeforePairs = 0, AfterPairs = 0;
         List<(double X, double Y)> CandidatePath = Tuples(Candidate);
         foreach (FlowchartLayoutEdgeRoute Other in Others)
         {
             IReadOnlyList<(double X, double Y)> OtherPath = RoutePointCache[Other];
             var Before = FlowchartBranchRouteOrder.Intersections(Original, OtherPath);
             BeforeOverlap += Before.Overlap;
+            if (Before.Overlap > 0.001) BeforePairs++;
             var After = FlowchartBranchRouteOrder.Intersections(CandidatePath, OtherPath);
             AfterOverlap += After.Overlap;
+            if (After.Overlap > 0.001) AfterPairs++;
         }
-        return AfterOverlap <= BeforeOverlap + 0.01;
+        return AfterPairs <= BeforePairs && AfterOverlap <= BeforeOverlap + 0.01;
     }
 
     private static List<(double X, double Y)> Tuples(IEnumerable<FlowchartLayoutPoint> Points) =>

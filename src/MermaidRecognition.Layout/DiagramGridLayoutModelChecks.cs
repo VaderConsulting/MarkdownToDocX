@@ -287,6 +287,7 @@ public static partial class DiagramGridLayout
             ProfileCall("aligned-straight-candidates", () => StraightenFinalAlignedRoutes(State));
             ProfileCall("joint-channel-search", () => SearchJointChannels(State, Bounds));
             ProfileCall("distinct-track-seal", () => SealDistinctTracks(State, Bounds));
+            ProfileCall("nonincreasing-track-search", () => FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed));
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.
