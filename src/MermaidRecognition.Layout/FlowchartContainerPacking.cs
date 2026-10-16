@@ -14,6 +14,70 @@ internal static class FlowchartContainerPacking
     private readonly record struct Position(double X, double Y);
     private sealed record Link(int Source, int Target, string SourceId, string TargetId,
         Position SourceOffset, Position TargetOffset);
+    private readonly record struct Run(Position A, Position B, Link Link);
+
+    private static int CountCrossings(IReadOnlyList<Run> runs)
+    {
+        // Orthogonal sweep: insert horizontal runs only after vertical queries at
+        // their left endpoint and remove them before queries at their right
+        // endpoint. This preserves the strict-interior crossing test below.
+        var events = new List<(double X, int Kind, int Index)>();
+        var active = new SortedSet<(double Y, int Index)>();
+        for (int index = 0; index < runs.Count; index++)
+        {
+            Run run = runs[index];
+            bool horizontal = run.A.Y == run.B.Y;
+            bool vertical = run.A.X == run.B.X;
+            if (horizontal && run.A.X != run.B.X)
+            {
+                events.Add((Math.Min(run.A.X, run.B.X), 2, index)); // add after endpoint queries
+                events.Add((Math.Max(run.A.X, run.B.X), 0, index)); // remove before endpoint queries
+            }
+            else if (vertical && run.A.Y != run.B.Y)
+            {
+                events.Add((run.A.X, 1, index));
+            }
+        }
+
+        events.Sort((left, right) =>
+        {
+            int compare = left.X.CompareTo(right.X);
+            if (compare != 0) return compare;
+            compare = left.Kind.CompareTo(right.Kind);
+            return compare != 0 ? compare : left.Index.CompareTo(right.Index);
+        });
+
+        int crossings = 0;
+        foreach ((double _, int kind, int index) in events)
+        {
+            Run run = runs[index];
+            if (kind == 0)
+            {
+                active.Remove((run.A.Y, index));
+                continue;
+            }
+            if (kind == 2)
+            {
+                active.Add((run.A.Y, index));
+                continue;
+            }
+
+            double minY = Math.Min(run.A.Y, run.B.Y);
+            double maxY = Math.Max(run.A.Y, run.B.Y);
+            foreach ((double y, int horizontalIndex) in active.GetViewBetween(
+                         (minY, int.MinValue), (maxY, int.MaxValue)))
+            {
+                if (y <= minY || y >= maxY) continue;
+                Link horizontalLink = runs[horizontalIndex].Link;
+                Link verticalLink = run.Link;
+                if (horizontalLink == verticalLink
+                    || horizontalLink.SourceId == verticalLink.SourceId
+                    || horizontalLink.TargetId == verticalLink.TargetId) continue;
+                crossings++;
+            }
+        }
+        return crossings;
+    }
 
     internal static void Apply(DiagramContract Contract, List<Unit> Units)
     {
@@ -222,7 +286,7 @@ internal static class FlowchartContainerPacking
 
         int EstimatedCrossings(Position[] Positions)
         {
-            var Runs = new List<(Position A, Position B, Link Link)>();
+            var Runs = new List<Run>();
             foreach (var Link in Links)
             {
                 var A = new Position(Positions[Link.Source].X + Link.SourceOffset.X,
@@ -231,27 +295,15 @@ internal static class FlowchartContainerPacking
                     Positions[Link.Target].Y + Link.TargetOffset.Y);
                 var FirstBend = Horizontal ? new Position((A.X + B.X) / 2, A.Y) : new Position(A.X, (A.Y + B.Y) / 2);
                 var SecondBend = Horizontal ? new Position(FirstBend.X, B.Y) : new Position(B.X, FirstBend.Y);
-                Runs.Add((A, FirstBend, Link)); Runs.Add((FirstBend, SecondBend, Link)); Runs.Add((SecondBend, B, Link));
+                Runs.Add(new(A, FirstBend, Link)); Runs.Add(new(FirstBend, SecondBend, Link)); Runs.Add(new(SecondBend, B, Link));
             }
-            int Result = 0;
-            for (int First = 0; First < Runs.Count; First++)
-            for (int Second = First + 1; Second < Runs.Count; Second++)
-            {
-                var A = Runs[First]; var B = Runs[Second];
-                if (A.Link == B.Link || A.Link.SourceId == B.Link.SourceId || A.Link.TargetId == B.Link.TargetId) continue;
-                bool AH = A.A.Y == A.B.Y, BH = B.A.Y == B.B.Y;
-                if (AH == BH) continue;
-                var H = AH ? A : B; var V = AH ? B : A;
-                if (V.A.X > Math.Min(H.A.X, H.B.X) && V.A.X < Math.Max(H.A.X, H.B.X)
-                    && H.A.Y > Math.Min(V.A.Y, V.B.Y) && H.A.Y < Math.Max(V.A.Y, V.B.Y)) Result++;
-            }
-            return Result;
+            return CountCrossings(Runs);
         }
 
         double Cost(Position[] Positions)
         {
             double Result = 0;
-            var Runs = new List<(Position A, Position B, Link Link)>();
+            var Runs = new List<Run>();
             foreach (var Link in Links)
             {
                 var A = new Position(Positions[Link.Source].X + Link.SourceOffset.X,
@@ -263,20 +315,9 @@ internal static class FlowchartContainerPacking
                 if (MainDistance * Sign <= 0) Result += 2 * Gap;
                 var FirstBend = Horizontal ? new Position((A.X + B.X) / 2, A.Y) : new Position(A.X, (A.Y + B.Y) / 2);
                 var SecondBend = Horizontal ? new Position(FirstBend.X, B.Y) : new Position(B.X, FirstBend.Y);
-                Runs.Add((A, FirstBend, Link)); Runs.Add((FirstBend, SecondBend, Link)); Runs.Add((SecondBend, B, Link));
+                Runs.Add(new(A, FirstBend, Link)); Runs.Add(new(FirstBend, SecondBend, Link)); Runs.Add(new(SecondBend, B, Link));
             }
-            for (int First = 0; First < Runs.Count; First++)
-            for (int Second = First + 1; Second < Runs.Count; Second++)
-            {
-                var A = Runs[First]; var B = Runs[Second];
-                if (A.Link == B.Link || A.Link.SourceId == B.Link.SourceId || A.Link.TargetId == B.Link.TargetId) continue;
-                bool AH = A.A.Y == A.B.Y, BH = B.A.Y == B.B.Y;
-                if (AH == BH) continue;
-                var H = AH ? A : B; var V = AH ? B : A;
-                if (V.A.X > Math.Min(H.A.X, H.B.X) && V.A.X < Math.Max(H.A.X, H.B.X)
-                    && H.A.Y > Math.Min(V.A.Y, V.B.Y) && H.A.Y < Math.Max(V.A.Y, V.B.Y))
-                    Result += 1000000 * Gap;
-            }
+            Result += 1000000d * Gap * CountCrossings(Runs);
             return Result;
         }
 

@@ -55,6 +55,7 @@ public static class FlowchartSubgraphBoundsBuilder
 
         List<FlowchartSubgraphLayoutRect> Ordered = [];
         HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         foreach (GroupContract Group in Contract.Groups)
         {
             if (Group.ParentGroupId is not null)
@@ -62,7 +63,7 @@ public static class FlowchartSubgraphBoundsBuilder
                 continue;
             }
 
-            CollectGroupRectsRecursive(Contract, Group, GroupById, BoundsById, Ordered, Visited, Request);
+            CollectGroupRectsRecursive(Contract, Group, GroupById, BoundsById, Ordered, Visited, Request, Options);
         }
 
         return Ordered;
@@ -109,7 +110,8 @@ public static class FlowchartSubgraphBoundsBuilder
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         List<FlowchartSubgraphLayoutRect> Ordered,
         HashSet<string> Visited,
-        FlowchartSubgraphBoundsRequest Request)
+        FlowchartSubgraphBoundsRequest Request,
+        FlowchartRenderOptions Options)
     {
         if (!Visited.Add(Group.Id))
         {
@@ -120,11 +122,11 @@ public static class FlowchartSubgraphBoundsBuilder
         {
             if (GroupById.TryGetValue(ChildGroupId, out GroupContract? ChildGroup))
             {
-                CollectGroupRectsRecursive(Contract, ChildGroup, GroupById, BoundsById, Ordered, Visited, Request);
+                CollectGroupRectsRecursive(Contract, ChildGroup, GroupById, BoundsById, Ordered, Visited, Request, Options);
             }
         }
 
-        FlowchartSubgraphLayoutRect? Rect = TryComputeGroupRect(Contract, Group, GroupById, BoundsById, Ordered, Request);
+        FlowchartSubgraphLayoutRect? Rect = TryComputeGroupRect(Contract, Group, GroupById, BoundsById, Ordered, Request, Options);
         if (Rect is not null)
         {
             Ordered.Add(Rect);
@@ -306,7 +308,8 @@ public static class FlowchartSubgraphBoundsBuilder
         Dictionary<string, GroupContract> GroupById,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         List<FlowchartSubgraphLayoutRect> ComputedRects,
-        FlowchartSubgraphBoundsRequest Request)
+        FlowchartSubgraphBoundsRequest Request,
+        FlowchartRenderOptions Options)
     {
         if (!TryComputeMemberContentBounds(
                 Contract,
@@ -323,6 +326,9 @@ public static class FlowchartSubgraphBoundsBuilder
             return null;
         }
 
+        string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
+        double TitleBandHeight = FlowchartSubgraphSvgRenderer.RequiredTitleBandPx(
+            Math.Max(10.0, Options.FontSizePx), Title.Split('\n').Length);
         FlowchartSubgraphLayoutRect Result = new FlowchartSubgraphLayoutRect
         {
             GroupId = Group.Id,
@@ -332,8 +338,9 @@ public static class FlowchartSubgraphBoundsBuilder
                 FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id)) - VERTICAL_CONTENT_SLACK_PX,
             Right = MaxRight + Math.Max(PADDING_PX,
                 FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id)),
-            Top = MaxTop + PADDING_PX + TITLE_BAND_PX + 15 * ((Group.Title ?? string.Empty).Split('\n').Length - 1),
-            Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title
+            Top = MaxTop + PADDING_PX + TitleBandHeight,
+            Title = Title,
+            TitleBandHeightPx = TitleBandHeight
         };
         return Result;
     }
@@ -355,7 +362,7 @@ public static class FlowchartSubgraphBoundsBuilder
                 NestedRect.Left - FlowAxisGap + PADDING_PX,
                 NestedRect.Bottom - CrossAxisGap + PADDING_PX + VERTICAL_CONTENT_SLACK_PX,
                 NestedRect.Right + FlowAxisGap - PADDING_PX,
-                NestedRect.Top + CrossAxisGap - TITLE_BAND_PX - PADDING_PX,
+                NestedRect.Top + CrossAxisGap - NestedRect.TitleBandHeightPx - PADDING_PX,
                 ref HasAny,
                 ref MinX,
                 ref MinY,
@@ -368,7 +375,7 @@ public static class FlowchartSubgraphBoundsBuilder
             NestedRect.Left - CrossAxisGap + PADDING_PX,
             NestedRect.Bottom - FlowAxisGap + PADDING_PX + VERTICAL_CONTENT_SLACK_PX,
             NestedRect.Right + CrossAxisGap - PADDING_PX,
-            NestedRect.Top + FlowAxisGap - TITLE_BAND_PX - PADDING_PX,
+            NestedRect.Top + FlowAxisGap - NestedRect.TitleBandHeightPx - PADDING_PX,
             ref HasAny,
             ref MinX,
             ref MinY,

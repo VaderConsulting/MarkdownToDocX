@@ -417,14 +417,24 @@ public static partial class DiagramGridLayout
             }
         }
 
-        if (Source.CenterY <= Target.CenterY)
+        if (Source.CenterY < Target.CenterY)
         {
-            return false;
+            // Y grows toward the layout's top. Support the reverse aligned pair
+            // as well: a lower source exits its top and an upper target enters
+            // its bottom.
+            ExitSide = "top";
+            EntrySide = "bottom";
+            return true;
         }
 
-        ExitSide = "bottom";
-        EntrySide = "top";
-        return true;
+        if (Source.CenterY > Target.CenterY)
+        {
+            ExitSide = "bottom";
+            EntrySide = "top";
+            return true;
+        }
+
+        return false;
     }
 
     private static string ChooseElbowExitSide(

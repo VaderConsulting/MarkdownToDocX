@@ -108,13 +108,6 @@ public static class FlowchartEdgeRouteResolver
             && string.Equals(Left.TargetId, Right.TargetId, StringComparison.Ordinal);
     }
 
-    private static bool IsEnterpriseJunction(
-        IReadOnlyDictionary<string, NodeContract> Nodes,
-        string NodeId) => Nodes.TryGetValue(NodeId, out NodeContract? Node)
-            && Node.Metadata.TryGetValue("enterpriseElementType", out MermaidMetadataValue? Metadata)
-            && Metadata is RawMetadata Raw
-            && string.Equals(Raw.RawValue, "Junction", StringComparison.Ordinal);
-
     /// <summary>
     /// Resolves every visible edge, then applies diagram-wide parallel separation.
     /// </summary>
@@ -164,6 +157,9 @@ public static class FlowchartEdgeRouteResolver
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, MutableBounds);
 
         List<FlowchartResolvedGuide> Guides = [];
+        IReadOnlySet<EdgeContract> BackEdges = Layout == null
+            ? new HashSet<EdgeContract>()
+            : FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -178,7 +174,9 @@ public static class FlowchartEdgeRouteResolver
                     NodeById,
                     Edge,
                     out List<(double X, double Y)> GridPoints,
-                    out FlowchartEdgeRouteKind GridKind))
+                    out FlowchartEdgeRouteKind GridKind,
+                    BackEdges,
+                    MutableBounds))
             {
                 Guides.Add(new FlowchartResolvedGuide(Edge, GridPoints, GridKind));
                 continue;
@@ -239,7 +237,9 @@ public static class FlowchartEdgeRouteResolver
         IReadOnlyDictionary<string, NodeContract> NodeById,
         EdgeContract Edge,
         out List<(double X, double Y)> LayoutPoints,
-        out FlowchartEdgeRouteKind RouteKind)
+        out FlowchartEdgeRouteKind RouteKind,
+        IReadOnlySet<EdgeContract>? BackEdges = null,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>? BoundsById = null)
     {
         LayoutPoints = [];
         RouteKind = FlowchartEdgeRouteKind.Unknown;
@@ -250,7 +250,7 @@ public static class FlowchartEdgeRouteResolver
         }
 
         LayoutPoints = Copied;
-        if (FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(Edge))
+        if ((BackEdges ?? FlowchartBackEdgeHelper.FindBackEdges(Contract)).Contains(Edge))
         {
             RouteKind = FlowchartEdgeRouteKind.RetryLoop;
             return true;
@@ -271,11 +271,12 @@ public static class FlowchartEdgeRouteResolver
                 return true;
             }
 
-            Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
-                new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
-            foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+            Dictionary<string, FlowchartLayoutNodeBounds> RouteBoundsById = BoundsById as Dictionary<string, FlowchartLayoutNodeBounds>
+                ?? new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+            if (BoundsById == null)
             {
-                BoundsById[Bounds.NodeId] = Bounds;
+                foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+                    RouteBoundsById[Bounds.NodeId] = Bounds;
             }
 
             if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
@@ -283,7 +284,7 @@ public static class FlowchartEdgeRouteResolver
                     Edge.SourceId,
                     SourceNode.Shape,
                     FlowchartDirectionNormalizer.Normalize(Contract.Direction),
-                    BoundsById))
+                    RouteBoundsById))
             {
                 RouteKind = FlowchartEdgeRouteKind.Grid;
                 return true;
@@ -493,9 +494,7 @@ public static class FlowchartEdgeRouteResolver
         // Allocate structural fan ports before the generic semantic router.
         // The shared router may improve tracks, but must not replace these
         // jointly selected, symmetric endpoints with individually shorter ones.
-        bool SourceIsEnterpriseJunction = IsEnterpriseJunction(NodeById, Edge.SourceId);
-        bool TargetIsEnterpriseJunction = IsEnterpriseJunction(NodeById, Edge.TargetId);
-        if (!TargetIsEnterpriseJunction && FlowchartFanInPortAllocator.TryResolveEdgeRoute(
+        if (FlowchartFanInPortAllocator.TryResolveEdgeRoute(
                 Edge, Contract, BoundsById, SourceShape, TargetShape, Direction,
                 out List<(double X, double Y)> EarlyFanInPoints))
         {
@@ -504,7 +503,7 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (!SourceIsEnterpriseJunction && FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+        if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
                 Edge, Contract, BoundsById, SourceShape, TargetShape, Direction,
                 out List<(double X, double Y)> EarlyOrdinaryFanOutPoints))
         {
@@ -513,7 +512,7 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (!SourceIsEnterpriseJunction && FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
+        if (FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
                 Edge, Contract, BoundsById, SourceShape, TargetShape, Direction,
                 out List<(double X, double Y)> EarlyFanOutPoints))
         {

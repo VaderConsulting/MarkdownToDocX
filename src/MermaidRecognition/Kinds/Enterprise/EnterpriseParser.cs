@@ -718,18 +718,26 @@ public static class EnterpriseParser
     {
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
-            if (!Document.Elements.ContainsKey(Relationship.SourceId))
+            bool MissingSource = !Document.Elements.ContainsKey(Relationship.SourceId);
+            bool MissingTarget = !Document.Elements.ContainsKey(Relationship.TargetId);
+            if (MissingSource)
             {
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
                     "relationship source \"" + Relationship.SourceId + "\" is not a declared element"));
             }
 
-            if (!Document.Elements.ContainsKey(Relationship.TargetId))
+            if (MissingTarget)
             {
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
                     "relationship target \"" + Relationship.TargetId + "\" is not a declared element"));
+            }
+            if (MissingSource || MissingTarget)
+            {
+                Diagnostics.Add(CreateError(Relationship.LineNumber,
+                    "dropped relationship '" + Relationship.SourceId + "->" + Relationship.TargetId
+                    + "' because one or more endpoints are undeclared"));
             }
         }
 

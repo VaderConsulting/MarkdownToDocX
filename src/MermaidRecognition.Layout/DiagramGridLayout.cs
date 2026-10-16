@@ -21,7 +21,13 @@ public static partial class DiagramGridLayout
     internal static Action<string, double>? LayoutStageTimingObserver { get; set; }
     internal static Action<string>? GroupFrameRefitObserver { get; set; }
     internal static Action<string>? GroupFrameFitPassObserver { get; set; }
+    internal static Action<string>? GroupFrameCandidateObserver { get; set; }
     internal static Action<string, IReadOnlyList<string>, long, double>? RouteRepairPassObserver { get; set; }
+    internal static Action<int, int, IReadOnlyList<string>>? MoveBeforeDetourObserver { get; set; }
+    internal static Action<int, int, double>? RouteRepairChainObserver { get; set; }
+    internal static Action<string, string>? RouteRepairOptionObserver { get; set; }
+    internal static Action<string, int>? FrameOverlapStageObserver { get; set; }
+    internal static Action<string>? OrthogonalRouteCleanupObserver { get; set; }
 
     private static void ObserveCrossings(GridLayoutState State, string Stage)
     {
@@ -69,8 +75,9 @@ public static partial class DiagramGridLayout
         FlowchartRenderContext? RenderContext = null) =>
         ApplyCore(Contract, LaidOut, RenderContext, SkipRootGroupRepacking: false);
 
-    internal static FlowchartLayoutResult ApplyForGroupReflow(DiagramContract Contract, FlowchartLayoutResult LaidOut) =>
-        ApplyCore(Contract, LaidOut, LaidOut.RenderContext, SkipRootGroupRepacking: true);
+    internal static FlowchartLayoutResult ApplyForGroupReflow(DiagramContract Contract,
+        FlowchartLayoutResult LaidOut, FlowchartRenderContext RenderContext) =>
+        ApplyCore(Contract, LaidOut, RenderContext, SkipRootGroupRepacking: true);
 
     private static FlowchartLayoutResult ApplyCore(
         DiagramContract Contract,
@@ -92,6 +99,7 @@ public static partial class DiagramGridLayout
         Run("line-routing-hints-3.1-3.7", RoutingHintStage.Apply);
         Run("rule-specific-route-construction", RouteConstructionStage.Apply);
         Run("coupled-route-repair", RouteRepairStage.Apply);
+        Run("model-route-completion-and-rule-checks", ModelRouteCompletionStage.Apply);
         Run("final-legality-validation-section-10", LegalityValidationStage.Apply);
         return State.Copy;
 
@@ -99,6 +107,8 @@ public static partial class DiagramGridLayout
         {
             Context.LayoutStageTrace.Add(Name);
             MeasureLayoutStage(Name, () => Stage(State));
+            if (FrameOverlapStageObserver != null)
+                FrameOverlapStageObserver(Name, CountUnrelatedFrameOverlaps(State.Contract, State.Frames));
             ObserveCrossings(State, Name);
             ObserveLayoutStage(State, Name);
         }
@@ -124,6 +134,17 @@ public static partial class DiagramGridLayout
     private static string PositionSignature(IEnumerable<GridNode> Nodes) => string.Join("|",
         Nodes.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node =>
             $"{Node.Id}:{BitConverter.DoubleToInt64Bits(Node.X):X16},{BitConverter.DoubleToInt64Bits(Node.Y):X16},{Node.Width},{Node.Height}"));
+
+    private static void SnapGridNodeCentres(IEnumerable<GridNode> Nodes)
+    {
+        double Unit = DiagramGridMetrics.GRID_UNIT_PX;
+        foreach (GridNode Node in Nodes)
+        {
+            double X = Math.Round(Node.X / Unit, MidpointRounding.AwayFromZero) * Unit;
+            double Y = Math.Round(Node.Y / Unit, MidpointRounding.AwayFromZero) * Unit;
+            if (X != Node.X || Y != Node.Y) Node.SetPositionFromFrameFit(X, Y);
+        }
+    }
 
     /// <summary>
     /// Gives a labelled straight cross-axis connection enough measured room without
@@ -627,7 +648,11 @@ public static partial class DiagramGridLayout
                 SourceId = Route.SourceId,
                 TargetId = Route.TargetId,
                 ExitSide = Route.ExitSide,
-                EntrySide = Route.EntrySide
+                EntrySide = Route.EntrySide,
+                ExitNormalX = Route.ExitNormalX,
+                ExitNormalY = Route.ExitNormalY,
+                EntryNormalX = Route.EntryNormalX,
+                EntryNormalY = Route.EntryNormalY
             };
             foreach (FlowchartLayoutPoint Point in Route.Points)
             {
@@ -924,8 +949,8 @@ public static partial class DiagramGridLayout
 
         public BoxRef Other;
 
-        public int OutX;
+        public double OutX;
 
-        public int OutY;
+        public double OutY;
     }
 }

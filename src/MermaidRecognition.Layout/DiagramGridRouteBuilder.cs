@@ -141,7 +141,8 @@ public static class DiagramGridRouteBuilder
         Dictionary<string, NodeContract> Nodes,
         DiagramContract Contract,
         IReadOnlyList<DiagramGridLayout.GridFrame> Frames,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction,
+        IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
@@ -149,11 +150,18 @@ public static class DiagramGridRouteBuilder
             || Direction == FlowchartDirection.RightToLeft;
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
-            if (Route.Points.Count < 2
+            // A back-edge rebuild is an automatic-route repair. Explicit route hints
+            // already own their geometry and must survive every later materialization.
+            if (DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
+                continue;
+            if ((OnlyRoutes != null && !OnlyRoutes.Contains(Route))
+                || Route.Points.Count < 2
                 || !BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
-                || !Route.Points.Zip(Route.Points.Skip(1)).Any(Pair =>
+                || (!Route.Points.Zip(Route.Points.Skip(1)).Any(Pair =>
                     Math.Abs(Pair.First.X - Pair.Second.X) > COLLINEAR_EPSILON_PX
                     && Math.Abs(Pair.First.Y - Pair.Second.Y) > COLLINEAR_EPSILON_PX)
+                    && Math.Abs(Route.ExitNormalX) <= 1e-9 && Math.Abs(Route.ExitNormalY) <= 1e-9
+                    && Math.Abs(Route.EntryNormalX) <= 1e-9 && Math.Abs(Route.EntryNormalY) <= 1e-9)
                 || !BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds Source)
                 || !BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds Target))
             {
@@ -165,11 +173,15 @@ public static class DiagramGridRouteBuilder
             List<(double X, double Y)> Path = BuildRoute(
                 Route.Points[0].X, Route.Points[0].Y, Source, SourceNode?.Shape, Route.ExitSide,
                 Route.Points[^1].X, Route.Points[^1].Y, Target, TargetNode?.Shape, Route.EntrySide,
-                BoundsById, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal);
+                BoundsById, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal,
+                ExitNormal: (Route.ExitNormalX, Route.ExitNormalY),
+                EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
             (double SourceStubX, double SourceStubY) = ResolvePortStub(
-                Path[0].X, Path[0].Y, Source, SourceNode?.Shape, Route.ExitSide, 1);
+                Path[0].X, Path[0].Y, Source, SourceNode?.Shape, Route.ExitSide, 1,
+                Route.ExitNormalX, Route.ExitNormalY);
             (double TargetStubX, double TargetStubY) = ResolvePortStub(
-                Path[^1].X, Path[^1].Y, Target, TargetNode?.Shape, Route.EntrySide, 1);
+                Path[^1].X, Path[^1].Y, Target, TargetNode?.Shape, Route.EntrySide, 1,
+                Route.EntryNormalX, Route.EntryNormalY);
             if (CountCorners(Path) > 3
                 || !HasNormalTerminals(Path, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
                 || !PathIsValid(Path, BoundsById, Route.SourceId, Route.TargetId, Contract)
@@ -244,23 +256,6 @@ public static class DiagramGridRouteBuilder
 
             Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
 
-            if (SourceNode != null
-                && FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
-                && CountVisibleOutgoing(Contract, Route.SourceId) >= 2)
-            {
-                continue;
-            }
-
-            if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
-                    Contract,
-                    Route.SourceId,
-                    SourceNode?.Shape,
-                    Direction,
-                    BoundsById))
-            {
-                continue;
-            }
-
             EdgeContract? RouteEdge = null;
             foreach (EdgeContract Candidate in Contract.Edges)
             {
@@ -270,12 +265,6 @@ public static class DiagramGridRouteBuilder
                     RouteEdge = Candidate;
                     break;
                 }
-            }
-
-            if (RouteEdge != null
-                && FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(RouteEdge))
-            {
-                continue;
             }
 
             if (!BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
@@ -291,6 +280,22 @@ public static class DiagramGridRouteBuilder
             double StartY = Route.Points[0].Y;
             double EndX = Route.Points[Route.Points.Count - 1].X;
             double EndY = Route.Points[Route.Points.Count - 1].Y;
+
+            if (RouteEdge != null
+                && FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(RouteEdge)
+                && FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(
+                    Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())
+                && Math.Abs(Route.ExitNormalX) <= 1e-9 && Math.Abs(Route.ExitNormalY) <= 1e-9
+                && Math.Abs(Route.EntryNormalX) <= 1e-9 && Math.Abs(Route.EntryNormalY) <= 1e-9)
+            {
+                (double sourceStubX, double sourceStubY) = ResolvePortStub(StartX, StartY,
+                    SourceBounds, SourceShape, Route.ExitSide, CORNER_RADIUS_PX * 2);
+                (double targetStubX, double targetStubY) = ResolvePortStub(EndX, EndY,
+                    TargetBounds, TargetShape, Route.EntrySide, CORNER_RADIUS_PX + 10);
+                if (HasNormalTerminals(Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                        sourceStubX, sourceStubY, targetStubX, targetStubY))
+                    continue;
+            }
 
             List<(double X, double Y)> Path = BuildRoute(
                 StartX,
@@ -308,15 +313,21 @@ public static class DiagramGridRouteBuilder
                 Route.TargetId,
                 Contract,
                 Direction,
-                Horizontal);
+                Horizontal,
+                ExitNormal: (Route.ExitNormalX, Route.ExitNormalY),
+                EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
 
             Route.Points.Clear();
-            foreach ((double PointX, double PointY) in Path)
+            for (int index = 0; index < Path.Count; index++)
             {
+                (double PointX, double PointY) = Path[index];
+                // Preserve the allocator's exact k/(n+1) slot at both ends.
+                // Only interior track coordinates are quantised to whole pixels.
+                bool endpoint = index == 0 || index == Path.Count - 1;
                 Route.Points.Add(new FlowchartLayoutPoint
                 {
-                    X = Math.Round(PointX),
-                    Y = Math.Round(PointY)
+                    X = endpoint ? PointX : Math.Round(PointX),
+                    Y = endpoint ? PointY : Math.Round(PointY)
                 });
             }
         }
@@ -340,7 +351,9 @@ public static class DiagramGridRouteBuilder
         FlowchartDirection Direction,
         bool Horizontal,
         LayoutHintDirection? Travel = null,
-        bool RequireLegal = false)
+        bool RequireLegal = false,
+        (double X, double Y) ExitNormal = default,
+        (double X, double Y) EntryNormal = default)
     {
         // The rounded corner consumes one radius of the terminal segment.
         // Keep another radius at the source and an arrow length at the target.
@@ -349,9 +362,18 @@ public static class DiagramGridRouteBuilder
         double TargetStubLength = ResolveFrameExitLength(EndX, EndY, EntrySide,
             CORNER_RADIUS_PX + 10, TargetId, SourceId, Contract, BoundsById);
         (double SourceStubX, double SourceStubY) = ResolvePortStub(
-            StartX, StartY, SourceBounds, SourceShape, ExitSide, SourceStubLength);
+            StartX, StartY, SourceBounds, SourceShape, ExitSide, SourceStubLength,
+            ExitNormal.X, ExitNormal.Y);
         (double TargetStubX, double TargetStubY) = ResolvePortStub(
-            EndX, EndY, TargetBounds, TargetShape, EntrySide, TargetStubLength);
+            EndX, EndY, TargetBounds, TargetShape, EntrySide, TargetStubLength,
+            EntryNormal.X, EntryNormal.Y);
+        Dictionary<string, FlowchartLayoutNodeBounds> RoutingBounds =
+            FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, BoundsById);
+        // Frame outlines are visual boundaries, not solid obstacles. Links may
+        // cross them, but the independently represented title strips remain
+        // obstacles, and node boxes still block route geometry.
+        foreach (GroupContract group in Contract.Groups)
+            RoutingBounds.Remove(group.Id);
 
         if (Travel.HasValue)
         {
@@ -369,7 +391,7 @@ public static class DiagramGridRouteBuilder
                 StartY,
                 EndX,
                 EndY,
-                BoundsById,
+                RoutingBounds,
                 SourceId,
                 TargetId))
         {
@@ -387,7 +409,7 @@ public static class DiagramGridRouteBuilder
                      TargetStubY,
                      EndX,
                      EndY,
-                     BoundsById,
+                     RoutingBounds,
                      SourceId,
                      TargetId,
                      Contract,
@@ -397,7 +419,8 @@ public static class DiagramGridRouteBuilder
         {
             List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
             if (!HasNormalTerminals(Simplified, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
-                || !PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
+                || !ClearsEndpointBodiesAfterTerminalRuns(Simplified, BoundsById, SourceId, TargetId)
+                || !PathIsValid(Simplified, RoutingBounds, SourceId, TargetId, Contract))
             {
                 continue;
             }
@@ -427,14 +450,52 @@ public static class DiagramGridRouteBuilder
             TargetBounds,
             TargetShape,
             Direction,
-            BoundsById,
+            RoutingBounds,
             SourceId,
             TargetId);
         List<(double X, double Y)> SimplifiedFallback = SimplifyCollinear(Fallback);
         if (HasNormalTerminals(SimplifiedFallback, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
-            && PathIsValid(SimplifiedFallback, BoundsById, SourceId, TargetId, Contract))
+            && ClearsEndpointBodiesAfterTerminalRuns(SimplifiedFallback, BoundsById, SourceId, TargetId)
+            && PathIsValid(SimplifiedFallback, RoutingBounds, SourceId, TargetId, Contract))
         {
             return SimplifiedFallback;
+        }
+
+        // The track candidates above are deliberately cheap, but a hinted port can
+        // require a route around several obstacles with more bends than those
+        // templates express. Use the sparse orthogonal visibility router as the
+        // 5.10 re-route-this-line option before declaring that the allocated slots
+        // are unreachable. Bend count remains part of the score; it is not a
+        // legality limit.
+        FlowchartLayoutNodeBounds[] VisibilityObstacles = RoutingBounds.Values
+            .Where(Box => Box.NodeId != SourceId && Box.NodeId != TargetId
+                && !Contract.Groups.Any(Group => Group.Id == Box.NodeId
+                    && (DiagramGridLayout.IsInsideGroup(Contract, SourceId, Group.Id)
+                        || DiagramGridLayout.IsInsideGroup(Contract, TargetId, Group.Id))))
+            .ToArray();
+        if (FlowchartPaddedVisibilityRouter.TryRoute(
+                SourceStubX, SourceStubY, TargetStubX, TargetStubY, VisibilityObstacles,
+                SourceBounds: null, TargetBounds: null, out List<(double X, double Y)> VisiblePath,
+                PortStubPx: 0))
+        {
+            List<(double X, double Y)> VisibilityCandidate = [(StartX, StartY), (SourceStubX, SourceStubY)];
+            VisibilityCandidate.AddRange(VisiblePath.Skip(1).SkipLast(1));
+            VisibilityCandidate.Add((TargetStubX, TargetStubY));
+            VisibilityCandidate.Add((EndX, EndY));
+            VisibilityCandidate = SimplifyCollinear(VisibilityCandidate);
+            if (HasNormalTerminals(VisibilityCandidate, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                && ClearsEndpointBodiesAfterTerminalRuns(VisibilityCandidate, BoundsById, SourceId, TargetId)
+                && PathIsValid(VisibilityCandidate, RoutingBounds, SourceId, TargetId, Contract,
+                    MaxCorners: int.MaxValue))
+                return VisibilityCandidate;
+        }
+
+        if (RequireLegal && TryBuildHintedOuterLaneRoute(StartX, StartY,
+                SourceStubX, SourceStubY, TargetStubX, TargetStubY, EndX, EndY,
+                RoutingBounds, BoundsById, SourceId, TargetId, Contract,
+                out List<(double X, double Y)> HintedDetour))
+        {
+            return HintedDetour;
         }
 
         return BuildForcedCorridorRoute(
@@ -446,12 +507,118 @@ public static class DiagramGridRouteBuilder
             TargetStubY,
             EndX,
             EndY,
-            BoundsById,
+            RoutingBounds,
             SourceId,
             TargetId,
             Contract,
             Horizontal,
             RequireLegal);
+    }
+
+    private static bool TryBuildHintedOuterLaneRoute(double StartX, double StartY,
+        double SourceStubX, double SourceStubY, double TargetStubX, double TargetStubY,
+        double EndX, double EndY,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> RoutingBounds,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> AllBounds,
+        string SourceId, string TargetId, DiagramContract Contract,
+        out List<(double X, double Y)> Best)
+    {
+        Best = [];
+        if (RoutingBounds.Count == 0) return false;
+        double Step = DiagramGridMetrics.GRID_UNIT_PX;
+        double Left = RoutingBounds.Values.Min(Box => Box.CenterX - Box.Width / 2.0) - Step;
+        double Right = RoutingBounds.Values.Max(Box => Box.CenterX + Box.Width / 2.0) + Step;
+        int BestScore = int.MaxValue;
+        List<double> CandidateLanesX = [Left, Right];
+        List<double> CandidateLanesY = [];
+        foreach (FlowchartLayoutNodeBounds obstacle in RoutingBounds.Values)
+        {
+            double ObstacleLeft = obstacle.CenterX - obstacle.Width / 2.0;
+            double ObstacleRight = obstacle.CenterX + obstacle.Width / 2.0;
+            double ObstacleBottom = obstacle.CenterY - obstacle.Height / 2.0;
+            double ObstacleTop = obstacle.CenterY + obstacle.Height / 2.0;
+            CandidateLanesX.Add(ObstacleLeft - (Step / 2.0));
+            CandidateLanesX.Add(ObstacleRight + (Step / 2.0));
+            CandidateLanesY.Add(ObstacleBottom - (Step / 2.0));
+            CandidateLanesY.Add(ObstacleTop + (Step / 2.0));
+        }
+        CandidateLanesX = CandidateLanesX.Distinct().ToList();
+        CandidateLanesY = CandidateLanesY.Distinct().ToList();
+        foreach (double Lane in new[] { Left, Right })
+        {
+            List<(double X, double Y)> Candidate = SimplifyCollinear(
+            [
+                (StartX, StartY),
+                (SourceStubX, SourceStubY),
+                (Lane, SourceStubY),
+                (Lane, TargetStubY),
+                (TargetStubX, TargetStubY),
+                (EndX, EndY)
+            ]);
+            bool Normal = HasNormalTerminals(Candidate, SourceStubX, SourceStubY, TargetStubX, TargetStubY);
+            bool ClearEnds = ClearsEndpointBodiesAfterTerminalRuns(Candidate, AllBounds, SourceId, TargetId);
+            bool Valid = PathIsValid(Candidate, RoutingBounds, SourceId, TargetId, Contract,
+                MaxCorners: int.MaxValue);
+            if (!Normal || !ClearEnds || !Valid) continue;
+            int Score = ScorePath(Candidate);
+            if (Score >= BestScore) continue;
+            Best = Candidate;
+            BestScore = Score;
+        }
+
+        // An exterior lane at the endpoint's current height can cross a nearby
+        // blocker (for example a North-hinted link whose target sits above the
+        // source). Try obstacle-edge tracks as well: first rise/fall to a clear
+        // horizontal track, pass the blocker on a clear vertical track, then
+        // approach the allocated target stub. This honors the selected sides and
+        // keeps the normal terminal runs intact.
+        foreach (double YLane in CandidateLanesY)
+        foreach (double XLane in CandidateLanesX)
+        {
+            if (Math.Abs(YLane - SourceStubY) < 0.01 || Math.Abs(YLane - TargetStubY) < 0.01
+                || Math.Abs(XLane - SourceStubX) < 0.01 || Math.Abs(XLane - TargetStubX) < 0.01)
+                continue;
+            List<(double X, double Y)> Candidate = SimplifyCollinear(
+            [
+                (StartX, StartY),
+                (SourceStubX, SourceStubY),
+                (SourceStubX, YLane),
+                (XLane, YLane),
+                (XLane, TargetStubY),
+                (TargetStubX, TargetStubY),
+                (EndX, EndY)
+            ]);
+            if (!HasNormalTerminals(Candidate, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                || !ClearsEndpointBodiesAfterTerminalRuns(Candidate, AllBounds, SourceId, TargetId)
+                || !PathIsValid(Candidate, RoutingBounds, SourceId, TargetId, Contract,
+                    MaxCorners: int.MaxValue)) continue;
+            int Score = ScorePath(Candidate);
+            if (Score >= BestScore) continue;
+            Best = Candidate;
+            BestScore = Score;
+        }
+        return Best.Count >= 2;
+    }
+
+    private static bool ClearsEndpointBodiesAfterTerminalRuns(
+        IReadOnlyList<(double X, double Y)> Path,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        string SourceId,
+        string TargetId)
+    {
+        if (!Bounds.TryGetValue(SourceId, out FlowchartLayoutNodeBounds Source)
+            || !Bounds.TryGetValue(TargetId, out FlowchartLayoutNodeBounds Target)) return false;
+        for (int Index = 1; Index < Path.Count; Index++)
+        {
+            (double X, double Y) A = Path[Index - 1], B = Path[Index];
+            bool CrossesSourceAfterLeaving = Index > 1
+                && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Source);
+            bool CrossesTargetBeforeEntering = Index < Path.Count - 1
+                && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Target);
+            if (CrossesSourceAfterLeaving || CrossesTargetBeforeEntering)
+                return false;
+        }
+        return true;
     }
 
     private static List<(double X, double Y)> BuildHintedTravelRoute(
@@ -508,24 +675,30 @@ public static class DiagramGridRouteBuilder
                 LayoutHintDirection.North => (Lane, OuterMaxY),
                 _ => (Lane, OuterMinY)
             };
-            var Candidate = new List<(double X, double Y)> { (StartX, StartY), (SourceStubX, SourceStubY) };
-            AppendOrthogonal(Candidate, A, HorizontalTravel);
-            Candidate.Add(B);
-            AppendOrthogonal(Candidate, (TargetStubX, TargetStubY), HorizontalTravel);
-            Candidate.Add((EndX, EndY));
-            Candidate = SimplifyCollinear(Candidate);
-            if (!HasNormalTerminals(Candidate, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
-                || !HasTravelDirection(Candidate, Travel)
-                || !PathIsValid(Candidate, BoundsById, SourceId, TargetId, Contract))
-                continue;
-            int Score = ScorePath(Candidate);
-            if (Score < BestScore)
+            foreach (bool SourceHorizontalFirst in new[] { HorizontalTravel, !HorizontalTravel })
+            foreach (bool TargetHorizontalFirst in new[] { HorizontalTravel, !HorizontalTravel })
             {
-                Best = Candidate;
-                BestScore = Score;
+                var Candidate = new List<(double X, double Y)> { (StartX, StartY), (SourceStubX, SourceStubY) };
+                AppendOrthogonal(Candidate, A, SourceHorizontalFirst);
+                Candidate.Add(B);
+                AppendOrthogonal(Candidate, (TargetStubX, TargetStubY), TargetHorizontalFirst);
+                Candidate.Add((EndX, EndY));
+                Candidate = SimplifyCollinear(Candidate);
+                if (!HasNormalTerminals(Candidate, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                    || !HasTravelDirection(Candidate, Travel)
+                    || !ClearsEndpointBodiesAfterTerminalRuns(Candidate, BoundsById, SourceId, TargetId)
+                    || !PathIsValid(Candidate, BoundsById, SourceId, TargetId, Contract))
+                    continue;
+                int Score = ScorePath(Candidate);
+                if (Score < BestScore)
+                {
+                    Best = Candidate;
+                    BestScore = Score;
+                }
             }
         }
         return Best;
+
     }
 
     private static void AppendOrthogonal(
@@ -570,7 +743,6 @@ public static class DiagramGridRouteBuilder
         string EndpointId, string OtherId, DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
     {
-        double TerminalMinimum = Minimum;
         foreach (GroupContract Group in Contract.Groups)
         {
             if (!DiagramGridLayout.IsInsideGroup(Contract, EndpointId, Group.Id)
@@ -606,18 +778,15 @@ public static class DiagramGridRouteBuilder
             };
             Minimum = Math.Max(Minimum, Distance + DiagramGridMetrics.GRID_UNIT_PX);
         }
-        if (Minimum <= TerminalMinimum) return Minimum;
-
-        // A containing frame must not extend a normal terminal through
-        // another member. Leave room to turn before the nearest body;
-        // the remaining route can cross the frame on a clear grid run.
+        // A port stub is only required to extend beyond the rounded corner. If a
+        // nearby box blocks the usual stub, shorten it to the last clear grid track
+        // so the route can turn before entering that box. Previously this check ran
+        // only after a frame forced a longer stub, leaving ordinary adjacent nodes
+        // able to block hinted exits.
         foreach (FlowchartLayoutNodeBounds Node in BoundsById.Values)
         {
             if (Node.NodeId == EndpointId || Node.NodeId == OtherId
-                || Contract.Groups.Any(Group => Group.Id == Node.NodeId)
-                || !Contract.Groups.Any(Group => DiagramGridLayout.IsInsideGroup(Contract, EndpointId, Group.Id)
-                    && DiagramGridLayout.IsInsideGroup(Contract, Node.NodeId, Group.Id)
-                    && !DiagramGridLayout.IsInsideGroup(Contract, OtherId, Group.Id))) continue;
+                || Contract.Groups.Any(Group => Group.Id == Node.NodeId)) continue;
             double Left = Node.CenterX - Node.Width / 2;
             double Right = Node.CenterX + Node.Width / 2;
             double Bottom = Node.CenterY - Node.Height / 2;
@@ -630,16 +799,21 @@ public static class DiagramGridRouteBuilder
                 "bottom" when X > Left && X < Right && Top < Y => Y - Top,
                 _ => double.PositiveInfinity
             };
-            Minimum = Math.Min(Minimum,
-                Math.Max(TerminalMinimum, Distance - DiagramGridMetrics.GRID_UNIT_PX));
+            Minimum = Math.Min(Minimum, Math.Max(CORNER_RADIUS_PX + 5,
+                Distance - DiagramGridMetrics.GRID_UNIT_PX));
         }
         return Minimum;
     }
 
     private static (double X, double Y) ResolvePortStub(
         double X, double Y, FlowchartLayoutNodeBounds Bounds, string? Shape,
-        string? Side, double Length)
+        string? Side, double Length, double NormalX = 0, double NormalY = 0)
     {
+        if (Math.Abs(NormalX) > 1e-9 || Math.Abs(NormalY) > 1e-9)
+        {
+            double Magnitude = Math.Sqrt((NormalX * NormalX) + (NormalY * NormalY));
+            return (X + NormalX / Magnitude * Length, Y + NormalY / Magnitude * Length);
+        }
         return Side switch
         {
             "left" => (X - Length, Y),
@@ -731,7 +905,9 @@ public static class DiagramGridRouteBuilder
             foreach (List<(double X, double Y)> Candidate in CorridorCandidates)
             {
                 List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
-                if (PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
+                if (HasNormalTerminals(Simplified, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                    && ClearsEndpointBodiesAfterTerminalRuns(Simplified, BoundsById, SourceId, TargetId)
+                    && PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
                 {
                     return Simplified;
                 }
@@ -757,10 +933,30 @@ public static class DiagramGridRouteBuilder
                 (EndX, EndY)
             ];
             List<(double X, double Y)> Simplified = SimplifyCollinear(Candidate);
-            if (PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
+            if (HasNormalTerminals(Simplified, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+                && ClearsEndpointBodiesAfterTerminalRuns(Simplified, BoundsById, SourceId, TargetId)
+                && PathIsValid(Simplified, BoundsById, SourceId, TargetId, Contract))
             {
                 return Simplified;
             }
+        }
+
+        double ExteriorClearance = FlowchartPerpendicularRouteBuilder.OBSTACLE_AVOIDANCE_CLEARANCE_PX;
+        double ExteriorLeft = BoundsById.Values.Min(Box => Box.CenterX - Box.Width / 2.0) - ExteriorClearance;
+        double ExteriorRight = BoundsById.Values.Max(Box => Box.CenterX + Box.Width / 2.0) + ExteriorClearance;
+        foreach (double ExteriorX in new[] { ExteriorLeft, ExteriorRight })
+        {
+            List<(double X, double Y)> ExteriorCandidate = SimplifyCollinear(
+            [
+                (StartX, StartY), (SourceStubX, SourceStubY),
+                (ExteriorX, SourceStubY), (ExteriorX, TargetStubY),
+                (TargetStubX, TargetStubY), (EndX, EndY)
+            ]);
+            if (HasNormalTerminals(ExteriorCandidate, SourceStubX, SourceStubY,
+                    TargetStubX, TargetStubY)
+                && ClearsEndpointBodiesAfterTerminalRuns(ExteriorCandidate, BoundsById, SourceId, TargetId)
+                && PathIsValid(ExteriorCandidate, BoundsById, SourceId, TargetId, Contract))
+                return ExteriorCandidate;
         }
 
         List<(double X, double Y)> LastResort =
@@ -772,7 +968,9 @@ public static class DiagramGridRouteBuilder
             (EndX, EndY)
         ];
         List<(double X, double Y)> SimplifiedLastResort = SimplifyCollinear(LastResort);
-        if (PathIsValid(SimplifiedLastResort, BoundsById, SourceId, TargetId, Contract))
+        if (HasNormalTerminals(SimplifiedLastResort, SourceStubX, SourceStubY, TargetStubX, TargetStubY)
+            && ClearsEndpointBodiesAfterTerminalRuns(SimplifiedLastResort, BoundsById, SourceId, TargetId)
+            && PathIsValid(SimplifiedLastResort, BoundsById, SourceId, TargetId, Contract))
         {
             return SimplifiedLastResort;
         }
@@ -1065,7 +1263,8 @@ public static class DiagramGridRouteBuilder
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         string SourceId,
         string TargetId,
-        DiagramContract Contract)
+        DiagramContract Contract,
+        int MaxCorners = 4)
     {
         if (Path.Count < 2)
         {
@@ -1082,7 +1281,7 @@ public static class DiagramGridRouteBuilder
             return false;
         }
 
-        if (CountCorners(Path) > 4)
+        if (CountCorners(Path) > MaxCorners)
         {
             return false;
         }
@@ -1105,6 +1304,13 @@ public static class DiagramGridRouteBuilder
             {
                 return false;
             }
+        }
+
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> TitleBands =
+            FlowchartFrameTitleBandHelper.Get(Contract, BoundsById);
+        if (FlowchartFrameTitleBandHelper.RouteEntersAny(Path, TitleBands, SourceId, TargetId, Contract))
+        {
+            return false;
         }
 
         return true;
@@ -1138,6 +1344,12 @@ public static class DiagramGridRouteBuilder
         foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
         {
             FlowchartLayoutNodeBounds NodeBounds = Entry.Value;
+            if (FlowchartFrameTitleBandHelper.TryGetObstacleBand(NodeBounds, out FlowchartFrameTitleBandHelper.Band TitleBand)
+                && FlowchartFrameTitleBandHelper.IsLegalTopPortCrossing(TitleBand,
+                    StartX, StartY, EndX, EndY, SourceId, TargetId, Contract))
+            {
+                continue;
+            }
             bool IsSource = string.Equals(NodeBounds.NodeId, SourceId, StringComparison.Ordinal);
             bool IsTarget = string.Equals(NodeBounds.NodeId, TargetId, StringComparison.Ordinal);
             if (IsSource && SegmentIndex == 0)

@@ -12,7 +12,15 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartSubgraphSvgRenderer
 {
-    private const double TITLE_BAND_PX = 26.0;
+    internal const double TITLE_BAND_PX = 26.0;
+
+    internal const double TITLE_CLEARANCE_PX = 6.0;
+
+    internal static int RequiredTitleBandPx(double FontSizePx, int LineCount)
+    {
+        double TextHeight = FontSizePx * DiagramGridMetrics.TEXT_LINE_HEIGHT_EM * Math.Max(1, LineCount);
+        return (int)Math.Ceiling(Math.Max(TITLE_BAND_PX, TextHeight) + (2 * TITLE_CLEARANCE_PX));
+    }
 
     private const string DEFAULT_FILL = "#ffffde";
 
@@ -67,7 +75,9 @@ public static class FlowchartSubgraphSvgRenderer
             double TitleFontSize = Math.Max(10.0, RenderOptions.FontSizePx);
             if (Routes != null)
                 TitleX = DiagramPaddingPx + ResolveClearTitleCentre(Rect, Title, TitleFontSize, Routes) - MinLeft;
-            double TitleY = SvgTop + (TITLE_BAND_PX / 2.0) + FlowchartRichLabelSvgWriter.ComputeBaselineOffsetPx(TitleFontSize);
+            int TitleBandPx = RequiredTitleBandPx(TitleFontSize, Title.Split('\n').Length);
+            double TitleY = SvgTop + (TitleBandPx / 2.0)
+                + FlowchartRichLabelSvgWriter.ComputeBaselineOffsetPx(TitleFontSize);
 
             Builder.Append("<text x=\"");
             Builder.Append(TitleX.ToString(CultureInfo.InvariantCulture));
@@ -86,9 +96,13 @@ public static class FlowchartSubgraphSvgRenderer
     private static double ResolveClearTitleCentre(FlowchartSubgraphLayoutRect Rect, string Title,
         double FontSize, IReadOnlyList<FlowchartLayoutEdgeRoute> Routes)
     {
-        const double Clearance = 6;
-        double HalfWidth = FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Title, FontSize) / 2;
-        double CentreY = Rect.Top - TITLE_BAND_PX / 2;
+        const double Clearance = TITLE_CLEARANCE_PX;
+        double HalfWidth = Math.Max(48.0,
+            Math.Max(FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Title, FontSize), Title.Length * FontSize * 0.58)) / 2;
+        double CentreY = Rect.Top - (RequiredTitleBandPx(FontSize, Title.Split('\n').Length) / 2.0)
+            - FlowchartRichLabelSvgWriter.ComputeBaselineOffsetPx(FontSize);
+        double TitleLowY = CentreY - (FontSize * 0.35) - Clearance;
+        double TitleHighY = CentreY + FontSize + Clearance;
         double Left = Rect.Left + HalfWidth + Clearance;
         double Right = Rect.Right - HalfWidth - Clearance;
         double Preferred = (Rect.Left + Rect.Right) / 2;
@@ -98,8 +112,7 @@ public static class FlowchartSubgraphSvgRenderer
         for (int Index = 1; Index < Route.Points.Count; Index++)
         {
             var A = Route.Points[Index - 1]; var B = Route.Points[Index];
-            if (Math.Max(A.Y, B.Y) < CentreY - FontSize / 2 - Clearance
-                || Math.Min(A.Y, B.Y) > CentreY + FontSize / 2 + Clearance) continue;
+            if (Math.Max(A.Y, B.Y) < TitleLowY || Math.Min(A.Y, B.Y) > TitleHighY) continue;
             Blocked.Add((Math.Min(A.X, B.X) - HalfWidth - Clearance,
                 Math.Max(A.X, B.X) + HalfWidth + Clearance));
         }

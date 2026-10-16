@@ -17,7 +17,9 @@ internal static class FlowchartRoutingHints
         IReadOnlyDictionary<string, NodeContract> Nodes,
         FlowchartDirection Direction,
         bool RepairAutomaticRoutesEnabled = true,
-        bool PreserveValidSideHintRoutes = false)
+        bool PreserveValidSideHintRoutes = false,
+        bool ReportUnroutedRoutes = false,
+        bool ClearUnroutedRoutes = true)
     {
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> HintedPorts =
@@ -45,11 +47,18 @@ internal static class FlowchartRoutingHints
             (double X, double Y) DesiredEnd = HasSelectedEnd ? EndPort : ExistingEnd;
             if (!HasHint && ExistingStart == DesiredStart && ExistingEnd == DesiredEnd)
                 continue;
-            if (PreserveValidSideHintRoutes && HasHint && Hint!.Travel == null
+            if (HasHint && Hint!.Travel == null
                 && (Hint.Leave == null || Route.ExitSide == Exit)
                 && (Hint.Enter == null || Route.EntrySide == Entry)
                 && OnOutline(Route.Points[0], Source) && OnOutline(Route.Points[^1], Target)
-                && ExistingStart == DesiredStart && ExistingEnd == DesiredEnd)
+                && LeavesBy(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Exit)
+                && EntersBy(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Entry)
+                && SamePoint(ExistingStart, DesiredStart) && SamePoint(ExistingEnd, DesiredEnd)
+                && FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(Route.Points
+                    .Select(Point => (Point.X, Point.Y)).ToList())
+                && DiagramGridRouteBuilder.PathIsValid(
+                    Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Bounds,
+                    Route.SourceId, Route.TargetId, Contract))
             {
                 Hint.UnhonouredReason = null;
                 continue;
@@ -65,16 +74,57 @@ internal static class FlowchartRoutingHints
                 EndX, EndY, Target, TargetNode?.Shape, Entry,
                 Bounds, Route.SourceId, Route.TargetId, Contract, Direction, Horizontal,
                 HasHint ? Hint!.Travel : null,
-                RequireLegal: true);
+                // A sibling's side-hint can select a fresh symmetric slot for an
+                // automatic route. Keep the normal automatic fallback search for
+                // that route; only an explicitly hinted line requires the strict
+                // hint-legal candidate set here.
+                RequireLegal: HasHint);
             if (Path.Count < 2)
             {
-                if (!HasHint) continue;
-                Hint!.UnhonouredReason = Hint.Travel.HasValue
+                // Port reallocation can move a terminal slot along the same side
+                // after the initial route was built. If the general path search
+                // cannot find a replacement, slide the existing terminal track
+                // to the new symmetric slot and accept it only if it stays legal.
+                List<(double X, double Y)> Slid = Route.Points
+                    .Select(Point => (Point.X, Point.Y)).ToList();
+                if (HasSelectedStart) SlideTerminalTrack(Slid, true, Exit, StartX, StartY);
+                if (HasSelectedEnd) SlideTerminalTrack(Slid, false, Entry, EndX, EndY);
+                Slid = DiagramGridRouteBuilder.SimplifyCollinear(Slid);
+                bool SlideLegal = Slid.Count >= 2 && DiagramGridRouteBuilder.PathIsValid(
+                    Slid, Bounds, Route.SourceId, Route.TargetId, Contract)
+                    && FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(Slid);
+                if (SlideLegal)
+                {
+                    Path = Slid;
+                }
+            }
+            if (Path.Count < 2)
+            {
+                string reason = Hint?.Travel.HasValue == true
                     ? "no legal route has the requested travel direction"
-                    : "no legal route has the requested endpoint directions";
+                    : "no legal route has the allocated endpoint directions";
+                if (HasHint) Hint!.UnhonouredReason = reason;
+                if (ReportUnroutedRoutes)
+                {
+                    string PortSummary = $"hint={(HasHint ? $"leave:{Hint!.Leave?.ToString() ?? "auto"},enter:{Hint.Enter?.ToString() ?? "auto"},travel:{Hint.Travel?.ToString() ?? "none"}" : "none")}; "
+                        + $"sides={Exit}/{Entry}; allocatedStart=({StartX:0.##},{StartY:0.##}) selected={HasSelectedStart}; "
+                        + $"allocatedEnd=({EndX:0.##},{EndY:0.##}) selected={HasSelectedEnd}; "
+                        + $"sourceBounds=({Source.CenterX:0.##},{Source.CenterY:0.##},{Source.Width:0.##},{Source.Height:0.##}); "
+                        + $"targetBounds=({Target.CenterX:0.##},{Target.CenterY:0.##},{Target.Width:0.##},{Target.Height:0.##}); "
+                        + $"previous=({ExistingStart.X:0.##},{ExistingStart.Y:0.##})->({ExistingEnd.X:0.##},{ExistingEnd.Y:0.##})";
+                    Layout.RenderContext.LayoutStageViolations.RemoveAll(failure =>
+                        failure.Kind == "NoLegalRoute" && failure.InvolvedIds.Contains(Route.EdgeId));
+                    Layout.RenderContext.LayoutStageViolations.Add(new FlowchartLayoutQualityFailure(
+                        "NoLegalRoute",
+                        $"Route '{Route.EdgeId}' could not reach its newly allocated port slots: {reason}. {PortSummary}",
+                        [Route.EdgeId], null));
+                    if (ClearUnroutedRoutes) Route.Points.Clear();
+                }
                 continue;
             }
 
+            Layout.RenderContext.LayoutStageViolations.RemoveAll(failure =>
+                failure.Kind == "NoLegalRoute" && failure.InvolvedIds.Contains(Route.EdgeId));
             if (HasHint) Hint!.UnhonouredReason = null;
             Route.ExitSide = Exit;
             Route.EntrySide = Entry;
@@ -83,10 +133,45 @@ internal static class FlowchartRoutingHints
                 Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
         }
 
+        // A failed strict attempt can leave its diagnostic behind even when a
+        // later pass has installed a legal route on the same hinted sides and
+        // symmetric slots. Clear only that stale status; the side, exact port
+        // slots, orthogonality and obstacle checks must all agree first.
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
+            if (Edge?.RoutingHint is not { IsActive: true } Hint || Route.Points.Count < 2
+                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds Source)
+                || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds Target)) continue;
+            if ((Hint.Leave.HasValue && Route.ExitSide != DiagramGridLayout.HintSide(Hint.Leave.Value))
+                || (Hint.Enter.HasValue && Route.EntrySide != DiagramGridLayout.HintSide(Hint.Enter.Value))
+                || (Hint.Travel.HasValue && !DiagramGridRouteBuilder.HasTravelDirection(
+                    Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Hint.Travel.Value))
+                || !HintedPortMatches((Route.Points[0].X, Route.Points[0].Y), (Route, true))
+                || !HintedPortMatches((Route.Points[^1].X, Route.Points[^1].Y), (Route, false))
+                || !OnOutline(Route.Points[0], Source) || !OnOutline(Route.Points[^1], Target)
+                || !LeavesBy(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(),
+                    Hint.Leave.HasValue ? DiagramGridLayout.HintSide(Hint.Leave.Value) : Route.ExitSide)
+                || !EntersBy(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(),
+                    Hint.Enter.HasValue ? DiagramGridLayout.HintSide(Hint.Enter.Value) : Route.EntrySide)
+                || !FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(Route.Points
+                    .Select(Point => (Point.X, Point.Y)).ToList())
+                || !DiagramGridRouteBuilder.PathIsValid(Route.Points
+                    .Select(Point => (Point.X, Point.Y)).ToList(), Bounds,
+                    Route.SourceId, Route.TargetId, Contract)) continue;
+            Hint.UnhonouredReason = null;
+        }
+
         if (RepairAutomaticRoutesEnabled
             && (Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)
                 || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true)))
             RepairAutomaticRoutes(Layout, Contract, Bounds, Nodes, Direction, Horizontal);
+
+        static bool SamePoint((double X, double Y) first, (double X, double Y) second) =>
+            Math.Abs(first.X - second.X) <= 0.5 && Math.Abs(first.Y - second.Y) <= 0.5;
+
+        bool HintedPortMatches((double X, double Y) point, (FlowchartLayoutEdgeRoute Route, bool Source) key) =>
+            !HintedPorts.TryGetValue(key, out var expected) || SamePoint(point, expected);
     }
 
     private static Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> SelectHintedPorts(
@@ -97,6 +182,8 @@ internal static class FlowchartRoutingHints
         var Ends = new List<(FlowchartLayoutEdgeRoute Route, bool Source,
             FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other, string Side, bool IsHinted)>();
         Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        HashSet<string> frameIds = Contract.Groups.Select(Group => Group.Id)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
@@ -121,18 +208,40 @@ internal static class FlowchartRoutingHints
             var Ordered = Group.Key.Side is "left" or "right"
                 ? Group.OrderByDescending(End => End.Other.CenterY).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray()
                 : Group.OrderBy(End => End.Other.CenterX).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray();
-            double Length = Group.Key.Side is "left" or "right" ? Ordered[0].Box.Height : Ordered[0].Box.Width;
-            int[] Slots = DiagramGridMetrics.EqualCentres(Math.Max(1, (int)Math.Floor(Length)), Ordered.Length);
+            bool vertical = Group.Key.Side is "left" or "right";
+            double Length = vertical ? Ordered[0].Box.Height : Ordered[0].Box.Width;
+            bool circle = !frameIds.Contains(Group.Key.NodeId)
+                && Nodes.TryGetValue(Group.Key.NodeId, out NodeContract? node)
+                && (string.Equals(node.Shape, "circle", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(node.Shape, "doublecircle", StringComparison.OrdinalIgnoreCase));
             for (int Index = 0; Index < Ordered.Length; Index++)
             {
                 var End = Ordered[Index];
-                double Offset = Slots[Index] - Length / 2.0;
+                double Fraction = (Index + 1.0) / (Ordered.Length + 1.0);
+                if (circle)
+                {
+                    double Radius = Math.Min(End.Box.Width, End.Box.Height) / 2.0;
+                    double Angle = Group.Key.Side switch
+                    {
+                        "top" => Math.PI * (1.0 - Fraction),
+                        "bottom" => Math.PI * (1.0 + Fraction),
+                        "left" => (Math.PI / 2.0) + (Math.PI * Fraction),
+                        _ => (Math.PI / 2.0) - (Math.PI * Fraction)
+                    };
+                    Result[(End.Route, End.Source)] = (End.Box.CenterX + Radius * Math.Cos(Angle),
+                        End.Box.CenterY + Radius * Math.Sin(Angle));
+                    continue;
+                }
+                // A routing hint selects the side. Its endpoint still uses the same
+                // exact k/(n+1) slot as every unhinted line on that side. Rounding
+                // slots to integer track centres here used to displace hinted ports.
+                double Along = Fraction * Length;
                 (double X, double Y) Port = End.Side switch
                 {
-                    "left" => (End.Box.CenterX - End.Box.Width / 2.0, End.Box.CenterY + Offset),
-                    "right" => (End.Box.CenterX + End.Box.Width / 2.0, End.Box.CenterY + Offset),
-                    "top" => (End.Box.CenterX + Offset, End.Box.CenterY + End.Box.Height / 2.0),
-                    _ => (End.Box.CenterX + Offset, End.Box.CenterY - End.Box.Height / 2.0)
+                    "left" => (End.Box.CenterX - End.Box.Width / 2.0, End.Box.CenterY + End.Box.Height / 2.0 - Along),
+                    "right" => (End.Box.CenterX + End.Box.Width / 2.0, End.Box.CenterY + End.Box.Height / 2.0 - Along),
+                    "top" => (End.Box.CenterX - End.Box.Width / 2.0 + Along, End.Box.CenterY + End.Box.Height / 2.0),
+                    _ => (End.Box.CenterX - End.Box.Width / 2.0 + Along, End.Box.CenterY - End.Box.Height / 2.0)
                 };
                 Result[(End.Route, End.Source)] = Port;
             }
@@ -142,6 +251,28 @@ internal static class FlowchartRoutingHints
 
         bool IsDiamond(string Id) => Nodes.TryGetValue(Id, out NodeContract? Node)
             && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
+    }
+
+    private static void SlideTerminalTrack(List<(double X, double Y)> Path, bool AtStart,
+        string Side, double PortX, double PortY)
+    {
+        if (Path.Count < 2) return;
+        bool HorizontalRun = Side is "left" or "right";
+        int Endpoint = AtStart ? 0 : Path.Count - 1;
+        int Adjacent = AtStart ? 1 : Path.Count - 2;
+        (double X, double Y) Original = Path[Endpoint];
+        bool IsRun((double X, double Y) Point) => HorizontalRun
+            ? Math.Abs(Point.Y - Original.Y) < 0.01
+            : Math.Abs(Point.X - Original.X) < 0.01;
+        if (!IsRun(Path[Adjacent])) return;
+
+        int Index = Adjacent;
+        while (Index >= 0 && Index < Path.Count && IsRun(Path[Index]))
+        {
+            Path[Index] = HorizontalRun ? (Path[Index].X, PortY) : (PortX, Path[Index].Y);
+            Index += AtStart ? 1 : -1;
+        }
+        Path[Endpoint] = (PortX, PortY);
     }
 
     private static bool OnOutline(FlowchartLayoutPoint Point, FlowchartLayoutNodeBounds Box)

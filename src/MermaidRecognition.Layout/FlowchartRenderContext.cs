@@ -15,6 +15,15 @@ public sealed class FlowchartRenderContext
 {
     private static readonly AsyncLocal<FlowchartRenderContext?> Ambient = new();
 
+    internal sealed class RepairSearchBudget
+    {
+        internal HashSet<string> AttemptedMoves { get; } = new(StringComparer.Ordinal);
+        internal int CandidateMoves { get; set; }
+        internal int AcceptedMoves { get; set; }
+    }
+
+    internal RepairSearchBudget MoveBeforeDetourBudget { get; } = new();
+
     internal static Action<string, long>? OperationCountObserver { get; set; }
 
     internal static void ReportOperationCount(string Name, long Count)
@@ -60,6 +69,9 @@ public sealed class FlowchartRenderContext
     internal void BeginRender()
     {
         Jumps.Clear();
+        MoveBeforeDetourBudget.AttemptedMoves.Clear();
+        MoveBeforeDetourBudget.CandidateMoves = 0;
+        MoveBeforeDetourBudget.AcceptedMoves = 0;
         IsSvgEdgePainting = false;
         CachedRouteContract = null;
         CachedRouteGuides = null;

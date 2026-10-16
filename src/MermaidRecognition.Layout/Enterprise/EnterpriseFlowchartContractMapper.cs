@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
+using MermaidRecognition.Diagnostics;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Render;
 
@@ -63,8 +65,38 @@ public static class EnterpriseFlowchartContractMapper
         }
 
         int CreationIndex = 0;
+        HashSet<string> DeclaredEndpointIds = Document.Elements.Keys
+            .Concat(Document.Groups.Keys)
+            .Concat(Document.Notes.Keys)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
+            // Invalid references are not drawable graph edges: omitting them avoids
+            // creating model routes to nodes which have no geometry. Keep an
+            // explicit contract diagnostic as well as the parser/validator error,
+            // so a dropped link cannot disappear from layout output unnoticed.
+            if (!Relationship.HiddenByNesting
+                && (!DeclaredEndpointIds.Contains(Relationship.SourceId)
+                    || !DeclaredEndpointIds.Contains(Relationship.TargetId)))
+            {
+                string LinkId = Relationship.SourceId + "->" + Relationship.TargetId + ":"
+                    + CreationIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string Missing = !DeclaredEndpointIds.Contains(Relationship.SourceId)
+                    ? "source" : "target";
+                string MissingId = Missing == "source" ? Relationship.SourceId : Relationship.TargetId;
+                MermaidSourceSpan? Span = Relationship.LineNumber <= 0 ? null
+                    : new MermaidSourceSpan(0, 0, Relationship.LineNumber, 1,
+                        Relationship.LineNumber, 1);
+                Contract.DiagnosticsMutable.Add(new MermaidDiagnostic(
+                    MermaidDiagnosticSeverity.Error,
+                    "enterprise.dropped-link",
+                    "Dropped relationship " + LinkId + ": undeclared " + Missing + " endpoint '" + MissingId + "'.",
+                    Span,
+                    LinkId));
+                CreationIndex++;
+                continue;
+            }
+
             if (Relationship.HiddenByNesting)
             {
                 continue;

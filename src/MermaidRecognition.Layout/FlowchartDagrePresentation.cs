@@ -1277,7 +1277,11 @@ public static class FlowchartDagrePresentation
                 SourceId = Route.SourceId,
                 TargetId = Route.TargetId,
                 ExitSide = Route.ExitSide,
-                EntrySide = Route.EntrySide
+                EntrySide = Route.EntrySide,
+                ExitNormalX = Route.ExitNormalX,
+                ExitNormalY = Route.ExitNormalY,
+                EntryNormalX = Route.EntryNormalX,
+                EntryNormalY = Route.EntryNormalY
             };
             foreach (FlowchartLayoutPoint Point in Route.Points)
             {

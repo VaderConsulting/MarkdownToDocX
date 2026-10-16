@@ -58,7 +58,11 @@ public static class NativeRenderCapabilities
     {
         foreach (MermaidDiagnostic Diagnostic in Contract.Diagnostics)
         {
-            if (Diagnostic.Severity == MermaidDiagnosticSeverity.Error)
+            // A dropped enterprise relationship is a visible conversion error,
+            // but it has deliberately been removed from the drawable graph. It
+            // must not prevent the remaining valid diagram from being laid out.
+            if (Diagnostic.Severity == MermaidDiagnosticSeverity.Error
+                && !string.Equals(Diagnostic.Code, "enterprise.dropped-link", StringComparison.Ordinal))
             {
                 return true;
             }

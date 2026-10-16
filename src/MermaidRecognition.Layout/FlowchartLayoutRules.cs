@@ -25,6 +25,13 @@ internal static class FlowchartLayoutRules
     internal static double LineHintScore => Get("score_hint_line");
     internal static double CrossEndpointStandoff => Get("cross_endpoint_standoff");
     internal static double GroupMemberMinimumInset => Get("group_member_min_inset") * Get("grid_step");
+    internal static int RepairCandidateMoves => checked((int)Get("repair_candidate_moves"));
+    internal static int RepairChainDepth => checked((int)Get("repair_chain_depth"));
+    internal static int RepairChainLines => checked((int)Get("repair_chain_lines"));
+    internal static double RepairExtraLength => Get("repair_extra_length_px");
+    internal static int RepairExtraBends => checked((int)Get("repair_extra_bends"));
+    internal static double RepairLengthWeight => Get("score_repair_length_per_grid_step");
+    internal static double RepairMovedLineWeight => Get("score_repair_moved_line");
 
     private static double Get(string Id) => _parameters.TryGetValue(Id, out double Value)
         ? Value

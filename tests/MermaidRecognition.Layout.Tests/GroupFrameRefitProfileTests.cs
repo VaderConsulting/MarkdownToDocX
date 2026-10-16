@@ -13,6 +13,7 @@ public sealed class GroupFrameRefitProfileTests
 {
     [TestCase("A164")]
     [TestCase("A142")]
+    [TestCase("A163")]
     [CancelAfter(60000)]
     public void ProfileGroupFrameRefits(string ScenarioId)
     {
@@ -86,19 +87,21 @@ public sealed class GroupFrameRefitProfileTests
         };
         try
         {
-            Assert.That(FlowchartDagrePlacement.TryPlace(Contract, out FlowchartLayoutResult Placed), Is.True);
-            Timer.Stop();
-            double PlacementMs = Timer.Elapsed.TotalMilliseconds;
-            File.AppendAllText(StagePath, $"placement elapsed: {PlacementMs:0.0} ms{Environment.NewLine}");
-            Timer.Restart();
-            FlowchartLayoutResult Layout = DiagramGridLayout.Apply(Contract, Placed);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
             Timer.Stop();
             double GridLayoutMs = Timer.Elapsed.TotalMilliseconds;
-            File.AppendAllText(StagePath, $"grid layout elapsed: {GridLayoutMs:0.0} ms{Environment.NewLine}");
+            File.AppendAllText(StagePath, $"shared layout path elapsed: {GridLayoutMs:0.0} ms{Environment.NewLine}");
             Timer.Restart();
             var Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
             Timer.Stop();
             double ScoreMs = Timer.Elapsed.TotalMilliseconds;
+            IReadOnlyList<FlowchartRouteRuleChecker.Finding> RouteFindings =
+                FlowchartRouteRuleChecker.Check(Contract, Layout);
+            int Rule59Findings = RouteFindings.Count(Failure => Failure.Rule == "5.9");
+            string RejectionCauses = string.Join(", ", Score.Violations
+                .GroupBy(Failure => Failure.Kind, StringComparer.Ordinal)
+                .OrderBy(Group => Group.Key, StringComparer.Ordinal)
+                .Select(Group => $"{Group.Key}={Group.Count()}"));
             if (ScenarioId == "A142" && Layout.EdgeRoutes.Count > 0)
             {
                 var Incremental = new FlowchartLayoutScore.IncrementalContext(
@@ -151,13 +154,15 @@ public sealed class GroupFrameRefitProfileTests
                 File.AppendAllText(StagePath, $"{ScenarioId} route-shape fault: {string.Join(",", Failure.InvolvedIds)}; "
                     + $"{Failure.Description}; {Geometry}{Nearby}{Environment.NewLine}");
             }
-            TestContext.Out.WriteLine($"{ScenarioId}: dagre {PlacementMs / 1000:0.00}s, grid layout {GridLayoutMs / 1000:0.00}s, {RefitsByCause.Values.Sum()} frame refits, "
+            TestContext.Out.WriteLine($"{ScenarioId}: shared layout {GridLayoutMs / 1000:0.00}s, {RefitsByCause.Values.Sum()} frame refits, "
                 + $"{FitPasses} fitting passes, {Score.Crossings} crossings, {Score.Overlaps} overlaps, "
                 + $"score {Score.Score?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) ?? "rejected"} "
-                + $"({Score.Bends} bends, {Score.Disconnections} disconnections), score took {ScoreMs / 1000:0.00}s.");
+                + $"({Score.Bends} bends, {Score.Disconnections} disconnections), score took {ScoreMs / 1000:0.00}s; "
+                + $"rule 5.9 findings={Rule59Findings}; rejection causes={RejectionCauses}");
             File.AppendAllText(StagePath, $"{ScenarioId} score: crossings={Score.Crossings}, overlaps={Score.Overlaps}, "
                 + $"score={Score.Score?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) ?? "rejected"}, "
-                + $"bends={Score.Bends}, disconnections={Score.Disconnections}{Environment.NewLine}");
+                + $"bends={Score.Bends}, disconnections={Score.Disconnections}, rule59={Rule59Findings}, "
+                + $"rejections={RejectionCauses}{Environment.NewLine}");
         }
         finally
         {

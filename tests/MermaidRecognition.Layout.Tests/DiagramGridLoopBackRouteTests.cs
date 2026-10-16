@@ -33,37 +33,37 @@ public sealed class DiagramGridLoopBackRouteTests
     }
 
     [Test]
-    public void TryLayout_RoutingLoop_ForwardChainUsesStraightVerticalRoutes()
+    public void TryLayout_RoutingLoop_ForwardChainUsesStraightWhereAllocatedPortsAlign()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(RoutingLoopSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
-        foreach ((string SourceId, string TargetId) in new[] { ("A", "B"), ("B", "C"), ("C", "D") })
+        foreach ((string SourceId, string TargetId) in new[] { ("A", "B"), ("B", "C") })
         {
             FlowchartLayoutEdgeRoute Route = FindRoute(Layout, SourceId, TargetId);
             Assert.That(Route.Points, Has.Count.EqualTo(2));
             Assert.That(Route.Points[0].X, Is.EqualTo(Route.Points[1].X).Within(1.0));
         }
+
+        FlowchartLayoutEdgeRoute ToDiamond = FindRoute(Layout, "C", "D");
+        AssertDiamondPort(ToDiamond, Find(Layout, "D"), IsSource: false);
+        Assert.That(ToDiamond.Points.Count, Is.GreaterThan(2));
     }
 
     [Test]
-    public void TryLayout_RoutingLoop_NoBranchIsStraightFromBottomVertex()
+    public void TryLayout_RoutingLoop_NoBranchUsesSymmetricDiamondEdgePort()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(RoutingLoopSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutEdgeRoute NoRoute = FindRoute(Layout, "D", "E");
         FlowchartLayoutNodeBounds Diamond = Find(Layout, "D");
-        double BottomVertexY = Diamond.CenterY - (Diamond.Height / 2.0);
-
-        Assert.That(NoRoute.Points, Has.Count.EqualTo(2));
-        Assert.That(NoRoute.Points[0].X, Is.EqualTo(Diamond.CenterX).Within(2.0));
-        Assert.That(NoRoute.Points[0].Y, Is.EqualTo(BottomVertexY).Within(2.0));
-        Assert.That(NoRoute.Points[0].X, Is.EqualTo(NoRoute.Points[1].X).Within(1.0));
+        AssertDiamondPort(NoRoute, Diamond, IsSource: true);
+        Assert.That(NoRoute.Points.Count, Is.GreaterThan(2));
     }
 
     [Test]
-    public void TryLayout_RoutingLoop_YesBranchLeavesRightVertexAndEntersTargetRightSide()
+    public void TryLayout_RoutingLoop_YesBranchUsesDiamondEdgeNormalAndEntersTargetRightSide()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(RoutingLoopSource);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -71,16 +71,13 @@ public sealed class DiagramGridLoopBackRouteTests
         FlowchartLayoutEdgeRoute YesRoute = FindRoute(Layout, "D", "B");
         FlowchartLayoutNodeBounds Diamond = Find(Layout, "D");
         FlowchartLayoutNodeBounds Target = Find(Layout, "B");
-        double RightVertexX = Diamond.CenterX + (Diamond.Width / 2.0);
         double TargetRightX = Target.CenterX + (Target.Width / 2.0);
 
-        Assert.That(YesRoute.ExitSide, Is.EqualTo("right").IgnoreCase);
         Assert.That(YesRoute.EntrySide, Is.EqualTo("right").IgnoreCase);
-        Assert.That(YesRoute.Points[0].X, Is.EqualTo(RightVertexX).Within(2.0));
-        Assert.That(YesRoute.Points[0].Y, Is.EqualTo(Diamond.CenterY).Within(2.0));
+        AssertDiamondPort(YesRoute, Diamond, IsSource: true);
         Assert.That(YesRoute.Points[^1].X, Is.EqualTo(TargetRightX).Within(2.0));
         Assert.That(YesRoute.Points[^1].Y, Is.EqualTo(Target.CenterY).Within(2.0));
-        AssertRouteIsOrthogonal(YesRoute.Points);
+        AssertRouteIsOrthogonalAfterDiamondNormal(YesRoute.Points);
         Assert.That(CountCorners(YesRoute.Points), Is.EqualTo(2));
     }
 
@@ -101,9 +98,11 @@ public sealed class DiagramGridLoopBackRouteTests
         int Corners = 0;
         for (int Index = 2; Index < Points.Count; Index++)
         {
-            bool PrevHorizontal = Math.Abs(Points[Index - 2].Y - Points[Index - 1].Y) <= 0.5;
-            bool NextHorizontal = Math.Abs(Points[Index - 1].Y - Points[Index].Y) <= 0.5;
-            if (PrevHorizontal != NextHorizontal)
+            double PreviousX = Points[Index - 1].X - Points[Index - 2].X;
+            double PreviousY = Points[Index - 1].Y - Points[Index - 2].Y;
+            double NextX = Points[Index].X - Points[Index - 1].X;
+            double NextY = Points[Index].Y - Points[Index - 1].Y;
+            if (Math.Abs(PreviousX * NextY - PreviousY * NextX) > 0.5)
             {
                 Corners++;
             }
@@ -112,14 +111,33 @@ public sealed class DiagramGridLoopBackRouteTests
         return Corners;
     }
 
-    private static void AssertRouteIsOrthogonal(IReadOnlyList<FlowchartLayoutPoint> Points)
+    private static void AssertRouteIsOrthogonalAfterDiamondNormal(IReadOnlyList<FlowchartLayoutPoint> Points)
     {
-        for (int Index = 1; Index < Points.Count; Index++)
+        for (int Index = 2; Index < Points.Count; Index++)
         {
             bool Horizontal = Math.Abs(Points[Index - 1].Y - Points[Index].Y) <= 0.5;
             bool Vertical = Math.Abs(Points[Index - 1].X - Points[Index].X) <= 0.5;
             Assert.That(Horizontal || Vertical, Is.True, $"segment {Index - 1}->{Index} is diagonal");
         }
+    }
+
+    private static void AssertDiamondPort(FlowchartLayoutEdgeRoute Route, FlowchartLayoutNodeBounds Diamond, bool IsSource)
+    {
+        FlowchartLayoutPoint Port = IsSource ? Route.Points[0] : Route.Points[^1];
+        FlowchartLayoutPoint Adjacent = IsSource ? Route.Points[1] : Route.Points[^2];
+        double HalfWidth = Diamond.Width / 2, HalfHeight = Diamond.Height / 2;
+        double Outline = Math.Abs((Port.X - Diamond.CenterX) / HalfWidth)
+            + Math.Abs((Port.Y - Diamond.CenterY) / HalfHeight);
+        Assert.That(Outline, Is.EqualTo(1).Within(0.02));
+        Assert.That(Math.Abs(Port.X - Diamond.CenterX), Is.LessThan(HalfWidth - 1), "diamond ports are on edges, not vertices");
+        Assert.That(Math.Abs(Port.Y - Diamond.CenterY), Is.LessThan(HalfHeight - 1), "diamond ports are on edges, not vertices");
+        double NormalX = IsSource ? Route.ExitNormalX : Route.EntryNormalX;
+        double NormalY = IsSource ? Route.ExitNormalY : Route.EntryNormalY;
+        double Vx = Adjacent.X - Port.X, Vy = Adjacent.Y - Port.Y;
+        double Magnitude = Math.Sqrt(NormalX * NormalX + NormalY * NormalY);
+        Assert.That(Magnitude, Is.GreaterThan(0));
+        Assert.That(Math.Abs(Vx * NormalY - Vy * NormalX) / Magnitude, Is.LessThan(1.5), "terminal follows edge normal");
+        Assert.That(Vx * NormalX + Vy * NormalY, Is.GreaterThan(0), "terminal points outward");
     }
 
     private static FlowchartLayoutNodeBounds Find(FlowchartLayoutResult Layout, string Id)

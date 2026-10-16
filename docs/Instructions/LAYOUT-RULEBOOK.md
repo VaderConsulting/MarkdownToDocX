@@ -10,195 +10,334 @@ Enterprise and flowchart diagrams default to `grid`. Diagram frontmatter may set
 
 Diagram frontmatter may set `config.legend` to `off`, `on`, `bottom-right`, `bottom-left`, `top-right`, `top-left`, `below`, `right`, `table`, or a placement hint such as `right-of id`. It defaults to `off`; `on` means `bottom-right`. The command-line option `--legend` sets the run default and diagram frontmatter wins. An image legend is placed after the main layout and never changes its nodes, routes, labels or score. It contains only the distinct visible node and line types used by the diagram, in first-use order; invisible connectors are omitted. It sits outside the main bounds with one grid step of clearance. `table` draws no image legend and adds a two-column Symbol/Type table after the diagram. Main-layout legality and quality checks exclude legend samples; the legend may not overlap itself or the main diagram.
 
-> **Decisions applied (7 Oct 2026, these override any conflicting text below)**
+> **Consolidated decisions (14 Oct 2026).** The operative rules below incorporate these decisions; this note is a history summary, not a separate precedence layer.
+
 > 1. Offset child in the next rank: use one corner into the target, entering as rule 4.11 sets, as rule 4.8 says.
-> 2. Minimum straight run of 50 px applies to diamond branches before their first corner. Every other line end needs a straight run of at least the arrowhead length before its arrowhead and at least the corner radius after leaving a node. The base rank gap stays 2 grid steps.
+
+> 2. Diamond branches require 50 px before the first corner. Other source runs require at least the 20 px corner radius; terminal runs require at least the arrowhead length. A base rank gap remains 2 grid steps.
+
 > 3. A gap grows by a whole grid step when it runs out of tracks.
+
 > 4. A node that rejoins the main path stays on the main path.
-> 5. Ties: branches go left of the main path, return tracks go right, a diamond branch leaves only from a vertex (rule 3.8), the label gap is the width of "n", and frame padding is 1 grid step.
+
+> 5. Ties: branches go left of the main path, return tracks go right, diamond branches use symmetric edge ports, label clearance is the width of "n", and frame padding is 1 grid step.
+
 > 6. The "Arrangement kept" check of brief section 9 allows the reordering in section 2 of this rulebook.
 
-
-Every rule is generic: it uses only structure and geometry, never a label, sample, test or group title; rules never depend on the ids themselves; only hints name a peer by its id (rule 2.21). A hint overrides every automatic placement rule (2.4 to 2.20), including 4:3 shape, compaction, wrapping, clusters and main path; only legality overrides a hint. Legality means overlaps, section 10 and room for lines; the routing faults list after section 10 is not legality, so a line hint beats it. A line hint likewise outranks the routing choices of sections 3 to 5, within legality. Rules are written for top-to-bottom (TB) diagrams; rule 1.1 maps them to other directions. `webshop-target-rules.md` keeps the detailed history and pictures.
-
 ## Terms
-- **Grid step**: 30 px. Every position, size, gap and move is a whole number of grid steps.
-- **Grid**: the one set of column lines (vertical) and row lines (horizontal) for the whole diagram. Every node centre sits on one column line and one row line. A **column** is the nodes on one column line; a **row** is the nodes on one row line.
+
+- **Grid step**: 30 px. Node centres, frame edges, rank and column positions, gap growth and layout moves use whole grid steps. Ports, arrowheads, rounded-corner geometry and text bounds are continuous drawing coordinates and may be fractional.
+
+- **Grid**: one set of column lines (vertical) and row lines (horizontal) for the whole grid-mode diagram. Every node centre sits on one column and one row line. A **column** is the nodes on one column line; a **row** is the nodes on one row line. In `open` mode, these grid-alignment requirements do not apply.
+
 - **Rank**: a node's row in flow order. Mermaid's ranking gives the starting rank. A line is **forward** when its target is in a later rank.
-- **Gap**: the clear space between two neighbouring ranks (rank gap) or columns (column gap), measured between the facing outlines of the largest nodes. Base rank gap: 2 grid steps. Base column gap: 1 grid step.
+
+- **Gap**: the clear space between two neighbouring ranks (rank gap) or columns (column gap), measured between the facing outlines of the largest nodes. Base rank gap: 2 grid steps, providing a default routing corridor for 20 px rounded corners, arrowhead clearance and independently allocated tracks; it is not derived from a universal 50 px straight-run requirement. Base column gap: 1 grid step.
+
 - **Track**: a line inside a gap, parallel to the gap, on which a straight run travels. Tracks are 1 grid step apart; the first track is the gap's centre line. Each track carries one line where runs overlap (rule 5.1).
-- **Port**: the point where one line meets a node's outline. A diamond has 4 **vertices** (its top, bottom, left and right tips; only these are called vertices), then 4 **edge centres** (the midpoints of its slanted edges). Any other shape uses box slots, moved along the line until they touch the drawn outline.
+
+- **Port**: the point where one line meets a node outline. Box and diamond edges each accept any number of distinct ports, distributed symmetrically at k/(n+1) along the edge (3.2); a single line uses the edge centre. Diamond vertices are the four tips, not mandatory branch ports. Every port lies exactly on the visible outline.
+
 - **Sides**: the **upstream side** faces earlier ranks (top); the **downstream side** faces later ranks (bottom). The **side that faces the target** (on a source) or **the side that faces the source** (on a target) is whichever of top, bottom, left or right faces the other end; the **far side** is the opposite side. A side or port is **free** when no line uses it.
-- **Straight run**: one horizontal or vertical segment of a line. **Minimum straight run**: corner radius + 1 grid step = 50 px.
-- **Corner**: a quarter-circle of radius 20 px joining two straight runs at a right angle. An **elbow** has 1 corner. A **Z** has 2 corners, and its first and last runs point the same way.
+
+- **Straight run**: a straight segment. Ordinary runs are horizontal or vertical; the initial run leaving or entering a sloped diamond edge is the sole exception and follows the edge normal (3.1). Diamond branches travel at least 50 px along that normal before turning onto the grid; other lines require at least 20 px before a corner and an arrowhead-length terminal run. A straight line with no corner needs no artificial source-side clearance.
+
+- **Corner**: normally a quarter-circle of radius 20 px joining two orthogonal straight runs at a right angle. A diamond-edge-normal run turning onto the grid uses a tangent transition for its actual change of direction, with the same 20 px minimum bend radius; it need not be a quarter-circle. An **elbow** has 1 corner. A **Z** has 2 corners, and its first and last runs point the same way.
+
 - **Main path**: see rule 2.18.
+
 - **Branch**: a path that leaves a main-path node and is not on the main path. A **detour** rejoins the main path at the next main-path node. An **early exit** ends, or rejoins the main path further on. A **loop branch** ends in a back edge.
+
 - **Back edge**: a line whose target is in an earlier rank than its source. Its **return track** is the track it runs on, outside every node it passes.
+
 - **Fan**: 2 or more lines on one side of one node that go to, or come from, nodes in one rank.
+
 - **Group / frame**: a group is a Mermaid subgraph; its frame is the rectangle drawn round its members. Every frame has a title strip at the top and 1 grid step of padding on each side.
+
 - **Label gap**: the width of the letter "n" in the label font. It is the clear space between a label's text and its line on each side.
+
 - **Main link**: the line to or from the node's one parent, or its first declared incoming line when it has several.
+
 - **Strongest flow** (the longest decision-free run): the flow with the most nodes from its start, or from the last decision, to the converging node; the first declared wins a tie.
+
 - **Cluster**: see rule 2.20.
+
 - **Peer**: the named node or group of a node or group hint; see rule 2.21.
+
 - **Honoured**: a hint is honoured when the final layout satisfies it; see rule 2.21.
+
 - **Note**: a free-text box with a dog-ear corner; see rule 2.22. A **plain connection** is an undirected line to or from a note; see rule 4.10.
+
 - **Nearest free cell**: the free cell with the fewest grid steps from the target cell, trying the same rank first, then earlier ranks, then left before right.
+
 - **Forced minimum**: see rule 2.13.
+
 - **Wrapped**: cut into rows or columns by rule 2.12.
 
+Every rule is generic: it uses structure and geometry, never labels, samples, tests or group titles; only hints identify peers by id (2.21). **Precedence has four distinct levels:** (1) hard legality, including geometry and section 10; (2) honoured hints, which override automatic placement and eligible routing faults; (3) routing-fault rejection for routes not explicitly permitted by hints; (4) scored optimisation. A hint cannot override hard legality, but can override automatic placement, cluster membership preferences and eligible routing faults. Rules are expressed for top-to-bottom (TB); rule 1.1 maps them to other directions. `webshop-target-rules.md` retains historical pictures and decisions.
+
 ## 1. Grid and spacing
+
 1.1 For LR, read left for top, right for bottom, top for left and bottom for right. BT and RL mirror TB and LR.
-1.2 Use one grid for the whole diagram. Every node sits on it, including diamond targets and group members.
-1.3 Draw every node in one box size. A diamond is the same width and twice the height. If the longest label does not fit, grow the box for every node by whole grid steps.
+
+1.2 In `grid` mode, use one grid for the whole diagram. Every node centre is grid-aligned after placement, compaction, wrapping, hints and repairs. Every frame edge is rounded **outward** to the next grid line while preserving title and padding clearances. Node outlines need not lie on grid lines, and ports, curves, labels and arrowheads may use fractional drawing coordinates. In `open` mode, positions are free, but all non-grid legality and routing requirements remain.
+
+1.3 All rectangular nodes in a diagram share one common width and height; diamonds have the common initial width and twice the common initial height. Measure labels and port capacity before routing. If a rectangular node needs more capacity, grow the common rectangular dimensions by whole grid steps for all rectangles. A diamond may grow individually by whole grid steps under 1.7 when its edge ports or initial runs need additional room. Notes are sized separately (2.22).
+
 1.4 Move nodes and grow gaps only in whole grid steps, across the whole rank or column. Never shrink a corner, straight run, label gap or padding to make something fit (see rank-gap-markup-2.png).
-1.5 Make every rank gap equal to the base rank gap. A rank gap grows only to hold a label, a Z, extra tracks or a frame, and that growth changes no other gap (see rank-gap-markup.png).
+
+1.5 Make every rank gap equal to the base rank gap of 2 grid steps. This value provides a default corridor for rounded corners, arrowhead clearance and independently allocated tracks; it is not intended to satisfy the longer diamond straight-run minimum. A rank gap grows only to hold a label, a Z, extra tracks, required run/corner clearance or a frame, and that growth changes no other gap (see rank-gap-markup.png).
+
 1.6 Snap Mermaid's positions to the grid one whole rank or column at a time. If two nodes need the same place, push the second one 1 grid step on in rank order, and repeat until nothing overlaps.
-1.7 Always move forward. Insert space only to meet a legality rule or to make room for a hint (rule 2.21): no overlap, and a track, a port slot and label room for every line. When a legality rule cannot be met in the space available, insert one whole grid step of space (rule 1.4) in the gap or rank concerned and apply the rule again. Stop when the gap holds every line and label it must carry; the amount needed is computed from them. No rule ends in a failure, and no rule depends on a diagram's size. Quality (crossings, shape, empty area) is decided by the score of rules 2.13 and 2.14, never by adding space.
+
+1.7 Repair geometric shortfalls monotonically: measure the exact missing clearance, track capacity, port separation or run length, then move affected unhinted nodes by whole grid columns/rows or enlarge the relevant gap by the smallest whole-step increment that strictly reduces that shortfall. Recompute the shortfall after each repair; never retry an unchanged state. A shortfall caused by an off-centre port and insufficient corner clearance is repaired by moving the unhinted child to a different grid column, not by growing the rank gap. If no legal repair exists, draw the deterministic fallback of rule 5.7 and issue a diagnostic; never omit the diagram.
 
 ## 2. Placement
+
 2.1 Start from Mermaid's ranks and in-rank order, and change them only as rules 2.4 to 2.21 say, honoured hints (rule 2.21) first (rules 2.2 and 2.3 are pointers).
+
 2.2 See rule 2.18.
+
 2.3 See rule 2.17.
+
 2.4 Put a node with several parents under its first parent that has no other child directly below it, taking parents in Mermaid's order. If every parent has one, keep the node's snapped column (1.6). Inside a 2.10 block, 2.10 decides which source a target sits under.
-2.5 If a node has several children, keep directly below it the child on the main path of rule 2.18 or, off the main path, the longest-path child (the child with the longest path to a node with no outgoing line). Place the other children as rule 2.17 sets: the next child goes as rule 2.17 sets.
+
+2.5 If a node has several children, prefer directly below it the main-path child (2.18), or off the main path the longest-path child (the child with the longest path to a terminal node). Place remaining children by 2.17, subject to clearance and honoured hints.
+
 2.6 Put detours in the column next to the main path, in the ranks between the two main-path nodes they join. Put early exits in the column beyond the detours. Put both on the side of the main path where Mermaid placed most of them; on a tie, use the left side. A second branch from the same diamond goes on the opposite side.
-2.7 When a diamond has two children, one on the main path and one starting a loop branch, keep the main-path child directly under the diamond (rule 2.18) and put the loop child in the next column, one rank lower, on the side Mermaid placed it. The main path continues straight (see wait-loop-markup.png, cycle-grid-markup.png).
+
+2.7 When a diamond has two children, one on the main path and one starting a loop branch, keep the main-path child directly under the diamond (rule 2.18) and put the loop child in the next column, one rank lower, on the side Mermaid placed it. Prefer a straight main-path connection only when the allocated symmetric ports align; otherwise use the fewest legal corners (see wait-loop-markup.png, cycle-grid-markup.png).
+
 2.8 A chain of nodes that each have one parent and one child stays in one column as it passes into and out of a group (see nested-chain-markup.png).
+
 2.9 See rule 2.10 (two-by-two is one case of it).
-2.10 Block of lines between two ranks (any number of sources and targets). Within a rank, swap two nodes if that lowers the rule 2.13 score. When several sources in one rank link to several targets in the next rank, order the targets so that each sits under the source it has the most lines from (on a tie, the mean column of its sources, then Mermaid's order); that line drops straight down (rule 4.2). Every other line in the block leaves the bottom of its source and enters the top of its target, at ports spread across each side in the order that gives the fewest crossings (rules 3.2 and 3.3). Each line has its own track in the gap (rule 5.1). Lines cross only where no ordering of nodes, ports or tracks removes the crossing, and then at a right angle inside the gap (rules 5.6 and 5.9). No hops, side exits or runs along a frame. Grow the gap by whole grid steps until every line fits (rule 1.7) (see cross-links-markup.png, many-to-many-markup.png).
 
-2.11 Compaction (applies in `grid`; `open` skips it). After honoured hints and rules 2.2 to 2.10, 2.15 to 2.18 and 2.20 (the order of rule 9.6), visit nodes in rank order and then left to right. Move each node up by whole rows and left by whole columns into the nearest free grid cell, so that it shares a row with its parent where the next cell is free (except a decision's side child, rule 2.17). Keep a move only if all of these hold: no box or frame overlaps; every line of the node still meets sections 3 to 5; the move gives a strictly lower rule 2.13 score; the node stays in the cell of rule 2.17, or in the column of one of its parents or beside it where rule 2.17 does not apply; and the move breaks no honoured hint (rule 2.21). After the initial placement is routed, also consider a coupled repair candidate when a crossing or hump can be removed by moving the affected unhinted node or group to any legal grid cell and reallocating the affected ports together. Reroute all affected lines and judge the complete candidate by its actual routes and score; keep it only under rules 2.13 and 2.14, and reject any candidate that breaks a hint or any other rule. A move that cannot lower the score is not retained. Compaction removes only rows and columns that hold no node, label, track or frame. It never shrinks a gap that holds a label, a Z, tracks or a frame (rule 1.4). The expected size of any compacted diagram is computed from the measured sizes of its nodes plus the gaps in these rules, and a test never hard-codes a pixel size. A node that belongs to a group stays in that group; a node that belongs to no group is not restricted. Passes repeat and the best layout is kept as set by rules 2.13 and 2.14. A cluster (rule 2.20) is one unit: it moves whole, by the same steps, and its nodes keep their places inside it. Rule 9.6 orders this rule against rules 2.15 to 2.18 and 2.20.
+2.10 Block of lines between adjacent ranks (any number of sources and targets). Swap nodes within a rank when that improves the score without breaking higher-priority placement or hints. Order targets by the source supplying the most lines (tie: mean source column, then Mermaid order). Prefer a straight connection when the **allocated symmetric ports actually align**; otherwise route with the fewest legal corners. Every other line leaves and enters at ports allocated jointly and symmetrically (3.2, 3.3). Use separate overlapping tracks (5.1), remove avoidable crossings (5.9), and allow only right-angle crossings inside gaps. Do not introduce hops, side detours or frame-edge runs. Grow gaps only for legality (1.7).
 
-2.12 Wrapping (applies in `grid`; `open` skips it). After rule 2.11, a row or column that is longer than the wrap length is wrapped. There is no fixed limit on nodes and no failure for size: a diagram of any size is wrapped for as many rows and columns as it needs. No honoured hint (rule 2.21) is broken.
+2.11 Compaction (`grid` only). After initial placement and routing, visit nodes in rank order, then left to right. Consider moving an unhinted node by whole grid cells to a nearer legal position, including beside a parent when 2.17 permits it. **Never move a main-path node sideways for compaction**; a deliberate wrap fold (2.12) is the sole automatic exception. Retain a move only when the complete candidate satisfies the applicable rules and has a strictly lower score (2.13). After a move, reroute affected connections under 4.2. Move clusters as units unless an honoured hint requires a different arrangement (2.20–2.21); group membership and frame containment remain governed by 7.8. Remove only genuinely unused rows/columns; never shrink a gap needed for labels, tracks, corners or frames. Repeat until rule 2.14 stops the search.
+
+2.12 Wrapping (`grid` only). After compaction, wrap overlong rows or columns into successive rows/columns to approach 4:3 without worsening the complete legal-layout score. There is no fixed diagram-size or node-count limit. Preserve source order and honoured hints. A long main path **may fold only at an explicit wrap boundary**: each uninterrupted section remains aligned, and the connecting edge is routed under sections 3–5. The fold is not an ordinary sideways compaction move. Wrapping never splits a group unless the group itself exceeds the selected wrap length. Run compaction after wrapping and keep only strictly improving candidates (2.14). Tests compute expected dimensions from measured node sizes and gaps and never hard-code pixel dimensions.
+
 - The wrap length is the number of nodes across, or down, that brings the whole diagram closest to 4:3 (width 4 parts to height 3 parts), without raising the rule 2.13 score. Never wrap a row or column that already fits within the wrap length. The shape is a ratio of the diagram's own computed size, with no fixed pixel size or node limit.
+
 - Wide: cut a row longer than the wrap length into rows of at most that length. Draw the first nodes across, then start the next row directly under the previous row, in the same columns, one rank gap below.
+
 - Deep: cut a column longer than the wrap length into columns of at most that length. Draw the first nodes down, then start the next column directly to the right of the previous column, one column gap away.
+
 - Keep the order of the nodes: the next row or column continues from the node after the last one in the previous row or column.
+
 - One line joins the pieces. For a wrapped row, it leaves the bottom of the far-right node, runs back along a track in the gap, and enters the top of the first node of the next row. For a wrapped column, it leaves the right side of the bottom node, runs along a track in the gap, and enters the left side of the first node of the next column. This line follows sections 3 to 5 like any other line.
+
 - Wrapping never splits a group frame unless the group is itself longer than the wrap length. Nodes of one group stay together.
+
 - After wrapping, run compaction (rule 2.11) again, so that wrapped rows and columns pack closer. A diagram can need both wide and deep wrapping. Compaction and wrapping repeat in passes; candidates are scored and kept, and the loop stops, as set by rules 2.13 and 2.14.
+
 - The wrap length is counted in nodes of the standard box size (rule 1.3). Tests compute the expected size from measured node sizes and the gaps, and never hard-code a pixel size or a node limit.
 
-2.13 Layout score. Every candidate layout of one diagram gets a score; lower is better. Score = shape + empty + crossings + bends + disconnected ends + hints. Shape: 2 points for every 5 percent the width-to-height ratio is away from 4:3 landscape (4 wide to 3 high), measured as a percentage of 4:3; too tall counts the same as too wide. Empty: the share of the diagram's bounding area not covered by node boxes, group frame and title space, labels or line tracks; 10 points for every 5 percent up to 30 percent, then 40 points for every 5 percent above 30 percent. Crossings: 20 points for every line crossing above the forced minimum; only crossings that no legal swap removes (rule 5.9) remain to be scored. The forced minimum is the fewest crossings that the diagram's links make unavoidable. For a complete block of n boxes linked to m boxes in two adjacent ranks it is n(n-1)/2 times m(m-1)/2. Elsewhere it is the number of pairs of lines that cross in every possible order, or zero when that cannot be shown. Crossings up to the forced minimum score no points but are still reported. Bends: 10 points for every corner on a line. Disconnected ends: 20 points for each source or destination end of a drawn line that does not meet its box or group outline; legend samples are excluded. Hints: see rule 2.21(g). Shape, empty and crossing points are prorated between steps. An overlap, or any line that breaks sections 3 to 5, rejects the candidate; it gets no score. The score only compares layouts of the same diagram; it is never a pass mark and never a size limit. Tests compute scores from the measured layout and never hard-code a pixel size.
+2.13 Layout score. Score each **legal, routing-fault-free (unless hinted)** candidate of the same diagram: shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 10 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per honoured node/group hint and -15 per honoured line hint (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Keep weights unchanged until measured examples justify revision.
 
-2.14 Keep the best. Compaction and wrapping (rules 2.11 and 2.12) produce candidates. Keep a candidate only if its score is strictly lower than the best so far. Stop when a full pass finds no lower score, or when a pass repeats an earlier layout. Then return the best layout found. The engine never fails or gives up because of diagram size or pass count. The 30 percent empty figure is a goal and a score step (rule 2.13), not a limit. The goal is no needless crossings (crossings above the forced minimum) and under 30 percent empty; a diagram that ends above 30 percent reports its empty share and the reason, and this is not a failed attempt.
+2.14 Keep the best. Compare complete legal candidates; accept only a strictly lower score. Stop after a full pass without improvement or a repeated layout signature. A finite deterministic candidate enumeration and a visited-layout set prevent cycles; do not impose an arbitrary diagram-size limit. Report any independently unsatisfiable hard constraint rather than expanding indefinitely (1.7). Empty space above 30% is a reported quality result, not a conversion failure.
 
-2.15 Unconnected pieces. Nodes, or small connected pieces, that have no line to other pieces (inside one group or in the whole diagram) are arranged as a block of rows and columns in declared order, left to right and then top to bottom, sized by the wrap length of rule 2.12. The group frame grows to fit the block. Pieces in a group stay in that group. A cluster (rule 2.20) is one piece and is placed whole.
+2.15 Unconnected pieces. Arrange disconnected nodes or connected pieces in declared order, left-to-right then top-to-bottom. Compute the block’s own wrap length from its measured member dimensions and spacing by selecting the legal arrangement nearest 4:3; do not depend on the whole-diagram wrap length (2.12). A cluster is initially one piece. Every member stays within its owning group (7.8), whose frame grows to fit.
 
-2.16 Fans. When one node has lines to or from many nodes on one side (a fan, one-to-many or many-to-one), the many nodes wrap into rows sized by the wrap length of rule 2.12, with the single node centred beside the block. Lines are routed as rule 5.8 sets; lines of inner rows may also use the gaps between rows and between boxes of outer rows as further nested tracks (rule 5.2). No avoidable crossings and no hops (rule 5.9).
+2.16 Fans. Arrange fan members into a local block whose wrap length is chosen from the fan block’s own measured dimensions and gaps to approach 4:3; do not depend on the overall diagram wrap length. Centre the source or target beside the block where permitted. This specific rule overrides generic 2.17 placement, subject to hints and legality. Route fan lines by 5.2 and 5.8, including nested tracks. Avoid removable crossings and hops.
 
-2.17 Under the parent. A node whose main link is to one parent is placed directly under that parent (or, in a left-to-right flow, to its right), centred on it, when that grid cell is free. Compaction (rule 2.11) keeps this cell or, when it is taken, the cell beside the parent. When the cell under the parent is taken by another child, the next child of a decision goes in the next column one rank lower (rule 3.8); the next child of any other node goes beside the parent on the parent's row, so its line is straight. If that cell is taken, use the nearest free cell. The only child of a node goes directly under it in the same way, unless rule 2.4 places that child under another parent.
+2.17 Under the parent. Prefer a child directly below its parent when its allocated ports permit a legal route. For multiple children retain symmetric port allocation (3.2). If an off-centre port and directly aligned child would require two corners with insufficient horizontal clearance, move the unhinted child outward by whole grid columns until the required horizontal and vertical runs fit; adding vertical rank-gap space alone does not fix horizontal clearance. Keep uniform rectangular dimensions. Main-path alignment is preferred but not forced against port geometry. Decisions follow 3.8, fans follow 2.16, and multiple parents follow 2.4.
 
-2.18 Main path. The main path is the path of least resistance: the route a reader's eye follows. Start at a node with no incoming line. At each node follow its one outgoing line when it has only one; at a decision, follow the branch with the longest decision-free run, with Mermaid's source order breaking a tie; where several flows converge, the converging node is on the main path of the strongest of them, the one that carries the longest decision-free run. Node labels and edge-label words never choose the path. Stop at a node with no outgoing line or one already on the path. Nodes on the main path share one centre line along the flow, so lines between them are straight (rule 4.7), except where a hint (rule 2.21) places the node. The main path never moves sideways to make room (see main-spine-markup.png). A node with one parent sits under that parent (rule 2.17); other nodes sit beside the main path. A node where flows converge is centred under (or beside) the main-path node that feeds it, and the other feeding lines enter as rule 4.11 sets. This rule outranks rule 2.11 for nodes on the main path: compaction never moves a main-path node off the centre line. Where a node with one parent hangs off a main-path node, rule 2.17 decides its place. Inside a 2.10 block the main path keeps its straight column; 2.10 orders the other targets around it.
+2.18 Main path. Select the path by longest decision-free continuation, with Mermaid order breaking ties; convergence follows the strongest incoming flow. Prefer a common centre column and straight edges when allocated ports align. At convergence, centre the rejoining node beneath the main-path node feeding it when legal, otherwise use the nearest legal grid position and 4.11. Do not distort symmetric ports to straighten a main-path edge. Reposition unhinted children by whole columns to make off-centre port routes legal (2.17). Neither compaction nor coupled repair may move a main-path node sideways; only an explicit wrap fold (2.12) or honoured hint may do so. A node that rejoins remains on the main path.
 
 2.19 Free direction. When a diagram declares no direction, the engine tries each flow direction (down, right, up, left) and keeps the layout with the lowest score (rules 2.13 and 2.14), so a simple chain comes out as a straight run with the fewest corners. When a direction is declared, it is used and not changed. Hints (rule 2.21) apply inside the direction in use and never change a declared direction; with none declared, each trial scores its own honoured hints. There is no size threshold: the same rule applies to small and large diagrams. Each trial applies rule 1.1 to its direction, and Mermaid's ranks are recomputed for it. Trials may run in parallel and reuse results.
 
-2.20 Clusters. A cluster is a set of nodes in which the share of possible links that exist inside the set is higher than the share between the set and the rest of the diagram. Find clusters from the links alone. A cluster never crosses a group frame, and every node is in at most one cluster. A node with no cluster is a cluster of one. Placement, compaction (rule 2.11), wrapping (rule 2.12), unconnected pieces (rule 2.15) and the 4:3 shape (rule 2.13) treat each cluster as one unit and move it whole. Inside a cluster, the nodes keep the order that gives the fewest crossings. A cluster linked to another cluster faces it, rank against rank, and the lines between them follow the many-to-many rule. A cluster longer than the wrap length is wrapped as a whole by rule 2.12, with its inner order unchanged. A cluster that contains a hinted node keeps that hint (rule 2.21): the cluster moves whole with the hinted node's peer relation intact; a hint that would split a cluster across a frame is a legality case (a group frame never holds a non-member, rule 7.3) and is handled as rule 2.21(f) sets; in every other case the cluster moves whole around the hinted node.
+2.20 Clusters. Identify clusters from relationship connectivity only, never labels. A cluster does not cross a group frame; nodes belong to at most one cluster, and otherwise form single-node clusters. Move and wrap clusters as units **unless an honoured hint requires a different legal arrangement**; hints outrank clustering and must not be refused merely because they distort or split an automatic cluster. If needed, dissolve or recompute the affected cluster around the honoured hint while preserving group membership and geometry. Choose internal order to minimise crossings under higher-priority rules. Between clusters use 2.10. Cluster detection must have a deterministic tie-break based on source order.
 
-2.21 Hints. A node, a group or a line may carry a hint on its own declaration line, so that a diagram can keep the structure of an original. A hint overrides automatic placement as the preamble sets. Hints are used as follows.
-- (a) Written: a node or group hint is words at the end of its declaration line: above, below, left-of or right-of a named peer, optionally followed by an offset +n; or push N, S, E or W. A line hint is written in square brackets after the relationship: leave N|S|E|W, enter N|S|E|W, travel N|S|E|W, separated by commas. N, S, E and W are screen directions and are never rotated by rule 1.1.
-- (b) Meaning: "above P" or "below P" puts the node in the same column as P, and "left-of P" or "right-of P" puts it in the same row, on that side, in the nearest free cell. With an offset +n it is exactly n cells further when that cell is free, otherwise the next free cell further on (+0 is the adjacent cell). "push D" puts the node in the extreme free cell in direction D inside its own group, or inside the diagram when it has no group. "leave D" and "enter D" name the side of the source box and of the target box that the line uses. "travel D" is the direction of the middle (track) run of the line; a straight line has no middle run, so travel on it is not honoured.
-- (c) Peers: a peer must be a node or group at the same level, in the same group. Any other peer (missing, or in another group) means the hint is ignored and reported. When the peer is in another cluster (rule 2.20), the two clusters are placed relative to each other as the hint says. A hint that would split a cluster across a frame is a legality case (group frames never hold non-members, rule 7.3): it is not honoured under (f), and it is reported.
+2.21 Hints. Hints override automatic placement and routing, but never hard legality. An honoured line hint may explicitly permit the routing fault it identifies. An honoured node or group placement hint can make a tier-3 routing fault unavoidable; keep the hint, report and score that fault under 2.13 rather than dropping the hint to remove the fault. A placement hint never permits a section 10 legality fault. Hints outrank automatic clusters, compaction, wrapping and main-path preferences. Resolve contradictory hints in source order (d). Report impossible hints alongside the fallback diagram.
+
+- (a) Written: a node or group hint is words at the end of its declaration line: above, below, left-of or right-of a named peer, optionally followed by an offset +n; or push N, S, E or W. A line hint is written in square brackets after the relationship: leave N|S|E|W, enter N|S|E|W, travel N|S|E|W, separated by commas. Every direction word in a hint—up, down, left, right, above, below, north, south, east, west, N, S, E and W—is relative to the reader's view of the finished diagram: north/up is the top of the page, south/down is the bottom, east/right is the right, and west/left is the left. This page-coordinate meaning is unchanged by the diagram direction, an internal coordinate axis, or rule 1.1.
+
+- (b) Meaning: "right-of P" places the node one grid step to the right of P on the same row; "left-of P" does the same to the left. "below P" places it one grid step below P in the same column; "above P" does the same above. The separation is measured between the node and peer outlines, with the grid step as the minimum gap. An offset +n adds n grid steps in that direction. If the next cell is occupied, move further in the same direction by whole grid steps until a free cell is found; never change row or column to resolve the collision. A chain of relative hints therefore remains in one row or column. "push D" puts the node in the extreme free cell in direction D inside its own group, or inside the diagram when it has no group. "leave D" and "enter D" name the side of the source box and of the target box that the line uses. "travel D" is the direction of the middle (track) run of the line; a straight line has no middle run, so travel on it is not honoured.
+
+- (c) Peers: a peer must be a node or group at the same nesting level in the same group. Missing or cross-group peers cause the hint to be ignored and reported. A valid peer may belong to another automatically detected cluster: honour the hint first, then move, split or recompute clusters as necessary without violating group membership or geometry. Cluster distortion alone is never grounds for rejecting a hint.
+
 - (d) Order and conflicts: take hints in source order and add each to the set. A hint that would make the set impossible (for node and group hints, a circle of peers; for line hints, two lines hinted to the same port on one box side) is dropped and reported, and the earlier hints stay. Two nodes hinted to the same cell are not a conflict: the later one takes the next free cell further on, on that side (as in (b)), and its hint is still honoured.
-- (e) Hinted nodes keep their relation to their peer and move together with it; rules 2.11, 2.12, 2.15 and 2.20 never break an honoured hint (a cluster moves whole around a hinted node).
-- (f) Legality: a hint never overrides legality (overlaps, section 10, room for lines); it does override the routing faults list after section 10. Space is inserted as rule 1.7 sets, to make room for a hint. A hinted line may use the corners its hint needs, without the corner limit of rule 4.3; its corners are still scored (rule 2.13).
+
+- (e) Hinted nodes retain their peer relation during placement and repairs. Reposition, dissolve or recompute automatic clusters as needed to honour the hint; a cluster is not required to move whole when doing so would break an honoured hint. Group membership (7.8) and hard legality remain binding.
+
+- (f) Legality and routing faults: hints never override legality (section 10); only the marked 5.7 fallback is excepted when no legal route exists. A line hint may expressly permit its named tier-3 routing fault. A node/group placement hint may make a tier-3 routing fault unavoidable, but never permits a legality fault: keep the honoured placement hint, report and score the routing fault under 2.13, and do not drop the hint to hide it. Evaluate feasible alternative routes and placements first. Add space when it can honour the hint (1.7); otherwise report the impossible hint and render the deterministic fallback.
+
 - (g) Score: each honoured node or group hint scores -30 and each honoured line hint scores -15 in rule 2.13, so honoured hints may outweigh a few crossings. The score only compares candidates; it never drops an honoured hint. This is intended: the structure of an original is preferred to calculated layout. A hint that cannot be honoured earns nothing, is reported with the reason, and layout continues; nothing fails.
+
 - (h) Direction: see rule 2.19. A node, group or line without a hint is laid out as before.
 
-2.22 Notes. A note is a free-text box with a dog-ear corner. It is not an ArchiMate element and has no relationship meaning. It may sit in a group or at the top level. For layout a note is a box like a node: its size comes from its text (grown by whole grid steps, rule 1.3), it sits on the grid, rules 2.4 to 2.20 place it, it takes a node hint and a group (rule 2.21), and its lines use ports as rule 4.7 sets. By default a note sits beside the node or group it connects to, on that row in the nearest free cell (as rule 2.17 sets for a child beside its parent); a note with no connection is an unconnected piece (rule 2.15). A plain connection (rule 4.10) is not a relationship, so a note is not a relationship end: it does not count in the forced minimum (rule 2.13) or in cluster detection (rule 2.20, which uses relationships only). A text that sits on a line is not a note: it is the label of that line (rules 6.1 and 6.2).
+2.22 Notes. A note is a free-text dog-ear box, not an ArchiMate element or semantic relationship endpoint. Notes may be grouped or top-level, are sized independently from their text and use grid-centre and clearance rules in `grid` mode. A connected note sits beside its connected node or group on the same row in the nearest free cell unless an honoured hint moves it; an unconnected note follows 2.15. Group membership and frame containment follow 7.8. Plain note connections have no arrowhead or semantic relationship meaning (4.10); their routes follow 4.2 like every other connection, and they **do not count in the forced-crossing minimum** under 2.13. A line label is not a note.
 
 ## 3. Ports and diamonds
-3.1 Use one port per line, so lines never share a port or a first run. A line meets its port at a right angle and ends exactly on the drawn outline (see f11-straight-markup.png).
-3.2 Allocate all lines on a box side together, not one line at a time. For n lines, place n ports at positions k/(n+1) of the side length, for k=1 to n, measured from left to right or bottom to top. This makes one line use the centre; odd counts include the centre and mirrored pairs, and even counts use mirrored pairs straddling the centre. Assign lines to the ports in target order (rule 3.3). Thus two lines use the thirds, three use the quarters, four use the fifths, and five use the sixths. There is no fixed port or line maximum. If the ports or their first runs do not fit legally, grow the box along that side by whole grid steps (rules 1.3 and 1.7), then recompute the same symmetric positions.
+
+3.1 Each line has its own distinct port and non-overlapping first run. A line ends exactly on the actual drawn outline at its allocated port and meets the edge there at a right angle: perpendicular to a rectangular edge or perpendicular to a sloped diamond edge. This requirement applies to diamonds under this rule; a diamond's initial or final edge-normal run is the sole permitted non-horizontal/non-vertical straight run, then turns onto the orthogonal grid after its required minimum length (4.1, 4.4). Diamond ports are allocated symmetrically by 3.2, 3.3 and 4.7. Port assignment and route legality are checked in the layout and routing model, not by an SVG checker. The painter draws only the route supplied by that model; a missing route is reported as an error and is never replaced by a straight centre-to-centre line.
+
+3.2 Allocate lines on each rectangular or diamond edge jointly. For n lines on an edge, use positions k/(n+1), k=1..n, along that edge; one line uses the edge centre. Preserve target order (3.3). Port coordinates may be fractional and are not grid-placement coordinates. No centre port is reserved for a main path when n is even. Never shift one port solely to straighten an edge. For rectangular nodes, insufficient spacing grows the common rectangular dimensions (1.3). For a diamond, insufficient port spacing or first-run clearance grows that diamond by whole grid steps (1.7). Hinted side choices participate in joint allocation.
+
 3.3 On each side, order the ports by where each line's other end is, so no two lines cross next to the node.
+
 3.4 Removed; see 4.8.
+
 3.5 Removed; see 4.8.
-3.6 A decision diamond always has its four vertices as ports and at least three further ports evenly spaced along each of its four edges: at least 16 ports in total. For n active ports on one edge, place them at the n equal interior divisions: one at the half, two at the thirds, three at the quarters, four at the fifths, and so on. Keep at least the three quarter-point candidates available and add as many evenly distributed ports as required; there is no fixed maximum. Reassign all lines on that edge together: preserve their destination order so they do not cross beside the diamond, then choose the distinct ports with the least total displacement; later routing and crossing repair judge the complete routes by their real crossing count. A forward line enters at the top vertex, unless a line hint (rule 2.21) names another vertex or side. Branches take vertices first (rule 3.8). Further incoming lines use the free side vertices, then the ports along the upper edges. When the diamond needs more room to keep those ports and their first runs separate, grow it by whole grid steps (rules 1.3 and 1.7).
-3.7 A branch to a target directly below the diamond leaves the bottom vertex as a straight line.
-3.8 Decision branches. With two or three branches, the outer branches leave from the diamond's left and right vertices and the middle branch (the main-path branch when there are two and one target is directly below) from the bottom vertex. A branch whose target is lower and in another column leaves the side vertex facing it horizontally, uses exactly one corner, and runs straight down to the target, entering as rule 4.11 sets. A branch never leaves from a diamond position that is not a vertex. If the facing vertex is taken, or its run before the corner would be shorter than the minimum straight run, insert space as rule 1.7 sets (legality) and route again (see decision-accepted.png, merge-decision-markup.png, pictures/markup-decision-branches.png, pictures/markup-three-way-decision.png).
-3.9 Never leave the bottom vertex and then turn sideways, unless a line hint (rule 2.21) names another vertex or side. Two branches to mirror-image targets are mirror images (see decision-three-way-markup.png, pictures/markup-three-way-decision.png).
+
+3.6 A diamond has four sloped edges, each accepting any number of distinct ports allocated symmetrically at k/(n+1) under 3.2, 3.3 and 4.7, exactly as box edges do. One line on an edge uses its centre. Every diamond line enters or leaves perpendicular to its allocated sloped edge for the minimum straight run, then turns onto the horizontal/vertical grid (3.1, 4.1, 4.4). Grow the diamond by whole grid steps under 1.7 if its ports or initial runs do not fit.
+
+3.7 For a diamond branch to a target directly below, choose a downward-facing edge port and route its perpendicular initial run for at least 50 px before turning onto the grid. Continue by the fewest legal corners; move an unhinted child by whole grid columns if required for corner clearance (2.17). A route is straight only if the required normal departure and target geometry align.
+
+3.8 Decision branches. Allocate each branch a distinct port on a suitable diamond edge using 3.2, 3.3 and 4.7, preferring the edge facing its target subject to hints and legality. Each branch departs perpendicular to its sloped edge, runs straight for at least 50 px, then turns onto horizontal or vertical routing (3.1, 4.1, 4.4). Grow the diamond and surrounding gaps by whole grid steps to reduce measured port-spacing or initial-run shortfalls (1.7). Routes are independent and never share a port or first run.
+
+3.9 Diamond lines use the same symmetric-port, track, corner-limit and crossing rules as other lines, except for their perpendicular-to-edge initial straight run and transition to the orthogonal grid (3.1, 4.1). No line may travel through the diamond interior. Prefer mirrored routing for mirrored destinations when compatible with hints and legality.
+
 3.10 Arrowhead tips end exactly on the visible shape outline and never overlap or cross into the box. A cross endpoint marker keeps the exterior clearance in parameter cross_endpoint_standoff; its line ends at the marker anchor, outside the box.
 
 ## 4. Line shape
-4.1 Build every line from straight runs and corners only. No diagonals, S-curves, free curves or hop arcs.
-4.2 When the ports line up on one column or row line, draw a single straight run, whatever the two shapes' sizes, unless a line hint (rule 2.21) says otherwise.
+
+4.1 Build ordinary line paths from horizontal/vertical straight runs and 20 px rounded right-angle corners. **Sole exception:** the first straight run leaving, or final straight run entering, a sloped diamond edge is perpendicular to that edge and may be diagonal. After the required minimum straight run, it turns onto the horizontal/vertical grid; that transition is an allowed diamond-edge direction change, not a forbidden diagonal grid run. Do not use arbitrary diagonal detours, S-curves, free curves or hop arcs.
+
+4.2 Allocate ports before routing under 3.2, 3.3 and 4.7, using the relative positions of the two endpoint nodes to determine port order and sides. A connection is a single straight run only when its allocated ports line up and their required departure and arrival directions agree; diamond edge normals are measured against the actual sloped edge (3.1). Never move a port off its allocated slot or reserve a centre port to force a straight main-path edge. Instead consider legal node movement (2.17–2.18), then use the fewest permitted direction changes (4.8). A legal line hint can override automatic route choice, not hard legality.
+
 4.3 A line has at most 2 corners, 3 for a back edge; insert space until met (rule 5.7). A line with a hint (rule 2.21) may use the corners its hint needs. A line never loops on itself, and never runs past the side of its target that faces the source and turns back.
-4.4 Every line runs straight for at least the minimum straight run after leaving its source and before its arrowhead, so no corner sits closer than that to either end.
+
+4.4 A diamond decision branch travels at least 50 px **perpendicular to its sloped edge** before its first change of direction onto the grid. A line entering a diamond likewise follows the edge normal for its required terminal straight run; its length must accommodate the arrowhead and any transition geometry. Other lines have at least 20 px of straight travel after their source port before a corner, and every arrowheaded line has a terminal straight run at least as long as its arrowhead. Do not impose a universal 50 px source run on ordinary lines.
+
 4.5 Put a Z's middle run on a track in the gap between the source and target ranks (see lr-fanout-markup.png).
+
 4.6 A line never runs along a node outline or a frame edge. It crosses a frame only at a right angle. A line to or from a group follows rule 4.9.
-4.7 Port placement. Allocate all automatic lines on each side together by rule 3.2, then assign the symmetric ports in target order so that no line runs back past another. A single line uses the centre port and is straight when its opposite port also lies on the same row or column line (rule 4.2). With multiple lines, do not reserve the centre for one line and leave the rest on only one side: an odd-sized set has a centre port and mirrored pairs, while an even-sized set has mirrored pairs straddling the centre. A legal line hint (rule 2.21) that names a side fixes that line to the named side; include it when allocating that side's ports. Port allocation is joint across routes: when a new port choice would create a crossing or a renderer hump, reallocate the affected ports together, including ports already assigned to the other lines, and reroute those lines. Keep the symmetric sets and all hints, and choose among legal assignments by the real crossing count after routing (rules 5.6 and 5.9). An end marker sits on the port and takes no extra room.
-4.8 Fewest corners. A line leaves and enters the sides that give it the fewest corners: none when the centres align (rule 4.7), otherwise one, by leaving the side that faces the target and entering the target on the side that faces the source. When two choices have the same number of corners, the one along the flow direction wins. A line never uses a side that makes it cross a box. A line leaves a side only when the other end lies wholly beyond that side. A Z is used only when no one-corner route is clear; its middle run is on a track (rule 4.5). A legal line hint (rule 2.21) that names a side overrides this choice.
+
+4.7 Allocate all automatic lines on each rectangular side and each diamond edge together at symmetric k/(n+1) ports (3.2), then assign ports in the order of the other endpoints (3.3). With an odd count the centre is occupied; with an even count **there is no centre port**, even for a main-path line. A legal side hint fixes the chosen side but does not exempt its line from joint port allocation. Reassign affected ports and reroute affected lines together to eliminate avoidable crossings (5.9), preserving symmetry and hints. A port is never moved solely to create a straight line.
+
+4.8 Prefer the fewest legal corners after port allocation: zero only for aligned ports, otherwise one if clear, then a two-corner Z when necessary. Prefer sides facing the opposite endpoint where the endpoint lies wholly beyond that side; break equal-corner ties in flow direction. Rule 4.11 is the specific convergence exception; 3.8 controls decision branches; 5.3–5.4 control back edges. A line hint may override automatic side and route preferences within hard legality. Do not run through boxes or turn back past the facing side of the target.
+
 4.9 Group endpoints. A relationship may name a group as its source or its target. The endpoint is the group's frame, and the frame is treated as a box in rules 3.1 to 3.3, 4.2, 4.4, 4.7, 4.8, 5.1 to 5.6 and 2.13, and in line hints (rule 2.21): the line leaves or enters the frame on the side that faces the other end, at a port allocated symmetrically by rules 3.2 and 4.7, square-on to the frame. The line starts or ends on the outer edge of the frame and never begins inside it, except a line between a group and one of its own members, which meets the inner edge of the frame and crosses nothing else needlessly. A line to a group never runs along the frame edge. A frame endpoint that needs more ports or tracks adds room as rule 1.7 sets (legality).
+
 4.10 Plain connection. A plain connection is an undirected line, with no arrowheads and no relationship type, between a note and a node or group, or between two notes. It is drawn like any other line: sections 3 to 5 apply, a group end follows rule 4.9, its corners and crossings are scored by rule 2.13, and it may carry a line hint (rule 2.21). It is not a relationship and never enters the model.
-4.11 Convergence. When several lines enter one target, a line from a source directly above the target enters its top as one straight run (rule 4.2). A line from a source in another column, including a diamond branch (rule 3.8), uses one corner (rule 4.8): it enters the top centre port when that port is free; otherwise it runs straight along the flow to the target's row and enters the side of the target that faces the source. A converging line never runs along the gap above the target to reach its top, and never enters the top with an S-jog (two corners), unless a line hint (rule 2.21) names that route. Lines inside a block of rule 2.10 follow rule 2.10 instead; this side entry applies only to lines from outside such a block (see pictures/markup-merge-into-end.png, pictures/markup-merge-into-end-detail.png, pictures/markup-merge-finish.png).
+
+4.11 Convergence. Allocate all target ports jointly (3.2, 4.7). A source directly above a target uses a straight top entry **only if its allocated source and target ports align**. An offset source uses the fewest-corner legal entry: top when reachable without a prohibited gap traverse, otherwise the side facing the source. Do not reserve or move a top-centre port to force convergence. A converging line never runs along the gap immediately above the target or uses an S-jog into its top unless a legal line hint explicitly allows that routing fault. Within a 2.10 block, follow 2.10 instead.
 
 ## 5. Tracks and crossings
+
 5.1 Two lines never use the same track where their runs overlap. If a gap has fewer free tracks than lines, insert space as set by rule 1.7 and route again.
+
 5.2 In a fan, the line to the node furthest out takes the outermost track and port, and the line to the nearest node takes the innermost. Apply this to fan-out and fan-in, and to both halves of the fan (see fan-nesting-markup.png). Fans between columns follow rule 5.8.
+
 5.3 A back edge leaves its source's downstream side if that side is free; if not, it leaves the side facing its return track. It enters the middle of the target's side that faces the return track (see loop-back-markup.png).
+
 5.4 Put the return track on the same side of the main path as the back edge's source. If the source is on the main path, use the side with no branches; if that is still tied, use the right side. When several back edges share a side, the longest takes the outermost track.
+
 5.5 Removed; see 2.10.
-5.6 Before accepting a route, reassign the tracks, ports or sides of the affected lines together, including other lines that share their ports or tracks, if that removes a crossing (rule 5.9), then if it lowers the rule 2.13 score. If port reassignment alone cannot remove an avoidable crossing or hump, consider the coupled unhinted node or group move in rule 2.11, then reallocate ports and reroute. Reroute every affected line and judge the actual crossing count and complete score. A crossing that remains is allowed only at a right angle inside a gap, and is scored by rule 2.13.
-5.7 If no route meets every legality rule, insert space for legality rules, or to make room for a hint (rule 2.21), as rule 1.7 sets, in the gap or rank concerned and route again. Nothing is reported as failed, and there is no size or pass limit. Never draw a tangle.
+
+5.6 Reconsider affected ports, tracks, sides and unhinted node positions together to remove avoidable crossings and humps. Additional corners are allowed within 4.3 unless an applicable hint permits more. Do not move a main-path node sideways during coupled repair; only a wrap fold or honoured hint can change its centre column. Recompute all affected routes, apply legality, then hints, then non-exempt routing faults, then score. Remaining unavoidable crossings must be right-angled and inside gaps.
+
+5.7 Every input produces a diagram and diagnostics, even when requested geometry cannot be satisfied. For each repair, measure the outstanding geometric shortfall and accept only a change that strictly reduces it; use whole-step gap growth or whole-column child movement as appropriate (1.7). Port assignment and route validation happen in the layout and routing model. The painter draws only model-supplied routes; it never invents a straight centre-to-centre line for a link with no route. A missing route is an error and must be reported. For non-geometric impossibility, stop retrying and draw a deterministic fallback: retain all nodes and group frames without overlap, preserve group membership, draw every original relationship as an explicitly marked fallback connector using the shortest obstacle-avoiding orthogonal path available, and label the affected connectors as routing fallbacks in the diagnostics. A fallback connector may violate normal corner limits or routing preferences, but must not pass through nodes, hide an endpoint or change semantics. If even an obstacle-avoiding connector cannot be constructed, draw a visible dashed unresolved-connection stub at each endpoint and report the pair; never silently drop an edge or the diagram.
+
+5.10 Move before detour. For every routing fault, compare the legal options: move the causing node or group by whole grid steps, reroute either clashing line, or keep the smallest legal hump. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, add no legality or routing fault, and lower the score. Route options obey named limits for candidate moves, chain depth, lines per chain, added length and added bends; those values protect the 10 second per-diagram target and are set from catalogue measurements. If no move qualifies, route around it as normal. Report when a named limit prevents further candidates from being examined.
+
 5.8 Fans between columns. When lines fan out from one source to targets that lie wholly beyond its left or right side, or fan in to one target from such sources, each line leaves the side of the source that faces the target and enters the side of the target that faces the source, at spread ports (rules 3.2 and 3.3). Each line has its own track in the gap between the columns, and the tracks are nested as rule 5.2 sets so that the lines do not cross each other. A fan line never leaves the source's far side, top or bottom to go round the source, never enters at a box corner, and never shares a track with another fan line, unless a line hint (rule 2.21) names the side. Fans to the next rank use the bottom and top sides (rules 2.10 and 5.2). Insert space for the tracks as rule 1.7 sets (see pictures/markup-fan-out-bad.png, which shows what is forbidden).
-5.9 Avoidable crossings. For a block of lines between sibling group boundaries, apply the node and port ordering in rule 2.10 first. A crossing that a different track, port or side assignment removes, while keeping every other rule of sections 3 to 5 (including the corner limit of rule 4.3) and every line hint, is a fault: the route is rejected and that assignment is used. A crossing that no such assignment removes stays as a plain right-angle crossing (rule 5.6) and is scored (rule 2.13). Hops are never drawn (rule 4.1) (see pictures/markup-fan-out-bad.png).
+
+5.9 Avoidable crossings are **routing faults, not score terms**. If a legal alternative assignment of tracks, ports, sides or permitted extra corners removes a crossing while preserving hints and sections 3–5 (including 4.3), reject the crossing route and use the alternative. Evaluate affected lines together. A crossing with no such alternative remains as a right-angle crossing inside a gap and is reported/scored under 2.13. No hops.
 
 ## 6. Labels
+
 6.1 Centre each label on a straight run of its own line, on a white background, with the line broken round it and one label gap on each side (see edge-label-markup.png). The line keeps its own course through the label: it is never bent, jogged or moved sideways to make room for a label, and a label never sits on a corner. If no straight run is long enough, insert space as rules 1.7 and 6.2 set (label room is legality) (see pictures/markup-decision-branches.png, pictures/markup-three-way-decision.png).
+
 6.2 Use the longest straight run that holds the label and both label gaps clear of every corner and arrowhead. On a tie, use the run nearer the source. If no run is long enough, grow the gap it crosses by whole grid steps.
+
 6.3 Centre every node's label horizontally and vertically inside its visible box. Measure the rendered label bounds; neither the text baseline nor an icon changes the centring point.
 
 ## 7. Groups and frames
+
 7.1 Never cover or shorten the title strip. If the title is wider than the members, widen the frame by whole grid steps.
+
 7.2 Members stay on the shared grid. If a frame needs more room, grow the whole rank gap or column gap; never move a member off its grid line.
+
 7.3 Frames never overlap each other or cross a node that is not a member. When two frames, or a frame and an outside node, sit in neighbouring columns or ranks, grow that gap by 1 grid step, or by 2 when a line also runs through it (see frame-overlap-markup.png).
+
 7.4 Centre a group across its parent group when it is the only group nested in that parent.
+
 7.5 If both ends of a back edge are members of a group, keep its return track inside that group's frame.
+
 7.6 Keep at least one grid step between a frame outline and every member node on all four sides, below the title band. Grow the frame or its surrounding gap in whole grid steps; never move a member off-grid.
+
 7.7 Centre a group's member layout within its frame horizontally and vertically when the group has no placement hint. An honoured hint (rule 2.21) determines the placement and takes precedence.
 
+7.8 Frame membership. A member that conflicts with its frame grows the frame and is never moved out. A non-member that conflicts with a frame is placed outside it once, and no later step, including 2.11 and 5.6, moves it back inside.
+
 ## 8. Sequence diagrams
+
 8.1 Leave the same clear space above and below a note as between two consecutive messages. A note never touches a message line, an arrowhead or a label. Set this in the shared row layout, never for one diagram (see sequence-note-markup.png).
 
 ## 9. Precedence
-9.1 Never break an item in section 10. If a layout would break a legality item, insert space for legality rules, or to make room for a hint (rule 2.21), as rule 1.7 sets, and route again; a quality item (crossings, shape, empty area) is settled by the score of rules 2.13 and 2.14, not by space.
-9.2 Before breaking a legality rule, grow the gap concerned by whole grid steps and route again, as rule 1.7 sets. Space is never grown for quality.
-9.3 A specific rule beats a general one within one step of rule 9.6: diamond rules (3.6 to 3.9) beat box rules (3.1 to 3.3, 4.7 and 4.8), and back-edge rules (5.3 to 5.4) beat forward-line rules. Hints rank above all of these (see the preamble).
-9.4 Within rules 2.11 to 2.21, candidates are compared only by the score of rule 2.13, except that an honoured hint (rule 2.21) is kept; the order below applies to the routing and placement choices inside one candidate. Otherwise the earlier item in this list wins: (1) one grid and whole grid steps; (2) placement (section 2); (3) ports and line shape (sections 3 and 4); (4) fewer crossings; (5) fewer corners; (6) label position; (7) Mermaid's original rank and order.
-9.5 If a choice is still tied, keep Mermaid's order.
-9.6 Precedence. Hints: see the preamble and rule 2.21. Placement: honoured hints (2.21) first; then 2.18; then 2.7 (compatible with 2.18, as it keeps the main path straight); then 2.4 to 2.6 and 2.8 to 2.10 (rule 2.4 applies within this step, so a child that rule 2.4 places under another parent is placed there, not by 2.17); then 2.17, 2.16, 2.20 and 2.15; then compaction 2.11 (which keeps the cell of 2.17); then wrapping 2.12; then 2.19 picks among the resulting candidates by score and never overrides a declared direction. Routing: line hints (2.21); then 4.7; then 3.8, 4.11 (lines inside a 2.10 block follow 2.10) and 5.8; then 4.8; then 5.9 (within 4.3 and the line hints). After this initial placement and routing, the coupled repair in rules 2.11 and 5.6 may revisit an unhinted node or group together with its affected ports; it must keep every higher-priority placement rule and hint. The routing faults list yields only to line hints. A higher item is never moved by a lower one. Section 10 items and overlaps are never broken. Ties go to Mermaid's order (9.5).
 
-## 10. Must never (a candidate that breaks one is rejected; space is inserted for legality rules, or to make room for a hint (rule 2.21), as rules 1.7 and 5.7 set)
-- A node centre off the grid, a fractional coordinate, two nodes overlapping, or unequal rank gaps beyond rule 1.5.
-- A diagonal run, a curve that is not a 20 px corner, an S-curve, a hop arc, or more corners than rule 4.3 allows (a hinted line may use the corners its hint needs).
-- A line whose ports line up drawn as anything but one straight run (unless a line hint (rule 2.21) says otherwise), or a run shorter than the minimum straight run after a port, before a first corner or before an arrowhead.
+9.1 Apply precedence in this order: (1) hard legality (section 10); (2) honoured hints, subject only to hard legality; (3) routing-fault rejection unless an applicable line hint explicitly permits the fault; (4) score-based optimisation. Mandatory structural constraints are applied during candidate construction; automatic placement preferences yield to hints. Avoidable crossings are routing faults under 5.9, not a score trade-off. Insert space only for legality or to honour hints.
+
+9.2 Grow space only to reduce a measured legality or hint-clearance shortfall. If a port offset leaves insufficient horizontal room for corners, move the unhinted child by whole columns (2.17); growing a vertical gap does not fix that defect. When normal geometry is unsatisfiable, use the visible diagnostic fallback (5.7), not an unbounded retry or omitted diagram.
+
+9.3 A specific rule beats a general automatic rule within one step of 9.6: diamond-specific first-run and sizing rules (3.6–3.9, 4.4) supplement the shared port rules (3.1–3.3, 4.7), while back-edge rules (5.3–5.4) supplement forward-line rules. Hints override all automatic rules except hard legality.
+
+9.4 Evaluate each candidate in the order of 9.1: hard legality, honoured hints, non-exempt routing faults, then complete score (2.13). Specific geometric rules take precedence over general automatic rules, but never over an honoured legal hint. Automatic ties prefer grid placement, main-path continuity, fewer crossings, fewer corners, label placement, then Mermaid source order.
+
+9.5 If a choice is still tied, keep Mermaid's order.
+
+9.6 Execution order. Parse and validate hints; determine direction, main path, decisions, fan/block placement, clusters and disconnected pieces. Apply hints as constraints throughout, ahead of automatic placement. Allocate ports jointly, route decision branches, convergence, fans and back edges, then minimise corners. Check hard legality, honour legal hints, reject non-exempt routing faults and only then score candidates. Apply compaction and wrapping. For each routing fault, apply the bounded move-before-detour repair (5.10) before changing the route; then run coupled repairs and reroute all affected lines. Coupled repairs never move main-path nodes sideways except at an explicit wrap fold or by hint. Repair only measurable shortfalls; if unresolved, render the fallback and diagnostics (5.7). Direction trials select among completed candidates; Mermaid order resolves ties.
+
+## 10. Must never (normal candidates are rejected for these violations; a marked rule 5.7 fallback connector is excepted only when no legal route exists, remains a reported diagnostic, and is never synthesized by the painter from node centres)
+
+- In `grid` mode, a node centre or frame edge off the grid, or a non-whole-step layout move or gap growth. Fractional **rendered** port, curve, text and arrowhead coordinates are permitted. In `open` mode, grid-alignment constraints do not apply. Two nodes overlapping, or unequal rank gaps not justified by rule 1.5, are forbidden in either mode.
+
+- A diagonal run **except the single edge-normal initial/final straight run at a sloped diamond edge** (3.1, 4.1), a curve other than an allowed 20 px orthogonal corner or diamond-to-grid direction change, an S-curve, a hop arc, or more corners than 4.3 permits (except a hinted line or a marked fallback connector under 5.7).
+
+- A line whose allocated ports align but is drawn as anything other than one straight run (unless a legal line hint overrides its route), or a source/terminal run shorter than the applicable minimum in rule 4.4.
+
 - A line end short of or inside the drawn outline, or on a box corner.
-- Two lines sharing a port, a first run or a track where their runs overlap.
+
+- Two lines sharing a port, first run or overlapping track.
+
 - A line through a node or label it does not connect to, or along a node outline or frame edge.
-- A line crossing a frame or another line at anything but a right angle, or a crossing that breaks sections 3 to 5 (for example one that is not inside a gap). Crossings that no swap removes (rule 5.9) above the forced minimum are scored by rule 2.13, not rejected.
-- A line that runs past the side of its target that faces the source and turns back, or a diamond branch that leaves the bottom vertex and turns sideways, or that leaves from a diamond position that is not a vertex (rule 3.8).
-- Frames overlapping, a frame crossing a non-member node, or a title strip covered or cut short.
+
+- A line crossing a frame other than square-on, or a crossing of two orthogonal line runs other than at a right angle within a gap. Avoidable crossings are governed separately by the routing-faults list and rule 5.9.
+
+- A line running past the target’s facing side and turning back, or a diamond line crossing its own diamond interior. Diamond branches may leave from any allocated edge port.
+
+- Frames overlapping, a frame crossing a non-member node, a member placed outside its owning frame, or a title strip covered or cut short.
+
 - A label touching a line, arrowhead, corner, outline, frame or another label.
+
 - A sequence note touching a message line, arrowhead or label.
 
-## Routing faults (a candidate with one is rejected unless a line hint (rule 2.21) names that side or route; not legality)
-- A line bent, jogged or moved sideways for a label (rule 6.1); a converging line that runs along the gap above its target or enters the top with an S-jog (rule 4.11); a fan line that leaves the far side, top or bottom to go round its source, or shares a track (rule 5.8); a crossing that another track, port or side assignment removes within rule 4.3 (rule 5.9).
+## Routing faults (a candidate with one is rejected unless an applicable line hint expressly permits it, or an honoured node/group hint makes it unavoidable under 2.21; these are not hard legality)
+
+- A line bent, jogged or displaced solely for a label (6.1); a convergence line travelling along the gap above its target or S-jogging into its top (4.11); a fan line using the far side or going around its source, or sharing an overlapping track (5.8); any crossing removable by a legal reassignment or permitted extra corner (5.9). Reject these unless an applicable hint permits the fault under 2.21. The section 10 hard constraints still apply to normal connectors.
 
 ## On hold (do not build until Dave redefines them)
+
 - Drawing a frame on the centre line of the gap between its members and outside nodes, and reserving that centre line as a frame track that no line may use. Both break when two groups sit side by side (see adjacent-groups-markup.png).
 
 ## Resolved conflicts
-1. Diamond ports: B12 and B12a used edge centres first; B12b uses vertices first, and B16 adds the run-length check. Kept B12b with B16 (3.8); the later mark-ups remove the edge-centre fallback, so branches leave only from vertices (3.8).
-2. Elbow or Z: B3 and brief section 8 took an elbow first; B14, A14 and A16 took a Z first. Superseded by rule 4.8: fewest corners, a Z only when no one-corner route is clear (3.4 removed).
-3. Side exits: B5, B11 and A14 disagreed on side exits. Superseded by rule 4.8: a line uses the side that faces the other end when that end lies wholly beyond it (3.5 removed).
-4. Corner limit: B3 set 2 corners for every line, but the back edges in B17 and A13 need 3. Forward lines have 2 and back edges 3 (4.3).
-5. Rearranging: A1 and brief sections 1 and 9 keep Mermaid's rank and order; A5, A12, A13, A14 and A16 change them. The later rules win, and Mermaid's arrangement is the starting point and the last tie-break (2.1, 9.4).
-6. Sides and paths: brief sections 6 and 8 follow Mermaid's sides and paths; the rules here replace them.
-7. Crossings: B8 banned all crossings; A14, A16 and brief section 8 allow one when nothing removes it. Kept the later rule: a swap that removes a crossing is used (5.6, 5.9); the rest are scored (2.13).
-8. Track spacing: brief sections 3 and 7 set 5 tracks 6 px apart; the later A16 sets 1 grid step. Kept A16.
-9. Straight-line port: two lines on one side are spaced k/(n+1), and a single line keeps the centre port so it stays straight. Kept B6 (3.2).
-10. Spine versus a loop branch: A12 keeps the spine in one column; the later A13 puts a loop child and the spine child on either side. The spine child stays under the diamond and the loop child goes beside it (2.7, 2.18).
-11. A bypass that rejoins: A9 moved the rejoin node up beside the detour; the later A12 keeps it on the spine. Kept A12 (2.6).
-12. Back-edge sides and labels: B15 and B17 described the entry side differently, and B12b and B15 placed labels differently. Replaced by one rule each (5.3, 6.2).
-13. Rank gap: brief section 3 sets a 1-step gap, which cannot hold a 50 px minimum straight run. The base rank gap is now 2 grid steps.
+
+1\. Diamond ports: Diamonds have four edges, each accepting any number of symmetric k/(n+1) ports; one line on an edge uses its centre. Every line meets the sloped outline square to its edge and follows the edge normal for the minimum straight run before turning onto the horizontal/vertical grid (3.1, 3.6–3.9, 4.1). Diamonds grow by whole grid steps when necessary (1.7). No limit applies to outgoing branches.
+
+2\. Elbow or Z: B3 and brief section 8 took an elbow first; B14, A14 and A16 took a Z first. Superseded by rule 4.8: fewest corners, a Z only when no one-corner route is clear (3.4 removed).
+
+3\. Side exits: B5, B11 and A14 disagreed on side exits. Superseded by rule 4.8: a line uses the side that faces the other end when that end lies wholly beyond it (3.5 removed).
+
+4\. Corner limit: B3 set 2 corners for every line, but the back edges in B17 and A13 need 3. Forward lines have 2 and back edges 3 (4.3).
+
+5\. Rearranging: A1 and brief sections 1 and 9 keep Mermaid's rank and order; A5, A12, A13, A14 and A16 change them. The later rules win, and Mermaid's arrangement is the starting point and the last tie-break (2.1, 9.4).
+
+6\. Sides and paths: brief sections 6 and 8 follow Mermaid's sides and paths; the rules here replace them.
+
+7\. Crossings: B8 banned all crossings; A14, A16 and brief section 8 allow one when nothing removes it. Kept the later rule: a swap that removes a crossing is used (5.6, 5.9); the rest are scored (2.13).
+
+8\. Track spacing: brief sections 3 and 7 set 5 tracks 6 px apart; the later A16 sets 1 grid step. Kept A16.
+
+9\. Straight-line port: two lines on one side are spaced k/(n+1), and a single line keeps the centre port so it stays straight. Kept B6 (3.2).
+
+10\. Spine versus a loop branch: A12 keeps the spine in one column; the later A13 puts a loop child and the spine child on either side. The spine child stays under the diamond and the loop child goes beside it (2.7, 2.18).
+
+11\. A bypass that rejoins: A9 moved the rejoin node up beside the detour; the later A12 keeps it on the spine. Kept A12 (2.6).
+
+12\. Back-edge sides and labels: B15 and B17 described the entry side differently, and B12b and B15 placed labels differently. Replaced by one rule each (5.3, 6.2).
+
+13\. Rank gap: brief section 3 sets a 1-step gap. The base rank gap is now 2 grid steps to provide a routing corridor for rounded corners, arrowhead clearance and separate tracks, rather than to impose a universal 50 px source run.

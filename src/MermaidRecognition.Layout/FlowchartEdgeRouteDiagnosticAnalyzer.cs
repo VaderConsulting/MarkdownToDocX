@@ -83,6 +83,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         }
 
         List<FlowchartResolvedEdgeRoute> ResolvedRoutes = [];
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -104,7 +105,9 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
                     NodeById,
                     Edge,
                     out LayoutPoints,
-                    out RouteKind)
+                    out RouteKind,
+                    BackEdges,
+                    BoundsById)
                 && !FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Contract,

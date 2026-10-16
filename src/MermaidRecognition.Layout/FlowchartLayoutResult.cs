@@ -25,6 +25,9 @@ public sealed class FlowchartLayoutResult
 
     private readonly List<FlowchartLayoutEdgeRoute> _EdgeRoutes = [];
 
+    /// <summary>Routes resolved by the layout model for renderers to consume.</summary>
+    internal List<FlowchartResolvedGuide>? ResolvedEdgeGuides { get; set; }
+
     /// <summary>
     /// Dagre edge polylines for the diagram.
     /// </summary>

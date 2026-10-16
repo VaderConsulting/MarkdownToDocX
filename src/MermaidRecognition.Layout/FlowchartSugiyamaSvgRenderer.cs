@@ -141,13 +141,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
-        List<FlowchartResolvedGuide> ResolvedGuides = Measure("svg-guide-resolution", () => FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
-            Contract,
-            Layout,
-            BoundsById,
-            NodeById,
-            Direction,
-            Layout.RenderContext));
+        List<FlowchartResolvedGuide> ResolvedGuides = Layout.ResolvedEdgeGuides ?? [];
         Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
             new Dictionary<EdgeContract, FlowchartResolvedGuide>();
         foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
@@ -296,6 +290,28 @@ public static class FlowchartSugiyamaSvgRenderer
 
             string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
             FlowchartResolvedStyle EdgeStyle = RenderOptions.ResolveEdgeStyle(Edge);
+
+            // Painting consumes the route finalized by the layout model. Missing routes are
+            // diagnostics and are never reconstructed from node centres or painter heuristics.
+            if (!GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? ModelGuide)
+                || ModelGuide.Points.Count < 2
+                || !BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds ModelSource)
+                || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds ModelTarget))
+            {
+                Layout.RenderContext.LayoutStageViolations.Add(new FlowchartLayoutQualityFailure(
+                    "MissingRoute", $"Painter received no model route for '{Edge.SourceId}->{Edge.TargetId}'.",
+                    [Edge.Id ?? Edge.SourceId, Edge.TargetId], null));
+                continue;
+            }
+
+            string? ModelSourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? ModelSourceNode)
+                ? ModelSourceNode.Shape : null;
+            FlowchartRenderContext.ReportOperationCount("paint-guide-lookups", 1);
+            RenderResolvedEdgeRoute(
+                Builder, Edge, Contract, BoundsById, ModelSource, ModelTarget, ModelSourceShape,
+                ModelGuide.Points, ModelGuide.RouteKind, Direction, RouteClass,
+                MinLeft, MaxTop, DiagramPaddingPx, EdgeStyle, RenderOptions);
+            continue;
 
             if (TryTakeDagreRoute(DagreRoutes, DagreEdgeId, out FlowchartLayoutEdgeRoute? DagreRoute)
                 && DagreRoute.Points.Count >= 2

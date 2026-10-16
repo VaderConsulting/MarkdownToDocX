@@ -44,6 +44,18 @@ public static partial class DiagramGridLayout
                 continue;
             }
 
+            if (!FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(
+                    Direction, out string AllocatedFlowExit, out string AllocatedFlowEntry)
+                || !string.Equals(Route.ExitSide, AllocatedFlowExit, StringComparison.Ordinal)
+                || !string.Equals(Route.EntrySide, AllocatedFlowEntry, StringComparison.Ordinal))
+            {
+                // Joint allocation owns endpoint sides. This specialized path
+                // only applies to rank-forward ports; never rewrite a port to
+                // the flow side after allocation when endpoint geometry chose
+                // a different side.
+                continue;
+            }
+
             EdgeContract? Edge = null;
             foreach (EdgeContract Candidate in Contract.Edges)
             {
@@ -74,12 +86,6 @@ public static partial class DiagramGridLayout
                 || LayoutPoints.Count < 2)
             {
                 continue;
-            }
-
-            if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string ExitSide, out string EntrySide))
-            {
-                Route.ExitSide = ExitSide;
-                Route.EntrySide = EntrySide;
             }
 
             // Keep the preallocated endpoints, including a centre port already
@@ -159,7 +165,7 @@ public static partial class DiagramGridLayout
             List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
             if (!AlignedAndSymmetric(Edges, Outgoing: true)
                 || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
-                || IsEnterpriseJunction(Hub)
+                || string.Equals(Hub.Shape, "circle", StringComparison.OrdinalIgnoreCase)
                 || !FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
                     Contract, Group.Key, Hub.Shape, Direction, Bounds)) continue;
             foreach (EdgeContract Edge in Edges)
@@ -181,7 +187,7 @@ public static partial class DiagramGridLayout
             List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
             if (!AlignedAndSymmetric(Edges, Outgoing: false)
                 || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
-                || IsEnterpriseJunction(Hub)
+                || string.Equals(Hub.Shape, "circle", StringComparison.OrdinalIgnoreCase)
                 || FlowchartSharedPortAllocator.IsDecisionShape(Hub.Shape)) continue;
             foreach (EdgeContract Edge in Edges)
             {
@@ -197,11 +203,6 @@ public static partial class DiagramGridLayout
             }
         }
     }
-
-    private static bool IsEnterpriseJunction(NodeContract Node) =>
-        Node.Metadata.TryGetValue("enterpriseElementType", out MermaidMetadataValue? Metadata)
-        && Metadata is RawMetadata Raw
-        && string.Equals(Raw.RawValue, "Junction", StringComparison.Ordinal);
 
     /// <summary>
     /// B15: keeps the forward main chain in one column; back edges never pull nodes sideways.
@@ -442,6 +443,13 @@ public static partial class DiagramGridLayout
             {
                 continue;
             }
+            if (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9
+                || Math.Abs(Route.EntryNormalX) > 1e-9 || Math.Abs(Route.EntryNormalY) > 1e-9)
+            {
+                // The final model route stage rebuilds these from their allocated
+                // slanted-edge normals; legacy loop templates use cardinal vertices.
+                continue;
+            }
 
             string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
@@ -605,6 +613,10 @@ public static partial class DiagramGridLayout
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
+            // Joint port allocation has already assigned the diamond's symmetric edge slot
+            // and its true edge normal. Do not replace it with the legacy vertex-first path.
+            if (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9)
+                continue;
             if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 || !FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
             {
