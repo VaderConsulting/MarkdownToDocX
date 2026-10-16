@@ -24,6 +24,16 @@ public sealed class FlowchartRenderContext
 
     internal RepairSearchBudget MoveBeforeDetourBudget { get; } = new();
 
+
+    /// <summary>Exact automatic route results, scoped to a contract and its complete obstacle geometry.</summary>
+    internal Dictionary<(DiagramContract Contract, string Geometry), Dictionary<string, List<(double X, double Y)>>> GridRouteCache { get; } = [];
+
+    /// <summary>Completed side assignments indexed by all obstacles and the incoming port allocation.</summary>
+    internal Dictionary<(DiagramContract Contract, string Geometry), string[]> PortSideCache { get; } = [];
+
+    /// <summary>Legal terminal candidate families keyed by complete obstacles, shapes, sides and allocated endpoints.</summary>
+    internal Dictionary<(DiagramContract Contract, string Geometry), Dictionary<string, List<List<(double X, double Y)>>>> TerminalCandidateCache { get; } = [];
+
     internal static Action<string, long>? OperationCountObserver { get; set; }
 
     internal static void ReportOperationCount(string Name, long Count)
@@ -72,6 +82,9 @@ public sealed class FlowchartRenderContext
         MoveBeforeDetourBudget.AttemptedMoves.Clear();
         MoveBeforeDetourBudget.CandidateMoves = 0;
         MoveBeforeDetourBudget.AcceptedMoves = 0;
+        GridRouteCache.Clear();
+        PortSideCache.Clear();
+        TerminalCandidateCache.Clear();
         IsSvgEdgePainting = false;
         CachedRouteContract = null;
         CachedRouteGuides = null;

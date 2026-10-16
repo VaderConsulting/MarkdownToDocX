@@ -225,7 +225,14 @@ internal static class FlowchartLayoutScore
                 + CandidateViolations.Count(Failure => Failure.Kind != "ArrangementKept");
             bool Rejected = _staticRejected || _otherRejectedRoutes - (_routeRejected[Index] ? 1 : 0) > 0
                 || CandidateViolations.Any(Failure => Rejects(Failure, _contract, _layout, _backEdges));
+            // Route cells contribute to empty-area cost. They are not static:
+            // moving a track or extending a diagonal terminal changes occupancy.
+            // Keep the cached pair counts, but measure occupancy on the candidate
+            // currently installed in the layout, just as MeasureCore does.
+            double CandidateEmptyShare = EmptyAreaShare(_layout, _width, _height);
             double OptimizationScore = _staticScore
+                + Calculate(_width, _height, _forcedMinimum, _forcedMinimum, CandidateEmptyShare)
+                - Calculate(_width, _height, _forcedMinimum, _forcedMinimum, _emptyShare)
                 + Math.Max(0, CandidateCrossings - _forcedMinimum) * FlowchartLayoutRules.CrossingScore
                 + CandidateSharedEndpointCrossings * FlowchartLayoutRules.CrossingScore
                 + CandidateBends * FlowchartLayoutRules.BendScore
@@ -584,14 +591,19 @@ internal static class FlowchartLayoutScore
             && Math.Abs(Endpoint.Y - ExpectedY) <= Tolerance;
     }
 
-    private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
+    /// <summary>Counts direction changes, including permitted sloping diamond terminal runs.</summary>
+    /// <param name="Points">The complete routed polyline in layout coordinates.</param>
+    /// <returns>The bend count used by both full and incremental candidate scoring.</returns>
+    internal static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
     {
         int Result = 0;
         for (int Index = 1; Index < Points.Count - 1; Index++)
         {
-            bool BeforeHorizontal = Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5;
-            bool AfterHorizontal = Math.Abs(Points[Index + 1].Y - Points[Index].Y) < 0.5;
-            if (BeforeHorizontal != AfterHorizontal) Result++;
+            double BeforeX = Points[Index].X - Points[Index - 1].X;
+            double BeforeY = Points[Index].Y - Points[Index - 1].Y;
+            double AfterX = Points[Index + 1].X - Points[Index].X;
+            double AfterY = Points[Index + 1].Y - Points[Index].Y;
+            if (Math.Abs(BeforeX * AfterY - BeforeY * AfterX) > 0.001) Result++;
         }
         return Result;
     }
@@ -647,17 +659,15 @@ internal static class FlowchartLayoutScore
             .Min(Box => Box.CenterY - Box.Height / 2.0);
         int Columns = Math.Max(1, (int)Math.Ceiling(Width / Cell));
         int Rows = Math.Max(1, (int)Math.Ceiling(Height / Cell));
-        var Used = new HashSet<(int Column, int Row)>();
+        var Rectangles = new List<(int Left, int Right, int Bottom, int Top)>();
         void Mark(double MinX, double MinY, double MaxX, double MaxY)
         {
-            int FirstColumn = (int)Math.Floor((MinX - Left) / Cell);
-            int LastColumn = (int)Math.Floor((MaxX - Left) / Cell);
-            int FirstRow = (int)Math.Floor((MinY - Bottom) / Cell);
-            int LastRow = (int)Math.Floor((MaxY - Bottom) / Cell);
-            for (int Column = FirstColumn; Column <= LastColumn; Column++)
-            for (int Row = FirstRow; Row <= LastRow; Row++)
-                if (Column >= 0 && Column < Columns && Row >= 0 && Row < Rows)
-                    Used.Add((Column, Row));
+            int FirstColumn = Math.Max(0, (int)Math.Floor((MinX - Left) / Cell));
+            int LastColumn = Math.Min(Columns - 1, (int)Math.Floor((MaxX - Left) / Cell));
+            int FirstRow = Math.Max(0, (int)Math.Floor((MinY - Bottom) / Cell));
+            int LastRow = Math.Min(Rows - 1, (int)Math.Floor((MaxY - Bottom) / Cell));
+            if (FirstColumn <= LastColumn && FirstRow <= LastRow)
+                Rectangles.Add((FirstColumn, LastColumn + 1, FirstRow, LastRow + 1));
         }
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Concat(Layout.ClusterBounds))
             Mark(Box.CenterX - Box.Width / 2.0, Box.CenterY - Box.Height / 2.0,
@@ -669,6 +679,32 @@ internal static class FlowchartLayoutScore
             Mark(Math.Min(A.X, B.X) - Cell / 2.0, Math.Min(A.Y, B.Y) - Cell / 2.0,
                 Math.Max(A.X, B.X) + Cell / 2.0, Math.Max(A.Y, B.Y) + Cell / 2.0);
         }
-        return 1.0 - Used.Count / (double)(Columns * Rows);
+        // Count the same occupied grid cells by sweeping rectangle boundaries.
+        // A long route or large frame must not require visiting every cell for
+        // every candidate score. Half-open integer intervals preserve the
+        // previous inclusive-cell marking, including cells on an outline.
+        int[] Boundaries = Rectangles.SelectMany(Rectangle => new[] { Rectangle.Left, Rectangle.Right })
+            .Distinct().OrderBy(Value => Value).ToArray();
+        long Used = 0;
+        for (int Index = 1; Index < Boundaries.Length; Index++)
+        {
+            int LeftColumn = Boundaries[Index - 1], RightColumn = Boundaries[Index];
+            var Intervals = Rectangles.Where(Rectangle => Rectangle.Left < RightColumn && Rectangle.Right > LeftColumn)
+                .OrderBy(Rectangle => Rectangle.Bottom).ThenBy(Rectangle => Rectangle.Top);
+            int BottomRow = 0, TopRow = 0, OccupiedRows = 0;
+            foreach (var Rectangle in Intervals)
+            {
+                if (Rectangle.Bottom > TopRow)
+                {
+                    OccupiedRows += TopRow - BottomRow;
+                    BottomRow = Rectangle.Bottom;
+                    TopRow = Rectangle.Top;
+                }
+                else TopRow = Math.Max(TopRow, Rectangle.Top);
+            }
+            OccupiedRows += TopRow - BottomRow;
+            Used += (long)(RightColumn - LeftColumn) * OccupiedRows;
+        }
+        return 1.0 - Used / ((double)Columns * Rows);
     }
 }

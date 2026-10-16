@@ -894,6 +894,24 @@ public static partial class DiagramGridLayout
         }
     }
 
+    /// <summary>Fits frames during route repair without reintroducing placement's downward Y axis.</summary>
+    /// <param name="Contract">Group membership, title measurements and frame hints.</param>
+    /// <param name="Placed">Final node geometry in upward Y coordinates.</param>
+    /// <param name="Frames">Receives the fitted frames in the same upward Y coordinates.</param>
+    private static void BuildFramesYUp(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
+    {
+        var Mirrored = Placed.Select(Node => new GridNode { Id = Node.Id, Shape = Node.Shape,
+            GroupId = Node.GroupId, X = Node.X, Y = -Node.Y, OldX = Node.OldX, OldY = -Node.OldY,
+            Width = Node.Width, Height = Node.Height, Rank = Node.Rank, Column = Node.Column,
+            IsDiamond = Node.IsDiamond }).ToList();
+        BuildFrames(Contract, Mirrored, Frames);
+        foreach (var Frame in Frames)
+        {
+            Frame.Top = -Frame.Top;
+            Frame.Bottom = -Frame.Bottom;
+        }
+    }
+
     private static void BuildFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
     {
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);

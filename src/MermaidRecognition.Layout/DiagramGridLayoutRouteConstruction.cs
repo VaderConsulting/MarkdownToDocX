@@ -114,6 +114,11 @@ public static partial class DiagramGridLayout
                 LayoutPoints.Add((End.X, End.Y));
             }
 
+            // A fan template is only a candidate. It may not replace a valid
+            // obstacle-aware route with a midpoint track through another node
+            // or a protected frame title.
+            if (!DiagramGridRouteBuilder.PathIsValid(LayoutPoints, BoundsById,
+                    Route.SourceId, Route.TargetId, Contract, MaxCorners: int.MaxValue)) continue;
             Route.Points.Clear();
             foreach ((double PointX, double PointY) in LayoutPoints)
             {

@@ -76,6 +76,7 @@ public sealed class RouteRuleCatalogueAuditTests
             routeRepairChainMaxLines = 0;
         double routeRepairChainMaxExtraLength = 0;
         HashSet<(string Option, string Subject)> routeRepairOptionWins = [];
+        List<string> routeRepairCandidates = [];
         List<string> orthogonalCleanupRoutes = [];
         List<string> moveBeforeDetourCases = [];
         int fitPasses = 0;
@@ -108,6 +109,8 @@ public sealed class RouteRuleCatalogueAuditTests
         {
             routeRepairOptionWins.Add((option, subject));
         };
+        DiagramGridLayout.RouteRepairCandidateObserver = (option, subject, score, clearsFault) =>
+            routeRepairCandidates.Add($"5.10_CANDIDATE|{scenario.Id}|{option}|{subject}|score={score:0.00}|clearsFault={clearsFault}");
         DiagramGridLayout.FrameOverlapStageObserver = scenario.Id == "A169"
             ? (stage, count) => frameOverlapStages.Add((stage, count)) : null;
         DiagramGridLayout.OrthogonalRouteCleanupObserver = edgeId => orthogonalCleanupRoutes.Add(edgeId);
@@ -134,12 +137,15 @@ public sealed class RouteRuleCatalogueAuditTests
             DiagramGridLayout.MoveBeforeDetourObserver = null;
             DiagramGridLayout.RouteRepairChainObserver = null;
             DiagramGridLayout.RouteRepairOptionObserver = null;
+            DiagramGridLayout.RouteRepairCandidateObserver = null;
             DiagramGridLayout.FrameOverlapStageObserver = null;
             DiagramGridLayout.OrthogonalRouteCleanupObserver = null;
         }
         TestContext.Out.WriteLine($"ORTHOGONAL_CLEANUP|{scenario.Id}|count={orthogonalCleanupRoutes.Count}|routes={string.Join(",", orthogonalCleanupRoutes)}");
         foreach (string frameEvent in frameEvents.Where(message => message.Contains("rule 7.8", StringComparison.Ordinal)))
             TestContext.Out.WriteLine($"FRAME_REPAIR|{scenario.Id}|{frameEvent}");
+        foreach (string candidate in routeRepairCandidates)
+            TestContext.Out.WriteLine(candidate);
         foreach ((string stage, int count) in frameOverlapStages)
             TestContext.Out.WriteLine($"FRAME_STAGE|{scenario.Id}|{stage}|{count}");
         foreach (FlowchartLayoutEdgeRoute route in layout.EdgeRoutes.Where(route => orthogonalCleanupRoutes.Contains(route.EdgeId)))
@@ -296,6 +302,7 @@ public sealed class RouteRuleCatalogueAuditTests
             ClassifyBends(contract, layout, findings);
         TestContext.Out.WriteLine($"ROUTE_AUDIT|{category}|{scenario.Id}|diamonds={diamonds}|edges={contract.Edges.Count}|routes={layout.EdgeRoutes.Count}|missing={missingRoutes}|noLegalRoute={noLegalRouteFailures}|titleBand={titleBandRoutes}|frameOverlaps={unrelatedFrameOverlaps.Length}|offGridNodes={offGridNodes}|offGridFrameEdges={offGridFrameEdges}|port={portFaults}|offSlotPorts={offSlotPorts}|offSlotGroups={findings.Count(finding => finding.Rule == "3.2/4.7")}|alignedPort4.2={findings.Count(finding => finding.Rule == "4.2")}|alignedPortJogs={alignedPortJogs}|nonalignedPortJogs={nonalignedPortJogs}|grid={gridFaults}|{counts}");
         _summaryRows.Add(scenario.Id);
+        TestContext.Out.WriteLine($"ROUTE_LEGALITY|{scenario.Id}|illegalPaths={findings.Count(finding => finding.Rule == "10")}|sharedTracks={findings.Count(finding => finding.Rule == "5.1")}");
         TestContext.Out.WriteLine($"JOG_CLASS|{scenario.Id}|correct={correctBends}|sideChoice={sideChoiceFaultBends}|blockedNode={blockedNodeBends}|real={realBendFaults}");
         TestContext.Out.WriteLine($"MOVE_BEFORE_DETOUR|{scenario.Id}|moved={moveBeforeDetourMoves}|candidates={moveBeforeDetourCandidates}|blockers={string.Join(",", moveBeforeDetourCases.Distinct(StringComparer.Ordinal))}");
         TestContext.Out.WriteLine($"ROUTE_REPAIR_CHAIN|{scenario.Id}|wins={routeRepairChainRuns}|depthTotal={routeRepairChainDepthTotal}|maxDepth={routeRepairChainMaxDepth}|maxLines={routeRepairChainMaxLines}|maxExtraLength={routeRepairChainMaxExtraLength:0.##}");
@@ -357,6 +364,8 @@ public sealed class RouteRuleCatalogueAuditTests
         // Emit the complete per-diagram measurement before asserting it. The full
         // audit aggregates these lines; previously an off-slot failure happened
         // first, so failed scenarios disappeared from the report and looked like 0.
+        Assert.That(findings.Where(finding => finding.Rule is "10" or "5.1"), Is.Empty,
+            "Every route must represent a declared link, avoid node interiors/title bands, and own its overlapping tracks.");
         Assert.That(offSlotPorts, Is.Zero, "Route cleanup must preserve allocated symmetric port slots.");
         Assert.That(orthogonalCleanupRoutes, Is.Empty,
             "Source routing stages must produce orthogonal routes; the final safety net is diagnostic only.");
@@ -752,11 +761,17 @@ public sealed class RouteRuleCatalogueAuditTests
         if (!port.Shape.Equals("diamond", StringComparison.OrdinalIgnoreCase)) return port.Side;
         double nx = port.IsSource ? port.Route.ExitNormalX : port.Route.EntryNormalX;
         double ny = port.IsSource ? port.Route.ExitNormalY : port.Route.EntryNormalY;
+        if (Math.Abs(nx) < 0.001 || Math.Abs(ny) < 0.001) return "diamond-tip-" + port.Side;
         return "diamond-" + (nx >= 0 ? "+" : "-") + (ny >= 0 ? "+" : "-");
     }
 
     private static double PortParameter(AuditPort port, FlowchartLayoutNodeBounds box)
     {
+        if (port.Shape.Equals("diamond", StringComparison.OrdinalIgnoreCase)
+            && (Math.Abs(port.Point.X - box.CenterX) < 0.001
+                && Math.Abs(Math.Abs(port.Point.Y - box.CenterY) - box.Height / 2) < 1
+                || Math.Abs(port.Point.Y - box.CenterY) < 0.001
+                && Math.Abs(Math.Abs(port.Point.X - box.CenterX) - box.Width / 2) < 1)) return 0.5;
         bool circle = port.Shape.Equals("circle", StringComparison.OrdinalIgnoreCase)
             || port.Shape.Equals("doublecircle", StringComparison.OrdinalIgnoreCase);
         if (circle)

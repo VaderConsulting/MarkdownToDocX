@@ -26,6 +26,7 @@ public static partial class DiagramGridLayout
     internal static Action<int, int, IReadOnlyList<string>>? MoveBeforeDetourObserver { get; set; }
     internal static Action<int, int, double>? RouteRepairChainObserver { get; set; }
     internal static Action<string, string>? RouteRepairOptionObserver { get; set; }
+    internal static Action<string, string, double, bool>? RouteRepairCandidateObserver { get; set; }
     internal static Action<string, int>? FrameOverlapStageObserver { get; set; }
     internal static Action<string>? OrthogonalRouteCleanupObserver { get; set; }
 

@@ -112,6 +112,10 @@ internal static class FlowchartBranchRouteOrder
         foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
     }
 
+    /// <summary>Measures actual segment crossings and shared lengths, including diamond-normal terminals.</summary>
+    /// <param name="First">The first complete route.</param>
+    /// <param name="Second">The second complete route.</param>
+    /// <returns>Distinct crossing points and the positive collinear overlap length in pixels.</returns>
     internal static (int Crossings, double Overlap) Intersections(
         IReadOnlyList<(double X, double Y)> First, IReadOnlyList<(double X, double Y)> Second)
     {
@@ -121,18 +125,24 @@ internal static class FlowchartBranchRouteOrder
         for (int J = 1; J < Second.Count; J++)
         {
             var A = First[I - 1]; var B = First[I]; var C = Second[J - 1]; var D = Second[J];
-            bool AV = Math.Abs(A.X - B.X) < 0.01; bool CV = Math.Abs(C.X - D.X) < 0.01;
-            if (AV == CV)
+            double Ax = B.X - A.X, Ay = B.Y - A.Y, Bx = D.X - C.X, By = D.Y - C.Y;
+            double FirstLength = Math.Sqrt(Ax * Ax + Ay * Ay);
+            double SecondLength = Math.Sqrt(Bx * Bx + By * By);
+            if (FirstLength < 0.001 || SecondLength < 0.001) continue;
+            double Denominator = Ax * By - Ay * Bx;
+            double Cx = C.X - A.X, Cy = C.Y - A.Y;
+            if (Math.Abs(Denominator) < 0.000001)
             {
-                if (Math.Abs((AV ? A.X : A.Y) - (CV ? C.X : C.Y)) > 0.01) continue;
-                Overlap += Math.Max(0, Math.Min(Math.Max(AV ? A.Y : A.X, AV ? B.Y : B.X), Math.Max(CV ? C.Y : C.X, CV ? D.Y : D.X))
-                    - Math.Max(Math.Min(AV ? A.Y : A.X, AV ? B.Y : B.X), Math.Min(CV ? C.Y : C.X, CV ? D.Y : D.X)));
+                if (Math.Abs(Cx * Ay - Cy * Ax) / FirstLength > 0.001) continue;
+                double Start = (Cx * Ax + Cy * Ay) / FirstLength;
+                double End = ((D.X - A.X) * Ax + (D.Y - A.Y) * Ay) / FirstLength;
+                Overlap += Math.Max(0, Math.Min(FirstLength, Math.Max(Start, End)) - Math.Max(0, Math.Min(Start, End)));
                 continue;
             }
-            var V1 = AV ? A : C; var V2 = AV ? B : D; var H1 = AV ? C : A; var H2 = AV ? D : B;
-            var Point = (X: V1.X, Y: H1.Y);
-            if (Point.X < Math.Min(H1.X, H2.X) - 0.01 || Point.X > Math.Max(H1.X, H2.X) + 0.01
-                || Point.Y < Math.Min(V1.Y, V2.Y) - 0.01 || Point.Y > Math.Max(V1.Y, V2.Y) + 0.01) continue;
+            double T = (Cx * By - Cy * Bx) / Denominator;
+            double U = (Cx * Ay - Cy * Ax) / Denominator;
+            if (T < -0.000001 || T > 1.000001 || U < -0.000001 || U > 1.000001) continue;
+            var Point = (X: Math.Round(A.X + T * Ax, 6), Y: Math.Round(A.Y + T * Ay, 6));
             // Shared graph terminals are connections, not crossings.
             bool EndOfFirst = Near(Point, First[0]) || Near(Point, First[^1]);
             bool EndOfSecond = Near(Point, Second[0]) || Near(Point, Second[^1]);

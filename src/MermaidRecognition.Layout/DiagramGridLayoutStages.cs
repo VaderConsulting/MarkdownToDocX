@@ -45,6 +45,7 @@ public static partial class DiagramGridLayout
         public List<GridNode> Placed { get; } = [];
         public List<FlowchartPartnerRankLayout.Partners> PartnerRanks { get; set; } = [];
         public HashSet<string> SharedFanSources { get; set; } = new(StringComparer.Ordinal);
+        public HashSet<string> WrappedChainNodes { get; } = new(StringComparer.Ordinal);
         public HashSet<string> ObstacleRouteStates { get; } = new(StringComparer.Ordinal);
         public HashSet<string> PortSideRouteStates { get; } = new(StringComparer.Ordinal);
         public HashSet<string> CrossGroupRouteStates { get; } = new(StringComparer.Ordinal);
@@ -189,11 +190,16 @@ public static partial class DiagramGridLayout
                 Step("SparseRankCompaction", () => FlowchartSparseRankCompaction.Apply(Contract, Placed, Horizontal));
                 Step("JunctionBranchCompaction", () => FlowchartJunctionBranchCompaction.Apply(Contract, Placed, Horizontal));
                 Step("TerminalRowPlacement", () => FlowchartTerminalRowPlacement.Apply(Contract, Placed, Horizontal));
-                Step("ChainWrapping", () => FlowchartChainWrapping.Apply(Contract, Placed, Horizontal));
+                Step("ChainWrapping", () =>
+                {
+                    if (FlowchartChainWrapping.Apply(Contract, Placed, Horizontal))
+                        State.WrappedChainNodes.UnionWith(Placed.Select(Node => Node.Id));
+                });
                 Step("FanPacking", () => FlowchartFanPacking.Apply(Contract, Placed));
                 Step("ComponentWrapping", () => State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal));
                 Step("DisconnectedPacking", () => FlowchartDisconnectedPacking.Apply(Contract, Placed));
                 Step("GroupMemberPacking", () => FlowchartGroupMemberPacking.Apply(Contract, Placed));
+                Step("GroupedChannelPlacement", () => FlowchartGroupedChannelPlacement.Apply(Contract, Placed));
             }
 
             if (!Open) SnapGridNodeCentres(Placed);
@@ -608,12 +614,17 @@ public static partial class DiagramGridLayout
                     BuildPlacedBounds(State.Placed, State.Frames), State.Nodes, State.Direction,
                     RepairAutomaticRoutesEnabled: false);
             }
+            if (ReallocatedRoutes.Count > 0
+                && State.Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
+            {
+                FlowchartManyToManyRoutes.Apply(State.Copy, State.Contract,
+                    BuildPlacedBounds(State.Placed, State.Frames), State.Direction);
+                ObserveCrossings(State, "coupled post-port track search");
+            }
         }
 
         internal static bool ApplyFinalMoveBeforeDetour(GridLayoutState State)
         {
-            if (State.Copy.RenderContext.LayoutStageViolations.Any(failure => failure.Kind == "NoLegalRoute")
-                && TryMoveGroupForUnroutedLink(State, FlowchartLayoutRules.RepairCandidateMoves)) return true;
             if (State.MoveBudget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves
                 || State.MoveBudget.AcceptedMoves >= FlowchartLayoutRules.RepairChainDepth) return false;
             int remaining = FlowchartLayoutRules.RepairCandidateMoves - State.MoveBudget.CandidateMoves;
@@ -651,6 +662,9 @@ public static partial class DiagramGridLayout
                     GroupContract? group = state.Contract.Groups.FirstOrDefault(item => item.Id == groupId);
                     if (group == null) { diagnostics.Add($"NoLegalRoute:{edgeId}:no-contract-group={groupId}"); continue; }
                     GridNode[] members = state.Placed.Where(node => IsInsideGroup(state.Contract, node.Id, groupId)).ToArray();
+                    var MemberIds = members.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
+                    if (state.Copy.EdgeRoutes.Count(item => MemberIds.Contains(item.SourceId)
+                            || MemberIds.Contains(item.TargetId)) > FlowchartLayoutRules.RepairChainLines) continue;
                     GridFrame[] frames = state.Frames.Where(frame => frame.Id == groupId
                         || IsInsideGroup(state.Contract, frame.Id, groupId)).ToArray();
                     PlacementHintContract? hint = group.PlacementHint?.IsActive == true ? group.PlacementHint : null;
@@ -833,6 +847,19 @@ public static partial class DiagramGridLayout
                     .Select(failure => new FlowchartRouteRuleChecker.Finding(
                         "NoLegalRoute", failure.InvolvedIds[0], failure.Description)));
                 List<(string Rule, string Subject, FlowchartLayoutEdgeRoute Route, string[] Blockers)> blockedRoutes = [];
+                // A legal detour is still an optimisation opportunity. Waiting
+                // for a checker fault excluded all offset-but-legal routes from
+                // move-before-detour, so their cheaper aligned placements were
+                // never offered. Move either endpoint independently; translating
+                // both endpoints together cannot straighten their connection.
+                foreach (var Route in State.Copy.EdgeRoutes.Where(Route => Route.Points.Count > 2
+                             && FlowchartLayoutScore.CountCorners(Route.Points) > 0
+                             && FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive != true))
+                {
+                    initialFindings.Add(new("5.10", Route.EdgeId, "Compare an aligned endpoint placement with this detour."));
+                    blockedRoutes.Add(("5.10", Route.EdgeId, Route, [Route.SourceId]));
+                    blockedRoutes.Add(("5.10", Route.EdgeId, Route, [Route.TargetId]));
+                }
                 foreach (FlowchartRouteRuleChecker.Finding finding in initialFindings.Where(finding =>
                              finding.Rule is "3.2/4.7" or "4.2" or "4.9" or "4.11" or "5.8" or "5.9" or "NoLegalRoute"))
                 {
@@ -881,6 +908,10 @@ public static partial class DiagramGridLayout
                 if (blockedRoutes.Count == 0) break;
                 FlowchartLayoutScore.Result initialScore = FlowchartLayoutScore.Measure(
                     State.Contract, State.Copy, IncludeArrangementCheck: false);
+                foreach (FlowchartRouteRuleChecker.Finding finding in initialFindings
+                             .DistinctBy(item => item.Rule + "|" + item.Subject, StringComparer.Ordinal))
+                    RouteRepairCandidateObserver?.Invoke("hump", finding.Rule + ":" + finding.Subject,
+                        initialScore.OptimizationScore, false);
                 Dictionary<string, (double X, double Y)> oldPositions = State.Placed.ToDictionary(node => node.Id,
                     node => (node.X, node.Y), StringComparer.Ordinal);
                 Dictionary<GridFrame, (int Left, int Right, int Top, int Bottom)> oldFrames = State.Frames
@@ -920,6 +951,20 @@ public static partial class DiagramGridLayout
                     // one rigid candidate preserves their relative group membership.
                     // The move must also keep every member inside its existing frames.
                     List<(double X, double Y)> moveOptions = [];
+                    if (rule == "5.10")
+                    {
+                        foreach (string Id in movableBlockers)
+                        {
+                            GridNode? Node = State.Placed.FirstOrDefault(Node => Node.Id == Id);
+                            string PeerId = Id == route.SourceId ? route.TargetId : route.SourceId;
+                            GridNode? Peer = State.Placed.FirstOrDefault(Node => Node.Id == PeerId);
+                            if (Node == null || Peer == null) continue;
+                            double Dx = Math.Round((Peer.X - Node.X) / DiagramGridMetrics.GRID_UNIT_PX) * DiagramGridMetrics.GRID_UNIT_PX;
+                            double Dy = Math.Round((Peer.Y - Node.Y) / DiagramGridMetrics.GRID_UNIT_PX) * DiagramGridMetrics.GRID_UNIT_PX;
+                            if (Math.Abs(Dx) > 0.1) moveOptions.Add((Dx, 0));
+                            if (Math.Abs(Dy) > 0.1) moveOptions.Add((0, Dy));
+                        }
+                    }
                 if (rule == "5.9")
                     {
                         // For an unhinted endpoint that is stranded far from its
@@ -977,6 +1022,8 @@ public static partial class DiagramGridLayout
                                 + ((candidateExtraLength / DiagramGridMetrics.GRID_UNIT_PX)
                                     * FlowchartLayoutRules.RepairLengthWeight)
                                 + (candidateChangedLines * FlowchartLayoutRules.RepairMovedLineWeight);
+                            RouteRepairCandidateObserver?.Invoke("move", rule + ":" + subject,
+                                repairScore, true);
                             if (repairScore < bestScore - 0.001)
                             {
                                 bestScore = repairScore;
@@ -1003,12 +1050,14 @@ public static partial class DiagramGridLayout
                 foreach (GridNode node in State.Placed)
                     if (bestPositions.TryGetValue(node.Id, out (double X, double Y) position))
                         node.SetPositionFromFrameFit(position.X, position.Y);
+                State.Frames.Clear();
                 foreach ((GridFrame frame, (int left, int right, int top, int bottom)) in bestFrames)
                 {
                     frame.Left = left;
                     frame.Right = right;
                     frame.Top = top;
                     frame.Bottom = bottom;
+                    State.Frames.Add(frame);
                 }
                 WriteBack(State.Copy, State.Placed, State.Frames);
                 RestoreRouteSnapshot(bestRoutes);
@@ -1026,12 +1075,14 @@ public static partial class DiagramGridLayout
                     foreach (GridNode node in State.Placed)
                         if (oldPositions.TryGetValue(node.Id, out (double X, double Y) position))
                             node.SetPositionFromFrameFit(position.X, position.Y);
+                    State.Frames.Clear();
                     foreach ((GridFrame frame, (int left, int right, int top, int bottom)) in oldFrames)
                     {
                         frame.Left = left;
                         frame.Right = right;
                         frame.Top = top;
                         frame.Bottom = bottom;
+                        State.Frames.Add(frame);
                     }
                     WriteBack(State.Copy, State.Placed, State.Frames);
                     RestoreRouteSnapshot(oldRoutes);
@@ -1153,10 +1204,29 @@ public static partial class DiagramGridLayout
         {
             blockerIds = blockerIds.Distinct(StringComparer.Ordinal).ToArray();
             Dictionary<string, GridNode> byId = State.Placed.ToDictionary(node => node.Id, StringComparer.Ordinal);
+            var Wrapped = blockerIds.Where(State.WrappedChainNodes.Contains).Where(byId.ContainsKey)
+                .Select(Id => byId[Id]).ToArray();
+            if (Wrapped.Length > 0)
+            {
+                // Wrapping establishes one shared lattice. A later repair may
+                // grow a row or column, but cannot stagger just one of its rows.
+                blockerIds = blockerIds.Concat(State.Placed.Where(Node => State.WrappedChainNodes.Contains(Node.Id)
+                    && Wrapped.Any(Anchor => Math.Abs(dx) > 0.1 && Math.Abs(Node.X - Anchor.X) < 0.001
+                        || Math.Abs(dy) > 0.1 && Math.Abs(Node.Y - Anchor.Y) < 0.001)).Select(Node => Node.Id)).Distinct().ToArray();
+            }
             GridNode[] moving = blockerIds.Select(id => byId.GetValueOrDefault(id)).Where(node => node != null)
                 .Cast<GridNode>().ToArray();
             if (moving.Length != blockerIds.Length || moving.Length == 0) return false;
+            var MovingIds = moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            if (State.Copy.EdgeRoutes.Count(Route => MovingIds.Contains(Route.SourceId)
+                    || MovingIds.Contains(Route.TargetId)) > FlowchartLayoutRules.RepairChainLines) return false;
+            if (moving.Any(Node => Node.PlacementHintLocked
+                    || State.Nodes.GetValueOrDefault(Node.Id)?.PlacementHint?.IsActive == true
+                    || HasHintedContainingGroup(State.Contract, Node.Id))) return false;
             Dictionary<GridNode, (double X, double Y)> oldPositions = moving.ToDictionary(node => node, node => (node.X, node.Y));
+            var oldFrames = State.Frames.ToArray();
+            var oldNodeBounds = State.Copy.NodeBounds.ToArray();
+            var oldClusterBounds = State.Copy.ClusterBounds.ToArray();
             int oldFrameOverlaps = CountUnrelatedFrameOverlaps(State.Contract, State.Frames);
             var oldRoutes = State.Copy.EdgeRoutes.Select(route => (Route: route,
                 Points: route.Points.Select(point => (point.X, point.Y)).ToArray(),
@@ -1166,7 +1236,7 @@ public static partial class DiagramGridLayout
             int oldTitleBandRoutes = CountTitleBandRoutes(State);
             foreach (GridNode node in moving) node.SetPositionFromFrameFit(node.X + dx, node.Y + dy);
             State.Frames.Clear();
-            BuildFrames(State.Contract, State.Placed, State.Frames);
+            BuildFramesYUp(State.Contract, State.Placed, State.Frames);
             bool membershipPreserved = moving.All(node => State.Contract.Groups
                 .Where(group => GroupContainsNode(State.Contract, group.Id, node.Id))
                 .All(group => State.Frames.FirstOrDefault(frame => frame.Id == group.Id) is not GridFrame frame
@@ -1221,7 +1291,7 @@ public static partial class DiagramGridLayout
                           failure.Kind == "NoLegalRoute" && failure.InvolvedIds.Contains(routeSubject))
                         && !afterFindings.Any(finding => finding.Rule == "3.1" && finding.Subject == routeSubject)
                 : !afterFindings.Any(finding => finding.Rule == targetRule && finding.Subject == routeSubject);
-            if (targetFaultRemoved && after.Overlaps == 0
+            if (targetFaultRemoved && after.Overlaps == 0 && after.Crossings <= before.Crossings
                 && repairScore < before.OptimizationScore - 0.001
                 && newTitleBandRoutes <= oldTitleBandRoutes
                 && NoNewFindings(beforeFindings, afterFindings)) return true;
@@ -1233,8 +1303,9 @@ public static partial class DiagramGridLayout
                 foreach ((GridNode node, (double x, double y)) in oldPositions)
                     node.SetPositionFromFrameFit(x, y);
                 State.Frames.Clear();
-                BuildFrames(State.Contract, State.Placed, State.Frames);
-                WriteBack(State.Copy, State.Placed, State.Frames);
+                State.Frames.AddRange(oldFrames);
+                State.Copy.NodeBoundsMutable.Clear(); State.Copy.NodeBoundsMutable.AddRange(oldNodeBounds);
+                State.Copy.ClusterBoundsMutable.Clear(); State.Copy.ClusterBoundsMutable.AddRange(oldClusterBounds);
                 foreach (var snapshot in oldRoutes)
                 {
                     snapshot.Route.ExitSide = snapshot.ExitSide;
@@ -1288,7 +1359,11 @@ public static partial class DiagramGridLayout
             return false;
         }
 
-        private static bool HasHintedContainingGroup(DiagramContract contract, string nodeId) =>
+        /// <summary>Prevents automatic movement from displacing a member of a group fixed by a placement hint.</summary>
+        /// <param name="contract">The group hierarchy and placement hints.</param>
+        /// <param name="nodeId">The member being considered for movement.</param>
+        /// <returns>True when any containing group has an active placement hint.</returns>
+        internal static bool HasHintedContainingGroup(DiagramContract contract, string nodeId) =>
             contract.Groups.Any(group => group.PlacementHint?.IsActive == true
                 && GroupContainsNode(contract, group.Id, nodeId));
 
@@ -1469,6 +1544,11 @@ public static partial class DiagramGridLayout
         {
             DiagramGridQuality.Collect(State.Contract, State.Copy,
                 State.Copy.RenderContext.LayoutStageViolations, IncludeArrangementCheck: false);
+            foreach (var Finding in FlowchartRouteRuleChecker.Check(State.Contract, State.Copy)
+                         .Where(Finding => Finding.Rule is "10" or "5.1"))
+                State.Copy.RenderContext.LayoutStageViolations.Add(new(
+                    Finding.Rule == "10" ? "RouteLegality" : "SharedTrack",
+                    Finding.Description, [Finding.Subject], null));
         }
     }
 

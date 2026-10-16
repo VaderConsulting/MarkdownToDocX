@@ -27,13 +27,27 @@ foreach ($prefix in @('F', 'A', 'EIP')) {
     $stderr = Join-Path $results "$prefix.stderr.log"
     $filter = "FullyQualifiedName~RouteRuleAudit_$prefix"
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
-    $process = Start-Process -FilePath 'dotnet' -PassThru -NoNewWindow `
+    $process = Start-Process -FilePath 'dotnet' -PassThru -WindowStyle Hidden `
         -ArgumentList @('test', $project, '--no-build', '--no-restore', '--filter', $filter,
             '--logger', 'console;verbosity=normal') `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-    if (-not $process.WaitForExit($BatchTimeoutSeconds * 1000)) {
-        $process.Kill($true)
-        throw "Route-audit batch '$prefix' exceeded the $BatchTimeoutSeconds-second check ceiling."
+    $progressWatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastSummary = ''
+    while (-not $process.WaitForExit(1000)) {
+        # The limit detects a stalled scenario, rather than cancelling a busy
+        # catalogue just because several legal searches add up to that limit.
+        $latest = Get-Content -LiteralPath $stdout -Tail 100 | Where-Object { $_ -match '^\s*ROUTE_AUDIT\|' } | Select-Object -Last 1
+        if ($latest -and $latest -ne $lastSummary) {
+            $lastSummary = $latest
+            $progressWatch.Restart()
+        }
+        if ($progressWatch.Elapsed.TotalSeconds -ge $BatchTimeoutSeconds) {
+            $process.Kill($true)
+            $failedBatches.Add("$prefix-timeout")
+            Write-Output "BATCH_TIMEOUT|$prefix|noSummaryForSeconds=$BatchTimeoutSeconds"
+            $process.WaitForExit(1000) | Out-Null
+            break
+        }
     }
     $watch.Stop()
     if ($process.ExitCode -ne 0) { $failedBatches.Add($prefix) }
@@ -62,12 +76,12 @@ $totalWatch.Stop()
 $missing = @($expected | Where-Object { -not $rows.ContainsKey($_) })
 $unexpected = @($rows.Keys | Where-Object { $_ -notin $expected })
 if ($missing.Count -or $unexpected.Count) {
-    throw "Incomplete route audit: expected $($expected.Count) scenario summaries, received $($rows.Count); missing=[$($missing -join ',')], unexpected=[$($unexpected -join ',')]. Missing scenarios cannot count as zero."
+    Write-Output "INCOMPLETE|expected=$($expected.Count)|summaries=$($rows.Count)|missing=[$($missing -join ',')]|unexpected=[$($unexpected -join ',')]. Missing scenarios cannot count as zero."
 }
 
 $totals = [ordered]@{
     scenarios = $rows.Count
-    unmeasured = 0
+    unmeasured = $missing.Count
     offSlotPorts = 0
     offGridNodes = 0
     offGridFrameEdges = 0
@@ -75,6 +89,12 @@ $totals = [ordered]@{
     frameOverlaps = 0
     missingRoutes = 0
     noLegalRouteFailures = 0
+    illegalPaths = 0
+    sharedTracks = 0
+    rule4_2 = 0
+    rule5_9 = 0
+    rule3_1 = 0
+    rule4_1 = 0
     cleanupCorrections = 0
 }
 foreach ($id in $rows.Keys) {
@@ -90,14 +110,21 @@ foreach ($id in $rows.Keys) {
     $totals.frameOverlaps += Get-MapValue $row 'frameOverlaps'
     $totals.missingRoutes += Get-MapValue $row 'missing'
     $totals.noLegalRouteFailures += Get-MapValue $row 'noLegalRoute'
+    $totals.illegalPaths += Get-MapValue $row '10'
+    $totals.sharedTracks += Get-MapValue $row '5.1'
+    $totals.rule4_2 += Get-MapValue $row '4.2'
+    $totals.rule5_9 += Get-MapValue $row '5.9'
+    $totals.rule3_1 += Get-MapValue $row '3.1'
+    $totals.rule4_1 += Get-MapValue $row '4.1'
     $totals.cleanupCorrections += Get-MapValue $cleanup $id
 }
-Write-Output ("ROUTE_AUDIT_COMPLETE|{0:0.00}s|{1}" -f $totalWatch.Elapsed.TotalSeconds,
+$auditState = if ($missing.Count -or $unexpected.Count) { 'ROUTE_AUDIT_INCOMPLETE' } else { 'ROUTE_AUDIT_COMPLETE' }
+Write-Output ("{0}|{1:0.00}s|{2}" -f $auditState, $totalWatch.Elapsed.TotalSeconds,
     (($totals.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join '|'))
 Write-Output ("FAILED_BATCHES|{0}" -f ($failedBatches -join ','))
 
 if ($missing.Count -or $unexpected.Count -or $totals.unmeasured -or $failedBatches.Count -or $totals.offSlotPorts -or $totals.offGridNodes -or $totals.offGridFrameEdges -or
-    $totals.titleBands -or $totals.frameOverlaps -or $totals.missingRoutes -or $totals.noLegalRouteFailures -or $totals.cleanupCorrections) {
+    $totals.titleBands -or $totals.frameOverlaps -or $totals.missingRoutes -or $totals.noLegalRouteFailures -or $totals.cleanupCorrections -or $totals.illegalPaths -or $totals.sharedTracks) {
     Write-Error 'One or more audited invariants remain nonzero; see per-scenario ROUTE_AUDIT rows.'
     exit 1
 }

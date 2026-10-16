@@ -213,8 +213,9 @@ public static class FlowchartDiamondPorts
     }
 
     /// <summary>
-    /// Assigns each destination to its nearest facing slanted edge, then distributes
-    /// that edge's ports at k/(n+1), ordered by the peer's position along the edge.
+    /// Gives a lone axis-facing connection its diamond tip; otherwise assigns
+    /// destinations to facing slanted edges and distributes each edge's ports
+    /// at k/(n+1), ordered by the peer's position along the edge.
     /// </summary>
     /// <param name="WidthPx">Diamond cell width.</param>
     /// <param name="HeightPx">Diamond cell height.</param>
@@ -242,6 +243,21 @@ public static class FlowchartDiamondPorts
         FlowchartDiamondPort[] Assigned = new FlowchartDiamondPort[Destinations.Count];
         for (int Index = 0; Index < Destinations.Count; Index++)
         {
+            var Destination = Destinations[Index];
+            // A lone axis-facing connection owns the tip, just as a lone box
+            // connection owns its side centre. Other ends on that nominal side
+            // participate in symmetric sloped-edge allocation instead.
+            bool Horizontal = Math.Abs(Destination.Y) < 0.001 && Math.Abs(Destination.X) > 0.001;
+            bool Vertical = Math.Abs(Destination.X) < 0.001 && Math.Abs(Destination.Y) > 0.001;
+            if ((Horizontal || Vertical) && Destinations.Count(Other =>
+                    Horizontal ? Math.Abs(Other.X) >= Math.Abs(Other.Y) && Math.Sign(Other.X) == Math.Sign(Destination.X)
+                        : Math.Abs(Other.Y) > Math.Abs(Other.X) && Math.Sign(Other.Y) == Math.Sign(Destination.Y)) == 1)
+            {
+                int Nx = Horizontal ? Math.Sign(Destination.X) : 0;
+                int Ny = Vertical ? Math.Sign(Destination.Y) : 0;
+                Assigned[Index] = new(Nx * WidthPx / 2, Ny * HeightPx / 2, true, FlowchartDiamondEdge.None, Nx, Ny);
+                continue;
+            }
             EdgeLines[(int)NearestEdge(Destinations[Index], WidthPx, HeightPx) - 1].Add(Index);
         }
 

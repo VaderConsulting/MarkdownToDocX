@@ -14,12 +14,12 @@ internal static class FlowchartPortSideRouteRepair
 {
     internal static Action<string, int, int, int, int, int>? RouteCandidateObserver { get; set; }
     private sealed record Candidate(List<FlowchartLayoutPoint> Points, string Exit, string Entry,
-        int FlowPriority, double Length);
+        int FlowPriority, double Length, bool ReallocatesPorts = false);
     private sealed record Snapshot(FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutPoint> Points,
-        string Exit, string Entry);
+        string Exit, string Entry, double ExitX, double ExitY, double EntryX, double EntryY);
 
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        HashSet<string>? AttemptedRouteStates = null)
+        HashSet<string>? AttemptedRouteStates = null, bool IncludeTerminalCandidates = false)
     {
         if (Layout.NodeBounds.Count == 0 || Layout.EdgeRoutes.Count == 0) return;
         AttemptedRouteStates ??= new(StringComparer.Ordinal);
@@ -29,7 +29,8 @@ internal static class FlowchartPortSideRouteRepair
                     + Spatial.DependencySignature(Route.Points)))) return;
         FlowchartLayoutScore.Result Initial = FlowchartLayoutScore.Measure(Contract, Layout);
         List<Snapshot> InitialRoutes = Layout.EdgeRoutes.Select(Route => new Snapshot(Route,
-            Route.Points.Select(Copy).ToList(), Route.ExitSide, Route.EntrySide)).ToList();
+            Route.Points.Select(Copy).ToList(), Route.ExitSide, Route.EntrySide,
+            Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY)).ToList();
         var Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
             .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
@@ -69,12 +70,20 @@ internal static class FlowchartPortSideRouteRepair
             // search for an already-facing, non-interacting route. Keep the
             // repair available when another line interacts with it, because
             // crossing removal can justify a different legal side assignment.
-            && (!HasAllocatedFacingSides(Route) || HasLineInteraction(Route))
+            && (!HasAllocatedFacingSides(Route) || HasLineInteraction(Route)
+                || IncludeTerminalCandidates)
             && !Back.Contains((Route.SourceId, Route.TargetId))
             && Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
             && Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
             && !IsGeometricBackEdge(Source, Target, Direction)
-            && CanReassign(Route.SourceId, Nodes) && CanReassign(Route.TargetId, Nodes);
+            && (CanReassign(Route.SourceId, Nodes) && CanReassign(Route.TargetId, Nodes)
+                || IncludeTerminalCandidates && (HasStraightCandidate(Route)
+                    || Nodes.TryGetValue(Route.SourceId, out var SourceNode) && FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode.Shape)
+                    || Nodes.TryGetValue(Route.TargetId, out var TargetNode) && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode.Shape)));
+        bool HasStraightCandidate(FlowchartLayoutEdgeRoute Route) =>
+            Bounds.TryGetValue(Route.SourceId, out var Source)
+            && Bounds.TryGetValue(Route.TargetId, out var Target)
+            && StraightCandidate(Source, Target, Nodes, Direction) != null;
         string CacheKey(FlowchartLayoutEdgeRoute Route) => RouteStateKey(Route) + "|"
             + Spatial.DependencySignature(Route.Points);
         void Enqueue(FlowchartLayoutEdgeRoute Route)
@@ -84,10 +93,14 @@ internal static class FlowchartPortSideRouteRepair
                 && Queued.Add(Route)) Pending.Enqueue(Route);
         }
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes) Enqueue(Route);
+        var Visits = new Dictionary<FlowchartLayoutEdgeRoute, int>();
         while (Pending.Count > 0)
         {
             FlowchartLayoutEdgeRoute Route = Pending.Dequeue();
             Queued.Remove(Route);
+            int Depth = Visits.GetValueOrDefault(Route);
+            if (Depth >= FlowchartLayoutRules.RepairChainDepth) continue;
+            Visits[Route] = Depth + 1;
             if (!AttemptedRouteStates.Add(CacheKey(Route))) continue;
             if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
@@ -95,6 +108,7 @@ internal static class FlowchartPortSideRouteRepair
             bool IsRejected = Corners(Route.Points) > 2;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             IReadOnlyCollection<FlowchartLayoutEdgeRoute> BeforeInteractions = Spatial.QueryRoutes(Route.Points, Route);
+            if (BeforeInteractions.Count > FlowchartLayoutRules.RepairChainLines) continue;
             FlowchartLayoutScore.CandidateMeasurement Before =
                 ScoreContext.MeasureCandidateSummary(Route, BeforeInteractions);
             int BeforeFaults = Before.RejectingFaults, BeforeCrossings = Before.Crossings;
@@ -103,6 +117,10 @@ internal static class FlowchartPortSideRouteRepair
             int RouteRejectingFaults = RouteFaults.Count(Failure => Failure.Kind != "ArrangementKept");
             if (!Before.Score.HasValue && RouteRejectingFaults == 0 && BeforeCrossings == 0) continue;
             List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
+            var OriginalNormals = (Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY);
+            var AllocationFaults = IncludeTerminalCandidates
+                ? FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Finding => Finding.Rule == "3.2/4.7")
+                    .Select(Finding => Finding.Subject).ToHashSet(StringComparer.Ordinal) : [];
             string OriginalExit = Route.ExitSide, OriginalEntry = Route.EntrySide;
             double OriginalLength = Length(Original);
             Candidate? Best = null;
@@ -118,10 +136,16 @@ internal static class FlowchartPortSideRouteRepair
             bool NeedsDetours = !OnlyBendCanImprove || OriginalCorners > 2;
             IReadOnlyCollection<FlowchartLayoutNodeBounds> NearbyTrackBoxes = Spatial.QueryBoxes(Route.Points);
             int CandidateCount = 0, HintMatched = 0, ClearCount = 0, FreePortCount = 0, ImprovingCount = 0;
+            int ExaminedCandidates = 0;
             foreach (Candidate Candidate in Candidates(Source, Target, NearbyTrackBoxes, Direction,
                          Route.ExitSide, Route.EntrySide, Original[0], Original[^1],
+                         Nodes,
+                         Contract, Bounds, IncludeTerminalCandidates,
                          RequireFacing: !IsRejected, IncludeDetours: NeedsDetours, SearchRegion: Route.Points))
             {
+                if (ExaminedCandidates >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                ExaminedCandidates++;
+                FlowchartRenderContext.ReportOperationCount("route-repair-candidates", 1);
                 CandidateCount++;
                 if (!MatchesRoutingHint(Candidate, Edge)) continue;
                 HintMatched++;
@@ -129,11 +153,20 @@ internal static class FlowchartPortSideRouteRepair
                 ClearCount++;
                 if (!PortsAreFree(Candidate, Route, RoutesByEndpoint)) continue;
                 FreePortCount++;
+                if (IncludeTerminalCandidates && !HasLabelRoom(Candidate.Points, Edge, Contract,
+                        OrthogonalRunsOnly: true)) continue;
                 if (!(IsRejected || HasMinimumTerminalRuns(Candidate.Points)
-                    && HasLabelRoom(Candidate.Points, Edge, Contract))) continue;
+                    && HasLabelRoom(Candidate.Points, Edge, Contract, IncludeTerminalCandidates))) continue;
                 if (OnlyBendCanImprove && Corners(Candidate.Points) >= OriginalCorners
-                    && Candidate.Length >= OriginalLength - DiagramGridMetrics.GRID_UNIT_PX) continue;
+                    && Candidate.Length >= OriginalLength - 0.001) continue;
                 Set(Route, Candidate);
+                if (Candidate.ReallocatesPorts && FlowchartRouteRuleChecker.Check(Contract, Layout)
+                        .Any(Finding => Finding.Rule == "3.2/4.7" && !AllocationFaults.Contains(Finding.Subject)))
+                {
+                    Restore(Route, Original, OriginalExit, OriginalEntry);
+                    (Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY) = OriginalNormals;
+                    continue;
+                }
                 HashSet<FlowchartLayoutEdgeRoute> CandidateInteractions =
                     Spatial.QueryRoutes(Candidate.Points, Route).ToHashSet();
                 CandidateInteractions.UnionWith(BeforeInteractions);
@@ -144,7 +177,7 @@ internal static class FlowchartPortSideRouteRepair
                     && Measured.Score.Value < Before.Score.Value - 0.001;
                 bool CrossingImproves = Measured.Crossings < BeforeCrossings;
                 bool ScoreTiesButShorter = ScoresTie(Measured.Score, Before.Score)
-                    && Candidate.Length < OriginalLength - DiagramGridMetrics.GRID_UNIT_PX;
+                    && Candidate.Length < OriginalLength - 0.001;
                 bool ImprovesBaseline = IsRejected
                     ? Measured.Overlaps == 0 && (Faults < BeforeFaults
                         || Measured.OptimizationScore < Before.OptimizationScore - 0.001)
@@ -173,6 +206,7 @@ internal static class FlowchartPortSideRouteRepair
                     BestLength = Candidate.Length;
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
+                (Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY) = OriginalNormals;
             }
             RouteCandidateObserver?.Invoke(Route.EdgeId, CandidateCount, HintMatched, ClearCount,
                 FreePortCount, ImprovingCount);
@@ -184,9 +218,13 @@ internal static class FlowchartPortSideRouteRepair
                 ScoreContext.CommitCurrent(Route, Touched);
                 Spatial.ReplaceRoute(Route);
                 RoutePointCache[Route] = Tuples(Route.Points).ToArray();
-                foreach (FlowchartLayoutEdgeRoute Neighbour in Touched) Enqueue(Neighbour);
+                foreach (FlowchartLayoutEdgeRoute Neighbour in Touched.Take(FlowchartLayoutRules.RepairChainLines)) Enqueue(Neighbour);
             }
-            else Restore(Route, Original, OriginalExit, OriginalEntry);
+            else
+            {
+                Restore(Route, Original, OriginalExit, OriginalEntry);
+                (Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY) = OriginalNormals;
+            }
         }
         FlowchartLayoutScore.Result Final = FlowchartLayoutScore.Measure(Contract, Layout);
         double InitialLength = InitialRoutes.Sum(Saved => Length(Saved.Points));
@@ -199,13 +237,17 @@ internal static class FlowchartPortSideRouteRepair
             ? Final.Score.Value < Initial.Score.Value - 0.001
                 || ScoresTie(Final.Score, Initial.Score)
                     && Final.Crossings <= Initial.Crossings && Final.Overlaps <= Initial.Overlaps
-                    && FinalLength < InitialLength - DiagramGridMetrics.GRID_UNIT_PX
+                    && FinalLength < InitialLength - 0.001
                 || Final.Crossings < Initial.Crossings && Final.Overlaps <= Initial.Overlaps
             : Final.Score.HasValue || Final.Overlaps <= Initial.Overlaps
                 && FinalOptimizationScore < InitialOptimizationScore - 0.001;
         if (!Keep)
             foreach (Snapshot Saved in InitialRoutes)
+            {
                 Restore(Saved.Route, Saved.Points, Saved.Exit, Saved.Entry);
+                (Saved.Route.ExitNormalX, Saved.Route.ExitNormalY, Saved.Route.EntryNormalX, Saved.Route.EntryNormalY)
+                    = (Saved.ExitX, Saved.ExitY, Saved.EntryX, Saved.EntryY);
+            }
     }
 
     private static bool IsStrictlyLower(double? Candidate, double? Current) => Candidate.HasValue
@@ -246,9 +288,26 @@ internal static class FlowchartPortSideRouteRepair
         FlowchartLayoutNodeBounds Target, IEnumerable<FlowchartLayoutNodeBounds> Boxes,
         FlowchartDirection Direction, string AllocatedExit, string AllocatedEntry,
         FlowchartLayoutPoint AllocatedStart, FlowchartLayoutPoint AllocatedEnd,
+        IReadOnlyDictionary<string, NodeContract> Nodes,
+        DiagramContract Contract, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        bool IncludeTerminalCandidates,
         bool RequireFacing = true, bool IncludeDetours = true,
         IReadOnlyList<FlowchartLayoutPoint>? SearchRegion = null)
     {
+        // Rule 4.2 is a candidate, not a forced port override. The slanted-edge
+        // allocator can put both terminals off the centre line; using only those
+        // terminals would hide the legal tip-to-tip alternative from the scorer.
+        if (IncludeTerminalCandidates)
+        {
+            Candidate? Straight = StraightCandidate(Source, Target, Nodes, Direction);
+            if (Straight != null) yield return Straight;
+            foreach (var Points in DiagramGridRouteBuilder.MinimumBendTerminalCandidates(
+                         AllocatedStart, AllocatedEnd, Source, Target, AllocatedExit, AllocatedEntry,
+                         Nodes, Bounds, Contract))
+                yield return New(Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToList(),
+                    AllocatedExit, AllocatedEntry, Direction);
+            yield break;
+        }
         double Gap = DiagramGridMetrics.NODE_GAP_PX;
         double MinX = SearchRegion == null ? Math.Min(Source.CenterX, Target.CenterX)
             : SearchRegion.Min(Point => Point.X);
@@ -319,6 +378,44 @@ internal static class FlowchartPortSideRouteRepair
         }
     }
 
+    /// <summary>Offers the axis-aligned outline-to-outline route independently of allocated sloping-edge slots.</summary>
+    /// <param name="Source">The placed source outline bounds.</param>
+    /// <param name="Target">The placed target outline bounds.</param>
+    /// <param name="Nodes">Shape definitions used to resolve real cardinal boundary points.</param>
+    /// <param name="Direction">The diagram direction used by the existing candidate tie-break.</param>
+    /// <returns>A straight candidate, or null for unaligned centres or unsupported outlines.</returns>
+    private static Candidate? StraightCandidate(FlowchartLayoutNodeBounds Source,
+        FlowchartLayoutNodeBounds Target, IReadOnlyDictionary<string, NodeContract> Nodes,
+        FlowchartDirection Direction)
+    {
+        bool Supports(FlowchartLayoutNodeBounds Box) => CanReassign(Box.NodeId, Nodes)
+            || Nodes.TryGetValue(Box.NodeId, out var Node)
+                && (FlowchartDiamondAttachHelper.IsDiamondShape(Node.Shape)
+                    || Node.Shape is "circle" or "doublecircle");
+        if (!Supports(Source) || !Supports(Target)) return null;
+        bool Horizontal = Math.Abs(Source.CenterY - Target.CenterY) < 0.001;
+        bool Vertical = Math.Abs(Source.CenterX - Target.CenterX) < 0.001;
+        if (Horizontal == Vertical) return null;
+        double Sign = Math.Sign(Horizontal ? Target.CenterX - Source.CenterX : Target.CenterY - Source.CenterY);
+        double Radius(FlowchartLayoutNodeBounds Box) => Nodes.TryGetValue(Box.NodeId, out var Node)
+            && Node.Shape is "circle" or "doublecircle" ? Math.Min(Box.Width, Box.Height) / 2
+            : (Horizontal ? Box.Width : Box.Height) / 2;
+        var Start = new FlowchartLayoutPoint
+        {
+            X = Source.CenterX + (Horizontal ? Sign * Radius(Source) : 0),
+            Y = Source.CenterY + (Horizontal ? 0 : Sign * Radius(Source))
+        };
+        var End = new FlowchartLayoutPoint
+        {
+            X = Target.CenterX - (Horizontal ? Sign * Radius(Target) : 0),
+            Y = Target.CenterY - (Horizontal ? 0 : Sign * Radius(Target))
+        };
+        string Exit = Horizontal ? Sign > 0 ? "right" : "left" : Sign > 0 ? "top" : "bottom";
+        string Entry = Horizontal ? Sign > 0 ? "left" : "right" : Sign > 0 ? "bottom" : "top";
+        if (!Directions([Start, End], Exit, Entry)) return null;
+        return New([Start, End], Exit, Entry, Direction) with { ReallocatesPorts = true };
+    }
+
     private static bool IsFreeVerticalTrack(double X, double MinY, double MaxY,
         IEnumerable<FlowchartLayoutNodeBounds> Boxes, FlowchartLayoutNodeBounds Source,
         FlowchartLayoutNodeBounds Target) => !Boxes.Any(Box => Box != Source && Box != Target
@@ -341,13 +438,7 @@ internal static class FlowchartPortSideRouteRepair
         Enumerable.Range(1, Points.Count - 1).Sum(Index => Math.Abs(Points[Index].X - Points[Index - 1].X)
             + Math.Abs(Points[Index].Y - Points[Index - 1].Y)));
     private static int Corners(IReadOnlyList<FlowchartLayoutPoint> Points)
-    {
-        int Result = 0;
-        for (int Index = 1; Index < Points.Count - 1; Index++)
-            if ((Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5)
-                != (Math.Abs(Points[Index + 1].Y - Points[Index].Y) < 0.5)) Result++;
-        return Result;
-    }
+        => FlowchartLayoutScore.CountCorners(Points);
     private static bool OtherEndBeyondSide(FlowchartLayoutNodeBounds Box,
         FlowchartLayoutNodeBounds Other, string Side) => Side switch
     {
@@ -379,7 +470,7 @@ internal static class FlowchartPortSideRouteRepair
         Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y);
 
     private static bool HasLabelRoom(IReadOnlyList<FlowchartLayoutPoint> Points,
-        EdgeContract? Edge, DiagramContract Contract)
+        EdgeContract? Edge, DiagramContract Contract, bool OrthogonalRunsOnly = false)
     {
         if (string.IsNullOrWhiteSpace(Edge?.Label)) return true;
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
@@ -387,6 +478,8 @@ internal static class FlowchartPortSideRouteRepair
             Edge.Label, Options, Options.EdgeLabelFontSizePx);
         for (int Index = 1; Index < Points.Count; Index++)
         {
+            if (OrthogonalRunsOnly && Math.Abs(Points[Index].X - Points[Index - 1].X) >= 0.5
+                && Math.Abs(Points[Index].Y - Points[Index - 1].Y) >= 0.5) continue;
             bool Horizontal = Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5;
             double Required = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                 Dimensions, Options.EdgeLabelFontSizePx, Horizontal);
@@ -406,6 +499,18 @@ internal static class FlowchartPortSideRouteRepair
             foreach (FlowchartLayoutEdgeRoute Other in Others)
             {
                 if (Other == Route || Other.Points.Count < 2) continue;
+                if (Candidate.ReallocatesPorts)
+                {
+                    bool SourceEnd = NodeId == Route.SourceId;
+                    var Port = SourceEnd ? Candidate.Points[0] : Candidate.Points[^1];
+                    var Allocated = SourceEnd ? Route.Points[0] : Route.Points[^1];
+                    string Side = SourceEnd ? Candidate.Exit : Candidate.Entry;
+                    // A centre alternative cannot steal one member of a jointly
+                    // distributed side. Existing centre slots remain candidates.
+                    if (!Same(Port, Allocated)
+                        && (Other.SourceId == NodeId && Other.ExitSide == Side
+                            || Other.TargetId == NodeId && Other.EntrySide == Side)) return false;
+                }
                 if (Other.SourceId == Route.SourceId && Same(Other.Points[0], Candidate.Points[0])) return false;
                 if (Other.TargetId == Route.SourceId && Same(Other.Points[^1], Candidate.Points[0])) return false;
                 if (Other.SourceId == Route.TargetId && Same(Other.Points[0], Candidate.Points[^1])) return false;
@@ -498,6 +603,15 @@ internal static class FlowchartPortSideRouteRepair
     {
         Route.Points.Clear(); Route.Points.AddRange(Candidate.Points.Select(Copy));
         Route.ExitSide = Candidate.Exit; Route.EntrySide = Candidate.Entry;
+        if (Candidate.ReallocatesPorts)
+        {
+            // Port normals belong to the selected outline points, not to the
+            // earlier sloping-edge allocation that this candidate supersedes.
+            Route.ExitNormalX = Candidate.Exit == "left" ? -1 : Candidate.Exit == "right" ? 1 : 0;
+            Route.ExitNormalY = Candidate.Exit == "bottom" ? -1 : Candidate.Exit == "top" ? 1 : 0;
+            Route.EntryNormalX = Candidate.Entry == "left" ? -1 : Candidate.Entry == "right" ? 1 : 0;
+            Route.EntryNormalY = Candidate.Entry == "bottom" ? -1 : Candidate.Entry == "top" ? 1 : 0;
+        }
     }
     private static void Restore(FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutPoint> Points, string Exit, string Entry)
     {

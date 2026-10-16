@@ -43,6 +43,7 @@ public static partial class DiagramGridLayout
 
     private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract)
     {
+        if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true) return;
         for (int Index = 1; Index < Mover.Points.Count - 2; Index++)
         {
             FlowchartLayoutPoint Start = Mover.Points[Index];
@@ -53,7 +54,7 @@ public static partial class DiagramGridLayout
             {
                 continue;
             }
-            double TrackSeparation = 6;
+            double TrackSeparation = DiagramGridMetrics.GRID_UNIT_PX;
             if (Contract != null)
             {
                 var Options = FlowchartRenderOptions.FromContract(Contract);
@@ -64,7 +65,8 @@ public static partial class DiagramGridLayout
                     var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label, Options, Options.EdgeLabelFontSizePx);
                     return (Vertical ? Size.Width : Size.Height) / 2;
                 }
-                TrackSeparation = Math.Max(6, CaptionHalf(Stay) + CaptionHalf(Mover) + 6);
+                TrackSeparation = DiagramGridMetrics.CeilToGrid((int)Math.Ceiling(Math.Max(
+                    DiagramGridMetrics.GRID_UNIT_PX, CaptionHalf(Stay) + CaptionHalf(Mover) + 6)));
             }
 
             for (int OtherIndex = 1; OtherIndex < Stay.Points.Count; OtherIndex++)
@@ -131,7 +133,15 @@ public static partial class DiagramGridLayout
             End.Y += Offset;
         }
 
-        bool Clear = true;
+        // Translating a track must not reverse or erase either terminal run.
+        // The endpoint itself stays fixed, so crossing it would create a hook.
+        double BeforeRun = Vertical ? Start.X - Before.X : Start.Y - Before.Y;
+        double AfterRun = Vertical ? End.X - After.X : End.Y - After.Y;
+        double OldBeforeRun = OldStart - (Vertical ? Before.X : Before.Y);
+        double OldAfterRun = OldEnd - (Vertical ? After.X : After.Y);
+        bool Clear = BeforeRun * OldBeforeRun > 0 && AfterRun * OldAfterRun > 0
+            && Math.Abs(BeforeRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX
+            && Math.Abs(AfterRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX;
         for (int Segment = Index; Segment <= Index + 2 && Clear; Segment++)
         {
             foreach (GridNode Node in Placed)

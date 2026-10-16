@@ -45,13 +45,82 @@ public static class FlowchartRouteRuleChecker
             CheckAlignedStraight(edge, route, findings);
             CheckSideChoice(edge, route, contract, boxes, findings);
             CheckFrameRun(edge, route, contract, boxes, findings);
+            CheckObstacles(edge, route, contract, layout, boxes, nodes, findings);
         }
+
+        foreach (var Route in layout.EdgeRoutes.Where(Route => !used.Contains(Route)))
+            if (!contract.Edges.Any(Edge => string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+                    && Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId
+                    && (string.IsNullOrEmpty(Edge.Id) || Edge.Id == Route.EdgeId)))
+                findings.Add(new("10", Route.EdgeId, "stored path has no unmatched declared visible link"));
 
         CheckPortUniqueness(matched, findings);
         CheckPortDistribution(matched, boxes, nodes, findings);
         CheckPortOrder(matched, boxes, nodes, findings);
         CheckCrossings(matched, findings);
+        for (int Left = 0; Left < matched.Count; Left++)
+        for (int Right = Left + 1; Right < matched.Count; Right++)
+        {
+            var A = matched[Left]; var B = matched[Right];
+            if (FlowchartBranchRouteOrder.Intersections(
+                    A.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                    B.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Overlap > 0.001)
+                findings.Add(new("5.1", EdgeName(A.Edge) + " x " + EdgeName(B.Edge), "routes share a positive-length track"));
+        }
         return findings;
+    }
+
+    /// <summary>Checks every final segment against actual node interiors and protected title strips.</summary>
+    /// <param name="Edge">The declared link represented by the route.</param>
+    /// <param name="Route">The final stored polyline.</param>
+    /// <param name="Contract">Group membership and link declarations.</param>
+    /// <param name="Layout">Node outlines to test, excluding non-solid group frames.</param>
+    /// <param name="Boxes">Node and frame bounds used to derive title strips.</param>
+    /// <param name="Nodes">Shape definitions for exact diamond and circular outlines.</param>
+    /// <param name="Findings">Receives hard legality failures, independently of hints.</param>
+    private static void CheckObstacles(EdgeContract Edge, FlowchartLayoutEdgeRoute Route,
+        DiagramContract Contract, FlowchartLayoutResult Layout,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Boxes,
+        IReadOnlyDictionary<string, NodeContract> Nodes, List<Finding> Findings)
+    {
+        foreach (var Box in Layout.NodeBounds)
+        {
+            Nodes.TryGetValue(Box.NodeId, out var Node);
+            bool Blocked = false;
+            for (int Index = 1; Index < Route.Points.Count && !Blocked; Index++)
+            {
+                var A = Route.Points[Index - 1]; var B = Route.Points[Index];
+                if (FlowchartDiamondAttachHelper.IsDiamondShape(Node?.Shape))
+                {
+                    double Ratio = Box.Width / Box.Height;
+                    double Ax = A.X - Box.CenterX, Ay = (A.Y - Box.CenterY) * Ratio;
+                    double Bx = B.X - Box.CenterX, By = (B.Y - Box.CenterY) * Ratio;
+                    // The intersection primitive includes its boundary. Inset
+                    // by the same attachment tolerance as rectangular bodies so
+                    // a terminal on the outline is not an interior collision.
+                    double Half = Math.Max(0.001, Box.Width / 2 - 2 * Math.Max(1, Ratio));
+                    Blocked = FlowchartRouteObstacleHelper.SegmentIntersectsRectangleInterior(
+                        Ax + Ay, Ax - Ay, Bx + By, Bx - By,
+                        -Half, Half, Half, -Half);
+                }
+                else if (Node?.Shape is "circle" or "doublecircle" or "ellipse")
+                {
+                    double Rx = Node.Shape == "ellipse" ? Box.Width / 2 : Math.Min(Box.Width, Box.Height) / 2;
+                    double Ry = Node.Shape == "ellipse" ? Box.Height / 2 : Rx;
+                    double Ax = (A.X - Box.CenterX) / Rx, Ay = (A.Y - Box.CenterY) / Ry;
+                    double Dx = (B.X - A.X) / Rx, Dy = (B.Y - A.Y) / Ry;
+                    double Denominator = Dx * Dx + Dy * Dy;
+                    double T = Denominator == 0 ? 0 : Math.Clamp(-(Ax * Dx + Ay * Dy) / Denominator, 0, 1);
+                    Blocked = Math.Pow(Ax + T * Dx, 2) + Math.Pow(Ay + T * Dy, 2) < 1 - 0.000001;
+                }
+                else Blocked = FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Box);
+            }
+            if (Blocked) Findings.Add(new("10", EdgeName(Edge), $"route passes through node '{Box.NodeId}'"));
+        }
+        if (FlowchartFrameTitleBandHelper.RouteEntersAny(
+                Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                FlowchartFrameTitleBandHelper.Get(Contract, Boxes), Route.SourceId, Route.TargetId, Contract))
+            Findings.Add(new("10", EdgeName(Edge), "route passes through a group title band"));
     }
 
     private static FlowchartLayoutEdgeRoute? FindRoute(EdgeContract edge,
@@ -60,7 +129,8 @@ public static class FlowchartRouteRuleChecker
         if (!string.IsNullOrEmpty(edge.Id))
         {
             FlowchartLayoutEdgeRoute? byId = routes.FirstOrDefault(route => !used.Contains(route)
-                && string.Equals(route.EdgeId, edge.Id, StringComparison.Ordinal));
+                && string.Equals(route.EdgeId, edge.Id, StringComparison.Ordinal)
+                && route.SourceId == edge.SourceId && route.TargetId == edge.TargetId);
             if (byId != null) return byId;
         }
         return routes.FirstOrDefault(route => !used.Contains(route)
@@ -256,6 +326,7 @@ public static class FlowchartRouteRuleChecker
             return side;
         double nx = source ? route.ExitNormalX : route.EntryNormalX;
         double ny = source ? route.ExitNormalY : route.EntryNormalY;
+        if (Math.Abs(nx) < 0.001 || Math.Abs(ny) < 0.001) return "diamond-tip-" + side;
         return "diamond-" + (nx >= 0 ? "+" : "-") + (ny >= 0 ? "+" : "-");
     }
 
