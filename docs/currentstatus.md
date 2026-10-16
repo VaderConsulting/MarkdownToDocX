@@ -22,7 +22,7 @@ The final track seal no longer accepts partial separation that adds crossings. C
 
 The 5.9 definition is unchanged: rescoring c6605bd with the current checker reproduces 1794. The increase at 404ce4c was geometric, dominated by partial track separation. Fifteen scenarios still exceed their own old crossing counts, including cases that replace illegal shared tracks or node crossings. Their remaining excess is not declared unavoidable. The complete top-20 attribution, all remaining cases, performance explanation and validation are in [the crossing investigation](route-crossing-investigation-2026-10-16.md).
 
-Open work: audit speed against c6605bd; A142 against 10 seconds; the remaining individual crossing increases; F153's bend/crossing regression; shared tracks in F148, A147 and the 20-way and 30-way fans. The original 17 named/structural regressions still have four known failures: F148, A147, F153 and the synthetic 20-way fan. Column-grid fan placement awaits agreement. The checkpoint is authorized with these open items. No push or DOCX regeneration was performed.
+Open work: audit speed against c6605bd; A142 against 10 seconds; the remaining individual crossing increases; F153's bend/crossing regression; shared tracks in F148, A147 and the 20-way and 30-way fans. The original 17 named/structural regressions still have four known failures: F148, A147, F153 and the synthetic 20-way fan. Column-grid fan placement awaits agreement. The checkpoint is authorized with these open items. The code checkpoint was not pushed. The three DOCX files were regenerated afterwards and remain uncommitted. A follow-up checkpoint records the open shared-track and side-distribution increases before further engine changes.
 
 ## Where things are
 
