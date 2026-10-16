@@ -58,16 +58,39 @@ public static class FlowchartRouteRuleChecker
         CheckPortDistribution(matched, boxes, nodes, findings);
         CheckPortOrder(matched, boxes, nodes, findings);
         CheckCrossings(matched, findings);
+        var paths = matched.Select(item => item.Route.Points.Select(point => (point.X, point.Y)).ToArray()).ToArray();
         for (int Left = 0; Left < matched.Count; Left++)
         for (int Right = Left + 1; Right < matched.Count; Right++)
         {
             var A = matched[Left]; var B = matched[Right];
             if (FlowchartBranchRouteOrder.Intersections(
-                    A.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
-                    B.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Overlap > 0.001)
+                    paths[Left], paths[Right]).Overlap > 0.001)
                 findings.Add(new("5.1", EdgeName(A.Edge) + " x " + EdgeName(B.Edge), "routes share a positive-length track"));
         }
         return findings;
+    }
+
+    /// <summary>Checks the existing symmetric port-distribution rule without repeating unrelated route and crossing checks.</summary>
+    /// <param name="Contract">Visible declarations used to match parallel links unambiguously.</param>
+    /// <param name="Layout">The current candidate's allocated endpoints and outlines.</param>
+    /// <returns>The same rule 3.2/4.7 findings returned by the full checker.</returns>
+    internal static IReadOnlyList<Finding> CheckPortAllocation(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        var Boxes = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
+        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        var Matched = new List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)>();
+        var Used = new HashSet<FlowchartLayoutEdgeRoute>();
+        foreach (var Edge in Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
+        {
+            var Route = FindRoute(Edge, Layout.EdgeRoutes, Used);
+            if (Route == null || Route.Points.Count < 2) continue;
+            Used.Add(Route);
+            Matched.Add((Edge, Route));
+        }
+        var Findings = new List<Finding>();
+        CheckPortDistribution(Matched, Boxes, Nodes, Findings);
+        return Findings;
     }
 
     /// <summary>Checks every final segment against actual node interiors and protected title strips.</summary>
@@ -498,16 +521,27 @@ public static class FlowchartRouteRuleChecker
 
     private static void CheckCrossings(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes, List<Finding> findings)
     {
+        var bounds = routes.Select(item => (
+            Left: item.Route.Points.Min(point => point.X), Right: item.Route.Points.Max(point => point.X),
+            Bottom: item.Route.Points.Min(point => point.Y), Top: item.Route.Points.Max(point => point.Y))).ToArray();
         for (int i = 0; i < routes.Count; i++)
         for (int j = i + 1; j < routes.Count; j++)
         {
             if (routes[i].Edge.SourceId == routes[j].Edge.SourceId && routes[i].Edge.TargetId == routes[j].Edge.TargetId) continue;
+            // Proper crossings require strict interior overlap on both axes.
+            // Skip separated route bounds before testing every segment pair.
+            if (bounds[i].Right <= bounds[j].Left || bounds[j].Right <= bounds[i].Left
+                || bounds[i].Top <= bounds[j].Bottom || bounds[j].Top <= bounds[i].Bottom) continue;
             if (HasProperCrossing(routes[i].Route, routes[j].Route))
                 findings.Add(new Finding("5.9", EdgeName(routes[i].Edge) + " x " + EdgeName(routes[j].Edge), "routes cross away from a shared endpoint"));
         }
     }
 
-    private static bool HasProperCrossing(FlowchartLayoutEdgeRoute a, FlowchartLayoutEdgeRoute b)
+    /// <summary>Tests the exact proper-crossing geometry used by rule 5.9, including routes sharing a graph endpoint.</summary>
+    /// <param name="a">The first complete route.</param>
+    /// <param name="b">The second complete route.</param>
+    /// <returns>True when two runs cross strictly inside both segments at the audit tolerance.</returns>
+    internal static bool HasProperCrossing(FlowchartLayoutEdgeRoute a, FlowchartLayoutEdgeRoute b)
     {
         for (int i = 1; i < a.Points.Count; i++) for (int j = 1; j < b.Points.Count; j++)
         {

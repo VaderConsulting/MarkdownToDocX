@@ -13,6 +13,55 @@ namespace MermaidRecognition.RuleValidation.Tests;
 [NonParallelizable]
 public sealed class CheapestLegalLayoutRegressionTests
 {
+    /// <summary>A projected cylinder port in an open layout must preserve the fractional centre of its aligned neighbour.</summary>
+    [Test]
+    public void OpenLayoutProjectedSideCentreRemainsStraight()
+    {
+        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+            .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
+            .Single(Case => Case.Id == "F147");
+        var Contract = MermaidRecognizer.Parse(Scenario.Source);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        var Route = Layout.EdgeRoutes.Single(Route =>
+            Contract.Nodes.Single(Node => Node.Id == Route.TargetId).Shape == "cylinder");
+        var Target = Layout.NodeBounds.Single(Box => Box.NodeId == Route.TargetId);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Route.Points.Count, Is.EqualTo(2));
+            Assert.That(Route.Points[0].X, Is.EqualTo(Target.CenterX));
+            Assert.That(Route.Points[^1].X, Is.EqualTo(Target.CenterX));
+            Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout)
+                .Where(Finding => Finding.Rule is "3.2/4.7" or "4.2"), Is.Empty);
+        });
+    }
+
+    /// <summary>Track separation must retain the pinned crossing ceiling while keeping paths legal.</summary>
+    /// <param name="ScenarioId">The catalogue input whose partial track repair added crossings.</param>
+    /// <param name="MaximumCrossings">Its unchanged c6605bd crossing count.</param>
+    [TestCase("A163", 821)]
+    [TestCase("A153", 24)]
+    [TestCase("A110", 258)]
+    [TestCase("A113", 120)]
+    [TestCase("A104", 18)]
+    [TestCase("A165", 0)]
+    [TestCase("A70", 0)]
+    public void PartialTrackRepairCannotAddCrossings(string ScenarioId, int MaximumCrossings)
+    {
+        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+            .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
+            .Single(Case => Case.Id == ScenarioId);
+        var Contract = Scenario.Enterprise
+            ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
+            : MermaidRecognizer.Parse(Scenario.Source);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Findings.Count(Finding => Finding.Rule == "5.9"), Is.LessThanOrEqualTo(MaximumCrossings));
+            Assert.That(Findings.Where(Finding => Finding.Rule is "10" or "3.1" or "3.2/4.7" or "4.1"), Is.Empty);
+        });
+    }
+
     /// <summary>Both declaration orders must route a slanted diamond departure outside the neighbouring rejection node.</summary>
     /// <param name="ScenarioId">The unchanged binary-decision catalogue example.</param>
     [TestCase("F29")]
@@ -79,6 +128,20 @@ public sealed class CheapestLegalLayoutRegressionTests
         var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)
             .ToDictionary(Group => Group.Key, Group => Group.First());
         var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        Assert.That(FlowchartRouteRuleChecker.CheckPortAllocation(Contract, Layout),
+            Is.EqualTo(Findings.Where(Finding => Finding.Rule == "3.2/4.7")),
+            "The candidate-only port check must preserve the full audit's distribution findings.");
+        var ExactPairs = new List<string>();
+        for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
+        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+            var A = Layout.EdgeRoutes[First]; var B = Layout.EdgeRoutes[Second];
+            if ((A.SourceId != B.SourceId || A.TargetId != B.TargetId)
+                && FlowchartRouteRuleChecker.HasProperCrossing(A, B))
+                ExactPairs.Add(A.EdgeId + " x " + B.EdgeId);
+        }
+        Assert.That(Findings.Where(Finding => Finding.Rule == "5.9").Select(Finding => Finding.Subject),
+            Is.EquivalentTo(ExactPairs), "The crossing broad phase must retain every exact proper crossing.");
         int TotalBends = 0, Crossings = 0, AboveMinimum = 0;
         double TotalLength = 0;
         var Excess = new List<string>();

@@ -283,10 +283,10 @@ public static partial class DiagramGridLayout
             // constraints; the unchanged score and legality checks decide.
             ProfileCall("final-port-candidates", () => FlowchartPortSideRouteRepair.Apply(Layout, State.Contract,
                 IncludeTerminalCandidates: true));
-            RepairNodeInteriorRoutes(State, Bounds);
-            StraightenFinalAlignedRoutes(State);
-            SearchJointChannels(State, Bounds);
-            SealDistinctTracks(State, Bounds);
+            ProfileCall("node-interior-legality", () => RepairNodeInteriorRoutes(State, Bounds));
+            ProfileCall("aligned-straight-candidates", () => StraightenFinalAlignedRoutes(State));
+            ProfileCall("joint-channel-search", () => SearchJointChannels(State, Bounds));
+            ProfileCall("distinct-track-seal", () => SealDistinctTracks(State, Bounds));
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.
@@ -444,6 +444,11 @@ public static partial class DiagramGridLayout
                 var OldFaults = Before.Where(Finding => Finding.Rule is "10" or "3.1" or "4.1")
                     .Select(Finding => (Finding.Rule, Finding.Subject)).ToHashSet();
                 bool Improved = After.Count(Finding => Finding.Rule == "5.1") < Shared
+                    // A fully separated assignment repairs illegality and may
+                    // cost more than its illegal baseline. Partial separation
+                    // must not merely exchange shared tracks for new crossings.
+                    && (After.All(Finding => Finding.Rule != "5.1")
+                        || After.Count(Finding => Finding.Rule == "5.9") <= Before.Count(Finding => Finding.Rule == "5.9"))
                     && !After.Any(Finding => Finding.Rule is "10" or "3.1" or "4.1"
                         && !OldFaults.Contains((Finding.Rule, Finding.Subject)));
                 RouteRepairCandidateObserver?.Invoke("track-separation",

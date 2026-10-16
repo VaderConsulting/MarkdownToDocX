@@ -16,20 +16,27 @@ if ($expected.Count -eq 0) { throw 'The route-audit test list contained no scena
 
 $rows = @{}
 $cleanup = @{}
+$hintAccounting = @{}
+$failedScenarios = [System.Collections.Generic.HashSet[string]]::new()
+$caseTimings = [System.Collections.Generic.List[object]]::new()
 function Get-MapValue($Map, [string]$Key, $Default = 0) {
     if ($Map.ContainsKey($Key)) { return $Map[$Key] }
     return $Default
 }
 $failedBatches = [System.Collections.Generic.List[string]]::new()
 $totalWatch = [System.Diagnostics.Stopwatch]::StartNew()
-foreach ($prefix in @('F', 'A', 'EIP')) {
+# The progress watchdog already detects a stalled scenario. Run the complete
+# catalogue in one host, as the pinned comparison did, instead of paying for
+# three process starts, recognizer warm-ups and JIT compilations.
+foreach ($prefix in @('Catalogue')) {
     $stdout = Join-Path $results "$prefix.stdout.log"
     $stderr = Join-Path $results "$prefix.stderr.log"
-    $filter = "FullyQualifiedName~RouteRuleAudit_$prefix"
+    $filter = 'FullyQualifiedName~RouteRuleCatalogueAuditTests'
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
     $process = Start-Process -FilePath 'dotnet' -PassThru -WindowStyle Hidden `
         -ArgumentList @('test', $project, '--no-build', '--no-restore', '--filter', $filter,
-            '--logger', 'console;verbosity=normal') `
+            '--logger', 'console;verbosity=normal', '--logger', "trx;LogFileName=$prefix.trx",
+            '--results-directory', $results) `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     $progressWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $lastSummary = ''
@@ -51,6 +58,17 @@ foreach ($prefix in @('F', 'A', 'EIP')) {
     }
     $watch.Stop()
     if ($process.ExitCode -ne 0) { $failedBatches.Add($prefix) }
+    $trxPath = Join-Path $results "$prefix.trx"
+    if (Test-Path -LiteralPath $trxPath) {
+        [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+        foreach ($result in $trx.TestRun.Results.UnitTestResult) {
+            if ($result.testName -notmatch '^RouteRuleAudit_(?<id>\S+)$') { continue }
+            $scenarioId = $Matches['id']
+            if ($result.outcome -ne 'Passed') { $failedScenarios.Add($scenarioId) | Out-Null }
+            $caseTimings.Add([pscustomobject]@{ Scenario = $scenarioId
+                Seconds = [TimeSpan]::Parse($result.duration).TotalSeconds; Outcome = $result.outcome })
+        }
+    }
     $output = @(Get-Content -LiteralPath $stdout) + @(Get-Content -LiteralPath $stderr)
     foreach ($line in $output) {
         if ($line -match '^\s*ROUTE_AUDIT\|[^|]+\|(?<id>[^|]+)\|(?<fields>.*)$') {
@@ -68,6 +86,9 @@ foreach ($prefix in @('F', 'A', 'EIP')) {
         if ($line -match '^\s*ORTHOGONAL_CLEANUP\|(?<id>[^|]+)\|count=(?<count>\d+)') {
             $cleanup[$Matches['id']] = [int]$Matches['count']
         }
+        if ($line -match '^\s*HINT_AUDIT\|(?<id>[^|]+)\|.*\|unreported=(?<count>-?\d+)') {
+            $hintAccounting[$Matches['id']] = [Math]::Abs([int]$Matches['count'])
+        }
     }
     Write-Output ("BATCH|{0}|{1:0.00}s|dotnetExit={2}|summaries={3}" -f $prefix, $watch.Elapsed.TotalSeconds, $process.ExitCode, $rows.Count)
 }
@@ -83,6 +104,13 @@ $totals = [ordered]@{
     scenarios = $rows.Count
     unmeasured = $missing.Count
     offSlotPorts = 0
+    offSlotGroups = 0
+    portFindings = 0
+    gridFindings = 0
+    alignedPortJogs = 0
+    nonalignedPortJogs = 0
+    hintAccountingFailures = 0
+    failedScenarios = $failedScenarios.Count
     offGridNodes = 0
     offGridFrameEdges = 0
     titleBands = 0
@@ -95,6 +123,11 @@ $totals = [ordered]@{
     rule5_9 = 0
     rule3_1 = 0
     rule4_1 = 0
+    rule3_2_4_7 = 0
+    rule3_3_5_2 = 0
+    rule4_9 = 0
+    rule4_11 = 0
+    rule5_8 = 0
     cleanupCorrections = 0
 }
 foreach ($id in $rows.Keys) {
@@ -104,6 +137,12 @@ foreach ($id in $rows.Keys) {
         continue
     }
     $totals.offSlotPorts += Get-MapValue $row 'offSlotPorts'
+    $totals.offSlotGroups += Get-MapValue $row 'offSlotGroups'
+    $totals.portFindings += Get-MapValue $row 'port'
+    $totals.gridFindings += Get-MapValue $row 'grid'
+    $totals.alignedPortJogs += Get-MapValue $row 'alignedPortJogs'
+    $totals.nonalignedPortJogs += Get-MapValue $row 'nonalignedPortJogs'
+    $totals.hintAccountingFailures += Get-MapValue $hintAccounting $id
     $totals.offGridNodes += Get-MapValue $row 'offGridNodes'
     $totals.offGridFrameEdges += Get-MapValue $row 'offGridFrameEdges'
     $totals.titleBands += Get-MapValue $row 'titleBand'
@@ -112,18 +151,26 @@ foreach ($id in $rows.Keys) {
     $totals.noLegalRouteFailures += Get-MapValue $row 'noLegalRoute'
     $totals.illegalPaths += Get-MapValue $row '10'
     $totals.sharedTracks += Get-MapValue $row '5.1'
-    $totals.rule4_2 += Get-MapValue $row '4.2'
-    $totals.rule5_9 += Get-MapValue $row '5.9'
-    $totals.rule3_1 += Get-MapValue $row '3.1'
-    $totals.rule4_1 += Get-MapValue $row '4.1'
+    # Surface every checker rule, including future additions. A summary must
+    # never silently omit a rule just because it lacks a hand-written counter.
+    foreach ($rule in $row.Keys | Where-Object { $_ -match '^\d+(?:[./]\d+)*$' }) {
+        $field = 'rule' + ($rule -replace '[./]', '_')
+        if (-not $totals.Contains($field)) { $totals[$field] = 0 }
+        $totals[$field] += $row[$rule]
+    }
     $totals.cleanupCorrections += Get-MapValue $cleanup $id
 }
 $auditState = if ($missing.Count -or $unexpected.Count) { 'ROUTE_AUDIT_INCOMPLETE' } else { 'ROUTE_AUDIT_COMPLETE' }
 Write-Output ("{0}|{1:0.00}s|{2}" -f $auditState, $totalWatch.Elapsed.TotalSeconds,
     (($totals.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join '|'))
 Write-Output ("FAILED_BATCHES|{0}" -f ($failedBatches -join ','))
+Write-Output ("FAILED_SCENARIOS|{0}" -f (($failedScenarios | Sort-Object) -join ','))
+$caseTimings | Sort-Object Scenario | Export-Csv -LiteralPath (Join-Path $results 'Catalogue.timings.csv') -NoTypeInformation
+foreach ($timing in $caseTimings | Where-Object Seconds -gt 10 | Sort-Object Seconds -Descending) {
+    Write-Output ("SLOW_CASE|{0}|{1:0.0000}s|{2}" -f $timing.Scenario, $timing.Seconds, $timing.Outcome)
+}
 
-if ($missing.Count -or $unexpected.Count -or $totals.unmeasured -or $failedBatches.Count -or $totals.offSlotPorts -or $totals.offGridNodes -or $totals.offGridFrameEdges -or
+if ($missing.Count -or $unexpected.Count -or $totals.unmeasured -or $failedBatches.Count -or $totals.offSlotPorts -or $totals.offSlotGroups -or $totals.gridFindings -or $totals.hintAccountingFailures -or $totals.offGridNodes -or $totals.offGridFrameEdges -or
     $totals.titleBands -or $totals.frameOverlaps -or $totals.missingRoutes -or $totals.noLegalRouteFailures -or $totals.cleanupCorrections -or $totals.illegalPaths -or $totals.sharedTracks) {
     Write-Error 'One or more audited invariants remain nonzero; see per-scenario ROUTE_AUDIT rows.'
     exit 1

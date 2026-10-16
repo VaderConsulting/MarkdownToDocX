@@ -119,36 +119,43 @@ internal static class FlowchartBranchRouteOrder
     internal static (int Crossings, double Overlap) Intersections(
         IReadOnlyList<(double X, double Y)> First, IReadOnlyList<(double X, double Y)> Second)
     {
-        var Crossings = new HashSet<(double X, double Y)>();
+        // Most tested pairs do not cross. Allocate the deduplication set only
+        // when a crossing exists, and measure the first run once per outer loop.
+        HashSet<(double X, double Y)>? Crossings = null;
         double Overlap = 0;
         for (int I = 1; I < First.Count; I++)
-        for (int J = 1; J < Second.Count; J++)
         {
-            var A = First[I - 1]; var B = First[I]; var C = Second[J - 1]; var D = Second[J];
-            double Ax = B.X - A.X, Ay = B.Y - A.Y, Bx = D.X - C.X, By = D.Y - C.Y;
+            var A = First[I - 1]; var B = First[I];
+            double Ax = B.X - A.X, Ay = B.Y - A.Y;
             double FirstLength = Math.Sqrt(Ax * Ax + Ay * Ay);
-            double SecondLength = Math.Sqrt(Bx * Bx + By * By);
-            if (FirstLength < 0.001 || SecondLength < 0.001) continue;
-            double Denominator = Ax * By - Ay * Bx;
-            double Cx = C.X - A.X, Cy = C.Y - A.Y;
-            if (Math.Abs(Denominator) < 0.000001)
+            if (FirstLength < 0.001) continue;
+            for (int J = 1; J < Second.Count; J++)
             {
-                if (Math.Abs(Cx * Ay - Cy * Ax) / FirstLength > 0.001) continue;
-                double Start = (Cx * Ax + Cy * Ay) / FirstLength;
-                double End = ((D.X - A.X) * Ax + (D.Y - A.Y) * Ay) / FirstLength;
-                Overlap += Math.Max(0, Math.Min(FirstLength, Math.Max(Start, End)) - Math.Max(0, Math.Min(Start, End)));
-                continue;
+                var C = Second[J - 1]; var D = Second[J];
+                double Bx = D.X - C.X, By = D.Y - C.Y;
+                double SecondLength = Math.Sqrt(Bx * Bx + By * By);
+                if (SecondLength < 0.001) continue;
+                double Denominator = Ax * By - Ay * Bx;
+                double Cx = C.X - A.X, Cy = C.Y - A.Y;
+                if (Math.Abs(Denominator) < 0.000001)
+                {
+                    if (Math.Abs(Cx * Ay - Cy * Ax) / FirstLength > 0.001) continue;
+                    double Start = (Cx * Ax + Cy * Ay) / FirstLength;
+                    double End = ((D.X - A.X) * Ax + (D.Y - A.Y) * Ay) / FirstLength;
+                    Overlap += Math.Max(0, Math.Min(FirstLength, Math.Max(Start, End)) - Math.Max(0, Math.Min(Start, End)));
+                    continue;
+                }
+                double T = (Cx * By - Cy * Bx) / Denominator;
+                double U = (Cx * Ay - Cy * Ax) / Denominator;
+                if (T < -0.000001 || T > 1.000001 || U < -0.000001 || U > 1.000001) continue;
+                var Point = (X: Math.Round(A.X + T * Ax, 6), Y: Math.Round(A.Y + T * Ay, 6));
+                // Shared graph terminals are connections, not crossings.
+                bool EndOfFirst = Near(Point, First[0]) || Near(Point, First[^1]);
+                bool EndOfSecond = Near(Point, Second[0]) || Near(Point, Second[^1]);
+                if (!EndOfFirst || !EndOfSecond) (Crossings ??= new()).Add(Point);
             }
-            double T = (Cx * By - Cy * Bx) / Denominator;
-            double U = (Cx * Ay - Cy * Ax) / Denominator;
-            if (T < -0.000001 || T > 1.000001 || U < -0.000001 || U > 1.000001) continue;
-            var Point = (X: Math.Round(A.X + T * Ax, 6), Y: Math.Round(A.Y + T * Ay, 6));
-            // Shared graph terminals are connections, not crossings.
-            bool EndOfFirst = Near(Point, First[0]) || Near(Point, First[^1]);
-            bool EndOfSecond = Near(Point, Second[0]) || Near(Point, Second[^1]);
-            if (!EndOfFirst || !EndOfSecond) Crossings.Add(Point);
         }
-        return (Crossings.Count, Overlap);
+        return (Crossings?.Count ?? 0, Overlap);
     }
 
     private static bool Near((double X, double Y) A, (double X, double Y) B) =>

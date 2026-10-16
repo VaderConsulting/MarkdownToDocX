@@ -240,6 +240,13 @@ public static partial class DiagramGridLayout
         }
         var PathCache = new Dictionary<FlowchartLayoutEdgeRoute,
             ((double Sx, double Sy, double Tx, double Ty, string Exit, string Entry) Key, List<(double X, double Y)>? Path)>();
+        // Terminal families are immutable for this obstacle geometry. The same
+        // complete path participates in many side options, so measure its cost
+        // and each ordered path pair once rather than per incident link option.
+        var PathCosts = new Dictionary<List<(double X, double Y)>, (int Bends, double Length)>();
+        var TerminalObstacles = DiagramGridRouteBuilder.PrepareTerminalObstacles(Contract, Bounds);
+        var Interactions = new Dictionary<(List<(double X, double Y)> A, List<(double X, double Y)> B),
+            (int Crossings, double Overlap)>();
         foreach (var Pair in ByRoute)
         {
             var Cohort = CohortByRoute[Pair.Key];
@@ -350,22 +357,22 @@ public static partial class DiagramGridLayout
                     List<(double X, double Y)>? BestPath = null;
                     foreach (var Path in TerminalPaths(Route))
                     {
-                        int Turns = 0;
-                        double Distance = 0;
-                        for (int Index = 1; Index < Path.Count; Index++)
+                        if (!PathCosts.TryGetValue(Path, out var PathCost))
                         {
-                            double Dx = Path[Index].X - Path[Index - 1].X, Dy = Path[Index].Y - Path[Index - 1].Y;
-                            Distance += Math.Sqrt(Dx * Dx + Dy * Dy);
-                            if (Index + 1 < Path.Count && Math.Abs(Dx * (Path[Index + 1].Y - Path[Index].Y)
-                                - Dy * (Path[Index + 1].X - Path[Index].X)) > 0.001) Turns++;
+                            PathCost = PortCandidateCost(Path);
+                            PathCosts.Add(Path, PathCost);
                         }
                         double SharedLength = 0; int CrossingCount = 0;
                         foreach (var Other in UnchangedPaths.Concat(ChosenPaths))
                         {
-                            var Interaction = FlowchartBranchRouteOrder.Intersections(Path, Other!);
+                            if (!Interactions.TryGetValue((Path, Other!), out var Interaction))
+                            {
+                                Interaction = FlowchartBranchRouteOrder.Intersections(Path, Other!);
+                                Interactions.Add((Path, Other!), Interaction);
+                            }
                             SharedLength += Interaction.Overlap; CrossingCount += Interaction.Crossings;
                         }
-                        var Candidate = (Overlap: Math.Round(SharedLength, 3), Bends: Turns, Length: Distance, Crossings: CrossingCount);
+                        var Candidate = (Overlap: Math.Round(SharedLength, 3), Bends: PathCost.Bends, Length: PathCost.Length, Crossings: CrossingCount);
                         if (Candidate.CompareTo(BestRoute) < 0) { BestRoute = Candidate; BestPath = Path; }
                     }
                     if (BestPath == null) return (double.PositiveInfinity, int.MaxValue, int.MaxValue, double.PositiveInfinity, int.MaxValue, int.MaxValue);
@@ -390,7 +397,8 @@ public static partial class DiagramGridLayout
             string Key = FormattableString.Invariant($"{Route.SourceId}:{Route.TargetId}:{Nodes.GetValueOrDefault(Route.SourceId)?.Shape}:{Nodes.GetValueOrDefault(Route.TargetId)?.Shape}:{Route.ExitSide}:{Route.EntrySide}:{Route.Points[0].X:R},{Route.Points[0].Y:R},{Route.Points[^1].X:R},{Route.Points[^1].Y:R}");
             if (TerminalCache.TryGetValue(Key, out var Paths)) return Paths;
             Paths = DiagramGridRouteBuilder.MinimumBendTerminalCandidates(Route.Points[0], Route.Points[^1],
-                Bounds[Route.SourceId], Bounds[Route.TargetId], Route.ExitSide, Route.EntrySide, Nodes, Bounds, Contract).ToList();
+                Bounds[Route.SourceId], Bounds[Route.TargetId], Route.ExitSide, Route.EntrySide, Nodes, Bounds, Contract,
+                TerminalObstacles).ToList();
             TerminalCache[Key] = Paths;
             return Paths;
         }
@@ -621,6 +629,15 @@ public static partial class DiagramGridLayout
             {
                 (X, Y) = ProjectToOutline(Box, ShapeNode.Shape,
                     (int)Math.Round(X), (int)Math.Round(Y), OutX, OutY);
+                // Projection uses pixel coordinates for the outline. A lone
+                // cardinal port still owns the exact side centre, including an
+                // open layout's fractional centre; rounding its along-side
+                // coordinate would turn a straight neighbour link into a jog.
+                if (Group.Count == 1)
+                {
+                    if (VerticalSide) Y = Box.CenterY;
+                    else X = Box.CenterX;
+                }
             }
 
             SetEnd(Group[Index], X, Y, OutX, OutY);

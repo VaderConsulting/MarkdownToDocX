@@ -7,6 +7,31 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class RouteCandidateCostTests
 {
+    /// <summary>Reusing prepared obstacles must preserve every terminal candidate, including diamond normals and title strips.</summary>
+    [Test]
+    public void PreparedTerminalObstaclesPreserveCandidateGeometry()
+    {
+        var Contract = MermaidRecognizer.Parse("flowchart LR\nsubgraph G\nA[A]\nD{Choice}\nend\nB[B]\nA --> B\nD --> B");
+        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id);
+        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds> {
+            ["A"] = new() { NodeId = "A", CenterX = 0, CenterY = 90, Width = 60, Height = 60 },
+            ["D"] = new() { NodeId = "D", CenterX = 0, CenterY = 0, Width = 60, Height = 60 },
+            ["B"] = new() { NodeId = "B", CenterX = 240, CenterY = 0, Width = 60, Height = 60 },
+            ["G"] = new() { NodeId = "G", CenterX = 0, CenterY = 60, Width = 120, Height = 240 } };
+        var Prepared = DiagramGridRouteBuilder.PrepareTerminalObstacles(Contract, Bounds);
+        foreach (string Id in new[] { "A", "D" })
+        {
+            var Start = new FlowchartLayoutPoint { X = 30, Y = Bounds[Id].CenterY };
+            var End = new FlowchartLayoutPoint { X = 210, Y = 0 };
+            var Original = DiagramGridRouteBuilder.MinimumBendTerminalCandidates(Start, End,
+                Bounds[Id], Bounds["B"], "right", "left", Nodes, Bounds, Contract).ToArray();
+            var Reused = DiagramGridRouteBuilder.MinimumBendTerminalCandidates(Start, End,
+                Bounds[Id], Bounds["B"], "right", "left", Nodes, Bounds, Contract, Prepared).ToArray();
+            Assert.That(Original, Is.Not.Empty);
+            Assert.That(Reused, Is.EqualTo(Original));
+        }
+        Assert.That(Bounds.ContainsKey("G"), Is.True, "Preparing obstacles must not mutate authoritative frame bounds.");
+    }
     /// <summary>A stored diamond edge normal is a direction and must not scale a pixel clearance.</summary>
     [Test]
     public void DiamondStubNormalMagnitudeDoesNotChangeClearance()

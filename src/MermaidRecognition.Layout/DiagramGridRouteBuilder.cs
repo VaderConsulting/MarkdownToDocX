@@ -1256,12 +1256,14 @@ public static class DiagramGridRouteBuilder
     /// <param name="Nodes">Endpoint shape definitions.</param>
     /// <param name="Bounds">Node obstacles in layout coordinates.</param>
     /// <param name="Contract">The diagram's links and group membership.</param>
+    /// <param name="PreparedObstacles">Optional immutable obstacle preparation shared by options against the same bounds.</param>
     /// <returns>Legal candidate polylines; selection remains the shared score's responsibility.</returns>
     internal static IEnumerable<List<(double X, double Y)>> MinimumBendTerminalCandidates(
         FlowchartLayoutPoint Start, FlowchartLayoutPoint End,
         FlowchartLayoutNodeBounds Source, FlowchartLayoutNodeBounds Target, string Exit, string Entry,
         IReadOnlyDictionary<string, NodeContract> Nodes,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, DiagramContract Contract)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>? PreparedObstacles = null)
     {
         Nodes.TryGetValue(Source.NodeId, out var SourceNode);
         Nodes.TryGetValue(Target.NodeId, out var TargetNode);
@@ -1277,10 +1279,11 @@ public static class DiagramGridRouteBuilder
         var TargetStub = ResolvePortStub(End.X, End.Y, Target, TargetNode?.Shape, Entry, CORNER_RADIUS_PX * 2, TargetNx, TargetNy);
         bool SourceDiamond = FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode?.Shape);
         bool TargetDiamond = FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape);
-        var RoutingObstacles = FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds);
-        foreach (var Group in Contract.Groups) RoutingObstacles.Remove(Group.Id);
-        var Obstacles = RoutingObstacles.Where(Pair => !(SourceDiamond && Pair.Key == Source.NodeId)
-            && !(TargetDiamond && Pair.Key == Target.NodeId)).ToDictionary(Pair => Pair.Key, Pair => Pair.Value);
+        var RoutingObstacles = PreparedObstacles ?? PrepareTerminalObstacles(Contract, Bounds);
+        var Obstacles = SourceDiamond || TargetDiamond
+            ? RoutingObstacles.Where(Pair => !(SourceDiamond && Pair.Key == Source.NodeId)
+                && !(TargetDiamond && Pair.Key == Target.NodeId)).ToDictionary(Pair => Pair.Key, Pair => Pair.Value)
+            : RoutingObstacles;
         var StubPairs = new List<((double X, double Y) Source, (double X, double Y) Target)>
         {
             (SourceStub, TargetStub)
@@ -1317,6 +1320,18 @@ public static class DiagramGridRouteBuilder
                     FlowchartFrameTitleBandHelper.Get(Contract, Bounds), Source.NodeId, Target.NodeId, Contract))
                 yield return Path;
         }
+    }
+
+    /// <summary>Prepares the same node and title-band obstacles once for terminal options sharing immutable bounds.</summary>
+    /// <param name="Contract">The declarations whose group frames are traversable except for their title strips.</param>
+    /// <param name="Bounds">The complete, unchanged geometry for this candidate search.</param>
+    /// <returns>An obstacle dictionary that callers must not mutate while evaluating port options.</returns>
+    internal static IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> PrepareTerminalObstacles(
+        DiagramContract Contract, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        var Obstacles = FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds);
+        foreach (var Group in Contract.Groups) Obstacles.Remove(Group.Id);
+        return Obstacles;
     }
 
     /// <summary>Checks terminal-body clearance against the drawn outline rather than a diamond's enclosing rectangle.</summary>
@@ -1501,6 +1516,11 @@ public static class DiagramGridRouteBuilder
         foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
         {
             FlowchartLayoutNodeBounds NodeBounds = Entry.Value;
+            // Most bounds are nowhere near this run. Perform the identical
+            // geometric rejection before resolving group membership or title
+            // crossing exceptions for every unrelated node and candidate.
+            if (!FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, NodeBounds))
+                continue;
             if (FlowchartFrameTitleBandHelper.TryGetObstacleBand(NodeBounds, out FlowchartFrameTitleBandHelper.Band TitleBand)
                 && FlowchartFrameTitleBandHelper.IsLegalTopPortCrossing(TitleBand,
                     StartX, StartY, EndX, EndY, SourceId, TargetId, Contract))
@@ -1529,10 +1549,7 @@ public static class DiagramGridRouteBuilder
                 }
             }
 
-            if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, NodeBounds))
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;
