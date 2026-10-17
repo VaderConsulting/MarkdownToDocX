@@ -166,6 +166,7 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed,
         bool HorizontalFlow)
     {
+        if (Placed.Any(Node => Node.CellNode != null)) return GrowCellTerminalSameRankLabelGaps(Contract, Placed, HorizontalFlow);
         bool Changed = false;
         Dictionary<string, GridNode> ById = Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);

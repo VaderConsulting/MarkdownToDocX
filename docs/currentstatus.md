@@ -1196,3 +1196,14 @@ as grouped leaves. Its regression test calls the real dispatcher with the hard
 guard active. All 264 focused tests pass. The next census is recorded in
 census-after-cell-external-leaves.log; same-rank labelled-gap growth is the next
 newly exposed writer. Frame-fit failures still prevent full cells-on acceptance.
+
+### Complete same-rank labelled gap candidates
+
+Same-rank terminal label clearance now plans the complete regions and cumulative,
+rounded external gaps before publishing once. Four new tests cover both flow
+axes, hinted rejection with exact restore, and cumulative rounded gap growth.
+All 268 focused tests pass. The next 673-case census completes in 21.6492 s:
+656 pass, seventeen frame-fit failures remain, and no direct pixel writer is
+caught. This is not a passing cells-on legality audit. Production cells and
+independent text spans remain off; F32/EIP261 stays parked. The next producer
+blocker is fitting derived frames under logical hints and the named budgets.

@@ -109,11 +109,7 @@ internal static class FlowchartCellLeafPlacement
                 SettledSides.Add(Sign); // nearest legal whole-cell placement on this side
             }
             if (Best == null) continue;
-            var ActualGaps = Horizontal ? Best.After.RowGaps : Best.After.ColumnGaps;
-            var OriginalGaps = Horizontal ? Before.RowGaps : Before.ColumnGaps;
-            double BaseGap = Horizontal ? Grid.Configuration.RowGap : Grid.Configuration.ColumnGap;
-            var BestGrowth = ActualGaps.Where(Pair => Pair.Value > OriginalGaps.GetValueOrDefault(Pair.Key, BaseGap))
-                .ToDictionary(Pair => Pair.Key, Pair => Pair.Value - OriginalGaps.GetValueOrDefault(Pair.Key, BaseGap));
+            var BestGrowth = FlowchartCellRepair.GrownGapsSince(Before, Best.After, Columns: !Horizontal);
             Changed |= BestRegions![Leaf.Id] != Regions[Leaf.Id] || BestGrowth.Any(Pair => Pair.Value != Growth.GetValueOrDefault(Pair.Key)) || Leaf.Rank != Parent.Rank;
             Regions = BestRegions!; Growth = BestGrowth; State = Best.After; Ranks[Leaf] = Parent.Rank;
         }

@@ -7,6 +7,20 @@ namespace MermaidRecognition.Layout;
 /// <summary>Applies complete geometry repair candidates to cell ownership, never to derived pixel bounds.</summary>
 internal static class FlowchartCellRepair
 {
+    /// <summary>Returns exact rounded gap growth accumulated between two complete states of the same grid.</summary>
+    /// <param name="Before">Original ownership and gap state.</param>
+    /// <param name="After">Prepared or accepted later state.</param>
+    /// <param name="Columns">Whether to compare column rather than row gaps.</param>
+    /// <returns>Actual positive increases relative to the original gaps, suitable for a private cumulative plan.</returns>
+    internal static Dictionary<int, double> GrownGapsSince(FlowchartLogicalGrid.Snapshot Before, FlowchartLogicalGrid.Snapshot After, bool Columns)
+    {
+        if (!ReferenceEquals(Before.Owner, After.Owner)) throw new ArgumentException("Gap comparisons must use the same diagram grid.", nameof(After));
+        var Original = Columns ? Before.ColumnGaps : Before.RowGaps; var Candidate = Columns ? After.ColumnGaps : After.RowGaps;
+        double BaseGap = Columns ? Before.Owner.Configuration.ColumnGap : Before.Owner.Configuration.RowGap;
+        return Candidate.Where(Pair => Pair.Value > Original.GetValueOrDefault(Pair.Key, BaseGap))
+            .ToDictionary(Pair => Pair.Key, Pair => Pair.Value - Original.GetValueOrDefault(Pair.Key, BaseGap));
+    }
+
     /// <summary>Captures authoritative cell ownership and gaps for a complete repair candidate.</summary>
     /// <param name="Nodes">Nodes participating in the owning diagram.</param>
     /// <returns>Exact state for rollback, or throws when the nodes do not share cell authority.</returns>
