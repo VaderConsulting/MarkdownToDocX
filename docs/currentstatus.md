@@ -929,3 +929,12 @@ regions and gaps. Two tests pass, focused count 174. The census visits 673 cases
 in 17.9431 s with eleven hard frame-fit failures; A165 and A168 are newly exposed
 after their earlier root write is removed. Remaining writer paths are recorded
 in census-after-cell-root-packing.log. No full cells-on gate pass is claimed.
+
+### Whole-cell terminal fan centring
+
+Odd terminal fans now plan parent and unbranched input-chain reservations on
+the middle child's logical cross-axis start. Ordering metadata changes only
+after acceptance. The input-chain planner is shared with decision input
+alignment. Two additional tests pass, focused count 176. The exact cells-off
+geometry rerun after root packing remains unchanged for all 673 scenarios
+(42.015 s); no pixel results were used to infer cell regions.

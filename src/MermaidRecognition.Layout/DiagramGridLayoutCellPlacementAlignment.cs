@@ -8,6 +8,34 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans logical placement alignments without assigning derived pixel positions.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Centres an odd terminal fan and its unbranched input chain by one complete logical reservation plan.</summary>
+    /// <param name="Contract">Visible graph and common-group restrictions.</param>
+    /// <param name="Placed">All diagram nodes sharing cell authority.</param>
+    /// <param name="Horizontal">Whether cross-axis alignment uses rows.</param>
+    /// <returns>Whether all proposed reservations were legal and accepted together.</returns>
+    internal static bool CentreCellTerminalFans(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed);
+        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var Ordering = new Dictionary<GridNode, int>();
+        foreach (var Parent in Placed.Where(Node => !Node.IsDiamond))
+        {
+            var Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToArray();
+            if (Outgoing.Length < 3 || Outgoing.Length % 2 == 0 || Outgoing.Select(Edge => Edge.TargetId).Distinct().Count() != Outgoing.Length) continue;
+            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToArray();
+            if (Children.Length != Outgoing.Length || Children.Select(Node => Node.Rank).Distinct().Count() != 1
+                || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
+                    || Visible.Any(Edge => Edge.SourceId == Child.Id) || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
+            var Middle = Children.OrderBy(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn).ElementAt(Children.Length / 2);
+            foreach (var Node in PlanCellInputChain(Parent, Targets[Middle.Id], Targets, ById, Visible, Horizontal)) Ordering[Node] = Middle.Column;
+        }
+        if (!FlowchartCellRepair.TryAssign(Placed, Targets)) return false;
+        foreach (var Pair in Ordering) Pair.Key.Column = Pair.Value;
+        return true;
+    }
+
     /// <summary>Plans each unbranched upstream chain against its decision's logical cross-axis start, with complete collision rejection.</summary>
     /// <param name="Contract">Graph whose return edges do not determine forward alignment.</param>
     /// <param name="Placed">Complete diagram ownership.</param>
@@ -26,21 +54,38 @@ public static partial class DiagramGridLayout
             var Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToArray();
             if (Incoming.Length != 1 || !ById.TryGetValue(Incoming[0].SourceId, out var Input)
                 || Input.IsDiamond || Input.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.SourceId == Input.Id) != 1) continue;
-            var Anchor = Targets[Decision.Id];
-            var Visited = new HashSet<string>(StringComparer.Ordinal);
-            while (Visited.Add(Input.Id))
-            {
-                if (Input.PlacementHintLocked) break;
-                var Region = Targets[Input.Id];
-                Targets[Input.Id] = new(Horizontal ? Anchor.StartRow : Region.StartRow,
-                    Horizontal ? Region.StartColumn : Anchor.StartColumn, Region.RowSpan, Region.ColumnSpan);
-                Incoming = Forward.Where(Edge => Edge.TargetId == Input.Id).ToArray();
-                if (Incoming.Length != 1 || !ById.TryGetValue(Incoming[0].SourceId, out var Previous)
-                    || Previous.IsDiamond || Previous.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.SourceId == Previous.Id) != 1) break;
-                Input = Previous;
-            }
+            PlanCellInputChain(Input, Targets[Decision.Id], Targets, ById, Forward, Horizontal);
         }
         return FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
+    /// <summary>Plans an upstream chain on a logical cross-axis start, stopping before any hint, branch, decision or group boundary.</summary>
+    /// <param name="Start">First member to align.</param>
+    /// <param name="Anchor">Declared logical alignment reference.</param>
+    /// <param name="Targets">Private complete ownership plan.</param>
+    /// <param name="ById">All present nodes.</param>
+    /// <param name="Edges">Caller-selected visible or forward edges.</param>
+    /// <param name="Horizontal">Whether the cross axis is rows.</param>
+    /// <returns>Members planned for alignment; the caller updates ordering only after publishing the complete plan.</returns>
+    private static IReadOnlyList<GridNode> PlanCellInputChain(GridNode Start, FlowchartCellRegion Anchor,
+        Dictionary<string, FlowchartCellRegion> Targets, IReadOnlyDictionary<string, GridNode> ById,
+        IReadOnlyList<EdgeContract> Edges, bool Horizontal)
+    {
+        var Visited = new HashSet<string>(StringComparer.Ordinal); var Aligned = new List<GridNode>();
+        var Current = Start;
+        while (Visited.Add(Current.Id))
+        {
+            if (Current.PlacementHintLocked) break;
+            var Region = Targets[Current.Id];
+            Targets[Current.Id] = new(Horizontal ? Anchor.StartRow : Region.StartRow,
+                Horizontal ? Region.StartColumn : Anchor.StartColumn, Region.RowSpan, Region.ColumnSpan);
+            Aligned.Add(Current);
+            var Incoming = Edges.Where(Edge => Edge.TargetId == Current.Id).ToArray();
+            if (Incoming.Length != 1 || !ById.TryGetValue(Incoming[0].SourceId, out var Previous)
+                || Previous.IsDiamond || Previous.GroupId != Start.GroupId || Edges.Count(Edge => Edge.SourceId == Previous.Id) != 1) break;
+            Current = Previous;
+        }
+        return Aligned;
     }
 
     /// <summary>Plans every sole terminal child's cross-axis reservation before applying the complete assignment.</summary>
