@@ -860,3 +860,15 @@ GridCompaction (388) and AlignSingleTerminalChildren1 (208). No cells-on legalit
 audit is claimed before all writers have been converted. Cells off retains the
 legacy path. Production activation, independent text spans and the parked
 F32/EIP261 routing work remain unchanged.
+
+### Whole-cell empty-strip compaction
+
+GridCompaction now plans removal of wholly unoccupied logical cross-axis strips.
+All region translations and measured gap growth are validated and published
+in one transaction; hints reject the complete plan and rollback restores the
+same snapshot. Three new tests pass, focused count 161. The rerun visits 673
+census cases in 4.7996 s. The most common next catch is SnapGridNodeCentres (370),
+followed by terminal child alignment (208). Fine-grid pixel snapping must not
+write over authoritative region centres. Other pending writers remain visible
+in census-after-cell-compaction.log. Production remains cells off; zero-gate
+and exact-geometry evidence for cells off is unchanged from the last full run.
