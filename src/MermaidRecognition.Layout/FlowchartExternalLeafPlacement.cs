@@ -12,6 +12,7 @@ internal static class FlowchartExternalLeafPlacement
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         List<DiagramGridLayout.GridFrame> Frames, bool Horizontal)
     {
+        if (Nodes.Any(Node => Node.CellNode != null)) return FlowchartCellLeafPlacement.Apply(Contract, Nodes, Frames, Horizontal, External: true);
         bool Changed = false;
         var ById = Nodes.ToDictionary(Node => Node.Id);
         var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();

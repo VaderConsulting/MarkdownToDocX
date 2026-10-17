@@ -11,7 +11,7 @@ public sealed class FlowchartCellExternalLeafTests
     public void OutsideLeafUsesAuthoritativeCellsAndFrameClearance()
     {
         var (Contract, Nodes, Grid) = Fixture(false, false); var Frames = new List<DiagramGridLayout.GridFrame>();
-        Assert.That(FlowchartCellLeafPlacement.Apply(Contract, Nodes, Frames, false, External: true), Is.True);
+        Assert.That(FlowchartExternalLeafPlacement.Apply(Contract, Nodes, Frames, false), Is.True);
         var Parent = Nodes.Single(Node => Node.Id == "P"); var Leaf = Nodes.Single(Node => Node.Id == "L"); var Frame = Frames.Single();
         Assert.That(Grid.RegionOf("L").StartRow, Is.EqualTo(Grid.RegionOf("P").StartRow));
         double Gap = Leaf.X < Parent.X ? Frame.Left - Leaf.X - Leaf.Width / 2d : Leaf.X - Leaf.Width / 2d - Frame.Right;

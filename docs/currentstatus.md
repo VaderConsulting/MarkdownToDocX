@@ -1188,3 +1188,11 @@ runs in 21.0747 s with seventeen hard frame-fit failures (A142 is newly exposed)
 and four first-writer catches: external leaves in F59/A56 and same-rank labelled
 gap growth in A58/A138. This is not a passing cells-on audit. Production cells
 and independent text spans stay off; F32/EIP261 remains parked.
+
+### Connect outside leaves to the shared cell planner
+
+The external-leaf caller now uses the same tested complete region/gap planner
+as grouped leaves. Its regression test calls the real dispatcher with the hard
+guard active. All 264 focused tests pass. The next census is recorded in
+census-after-cell-external-leaves.log; same-rank labelled-gap growth is the next
+newly exposed writer. Frame-fit failures still prevent full cells-on acceptance.
