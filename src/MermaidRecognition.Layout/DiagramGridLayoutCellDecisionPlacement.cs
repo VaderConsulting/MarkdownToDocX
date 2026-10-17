@@ -8,6 +8,70 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans decision detours and loop placement on authoritative logical reservations.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Plans horizontal success and retry outcomes together using whole cells and measured departure clearance.</summary>
+    /// <param name="Contract">Declared decision and return topology.</param>
+    /// <param name="Placed">Complete authoritative diagram ownership.</param>
+    /// <returns>Whether the complete legal region, gap and rank plan was accepted.</returns>
+    internal static bool AlignCellHorizontalRetryOutcomes(DiagramContract Contract, List<GridNode> Placed)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed); var Grid = Placed[0].CellNode!.Grid;
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed);
+        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var Ranks = new Dictionary<GridNode, int>(); var Gaps = new Dictionary<int, double>();
+        var Selected = new List<(GridNode Decision, GridNode Retry)>();
+        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Incoming = Visible.Where(Edge => Edge.TargetId == Decision.Id).ToArray();
+            var Outgoing = Visible.Where(Edge => Edge.SourceId == Decision.Id).ToArray();
+            if (Incoming.Length != 1 || Outgoing.Length != 2 || !ById.TryGetValue(Incoming[0].SourceId, out var Input)
+                || Input.IsDiamond || Visible.Count(Edge => Edge.SourceId == Input.Id) != 1) continue;
+            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).Distinct().ToArray();
+            var Retry = Children.FirstOrDefault(Child => Visible.Count(Edge => Edge.SourceId == Child.Id) == 1
+                && Visible.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Input.Id));
+            var Finish = Children.FirstOrDefault(Child => !Visible.Any(Edge => Edge.SourceId == Child.Id));
+            if (Children.Length != 2 || Retry == null || Finish == null || Retry.PlacementHintLocked || Finish.PlacementHintLocked
+                || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)
+                || Input.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Input.Id) != 1) continue;
+            var Anchor = Targets[Decision.Id]; var RetryBefore = Targets[Retry.Id];
+            Targets[Finish.Id] = WithCellCross(Targets[Finish.Id], Anchor.StartRow, true);
+            Targets[Retry.Id] = new(Anchor.EndRow, Anchor.StartColumn, RetryBefore.RowSpan, RetryBefore.ColumnSpan);
+            var D = Decision.CellNode!.Bounds(Anchor, Decision.GeometryProvider);
+            var R = Retry.CellNode!.Bounds(Targets[Retry.Id], Retry.GeometryProvider);
+            double Missing = 3 * DiagramGridMetrics.GRID_UNIT_PX - (R.CenterY - R.Height / 2 - D.CenterY - D.Height / 2);
+            if (Missing > 0)
+            {
+                int After = Anchor.EndRow - 1;
+                if (Targets.Values.Any(Region => Region.StartRow <= After && Region.EndRow > After + 1))
+                {
+                    // A routing corridor cannot be created inside another
+                    // node's region. Offer a whole-cell move instead.
+                    var Region = Targets[Retry.Id];
+                    for (int Step = 1; Step <= FlowchartLayoutRules.RepairChainDepth; Step++)
+                    {
+                        var Candidate = new FlowchartCellRegion(checked(Region.StartRow + Step), Region.StartColumn, Region.RowSpan, Region.ColumnSpan);
+                        var Bounds = Retry.CellNode.Bounds(Candidate, Retry.GeometryProvider);
+                        if (Bounds.CenterY - Bounds.Height / 2 - D.CenterY - D.Height / 2 < 3 * DiagramGridMetrics.GRID_UNIT_PX) continue;
+                        Targets[Retry.Id] = Candidate; break;
+                    }
+                }
+                else Gaps[After] = Math.Max(Gaps.GetValueOrDefault(After), Missing);
+            }
+            Ranks[Retry] = Decision.Rank;
+            Selected.Add((Decision, Retry));
+        }
+        var Plan = FlowchartCellRepair.PlanAssignment(Placed, Targets,
+            Gaps.Select(Pair => new FlowchartCellGapGrowth(false, Pair.Key, Pair.Value, DiagramGridMetrics.GRID_UNIT_PX)).ToArray());
+        if (Plan == null || Selected.Any(Pair =>
+            {
+                var D = Pair.Decision.CellNode!.Bounds(Plan.After.Regions[Pair.Decision.Id], Pair.Decision.GeometryProvider, Plan.After);
+                var R = Pair.Retry.CellNode!.Bounds(Plan.After.Regions[Pair.Retry.Id], Pair.Retry.GeometryProvider, Plan.After);
+                return R.CenterY - R.Height / 2 - D.CenterY - D.Height / 2 < 3 * DiagramGridMetrics.GRID_UNIT_PX;
+            }) || !Plan.TryApply()) return false;
+        foreach (var Pair in Ranks) Pair.Key.Rank = Pair.Value;
+        return true;
+    }
+
     /// <summary>Plans every selected detour, merge and optional terminal input before publishing any cell or rank change.</summary>
     /// <param name="Contract">Visible graph and existing generic detour classification.</param>
     /// <param name="Placed">Complete shared ownership.</param>

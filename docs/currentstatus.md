@@ -1112,3 +1112,12 @@ rows (height 240, centre 120), while a one-row rectangular node centres at
 centres. A compatible mandatory span candidate may be needed when independent
 span selection is enabled; do not introduce forbidden per-node pixel offsets.
 Production cells remain off; F32/EIP261 stays parked for routing work.
+
+### Whole-cell horizontal retries
+
+Horizontal retry placement now plans successful outcomes, retry regions,
+measured departure gaps and accepted-only rank changes together. The prepared
+geometry is rechecked before publication; unresolved clearance never leaks
+an accepted region. Three tests pass, focused count 240. The post-conversion
+census is census-after-cell-horizontal-retries.log. The remaining writers and
+hard frame-fit failures still prevent a complete cells-on acceptance audit.

@@ -424,7 +424,11 @@ public static partial class DiagramGridLayout
         {
             return;
         }
-
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellHorizontalRetryOutcomes(Contract, Placed);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
