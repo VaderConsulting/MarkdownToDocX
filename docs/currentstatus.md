@@ -1011,3 +1011,13 @@ member when a target is occupied. Three tests pass, focused count 198. The
 past their former writer catches. It remains an incomplete experimental run;
 production cells and independent text spans remain off, and the next pending
 writers include parallel relationship sizing and junction branch compaction.
+
+### Whole-cell parallel-label extent conversion
+
+The parallel relationship path retains its existing measured label-track extent
+calculation, but collects all affected minimum extents before planning any
+whole-cell spans. A collision or hint rejects the entire resize plan. This is
+a conversion of the existing label-clearance policy, not a claim that label
+track demand equals minimum port separation. Three tests pass, focused count
+201. The census-after-cell-parallel-extents.log records subsequent writers and
+frame-fit failures. Production cells and independent text spans remain off.

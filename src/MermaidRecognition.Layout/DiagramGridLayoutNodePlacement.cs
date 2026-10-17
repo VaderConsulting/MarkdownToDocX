@@ -1338,6 +1338,8 @@ public static partial class DiagramGridLayout
     private static void GrowParallelRelationshipSides(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
         var ById = IndexPlaced(Placed);
+        bool Cells = Placed.Any(Node => Node.CellNode != null);
+        var Minimums = new Dictionary<string, (double Width, double Height)>(StringComparer.Ordinal);
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Options = FlowchartRenderOptions.FromContract(Contract);
         foreach (var Group in Contract.Edges.Where(Edge => Edge.SourceId != Edge.TargetId
@@ -1356,9 +1358,20 @@ public static partial class DiagramGridLayout
                 return (Horizontal ? Size.Height : WordWidth) + 12;
             });
             int Needed = DiagramGridMetrics.CeilToGrid(Group.Count() * Pitch + 30);
+            if (Cells)
+            {
+                foreach (var Node in new[] { Source, Target })
+                {
+                    var Previous = Minimums.GetValueOrDefault(Node.Id, (Width: (double)Node.Width, Height: (double)Node.Height));
+                    Minimums[Node.Id] = (Horizontal ? Previous.Width : Math.Max(Previous.Width, Needed),
+                        Horizontal ? Math.Max(Previous.Height, Needed) : Previous.Height);
+                }
+                continue;
+            }
             if (Horizontal) Source.Height = Target.Height = Math.Max(Needed, Math.Max(Source.Height, Target.Height));
             else Source.Width = Target.Width = Math.Max(Needed, Math.Max(Source.Width, Target.Width));
         }
+        if (Cells) GrowCellMinimumExtents(Placed, Minimums);
     }
 
     internal static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,

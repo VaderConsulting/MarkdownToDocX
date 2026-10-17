@@ -8,6 +8,33 @@ namespace MermaidRecognition.Layout;
 /// <summary>Offers whole-cell span repairs only after measuring allocated connection-boundary capacity.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Translates existing measured side-extent requirements into one complete whole-cell span assignment.</summary>
+    /// <param name="Placed">All shared ownership, including obstacles and fixed hints.</param>
+    /// <param name="Minimums">Measured required visible width and height by affected node.</param>
+    /// <returns>Whether every required extent fit a complete legal reservation plan.</returns>
+    internal static bool GrowCellMinimumExtents(List<GridNode> Placed, IReadOnlyDictionary<string, (double Width, double Height)> Minimums)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        foreach (var Node in Placed)
+        {
+            if (!Minimums.TryGetValue(Node.Id, out var Minimum)) continue;
+            if (!double.IsFinite(Minimum.Width) || !double.IsFinite(Minimum.Height) || Minimum.Width <= 0 || Minimum.Height <= 0)
+                throw new ArgumentOutOfRangeException(nameof(Minimums), "Measured minimum extents must be finite and positive.");
+            var Region = Targets[Node.Id]; bool Fits = false;
+            for (int Attempt = 0; Attempt < FlowchartLayoutRules.RepairCandidateMoves; Attempt++)
+            {
+                var Bounds = Node.CellNode!.Bounds(Region, Node.GeometryProvider);
+                if (Bounds.Width >= Minimum.Width && Bounds.Height >= Minimum.Height) { Fits = true; break; }
+                Region = new(Region.StartRow, Region.StartColumn, checked(Region.RowSpan + (Bounds.Height < Minimum.Height ? 1 : 0)),
+                    checked(Region.ColumnSpan + (Bounds.Width < Minimum.Width ? 1 : 0)));
+            }
+            if (!Fits) return false;
+            Targets[Node.Id] = Region;
+        }
+        return FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
     /// <summary>Plans the complete crowded-side span assignment using the existing renderer-derived minimum port pitch.</summary>
     /// <param name="Placed">Complete diagram ownership, including fixed obstacles.</param>
     /// <param name="Counts">Allocated side demand from declared route endpoints and honoured side hints.</param>
