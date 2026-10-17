@@ -12,18 +12,20 @@ using MermaidRecognition.RuleValidation.Tests;
 internal static class Program
 {
     /// <summary>Runs all unchanged catalogue sources and writes a baseline or compares against one.</summary>
-    /// <param name="Args">Either --capture and an output path, or --compare and a previously captured baseline path.</param>
+    /// <param name="Args">Either --capture and an output path, or --compare and a baseline path, optionally followed by comma-separated scenario ids for a focused check.</param>
     /// <returns>Zero for a complete capture or an exact match; one for changed scenarios; two for invalid arguments.</returns>
     private static int Main(string[] Args)
     {
-        if (Args.Length != 2 || Args[0] is not ("--capture" or "--compare"))
+        if (Args.Length is not (2 or 3) || Args[0] is not ("--capture" or "--compare")
+            || Args.Length == 3 && Args[0] != "--compare")
         {
-            Console.Error.WriteLine("Usage: RouteGeometryHarness (--capture|--compare) <baseline.jsonl>");
+            Console.Error.WriteLine("Usage: RouteGeometryHarness (--capture|--compare) <baseline.jsonl> [scenario-id,...]");
             return 2;
         }
         bool Capture = Args[0] == "--capture";
         var Expected = Capture ? new Dictionary<string, JsonNode>() : File.ReadLines(Args[1])
             .Select(Line => JsonNode.Parse(Line)!).ToDictionary(Row => Row["Id"]!.GetValue<string>());
+        var Selected = Args.Length == 3 ? Args[2].Split(',').ToHashSet(StringComparer.Ordinal) : null;
         using var Writer = Capture ? new StreamWriter(Args[1]) { AutoFlush = true } : null;
         var Seen = new HashSet<string>(StringComparer.Ordinal);
         var Changed = new List<string>();
@@ -31,6 +33,7 @@ internal static class Program
         foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
             var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Selected != null && !Selected.Contains(Scenario.Id)) continue;
             var CaseClock = Stopwatch.StartNew();
             var Actual = Snapshot(Scenario);
             Console.WriteLine($"GEOMETRY_CASE|{Scenario.Id}|seconds={CaseClock.Elapsed.TotalSeconds:0.000}");
@@ -42,7 +45,7 @@ internal static class Program
                 Console.WriteLine($"GEOMETRY_CHANGED|{Scenario.Id}");
             }
         }
-        var Missing = Expected.Keys.Except(Seen).ToArray();
+        var Missing = (Selected ?? Expected.Keys.ToHashSet(StringComparer.Ordinal)).Except(Seen).ToArray();
         foreach (string Id in Missing) Console.WriteLine($"GEOMETRY_MISSING|{Id}");
         Console.WriteLine(Capture
             ? $"GEOMETRY_CAPTURED|scenarios={Seen.Count}|seconds={Clock.Elapsed.TotalSeconds:0.000}"
