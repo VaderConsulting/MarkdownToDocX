@@ -124,6 +124,11 @@ internal static class FlowchartPortSideRouteRepair
                 ExitNormalX = Route.ExitNormalX, ExitNormalY = Route.ExitNormalY,
                 EntryNormalX = Route.EntryNormalX, EntryNormalY = Route.EntryNormalY };
             OriginalRoute.Points.AddRange(Original);
+            int? OriginalHardFaults = null;
+            bool FanExit = Contract.Edges.Count(Item => Item.SourceId == Route.SourceId && Item.Stroke != "invisible") > 1;
+            bool FanEntry = Contract.Edges.Count(Item => Item.TargetId == Route.TargetId && Item.Stroke != "invisible") > 1;
+            string FacingExit = FacingSide(Bounds[Route.SourceId], Bounds[Route.TargetId]);
+            string FacingEntry = FacingSide(Bounds[Route.TargetId], Bounds[Route.SourceId]);
             int OriginalRuleCrossings = BeforeInteractions.Count(Other =>
                 (Other.SourceId != Route.SourceId || Other.TargetId != Route.TargetId)
                 && FlowchartRouteRuleChecker.HasProperCrossing(OriginalRoute, Other));
@@ -159,6 +164,11 @@ internal static class FlowchartPortSideRouteRepair
                 FlowchartRenderContext.ReportOperationCount("route-repair-candidates", 1);
                 CandidateCount++;
                 if (!MatchesRoutingHint(Candidate, Edge)) continue;
+                bool AddsSideFault = Edge?.RoutingHint == null
+                    && (FanExit && OriginalRoute.ExitSide == FacingExit && Candidate.Exit != FacingExit
+                        || FanEntry && OriginalRoute.EntrySide == FacingEntry && Candidate.Entry != FacingEntry);
+                if (AddsSideFault) OriginalHardFaults ??= HardRouteFaults(Contract, Layout, OriginalRoute);
+                if (AddsSideFault && OriginalHardFaults == 0) continue;
                 HintMatched++;
                 if (!Clear(Candidate.Points, Route, Spatial)) continue;
                 ClearCount++;
@@ -171,6 +181,12 @@ internal static class FlowchartPortSideRouteRepair
                 if (OnlyBendCanImprove && Corners(Candidate.Points) >= OriginalCorners
                     && Candidate.Length >= OriginalLength - 0.001) continue;
                 Set(Route, Candidate);
+                if (AddsSideFault && HardRouteFaults(Contract, Layout, Route) >= OriginalHardFaults!.Value)
+                {
+                    Restore(Route, Original, OriginalExit, OriginalEntry);
+                    (Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY) = OriginalNormals;
+                    continue;
+                }
                 if (Candidate.ReallocatesPorts && FlowchartRouteRuleChecker.CheckPortAllocation(Contract, Layout)
                         .Any(Finding => !AllocationFaults.Contains(Finding.Subject)))
                 {

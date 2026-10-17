@@ -284,10 +284,15 @@ public static partial class DiagramGridLayout
             ProfileCall("final-port-candidates", () => FlowchartPortSideRouteRepair.Apply(Layout, State.Contract,
                 IncludeTerminalCandidates: true));
             ProfileCall("node-interior-legality", () => RepairNodeInteriorRoutes(State, Bounds));
+            ProfileCall("facing-side-assignment", () => RepairFinalFacingSides(State, Bounds));
             ProfileCall("aligned-straight-candidates", () => StraightenFinalAlignedRoutes(State));
             ProfileCall("joint-channel-search", () => SearchJointChannels(State, Bounds));
             ProfileCall("distinct-track-seal", () => SealDistinctTracks(State, Bounds));
             ProfileCall("nonincreasing-track-search", () => FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed));
+            ProfileCall("post-track-straight-candidates", () => StraightenFinalAlignedRoutes(State));
+            ProfileCall("settled-facing-assignment", () => RepairFinalFacingSides(State, Bounds));
+            ProfileCall("settled-side-placement", () => SearchJointNodeOrder(State, Bounds, IncludeSideFaults: true));
+            ProfileCall("settled-crossing-placement", () => SearchJointNodeOrder(State, Bounds, IncludeCrossings: true));
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.
@@ -306,6 +311,121 @@ public static partial class DiagramGridLayout
                 Layout.RenderContext.LayoutStageViolations);
             ClearResolvedHintDiagnostics(State.Contract, Layout, Bounds);
             Mark("final-diagnostics");
+        }
+
+        /// <summary>Compares complete built side assignments against final geometry, including every displaced symmetric port.</summary>
+        /// <param name="State">The authoritative final model and its declared hints.</param>
+        /// <param name="Bounds">The settled node and frame obstacles used by both allocation and construction.</param>
+        private static void RepairFinalFacingSides(GridLayoutState State, Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        {
+            int Examined = 0;
+            var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
+            var Faulty = State.Copy.EdgeRoutes.Where(Route => Before.Any(Finding =>
+                Finding.Subject == Route.EdgeId && Finding.Rule is "4.11" or "5.8")).ToArray();
+            var Plans = Faulty.SelectMany(Route => new[] { (Node: Route.SourceId, Source: true, Route),
+                    (Node: Route.TargetId, Source: false, Route) })
+                .GroupBy(End => (End.Node, End.Source))
+                .Where(Group => Group.Count() > 1)
+                .OrderByDescending(Group => Group.Count())
+                .Select(Group => Group.Select(End => End.Route).Distinct().ToArray())
+                .Concat(Faulty.Select(Route => new[] { Route })).ToList();
+            if (Faulty.Length > 1 && Faulty.Length <= FlowchartLayoutRules.RepairChainLines) Plans.Insert(0, Faulty);
+            // Changing one terminal may expose that the old opposite-side
+            // fallback was only necessary for the superseded departure. Offer
+            // the complete facing pair as well, under the same named budget.
+            foreach (var Option in Plans.Select(Plan => (Plan, Both: false))
+                         .Concat(Plans.Select(Plan => (Plan, Both: true))))
+            {
+                var Plan = Option.Plan;
+                if (Examined >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                var Changing = Plan.Where(Route => Before.Any(Finding =>
+                    Finding.Subject == Route.EdgeId && Finding.Rule is "4.11" or "5.8")
+                    && FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive != true
+                    && Bounds.ContainsKey(Route.SourceId) && Bounds.ContainsKey(Route.TargetId)).ToArray();
+                if (Changing.Length == 0) continue;
+                var Saved = State.Copy.EdgeRoutes.Select(Item => (Route: Item,
+                    Points: Item.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                    Item.ExitSide, Item.EntrySide, Item.ExitNormalX, Item.ExitNormalY, Item.EntryNormalX, Item.EntryNormalY)).ToArray();
+                var BeforeScore = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
+                Examined++;
+                foreach (var Route in Changing)
+                {
+                    var Source = Bounds[Route.SourceId]; var Target = Bounds[Route.TargetId];
+                    if (Option.Both || Before.Any(Finding => Finding.Subject == Route.EdgeId && Finding.Rule == "5.8")) Route.ExitSide = Facing(Source, Target);
+                    if (Option.Both || Before.Any(Finding => Finding.Subject == Route.EdgeId && Finding.Rule == "4.11")) Route.EntrySide = Facing(Target, Source);
+                }
+                AllocateFinalPortSlots(State.Contract, State.Copy, Bounds, State.Nodes);
+                var Affected = Saved.Where(Item => Item.Route.ExitSide != Item.ExitSide || Item.Route.EntrySide != Item.EntrySide
+                    || (Item.Route.Points[0].X, Item.Route.Points[0].Y) != Item.Points[0]
+                    || (Item.Route.Points[^1].X, Item.Route.Points[^1].Y) != Item.Points[^1]).ToArray();
+                bool Complete = Affected.Length <= FlowchartLayoutRules.RepairChainLines;
+                if (Complete) foreach (var Item in Affected)
+                {
+                    var Changed = Item.Route;
+                    if (!Bounds.TryGetValue(Changed.SourceId, out var From) || !Bounds.TryGetValue(Changed.TargetId, out var To)) { Complete = false; break; }
+                    var Edge = FindContractEdge(State.Contract, Changed);
+                    var Path = DiagramGridRouteBuilder.BuildRoute(Changed.Points[0].X, Changed.Points[0].Y,
+                        From, State.Nodes.GetValueOrDefault(Changed.SourceId)?.Shape, Changed.ExitSide,
+                        Changed.Points[^1].X, Changed.Points[^1].Y, To,
+                        State.Nodes.GetValueOrDefault(Changed.TargetId)?.Shape, Changed.EntrySide,
+                        Bounds, Changed.SourceId, Changed.TargetId, State.Contract, State.Direction, State.Horizontal,
+                        Travel: Edge?.RoutingHint?.Travel, RequireLegal: true,
+                        ExitNormal: (Changed.ExitNormalX, Changed.ExitNormalY), EntryNormal: (Changed.EntryNormalX, Changed.EntryNormalY));
+                    if (Path.Count < 2 && Edge?.RoutingHint is not { IsActive: true, Travel: not null })
+                        Path = BuildAllocatedNormalFallback(State, Bounds, Changed);
+                    if (Path.Count < 2) { Complete = false; break; }
+                    Changed.Points.Clear();
+                    foreach (var Point in Path) Changed.Points.Add(new() { X = Point.X, Y = Point.Y });
+                }
+                var After = Complete ? FlowchartRouteRuleChecker.Check(State.Contract, State.Copy) : Before;
+                if (Complete && !After.Any(Finding => Finding.Rule == "10")
+                    && After.Count(Finding => Finding.Rule is "4.11" or "5.8") < Before.Count(Finding => Finding.Rule is "4.11" or "5.8")
+                    && After.Count(Finding => Finding.Rule == "5.1") > Before.Count(Finding => Finding.Rule == "5.1"))
+                {
+                    // Independent construction can put displaced connectors on
+                    // one track. Compare the completed side-and-track option
+                    // before rejecting its side allocation. Node and frame
+                    // geometry remain fixed throughout this transaction.
+                    SearchJointChannels(State, Bounds, IncludeNodeOrder: false);
+                    FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed);
+                    Complete = Saved.Count(Item => Item.Route.ExitSide != Item.ExitSide || Item.Route.EntrySide != Item.EntrySide
+                        || !Item.Route.Points.Select(Point => (Point.X, Point.Y)).SequenceEqual(Item.Points))
+                        <= FlowchartLayoutRules.RepairChainLines;
+                    After = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
+                }
+                var AfterScore = Complete ? FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false) : BeforeScore;
+                // This compares the actual complete assignment, rather than a
+                // cheap provisional family with different paths or neighbours.
+                bool Keep = Complete
+                    // The routing-fault precedence is part of legality before
+                    // numeric crossing/bend cost; no score weight is changed.
+                    && (After.Count(Finding => Finding.Rule is "4.11" or "5.8"), AfterScore.OptimizationScore)
+                        .CompareTo((Before.Count(Finding => Finding.Rule is "4.11" or "5.8"), BeforeScore.OptimizationScore)) < 0
+                    && new[] { "10", "3.1", "4.1", "3.2/4.7", "3.3/5.2", "4.2", "4.9", "4.11", "5.8", "5.1" }.All(Rule =>
+                        After.Count(Finding => Finding.Rule == Rule) <= Before.Count(Finding => Finding.Rule == Rule));
+                RouteRepairCandidateObserver?.Invoke("facing-assignment",
+                    $"lines={Affected.Length};complete={Complete};sides={Before.Count(Finding => Finding.Rule is "4.11" or "5.8")}->{After.Count(Finding => Finding.Rule is "4.11" or "5.8")};new={string.Join(",", After.GroupBy(Finding => Finding.Rule).Where(Group => Group.Count() > Before.Count(Finding => Finding.Rule == Group.Key)).Select(Group => Group.Key + ":" + Group.Count()))}",
+                    AfterScore.OptimizationScore, Keep);
+                if (Keep) { Before = After; continue; }
+                foreach (var Item in Saved)
+                {
+                    Item.Route.ExitSide = Item.ExitSide; Item.Route.EntrySide = Item.EntrySide;
+                    Item.Route.ExitNormalX = Item.ExitNormalX; Item.Route.ExitNormalY = Item.ExitNormalY;
+                    Item.Route.EntryNormalX = Item.EntryNormalX; Item.Route.EntryNormalY = Item.EntryNormalY;
+                    Item.Route.Points.Clear();
+                    foreach (var Point in Item.Points) Item.Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                }
+            }
+        }
+
+        /// <summary>Returns the page-facing side in the current routing model.</summary>
+        /// <param name="From">The endpoint owning the port.</param>
+        /// <param name="To">Its peer endpoint.</param>
+        /// <returns>The side facing the peer centre.</returns>
+        private static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
+        {
+            double Dx = To.CenterX - From.CenterX, Dy = To.CenterY - From.CenterY;
+            return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
         }
 
         /// <summary>Preserves the legal zero-bend option after all writers have settled the allocated ports.</summary>
@@ -350,34 +470,9 @@ public static partial class DiagramGridLayout
                 .Select(Finding => Finding.Subject).ToHashSet();
             foreach (var Route in State.Copy.EdgeRoutes.Where(Route => Blocked.Contains(Route.EdgeId) && Route.Points.Count >= 2))
             {
-                if (!Bounds.TryGetValue(Route.SourceId, out var Source) || !Bounds.TryGetValue(Route.TargetId, out var Target)) continue;
                 var Saved = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-                var WithBands = FlowchartFrameTitleBandHelper.AddRoutingObstacles(State.Contract, Bounds);
-                foreach (var Group in State.Contract.Groups) WithBands.Remove(Group.Id);
-                State.Nodes.TryGetValue(Route.SourceId, out var SourceNode);
-                State.Nodes.TryGetValue(Route.TargetId, out var TargetNode);
-                // A diamond's empty bounding-box corners are traversable. Its
-                // actual outline is checked after routing; rectangular endpoint
-                // bodies remain obstacles to prevent a return through the node.
-                var Obstacles = WithBands.Values.Where(Box =>
-                    !(Box.NodeId == Route.SourceId && FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode?.Shape))
-                    && !(Box.NodeId == Route.TargetId && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape))).ToArray();
-                // Legality takes precedence even when a hint's required geometry
-                // is impossible. This search keeps both allocated outline points.
-                // Start outside the allocated normal, rather than asking the
-                // fallback to infer a side from a corner or a frame rectangle.
-                // Keep endpoint bodies in the obstacle set: omitting them lets
-                // the middle of a fallback double back through its own node.
-                double Stub = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
-                var SourceStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[0].X, Saved[0].Y,
-                    Source, SourceNode?.Shape, Route.ExitSide, Stub, Route.ExitNormalX, Route.ExitNormalY);
-                var TargetStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[^1].X, Saved[^1].Y,
-                    Target, TargetNode?.Shape, Route.EntrySide, Stub, Route.EntryNormalX, Route.EntryNormalY);
-                if (!FlowchartPaddedVisibilityRouter.TryRoute(SourceStub.X, SourceStub.Y,
-                        TargetStub.X, TargetStub.Y, Obstacles, null, null, out var Body,
-                        PortStubPx: 0, ObstaclePaddingPx: 0)) continue;
-                var Candidate = DiagramGridRouteBuilder.SimplifyCollinear(
-                    new List<(double X, double Y)> { Saved[0] }.Concat(Body).Append(Saved[^1]).ToList());
+                var Candidate = BuildAllocatedNormalFallback(State, Bounds, Route);
+                if (Candidate.Count < 2) continue;
                 Route.Points.Clear();
                 foreach (var Point in Candidate) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
                 bool Legal = !FlowchartRouteRuleChecker.Check(State.Contract, State.Copy).Any(Finding =>
@@ -392,6 +487,44 @@ public static partial class DiagramGridLayout
             }
         }
 
+        /// <summary>Offers the same unpadded obstacle-avoiding candidate to legality repair and final side comparison.</summary>
+        /// <param name="State">Declared groups and exact endpoint shape definitions.</param>
+        /// <param name="Bounds">Final node bodies and title-band obstacles.</param>
+        /// <param name="Route">The allocated terminals, sides and exact outline normals to preserve.</param>
+        /// <returns>A complete candidate, or an empty path when no normal-preserving route exists; callers must check legality before accepting it.</returns>
+        private static List<(double X, double Y)> BuildAllocatedNormalFallback(GridLayoutState State,
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartLayoutEdgeRoute Route)
+        {
+            if (!Bounds.TryGetValue(Route.SourceId, out var Source) || !Bounds.TryGetValue(Route.TargetId, out var Target)) return [];
+            var Saved = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            var WithBands = FlowchartFrameTitleBandHelper.AddRoutingObstacles(State.Contract, Bounds);
+            foreach (var Group in State.Contract.Groups) WithBands.Remove(Group.Id);
+            State.Nodes.TryGetValue(Route.SourceId, out var SourceNode);
+            State.Nodes.TryGetValue(Route.TargetId, out var TargetNode);
+            // A diamond's empty bounding-box corners are traversable. Its
+            // actual outline is checked after routing; rectangular endpoint
+            // bodies remain obstacles to prevent a return through the node.
+            var Obstacles = WithBands.Values.Where(Box =>
+                !(Box.NodeId == Route.SourceId && FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode?.Shape))
+                && !(Box.NodeId == Route.TargetId && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape))).ToArray();
+            // Legality takes precedence even when a hint's required geometry
+            // is impossible. This search keeps both allocated outline points.
+            // Start outside the allocated normal, rather than asking the
+            // fallback to infer a side from a corner or a frame rectangle.
+            // Keep endpoint bodies in the obstacle set: omitting them lets
+            // the middle of a fallback double back through its own node.
+            double Stub = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+            var SourceStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[0].X, Saved[0].Y,
+                Source, SourceNode?.Shape, Route.ExitSide, Stub, Route.ExitNormalX, Route.ExitNormalY);
+            var TargetStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[^1].X, Saved[^1].Y,
+                Target, TargetNode?.Shape, Route.EntrySide, Stub, Route.EntryNormalX, Route.EntryNormalY);
+            if (!FlowchartPaddedVisibilityRouter.TryRoute(SourceStub.X, SourceStub.Y,
+                    TargetStub.X, TargetStub.Y, Obstacles, null, null, out var Body,
+                    PortStubPx: 0, ObstaclePaddingPx: 0)) return [];
+            return DiagramGridRouteBuilder.SimplifyCollinear(
+                new List<(double X, double Y)> { Saved[0] }.Concat(Body).Append(Saved[^1]).ToList());
+        }
+
         /// <summary>Separates final shared runs and grows an undersized unhinted channel before retrying its tracks.</summary>
         /// <param name="State">The final placed model and immutable hint constraints.</param>
         /// <param name="Bounds">Endpoint and frame bounds, refreshed after accepted growth.</param>
@@ -401,7 +534,9 @@ public static partial class DiagramGridLayout
             {
                 var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                 int Shared = Before.Count(Finding => Finding.Rule == "5.1");
-                if (Shared == 0) return;
+                int SideFaults = Before.Count(Finding => Finding.Rule is "4.11" or "5.8");
+                if (Shared == 0 && SideFaults == 0) return;
+                int OriginalFrameOverlaps = CountFrameOverlapPairs(State.Contract, Bounds).Length;
                 var Positions = State.Placed.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y));
                 var OriginalNodes = State.Copy.NodeBounds.ToArray();
                 var OriginalClusters = State.Copy.ClusterBounds.ToArray();
@@ -411,19 +546,34 @@ public static partial class DiagramGridLayout
                     Route.ExitSide, Route.EntrySide, Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY)).ToArray();
                 var Violations = State.Copy.RenderContext.LayoutStageViolations.ToArray();
                 bool Grew = false;
-                foreach (var Route in State.Copy.EdgeRoutes.Where(Route => Route.Points.Count > 3))
+                foreach (var Route in State.Copy.EdgeRoutes.Where(Route => Route.Points.Count >= 2))
                 {
-                    if (!Before.Any(Finding => Finding.Rule == "5.1" && Finding.Subject
+                    bool WrongSide = Before.Any(Finding => Finding.Subject == Route.EdgeId && Finding.Rule is "4.11" or "5.8");
+                    if (!WrongSide && !Before.Any(Finding => Finding.Rule == "5.1" && Finding.Subject
                             .Split(" x ", StringSplitOptions.None).Contains(Route.EdgeId))) continue;
                     if (!Bounds.TryGetValue(Route.SourceId, out var Source) || !Bounds.TryGetValue(Route.TargetId, out var Target)) continue;
-                    bool Horizontal = Route.ExitSide is "left" or "right";
-                    if (Horizontal != (Route.EntrySide is "left" or "right")) continue;
+                    string Exit = WrongSide ? Facing(Source, Target) : Route.ExitSide;
+                    string Entry = WrongSide ? Facing(Target, Source) : Route.EntrySide;
+                    bool Horizontal = Exit is "left" or "right";
+                    if (Horizontal != (Entry is "left" or "right")) continue;
                     double A = Horizontal ? Source.CenterX : Source.CenterY;
                     double B = Horizontal ? Target.CenterX : Target.CenterY;
                     double HalfA = (Horizontal ? Source.Width : Source.Height) / 2;
                     double HalfB = (Horizontal ? Target.Width : Target.Height) / 2;
                     double Gap = Math.Abs(A - B) - HalfA - HalfB;
                     double Required = 4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
+                    int ChannelLines = State.Copy.EdgeRoutes.Count(Other => Other.Points.Count >= 2
+                        && Bounds.TryGetValue(Other.SourceId, out var OtherSource)
+                        && Bounds.TryGetValue(Other.TargetId, out var OtherTarget)
+                        && (WrongSide ? Facing(OtherSource, OtherTarget) == Exit && Facing(OtherTarget, OtherSource) == Entry
+                            : Other.ExitSide == Exit && Other.EntrySide == Entry)
+                        && Math.Abs((Horizontal ? OtherSource.CenterX : OtherSource.CenterY) - A) < 0.001
+                        && Math.Abs((Horizontal ? OtherTarget.CenterX : OtherTarget.CenterY) - B) < 0.001);
+                    if (ChannelLines > FlowchartLayoutRules.RepairChainLines) continue;
+                    // Reserve both terminal clearances plus the complete track
+                    // lattice. One grid step covers an unfavourable port phase.
+                    Required = Math.Max(Required, (ChannelLines - 1) * DiagramGridMetrics.GRID_UNIT_PX
+                        + 4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX);
                     if (Gap <= 0 || Gap >= Required) continue;
                     double Boundary = A < B ? (A + HalfA + B - HalfB) / 2 : (B + HalfB + A - HalfA) / 2;
                     var Moving = State.Placed.Where(Node => (Horizontal ? Node.X : Node.Y) > Boundary).ToArray();
@@ -435,8 +585,11 @@ public static partial class DiagramGridLayout
                     State.Frames.Clear(); BuildFramesYUp(State.Contract, State.Placed, State.Frames);
                     WriteBack(State.Copy, State.Placed, State.Frames);
                     RefreshFinalBounds(State, Bounds);
+                    AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames,
+                        State.Nodes, State.Direction, State.SharedFanSources);
                     AllocateFinalPortSlots(State.Contract, State.Copy, Bounds, State.Nodes);
                     RebuildRoutesFromFinalPorts(State);
+                    SearchJointChannels(State, Bounds);
                     Grew = true;
                     break;
                 }
@@ -444,7 +597,14 @@ public static partial class DiagramGridLayout
                 var After = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                 var OldFaults = Before.Where(Finding => Finding.Rule is "10" or "3.1" or "4.1")
                     .Select(Finding => (Finding.Rule, Finding.Subject)).ToHashSet();
-                bool Improved = After.Count(Finding => Finding.Rule == "5.1") < Shared
+                bool Improved = After.Count(Finding => Finding.Rule == "5.1") <= Shared
+                    && (After.Count(Finding => Finding.Rule == "5.1") < Shared
+                        || After.Count(Finding => Finding.Rule is "4.11" or "5.8") < SideFaults)
+                    && After.Count(Finding => Finding.Rule == "4.2") <= Before.Count(Finding => Finding.Rule == "4.2")
+                    && After.Count(Finding => Finding.Rule == "4.9") <= Before.Count(Finding => Finding.Rule == "4.9")
+                    && After.Count(Finding => Finding.Rule == "4.11") <= Before.Count(Finding => Finding.Rule == "4.11")
+                    && After.Count(Finding => Finding.Rule == "5.8") <= Before.Count(Finding => Finding.Rule == "5.8")
+                    && CountFrameOverlapPairs(State.Contract, Bounds).Length <= OriginalFrameOverlaps
                     // A fully separated assignment repairs illegality and may
                     // cost more than its illegal baseline. Partial separation
                     // must not merely exchange shared tracks for new crossings.
