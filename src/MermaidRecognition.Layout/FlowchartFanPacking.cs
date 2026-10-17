@@ -9,7 +9,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Wraps a simple many-side fan into a measured block beside its hub.</summary>
-internal static class FlowchartFanPacking
+internal static partial class FlowchartFanPacking
 {
     private const int MinimumFan = DiagramGridMetrics.TRACKS_PER_GAP + 1;
     private sealed record Plan(int Columns, int Rows, int ColumnPitch, int RowPitch,
@@ -64,8 +64,11 @@ internal static class FlowchartFanPacking
             }
             int NeededSide = DiagramGridMetrics.CeilToGrid(
                 (int)Math.Ceiling(Leaves.Count * PortPitch + 2 * DiagramGridMetrics.NODE_GAP_PX));
-            if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
-            else Hub.Width = Math.Max(Hub.Width, NeededSide);
+            if (Hub.CellNode == null)
+            {
+                if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
+                else Hub.Width = Math.Max(Hub.Width, NeededSide);
+            }
             int TrackGap = Math.Max(DiagramGridMetrics.NODE_GAP_PX,
                 ((Leaves.Count + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP)
                     * DiagramGridMetrics.GRID_UNIT_PX);
@@ -73,6 +76,11 @@ internal static class FlowchartFanPacking
                 TrackGap = Math.Max(TrackGap, DiagramGridMetrics.CeilToGrid(
                     (int)Math.Ceiling(LabelHeight + 2 * FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(
                         Options.EdgeLabelFontSizePx))));
+            if (Hub.CellNode != null)
+            {
+                if (ApplyCellFan(Nodes, Hub, Leaves, FanOut, Horizontal, Reverse, TrackGap, LabelTrackPitch)) return true;
+                continue;
+            }
             Plan Best = Enumerable.Range(1, Leaves.Count).Select(Columns =>
                 Measure(Hub, Leaves.Count, Columns, NodeWidth, NodeHeight, TrackGap, LabelTrackPitch, Horizontal))
                 .OrderBy(Plan => Plan.Score).ThenBy(Plan => Plan.Columns).First();

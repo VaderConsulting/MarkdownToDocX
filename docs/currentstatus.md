@@ -1077,3 +1077,22 @@ after the full assignment is accepted. Hinted inputs keep their region and
 rank. Three tests pass, focused count 218. The next census is recorded in
 census-after-cell-terminal-inputs.log; full cells-on acceptance remains pending
 remaining writer paths and hard frame-fit failures.
+
+### Whole-cell large-fan packing and pure candidate projection
+
+Large fans now keep leaf spans fixed, measure hub port capacity, and evaluate
+every finite whole-cell column-count plan before publishing the cheapest legal
+complete assignment. Track room grows only a shared external channel gap;
+leaf track/label spacing uses whole-cell strides. Prepared cell states project
+geometry without temporary mutation, and foreign-grid snapshots are rejected.
+The hub never grows merely to fill a block or lower empty-space score.
+
+Fifteen new tests pass, focused count 233, covering 20/30-way grids, all four
+physical directions for fan-in and fan-out, hinted complete rejection and pure
+projection matching exact applied geometry. The census runs all 673 cases in
+19.9981 s, with 657 diagnostic passes and sixteen hard frame-fit failures.
+Only twelve first-writer catches remain: horizontal retries, decision detours,
+vertical loops, simple decision merges, shared fan/tails, grouped channels,
+group member packing, and two later grouped-placement paths. The census is
+not clean; full cells-on gates, layout-difference analysis and final profiling
+remain pending. Production cells and independent text spans stay off.

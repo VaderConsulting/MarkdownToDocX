@@ -65,30 +65,41 @@ public static partial class DiagramGridLayout
             if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out var Node) || Pair.Value < 2 || Node.PlacementHintLocked) continue;
             bool Width = Parts[1] is "top" or "bottom";
             double Pitch = Math.Max(1, (Width ? BoxWidth : BoxHeight) / DiagramGridMetrics.TRACKS_PER_GAP);
-            var Region = Targets[Node.Id];
-            var Candidate = Region;
-            bool Fits = false;
-            for (int Attempt = 0; Attempt < FlowchartLayoutRules.RepairCandidateMoves; Attempt++)
-            {
-                var Bounds = Node.CellNode!.Bounds(Candidate, Node.GeometryProvider);
-                var Boundary = (Node.GeometryProvider?.Create(Bounds.Width, Bounds.Height)
-                    ?? NodeGeometry.Rectangle(Bounds.Width, Bounds.Height)).ConnectionBoundary;
-                var Ports = new List<NodeGeometryPort>();
-                for (int Index = 1; Index <= Pair.Value; Index++)
-                {
-                    if (!Boundary.TryPort(Parts[1], Index / (Pair.Value + 1d), out var Port)) break;
-                    Ports.Add(Port);
-                }
-                // An ineligible side needs reassignment, not blind growth.
-                if (Ports.Count != Pair.Value) break;
-                if (FlowchartPortCapacity.Shortfall(Ports, Pitch) <= 0) { Fits = true; break; }
-                Candidate = new(Candidate.StartRow, Candidate.StartColumn, checked(Candidate.RowSpan + (Width ? 0 : 1)),
-                    checked(Candidate.ColumnSpan + (Width ? 1 : 0)));
-            }
-            if (Fits) Targets[Node.Id] = Candidate;
+            if (TryPlanCellPortCapacity(Node, Targets[Node.Id], Parts[1], Pair.Value, Pitch, out var Candidate)) Targets[Node.Id] = Candidate;
         }
         // Sharing a newly reserved cell rejects every proposed resize. Later
         // joint allocation may choose a free side instead of growing the node.
         return FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
+    /// <summary>Builds a fitting whole-cell capacity proposal without changing any reservation or drawing coordinate.</summary>
+    /// <param name="Node">Renderer-owned connection boundary.</param>
+    /// <param name="Initial">Current or privately proposed reservation.</param>
+    /// <param name="Side">Eligible compass side being allocated.</param>
+    /// <param name="Count">Actual jointly allocated side demand.</param>
+    /// <param name="Pitch">Existing measured minimum port separation.</param>
+    /// <param name="Candidate">Receives the fitting complete reservation.</param>
+    /// <returns>Whether a legal measured boundary capacity candidate was found within the existing named limit.</returns>
+    internal static bool TryPlanCellPortCapacity(GridNode Node, FlowchartCellRegion Initial, string Side, int Count, double Pitch,
+        out FlowchartCellRegion Candidate)
+    {
+        Candidate = Initial;
+        bool Width = Side is "top" or "bottom";
+        for (int Attempt = 0; Attempt < FlowchartLayoutRules.RepairCandidateMoves; Attempt++)
+        {
+            var Bounds = Node.CellNode!.Bounds(Candidate, Node.GeometryProvider);
+            var Boundary = (Node.GeometryProvider?.Create(Bounds.Width, Bounds.Height) ?? NodeGeometry.Rectangle(Bounds.Width, Bounds.Height)).ConnectionBoundary;
+            var Ports = new List<NodeGeometryPort>();
+            for (int Index = 1; Index <= Count; Index++)
+            {
+                if (!Boundary.TryPort(Side, Index / (Count + 1d), out var Port)) break;
+                Ports.Add(Port);
+            }
+            if (Ports.Count != Count) return false;
+            if (FlowchartPortCapacity.Shortfall(Ports, Pitch) <= 0) return true;
+            Candidate = new(Candidate.StartRow, Candidate.StartColumn, checked(Candidate.RowSpan + (Width ? 0 : 1)),
+                checked(Candidate.ColumnSpan + (Width ? 1 : 0)));
+        }
+        return false;
     }
 }

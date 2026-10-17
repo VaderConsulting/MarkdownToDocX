@@ -269,17 +269,27 @@ internal sealed class FlowchartLogicalGrid
 
     /// <summary>Measures the continuous visible rectangle, including every grown internal gap it spans.</summary>
     /// <param name="Region">Occupied whole-cell region.</param>
+    /// <param name="State">Optional complete prepared state; projection never publishes it.</param>
     /// <returns>Width and height in page pixels, with no external gap included.</returns>
-    internal (double Width, double Height) Measure(FlowchartCellRegion Region) => (
-        Extent(Region.StartColumn, Region.ColumnSpan, Configuration.CellWidth, Configuration.ColumnGap, ColumnGaps),
-        Extent(Region.StartRow, Region.RowSpan, Configuration.CellHeight, Configuration.RowGap, RowGaps));
+    internal (double Width, double Height) Measure(FlowchartCellRegion Region, Snapshot? State = null)
+    {
+        State ??= Current;
+        if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
+        return (Extent(Region.StartColumn, Region.ColumnSpan, Configuration.CellWidth, Configuration.ColumnGap, State.ColumnGaps),
+            Extent(Region.StartRow, Region.RowSpan, Configuration.CellHeight, Configuration.RowGap, State.RowGaps));
+    }
 
     /// <summary>Maps a logical region to its page-down origin without inferring cells from centres.</summary>
     /// <param name="Region">Occupied rectangle.</param>
+    /// <param name="State">Optional complete prepared state; projection never publishes it.</param>
     /// <returns>Top-left page position relative to the grid origin.</returns>
-    internal (double X, double Y) Origin(FlowchartCellRegion Region) => (
-        Position(Region.StartColumn, Configuration.CellWidth, Configuration.ColumnGap, ColumnGaps),
-        Position(Region.StartRow, Configuration.CellHeight, Configuration.RowGap, RowGaps));
+    internal (double X, double Y) Origin(FlowchartCellRegion Region, Snapshot? State = null)
+    {
+        State ??= Current;
+        if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
+        return (Position(Region.StartColumn, Configuration.CellWidth, Configuration.ColumnGap, State.ColumnGaps),
+            Position(Region.StartRow, Configuration.CellHeight, Configuration.RowGap, State.RowGaps));
+    }
 
     /// <summary>Measures only internal gaps, using sparse corrections so large spans do not require cell enumeration.</summary>
     /// <param name="Start">First occupied index.</param>

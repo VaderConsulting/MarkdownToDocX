@@ -72,10 +72,11 @@ internal sealed class FlowchartCellNode
     /// <summary>Projects a complete target region for clearance planning without publishing the candidate.</summary>
     /// <param name="Target">Explicit target rectangle; it is not inferred from drawing coordinates.</param>
     /// <param name="Provider">Optional renderer-owned local geometry.</param>
+    /// <param name="State">Optional prepared ownership and gaps, projected without live mutation.</param>
     /// <returns>Candidate drawing bounds in the existing coordinate view.</returns>
-    internal FlowchartLayoutNodeBounds Bounds(FlowchartCellRegion Target, INodeGeometryProvider? Provider = null)
+    internal FlowchartLayoutNodeBounds Bounds(FlowchartCellRegion Target, INodeGeometryProvider? Provider = null, FlowchartLogicalGrid.Snapshot? State = null)
     {
-        var Origin = Grid.Origin(Target); var Size = Grid.Measure(Target);
+        var Origin = Grid.Origin(Target, State); var Size = Grid.Measure(Target, State);
         double PageCentre = Origin.Y + Size.Height / 2;
         double W = Diamond ? ScaleFor(Target) * Grid.Configuration.CellWidth : Size.Width;
         double H = Diamond ? ScaleFor(Target) * Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR : Size.Height;
