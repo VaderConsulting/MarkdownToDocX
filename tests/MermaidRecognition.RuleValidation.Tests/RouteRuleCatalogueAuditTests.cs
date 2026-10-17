@@ -86,7 +86,9 @@ public sealed class RouteRuleCatalogueAuditTests
         {
             snapshots.Add((stage, layout));
         };
-        DiagramGridLayout.LayoutStageTimingObserver = (stage, ms) => stageTimes.Add((stage, ms));
+        bool profileStages = string.Equals(Environment.GetEnvironmentVariable("ROUTE_AUDIT_PROFILE"), "1", StringComparison.Ordinal);
+        DiagramGridLayout.LayoutStageTimingObserver = profileStages
+            ? (stage, ms) => stageTimes.Add((stage, ms)) : null;
         DiagramGridLayout.GroupFrameFitPassObserver = message => { fitPasses++; frameEvents.Add(message); };
         DiagramGridLayout.GroupFrameCandidateObserver = scenario.Id == "A165"
             ? message => frameEvents.Add(message) : null;
@@ -135,7 +137,7 @@ public sealed class RouteRuleCatalogueAuditTests
             layoutClock.Stop();
             // The older AUDIT_TIME line is below assertions and omits failed
             // scenarios such as A142. Always preserve their measured stages too.
-            TestContext.Out.WriteLine($"CELL_AUDIT_PROFILE|{scenario.Id}|layoutMs={layoutClock.Elapsed.TotalMilliseconds:0.000}|"
+            if (profileStages) TestContext.Out.WriteLine($"CELL_AUDIT_PROFILE|{scenario.Id}|layoutMs={layoutClock.Elapsed.TotalMilliseconds:0.000}|"
                 + System.Text.Json.JsonSerializer.Serialize(stageTimes.Where(item => item.Ms >= 0)
                     .Select(item => new { Name = item.Stage, Milliseconds = item.Ms })));
             DiagramGridLayout.LayoutStageObserver = null;

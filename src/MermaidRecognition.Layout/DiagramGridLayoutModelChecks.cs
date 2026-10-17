@@ -18,9 +18,11 @@ public static partial class DiagramGridLayout
 
         public static void Apply(GridLayoutState State)
         {
-            System.Diagnostics.Stopwatch Profile = System.Diagnostics.Stopwatch.StartNew();
+            System.Diagnostics.Stopwatch? Profile = LayoutStageTimingObserver == null
+                ? null : System.Diagnostics.Stopwatch.StartNew();
             void Mark(string Name)
             {
+                if (Profile == null) return;
                 Profile.Stop();
                 LayoutStageTimingObserver?.Invoke("completion/" + Name, Profile.Elapsed.TotalMilliseconds);
                 Profile.Restart();
@@ -296,6 +298,9 @@ public static partial class DiagramGridLayout
             ProfileCall("settled-facing-assignment", () => RepairFinalFacingSides(State, Bounds));
             ProfileCall("settled-side-placement", () => SearchJointNodeOrder(State, Bounds, IncludeSideFaults: true));
             ProfileCall("settled-crossing-placement", () => SearchJointNodeOrder(State, Bounds, IncludeCrossings: true));
+            // Keep route searches out of the diagnostics timer: ProfileCall
+            // records nested timings without advancing the enclosing Mark.
+            Mark("final-route-searches");
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.
@@ -705,11 +710,15 @@ public static partial class DiagramGridLayout
         private static void ClearResolvedHintDiagnostics(DiagramContract contract,
             FlowchartLayoutResult layout, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> bounds)
         {
+            // This pass can only clear an existing rejection. Avoid the full
+            // route, obstacle and pairwise crossing audit when none can change.
+            EdgeContract[] unresolved = contract.Edges.Where(candidate =>
+                candidate.RoutingHint is { IsActive: true, UnhonouredReason: not null }).ToArray();
+            if (unresolved.Length == 0) return;
             HashSet<string> routeFaults = FlowchartRouteRuleChecker.Check(contract, layout)
                 .Where(finding => finding.Rule is "3.1" or "3.2/4.7")
                 .Select(finding => finding.Subject).ToHashSet(StringComparer.Ordinal);
-            foreach (EdgeContract edge in contract.Edges.Where(candidate =>
-                         candidate.RoutingHint is { IsActive: true, UnhonouredReason: not null }))
+            foreach (EdgeContract edge in unresolved)
             {
                 string edgeId = edge.Id ?? edge.SourceId;
                 if (routeFaults.Contains(edgeId)) continue;

@@ -1207,3 +1207,40 @@ All 268 focused tests pass. The next 673-case census completes in 21.6492 s:
 caught. This is not a passing cells-on legality audit. Production cells and
 independent text spans remain off; F32/EIP261 stays parked. The next producer
 blocker is fitting derived frames under logical hints and the named budgets.
+
+### Separate audit timing from diagnostic work (2026-10-18)
+
+Stage profiling is now opt-in with ROUTE_AUDIT_PROFILE=1; ordinary Release
+catalogue runs retain all checks, snapshots, findings and summaries. The old
+completion/final-diagnostics interval also contained eleven final route-search
+calls. A new enclosing final-route-searches mark separates those from actual
+final diagnostic collection. No search or legality check was removed.
+
+Hint cleanup now skips the full route/obstacle/crossing checker when there is
+no active unresolved hint whose diagnostic could be cleared. Completion also
+avoids creating/restarting its profiling stopwatch when no timing observer is
+installed. On the latest profiled run, actual final diagnostics total 25.7221 ms.
+Subtracting the nested searches from the pre-change same-run interval gives
+83.1609 ms; the estimated diagnostics saving is 57.4388 ms, not twelve seconds.
+
+Before optimization: profiling on 37.20 s / A142 10.6066 s; profiling off
+35.59 s / A142 10.6092 s. Final sequential runs: profiling on 43.05 s / A142
+13.0169 s; profiling off 41.63 s / A142 12.2676 s. The historical profiled run
+was 45.56 s / A142 14.8603 s; c4895ff's reference is 37.30 s. Timing variation
+is larger than the small diagnostics saving; no full-audit speedup is claimed.
+
+All 673 summary rows compare identically byte for byte. Every gate total stays
+unchanged: 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0, shared pairs=2089;
+every previously zero gate remains zero, with the same 25 failing scenarios and
+five native layout failures. A diagnostic-aware geometry harness compares the
+exact ordered serialized final findings and page geometry: 673 scenarios,
+zero differences. All 268 focused tests pass. The cells-on census still has
+seventeen frame-fit failures, no caught direct writer, and production remains
+cells-off. Diagnostic/timing logs use the diagnostics-* prefix under
+out/logical-grid-prerequisite. F32/EIP261 remains parked.
+
+The final strict comparison uses serialized ordinal equality (including finding
+order, messages and escaping), not only JSON structural equality: 673 scenarios,
+zero changes, zero missing, 34.301 s. The original cells-off geometry capture
+also matches all 673 with zero changes/missing, 42.139 s. Five routing-hint tests
+pass in addition to the 268 focused tests. No DOCX file is committed.
