@@ -301,3 +301,14 @@ Census placement-policy-16a-terminal-holes.log -> placement-policy-16-merge-colu
 660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3158 -> 3204;
 55 case totals change (including A173's now-completed legal pipeline), recorded
 in the comparison CSV. All 293 focused tests pass. No cells-off branch changes.
+
+## Superseded: hidden three-way decision centre-child column rewrite
+
+AlignDecisionCentreChildColumn bypasses bound nodes. Its choice of a middle
+child and reindexing about the parent's column no longer prescribe cell
+positions. Original branch order remains in the initial producer. Candidate
+ordering and routed scoring supply straightening without centre positioning.
+
+Census placement-policy-16-merge-columns-final.log -> placement-policy-17-decision-columns.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Every completed
+case's bend count is unchanged (3204 total). All 294 focused tests pass.

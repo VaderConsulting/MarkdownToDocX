@@ -1064,11 +1064,14 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// B12b/B12c: for a three-way decision fan-out, the centre child keeps the parent column.
     /// </summary>
-    private static void AlignDecisionCentreChildColumn(
+    internal static void AlignDecisionCentreChildColumn(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
     {
+        // Native branch order remains available to the region producer. A
+        // chosen centre child must not prescribe the parent column for cells.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         if (Horizontal)
         {
             return;

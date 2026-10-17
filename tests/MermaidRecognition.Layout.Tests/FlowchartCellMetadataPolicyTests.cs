@@ -30,6 +30,18 @@ public sealed class FlowchartCellMetadataPolicyTests
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
+    /// <summary>A decision's native branch order survives without assigning a middle child to its parent's column.</summary>
+    [Test]
+    public void DecisionChildrenKeepTheirOrderingColumns()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        var Before = Grid.Capture();
+        var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        DiagramGridLayout.AlignDecisionCentreChildColumn(Contract, Nodes, false);
+        Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+    }
+
     /// <summary>Builds a forward fan with a converging merge and deliberately distinct ordering columns.</summary>
     /// <returns>Contract, bound nodes and authoritative grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
