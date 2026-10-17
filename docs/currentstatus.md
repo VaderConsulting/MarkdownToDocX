@@ -19,7 +19,7 @@ F17 offers straight connections at the diamond tips in the initial search. F30 o
 The side-routing fixes are committed in `6372bd4`, after the separate frame
 invariant commit `afe393f` and shared-track checkpoint `06ede99`. Empty hinted
 frames are also covered at repair boundaries and rollback in `ca1b9b9`.
-The current complete audit emitted all 673 summaries in 82.39 seconds. Totals
+The side-fix acceptance audit emitted all 673 summaries in 82.39 seconds. Totals
 are 4.2 = 39, 5.9 = 1700, 3.1 = 4, 4.11 = 3, 5.8 = 0 and shared-track pairs =
 2083. All hard zero gates remain zero; 4.1 is zero and 4.9 remains 6. No scenario
 has a larger 4.11 or 5.8 count than c6605bd. A142 took 38.8553 seconds, so speed
@@ -32,8 +32,7 @@ refreshes side choices after growth, and sizes channels for their prospective
 facing assignment. The shared legality fallback is offered when the provisional
 terminal family cannot build that assignment. Frame-outline regressions are
 rejected. The original baseline rows, rules.yaml, score weights and hints are
-unchanged. The following paragraphs describe the earlier checkpoint, not the
-current totals.
+unchanged. The latest rerun and subsequent work are recorded below.
 
 ### DOCX conversion profiling and exact-geometry speed fix
 
@@ -86,6 +85,79 @@ remain zero. The focused side/cost regression selection retains 34 passes and
 the same two known failures; the original 23 passes and both illegal-path cases
 remain passing. Baseline rows, rules.yaml, weights and hints are unchanged.
 The side-fix checkpoint satisfies the requested comparison against 06ede99.
+F148 and A147 each now have zero shared-track pairs and one crossing; their
+earlier named shared-track regression failures are resolved. F153, the large
+fans and shared tracks elsewhere remain open. Engine changes were checked for
+scenario-specific conditions; none were added.
+
+### Page-down migration — uncommitted and not accepted
+
+The accepted code remains at 58822a5 (with later documentation/tool commits).
+The source working tree now contains an incomplete page-down prototype. It
+builds, but it must not be used as an accepted converter or described as passing
+the audit. The totals above belong to the accepted checkpoint, not this prototype.
+No migration commit was made and nothing was pushed.
+
+The exact pre-migration snapshot contains all 673 scenarios. Before the axis
+edits, the conversion speed fix and packing fix each matched every snapshot
+exactly. The migration has not met that requirement. Its three attempts were:
+
+1. Remove the placement-to-routing flip and repair-time mirrored frame builder;
+   make grid frame heights, box boundaries and the shared SVG mapper page-down.
+   All five focused snapshots (F17, F30, F61, F153 and A167) changed.
+2. Migrate initial port ordering and normals, diamond edge geometry, frame
+   restoration and straight-route side selection. Four snapshots changed before
+   A167 threw while measuring an empty side-search route.
+3. Correct the straight-attachment helper, migrate convergence/branch and local
+   route-repair compass definitions, move title strips to the northern edge and
+   remove selected renderer reflections. Empty route measurement no longer
+   throws there, but F17, F30, F61 and F153 still changed. The run was stopped
+   while A167 had not finished, since exact acceptance was already disproved.
+
+The three-attempt stop rule applies: do not repeat another isolated sign swap.
+The remaining work must migrate each complete geometry consumer, including the
+frame-title crossing exemption, compound/group bounds, route obstacle helpers,
+all terminal and fallback builders, joint-channel comparisons, numeric candidate
+ordering and canvas-extents propagation. The SVG renderer still passes its old
+maximum-Y extent through several helpers even though its point mapping has been
+changed; enterprise-specific mapping is not migrated. The optional Sugiyama
+backend still needs its one conversion boundary, and frame-invariant test
+expectations and the axis-sensitive checker consumers still need migration.
+Dagre placement direction transforms and vendor Sugiyama internals were retained.
+
+The focused mismatch is geometric, not just floating-point noise: F17 moves RN
+from page X=293 to X=323 and moves the box-to-rounded-box route from Y=128 to
+Y=248. It also exposes an exact-double difference at the circle endpoint
+(127.99999999999999 versus 128). Neither difference is rounded away or accepted.
+A complete post-migration 673-case match and audit have therefore not been
+claimed. The uncommitted prototype is a starting point requiring further work.
+
+The accepted ARM64 converter was published before the migration under
+out/away-stable-converter. The WinForms Converter.exe entry point uses those
+accepted Release dependencies for the requested DOCX regeneration, rather than
+the experimental Debug engine. Its layout DLL SHA256 is
+4E485D2708A67394D66F059730CD6FF70DB2E91E2ED781887557EF2C2785C4FC.
+
+### Regenerated review documents
+
+The three root DOCX files were regenerated with the accepted ARM64 WinForms
+application at
+C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX\out\away-stable-converter\Converter.exe.
+The commands, run from the repository root, were:
+
+```powershell
+& .\out\away-stable-converter\Converter.exe -in flow.md -out flow.docx
+& .\out\away-stable-converter\Converter.exe -in enterprise.md -out enterprise.docx
+& .\out\away-stable-converter\Converter.exe -in EIP.md -out EIP.docx
+```
+
+All three commands exited successfully. Times were flow 29.026 s, enterprise
+91.285 s and EIP 49.715 s. ZIP/XML inspection found no rendering-failure
+placeholders in flow or EIP. Enterprise has the 18 deliberately invalid cases
+A78-A84, A86-A94, A102 and A130, each retaining its validation diagnostic;
+they are input-validation examples, not new layout crashes. The output checks
+and command timings are under out/route-cost/away-docx-*. These are actual review
+documents in the repository root, not test outputs. None is committed.
 
 The following performance and quality paragraphs are older checkpoint history.
 
