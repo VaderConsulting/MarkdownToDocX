@@ -537,3 +537,177 @@ integration passes its audits.
 The finished shape integration, restored return/wrap behavior and tested cell-region foundation are checkpointed before production repair activation. Cell views, atomic ownership transactions, guarded pixel writes and their unit tests are included. The partially integrated repair searches and engine fixtures remain uncommitted. Independent spans remain disabled, and F32/EIP261 remains parked for routing work. The checkpoint is verified separately from those unfinished repair branches.
 
 Isolated checkpoint verification passed 74 focused tests, including the original 54. Its full Release audit emitted all 673 summaries in 37.30 s, A142 11.8293 s, with every previously zero gate still zero. Existing totals are unchanged: 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0 and shared pairs=2089. Five native failures remain unmeasured. The audit still exits nonzero for known findings. Logs: out/logical-grid-prerequisite/checkpoint-focused-tests.log and checkpoint-audit.log.
+
+### Authoritative-cell repair increment (2026-10-17, incomplete)
+
+The cell-backed engine now has atomic whole-region translations, joint region
+assignments and swaps, explicit span changes, measured shared-gap growth, and
+exact cell/gap snapshots. Regions are integer contiguous rectangles; a complete
+assignment is checked for shared cells before any member changes. Bound node
+pixels are read-only projections of those regions. Legacy X/Y/width/height,
+frame-fit and coordinate-setter writes throw before mutating a bound node.
+Pinned nodes reject span changes as well as translations: a span change at an
+unchanged start cell would still move the derived centre.
+
+Cell branches now cover move-before-detour, unrouted-group moves, joint
+node-order searches, overlapping-frame member-group moves, channel sealing,
+hint-aware gap growth and hinted-terminal obstacle clearance. Candidate search
+uses the existing candidate/chain/line limits and cannot replenish the diagram
+budget on another call. Accepted candidates and forced rejection/exception
+rollback retain exact cells, gaps, frame caches, route points, port slots,
+normals, hint activation and hinted-route caches. The routing-axis projection
+remains at its existing boundary; this is not the parked coordinate migration.
+
+This is **not production cell authority yet**. The catalogue's initial placement
+producer still creates unbound pixel nodes. These nodes still take the legacy
+repair branches. The new integration fixtures bind explicit declared regions
+and run real repair/materialisation entry points; they deliberately do not
+infer occupancy from the legacy output. Remaining work includes initial
+rank/column/wrap/group region production, frame-fit/repacking member moves,
+remaining compaction and packing writers, capacity-driven growth replacing
+crowded/parallel-side direct resizes, and candidate snapshots in those paths.
+Do not enable independent text/capacity spans or claim every repair converted
+until these paths are migrated and the entire catalogue is exercised bound.
+The existing integer GridNode width/height compatibility views also require
+review for fractional configured pixel dimensions and very large spans.
+
+Verification of this increment:
+
+- 82 focused tests pass, including 41 cell tests and the 41 existing shape,
+  geometry-contract, return/wrap and decision-return-slot tests. Cell coverage
+  includes shared-cell rejection, atomic swaps/group moves, mandatory diamond
+  reservations, pinned centres, gap ownership, exact rollback on exceptions,
+  final materialisation and shared named search-budget exhaustion.
+- The established routing selection remains 34 passing / 2 known failures
+  (F153 and LargeFanOut), including the existing illegal-path tests.
+- Exact before/after rendered geometry comparison: 673 scenarios, zero changed,
+  zero missing. Baseline: `out/logical-grid-prerequisite/authoritative-cells-before.jsonl`;
+  comparison: `authoritative-cells-compare.log` (31.653 s).
+- Full Release audit: all 673 summaries, 36.50 s, A142 11.0010 s, five existing
+  native failures unmeasured. All previously zero gates stay zero: off-slot
+  ports/groups, node/frame grid, title bands, unrelated frame overlaps, missing
+  routes, NoLegalRoute, illegal paths, cleanup and hint accounting.
+- Totals remain 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0,
+  shared-track pairs=2089, 3.2/4.7=0, 3.3/5.2=5 and 4.9=6.
+  The audit exits nonzero for the unchanged known failures; this is preservation,
+  not full acceptance. Log: `authoritative-cells-audit.log` in the same directory.
+
+No snapshot changes need explaining in this increment. No baseline rows,
+rules.yaml, weights, DOCX outputs or open-mode behavior were changed by it.
+Independent spans remain disabled. The F32/EIP261 4.2 checker/candidate fault
+remains parked as described above. No commit or push was made in that increment.
+
+### Checkpoint committed; cell frame fitting continuation
+
+Checkpoint `c4895ffc80af4e10e1a6a7899307dc04195113f4` has the plain imperative
+subject "Add the shape geometry contract and cell-region foundation". Only
+the finished shape/return/wrap integration and tested cell foundation were
+selected. It was independently built and tested in
+`out/cell-foundation-checkpoint` without the unfinished repair-search branches.
+All 74 focused tests passed, including the original 54; its audit emitted
+673 summaries in 37.30 s with all previously zero gates still zero. The commit
+excludes DOCX files, unfinished engine repair integration and its fixtures.
+No push was made.
+
+After that checkpoint, cell-backed `FitFrames` now bypasses the old cloned
+pixel trial nodes and pixel copyback entirely. It searches atomic whole-cell
+member translations, derives frames from the candidate regions, rejects new
+frame/foreign-node conflicts, and restores exact cells/gaps and cached frame
+objects after every rejected or exceptional candidate. Accepted frame work
+shares the existing named candidate, chain and line limits with its explicit
+diagram context. No new limits or score weights were added. Direct foreign-node
+eviction and moving a frame away from a locked outsider use the same search,
+and must clear the specifically requested conflict. External hint dependents
+prevent an unsafe move; fixed hints are never silently displaced.
+
+Sixteen new frame tests cover nested and empty groups, all four flow directions
+in both existing coordinate views, direct eviction, pinned outsiders, external
+hint dependencies, forced failure rollback, budget exhaustion, an explicit
+budget independent of an unrelated ambient render, and mixed-axis rejection.
+The combined selection passes 105 tests: the previous 82, these 16, and seven
+existing frame/gap helper tests. Log: `out/logical-grid-prerequisite/cell-frame-combined-tests.log`.
+
+Full Release audit after the continuation: all 673 summaries in 39.67 s; A142
+13.7935 s. Every previously zero legality/slot/grid/title-band/frame-overlap/
+missing-route/NoLegalRoute/illegal-path/cleanup/hint-accounting gate stays zero.
+Other totals stay 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0,
+shared pairs=2089, 3.2/4.7=0, 3.3/5.2=5 and 4.9=6. Five existing native
+failures remain unmeasured and the audit still exits nonzero for known findings.
+Exact rendered geometry comparison completes all 673 scenarios with zero
+changes and zero missing (37.362 s). Logs: `cell-frame-audit.log` and
+`cell-frame-geometry-compare.log` in the same output directory.
+
+The frame continuation is uncommitted. Production cell activation is still
+pending the initial region producer and remaining packing, compaction,
+hint-placement and resize writers. The catalogue still exercises its existing
+unbound initial placement, so preservation is verified but global cell authority
+is not yet established. Independent spans remain disabled. F32/EIP261 remains
+parked for the routing work. No baseline rows, rules, weights or DOCX files
+were changed during this continuation.
+
+### Atomic region assignments and complete rollback
+
+This increment replaces the remaining per-member writes inside the logical
+grid itself. Its current state is now one immutable snapshot containing every
+node region and both gap maps. Preparation copies and validates the entire
+target set, including fixed nodes; commit publishes that state by one reference
+replacement, and rollback restores the complete original state the same way.
+The integer rectangle type requires positive contiguous spans, so fractional,
+L-shaped or disconnected reservations cannot be submitted. Final pairwise
+occupancy checks reject any shared cells before publication. Invalid later
+gap increases cannot leave an earlier increase or member target applied.
+
+Cell repair options no longer carry callbacks that construct targets while
+mutating geometry. They carry frozen validated assignments. The prepared
+assignment checks its exact source state before application, rejecting stale
+plans, and also rejects a participant pinned since planning. Mutating a caller's
+target dictionary after preparation cannot alter the assignment.
+
+Prepared assignment now covers cell-backed endpoint/group move-before-detour,
+unrouted-group moves, frame-overlap group moves, joint node-order swaps,
+frame fitting, foreign-node eviction, moving a frame away from locked outsiders,
+channel gap growth and hinted-terminal clearance. A neighbour-displacement
+planner gathers the entire collision chain before validation, using the
+existing named chain-depth and changed-line limits. Its full participant set
+is checked for fixed hints and external hint dependents. Every accepted option
+still passes the existing complete-layout legality/score checks where routing
+is already present.
+
+Hinted-terminal clearance previously could accept one obstacle move and then
+stop at a locked later obstacle, leaving a partial repair. It now accumulates
+the complete unpublished target set for all leave/enter terminals, validates
+every final ray again, and commits all obstacle moves or none. Candidate pixels
+are projected directly from proposed regions, not copied back into occupancy.
+Frame fitting also restores its entry cells, gaps and frame objects if a late
+failure follows an internally accepted assignment. Search effort remains spent
+against the named budget after rejection; geometry and hint state are restored.
+
+Fifteen new tests cover the three specifically requested cases, frozen targets,
+stale plans, late pinning, recursive neighbour displacement and a locked tail,
+invalid gap batches, a real scored gap-growth candidate failing, all-or-none
+hinted obstacle clearance, and late frame rollback after an accepted move.
+The focused combined selection passes 120 tests, including the original 54
+and all 105 from the preceding increment. Production layout builds with zero
+warnings/errors. Test log: `out/logical-grid-prerequisite/atomic-combined-tests.log`.
+
+The full Release audit emits all 673 summaries in 40.68 s, A142 13.7707 s.
+Every previously zero gate stays zero: off-slot ports/groups, 3.2/4.7, node/frame
+grid, title bands, unrelated frame overlaps, missing routes, NoLegalRoute,
+illegal paths, cleanup, hint accounting, 4.1 and 5.8. Other counts remain
+4.2=44, 5.9=1694, 3.1=4, 4.11=3, shared pairs=2089, 3.3/5.2=5 and 4.9=6.
+Five existing native failures remain unmeasured; the audit still exits nonzero
+for known findings. Exact rendered comparison completes all 673 scenarios
+with zero changed snapshots and zero missing in 39.088 s. Logs:
+`atomic-regions-final-audit.log` and `atomic-regions-geometry-compare.log` in
+the same output directory. There are no snapshot changes to explain.
+
+The obsolete cell-side operation callbacks, member-by-member grid publication
+and separate gap-map rollback have been removed. The legacy pixel trial/copyback
+code still has live callers in unconverted initial placement and packing paths;
+it cannot yet be deleted while preserving those layouts. It is bypassed by the
+converted cell-backed repairs. Production cell activation and the remaining
+placement/packing/resize conversion are still pending, so the catalogue's zero
+snapshot difference is preservation evidence, not proof of global cell authority.
+Independent spans remain disabled. F32/EIP261 remains parked. Baseline rows,
+rules.yaml, weights and DOCX files were not changed. This increment is uncommitted;
+the last checkpoint remains c4895ff. No push was made.

@@ -289,7 +289,8 @@ public static partial class DiagramGridLayout
             }
             CaptureHintedNodePositions(State);
             MeasureLayoutStage("group-fit/settle-frames", () => FitFrames(Contract, Placed, Frames, Horizontal,
-                RefitTriggers.Count == 0 ? "stage settlement" : string.Join(" + ", RefitTriggers.Distinct(StringComparer.Ordinal))));
+                RefitTriggers.Count == 0 ? "stage settlement" : string.Join(" + ", RefitTriggers.Distinct(StringComparer.Ordinal)),
+                State.Copy.RenderContext));
             if (!Open)
             {
                 SnapGridNodeCentres(Placed);
@@ -354,7 +355,7 @@ public static partial class DiagramGridLayout
         }
     }
 
-    private static class RouteRepairStage
+    private static partial class RouteRepairStage
     {
         // Rule ids: 3, 4 and 5 (route legality repairs and score improvements).
         private sealed record RepairPass(string RuleIds, Action<GridLayoutState> Apply);
@@ -478,6 +479,11 @@ public static partial class DiagramGridLayout
 
         private static void ApplyHintAwareGapGrowth(GridLayoutState State)
         {
+            if (State.Placed.Any(Node => Node.CellNode != null))
+            {
+                RepairCellChannelSpacing(State);
+                return;
+            }
             if (!GrowFacingDoglegGaps(State.Copy, State.Contract, State.Placed, State.Frames,
                 State.HintedNodePositions.Keys)) return;
 
@@ -653,6 +659,8 @@ public static partial class DiagramGridLayout
 
         private static bool TryMoveGroupForUnroutedLink(GridLayoutState state, int candidateBudget)
         {
+            if (state.Placed.Any(Node => Node.CellNode != null))
+                return MoveBeforeDetourCells(state, candidateBudget, 1, state.MoveBudget.AttemptedMoves).Moved > 0;
             if (candidateBudget <= 0) return false;
             List<string> diagnostics = [];
             foreach (FlowchartLayoutQualityFailure failure in state.Copy.RenderContext.LayoutStageViolations
@@ -848,6 +856,8 @@ public static partial class DiagramGridLayout
             int maxMoves,
             HashSet<string> attempted)
         {
+            if (State.Placed.Any(Node => Node.CellNode != null))
+                return MoveBeforeDetourCells(State, maxCandidates, maxMoves, attempted);
             int examined = 0;
             int moved = 0;
             List<string> unresolved = [];
@@ -1567,6 +1577,11 @@ public static partial class DiagramGridLayout
 
     private static void ResolveHintedTerminalClearance(GridLayoutState State)
     {
+        if (State.Placed.Any(Node => Node.CellNode != null))
+        {
+            ResolveHintedTerminalClearanceCells(State);
+            return;
+        }
         Dictionary<string, GridNode> ById = State.Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         foreach (EdgeContract Edge in State.Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
                      .OrderBy(Edge => Edge.CreationIndex))

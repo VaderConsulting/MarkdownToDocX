@@ -227,6 +227,12 @@ public static partial class DiagramGridLayout
     private static void SearchJointNodeOrder(GridLayoutState State, Dictionary<string, FlowchartLayoutNodeBounds> Bounds,
         bool IncludeSideFaults = false, bool IncludeCrossings = false)
     {
+        if (State.Placed.Any(Node => Node.CellNode != null))
+        {
+            RouteRepairStage.SearchCellNodeOrder(State, IncludeSideFaults, IncludeCrossings);
+            foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
+            return;
+        }
         var Layout = State.Copy;
         if (State.Contract.Groups.Count != 0 || State.Contract.Edges.Any(Edge => Edge.RoutingHint?.IsActive == true)) return;
         var Before = FlowchartRouteRuleChecker.Check(State.Contract, Layout);
@@ -392,6 +398,7 @@ public static partial class DiagramGridLayout
             // route construction happened to choose one shared track.
             SearchJointChannels(State, Bounds, IncludeNodeOrder: false);
             var TrialPlaced = State.Placed.Select(Node => new GridNode { Id = Node.Id, Shape = Node.Shape,
+                GeometryProvider = Node.GeometryProvider,
                 GroupId = Node.GroupId, X = Bounds[Node.Id].CenterX, Y = Bounds[Node.Id].CenterY,
                 Width = Node.Width, Height = Node.Height }).ToList();
             FlowchartDistinctTrackRepair.Apply(State.Contract, Layout, TrialPlaced);

@@ -181,9 +181,21 @@ public static partial class DiagramGridLayout
         Frames.Clear();
     }
 
+    /// <summary>Fits group frames and clears foreign nodes using the geometry authority assigned to their members.</summary>
+    /// <param name="Contract">Group membership and placement constraints.</param>
+    /// <param name="Placed">Member and foreign nodes.</param>
+    /// <param name="Frames">Derived frame cache to refresh after accepted moves.</param>
+    /// <param name="Horizontal">Whether the legacy placement's main flow axis is horizontal.</param>
+    /// <param name="Trigger">Reason for the current fitting pass.</param>
+    /// <param name="RenderContext">Explicit diagram search budget, avoiding an unrelated ambient render's state.</param>
     internal static void FitFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames,
-        bool Horizontal, string Trigger)
+        bool Horizontal, string Trigger, FlowchartRenderContext? RenderContext = null)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            FitCellFrames(Contract, Placed, Frames, Trigger, RenderContext ?? FlowchartRenderContext.Current);
+            return;
+        }
         HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
         Dictionary<string, string> FittedMembers = new(StringComparer.Ordinal);
         Dictionary<string, string> PendingCauses = Contract.Groups.ToDictionary(Group => Group.Id,
@@ -815,6 +827,9 @@ public static partial class DiagramGridLayout
     internal static bool TryEvictNodeFromFrame(DiagramContract Contract, List<GridNode> Placed, GridNode Node, GridFrame Frame,
         int Gap = DiagramGridMetrics.GRID_UNIT_PX)
     {
+        if (Node.CellNode != null)
+            return SearchCellFrameAssignment(Contract, Placed, FramesForCells(Contract, Placed),
+                MovingOnly: Node.Id, RequiredGap: Gap, ConcernedFrame: Frame.Id, ConcernedNode: Node.Id);
         if (!Overlaps(Node, Frame, Gap))
         {
             return false;
@@ -869,6 +884,9 @@ public static partial class DiagramGridLayout
         int Distance)
     {
         if (!LockedNode.PlacementHintLocked) return false;
+        if (Placed.Any(Node => Node.CellNode != null))
+            return SearchCellFrameAssignment(Contract, Placed, FramesForCells(Contract, Placed),
+                MovingOnly: Frame.Id, RequiredGap: Distance, ConcernedFrame: Frame.Id, ConcernedNode: LockedNode.Id);
         List<GridNode> Members = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)).ToList();
         if (Members.Count == 0 || Members.Any(Member => Member.PlacementHintLocked
             && !HasRelativeHintWithinFrame(Contract, Member, Frame.Id))) return false;
@@ -919,6 +937,7 @@ public static partial class DiagramGridLayout
     private static void BuildFramesYUp(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
     {
         var Mirrored = Placed.Select(Node => new GridNode { Id = Node.Id, Shape = Node.Shape,
+            GeometryProvider = Node.GeometryProvider,
             GroupId = Node.GroupId, X = Node.X, Y = -Node.Y, OldX = Node.OldX, OldY = -Node.OldY,
             Width = Node.Width, Height = Node.Height, Rank = Node.Rank, Column = Node.Column,
             IsDiamond = Node.IsDiamond }).ToList();
@@ -1333,7 +1352,8 @@ public static partial class DiagramGridLayout
 
         foreach (GridNode Node in Placed)
         {
-            Node.SetYAfterCoordinateTransform(Flip - Node.Y);
+            if (Node.CellNode is { } Cells) Cells.UseRoutingCoordinates(Flip);
+            else Node.SetYAfterCoordinateTransform(Flip - Node.Y);
             Node.OldY = Flip - Node.OldY;
         }
 

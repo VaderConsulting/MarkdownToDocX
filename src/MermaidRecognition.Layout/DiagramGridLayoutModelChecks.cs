@@ -37,6 +37,8 @@ public static partial class DiagramGridLayout
                 .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
             foreach (GridNode Node in State.Placed)
             {
+                // Render bounds are a projection, never an input to a cell repair.
+                if (Node.CellNode != null) continue;
                 if (!FinalNodeBounds.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds NodeBound)) continue;
                 Node.SetPositionFromFrameFit(NodeBound.CenterX, NodeBound.CenterY);
                 Node.Width = (int)Math.Round(NodeBound.Width);
@@ -172,6 +174,7 @@ public static partial class DiagramGridLayout
             ProfileCall("title-band-repair", () => RepairRoutesThroughFrameTitleBands(State, Bounds, includeHinted: true));
             foreach (GridNode Node in State.Placed)
             {
+                if (Node.CellNode != null) continue;
                 if (!Bounds.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds NodeBound)) continue;
                 Node.SetPositionFromFrameFit(NodeBound.CenterX, NodeBound.CenterY);
                 Node.Width = (int)Math.Round(NodeBound.Width);
@@ -563,6 +566,12 @@ public static partial class DiagramGridLayout
         /// <param name="Bounds">Endpoint and frame bounds, refreshed after accepted growth.</param>
         private static void SealDistinctTracks(GridLayoutState State, Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
         {
+            if (State.Placed.Any(Node => Node.CellNode != null))
+            {
+                RouteRepairStage.RepairCellChannelSpacing(State);
+                foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
+                return;
+            }
             while (true)
             {
                 var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
@@ -757,6 +766,12 @@ public static partial class DiagramGridLayout
         private static bool MoveOneOverlappingFrameGroup(GridLayoutState state,
             Dictionary<string, FlowchartLayoutNodeBounds> bounds)
         {
+            if (state.Placed.Any(Node => Node.CellNode != null))
+            {
+                bool Changed = RouteRepairStage.RepairCellFrameOverlap(state);
+                foreach (var Box in state.Copy.NodeBounds.Concat(state.Copy.ClusterBounds)) bounds[Box.NodeId] = Box;
+                return Changed;
+            }
             Dictionary<string, GroupContract> groups = state.Contract.Groups.ToDictionary(group => group.Id,
                 StringComparer.Ordinal);
             bool Ancestor(string ancestor, string child)

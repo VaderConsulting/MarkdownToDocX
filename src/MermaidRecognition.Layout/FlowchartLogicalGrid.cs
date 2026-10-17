@@ -60,9 +60,14 @@ internal sealed record FlowchartCellRegion
 /// <summary>Owns derived occupancy and grown gaps separately from immutable base-cell configuration.</summary>
 internal sealed class FlowchartLogicalGrid
 {
-    private readonly Dictionary<int, double> ColumnGaps = [];
-    private readonly Dictionary<int, double> RowGaps = [];
-    private readonly Dictionary<string, FlowchartCellRegion> Regions = new(StringComparer.Ordinal);
+    /// <summary>One immutable ownership-and-gap state; publishing or restoring a repair changes this reference once.</summary>
+    private Snapshot Current;
+    /// <summary>Read-only current column gaps, never mutated independently of ownership.</summary>
+    private IReadOnlyDictionary<int, double> ColumnGaps => Current.ColumnGaps;
+    /// <summary>Read-only current row gaps, never mutated independently of ownership.</summary>
+    private IReadOnlyDictionary<int, double> RowGaps => Current.RowGaps;
+    /// <summary>Read-only current node regions, never updated member by member.</summary>
+    private IReadOnlyDictionary<string, FlowchartCellRegion> Regions => Current.Regions;
     private readonly Dictionary<string, Func<FlowchartCellRegion, bool>> Requirements = new(StringComparer.Ordinal);
 
     /// <summary>Creates an empty grid with finite positive cells and nonnegative gaps and padding.</summary>
@@ -76,6 +81,8 @@ internal sealed class FlowchartLogicalGrid
             || !double.IsFinite(Configuration.TextPadding) || Configuration.TextPadding < 0)
             throw new ArgumentOutOfRangeException(nameof(Configuration));
         this.Configuration = Configuration;
+        Current = new(this, new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal),
+            new Dictionary<int, double>(), new Dictionary<int, double>());
     }
     /// <summary>Fixed settings; changing occupancy or gaps cannot change these values.</summary>
     internal FlowchartLogicalGridConfiguration Configuration { get; }
@@ -90,7 +97,8 @@ internal sealed class FlowchartLogicalGrid
         ArgumentNullException.ThrowIfNull(Region);
         if (Requirements.TryGetValue(NodeId, out var Requirement) && !Requirement(Region)) return false;
         if (Regions.Any(Pair => Pair.Key != NodeId && Pair.Value.Overlaps(Region))) return false;
-        Regions[NodeId] = Region;
+        var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal) { [NodeId] = Region };
+        Current = new(this, Candidate, ColumnGaps, RowGaps);
         return true;
     }
 
@@ -99,7 +107,21 @@ internal sealed class FlowchartLogicalGrid
     /// <returns>False without mutation if a node is missing or any final regions share a cell.</returns>
     internal bool TryApply(IReadOnlyDictionary<string, FlowchartCellRegion> Changes)
     {
+        var Before = Capture();
+        return TryPrepare(Changes, [], out var After) && TryCommit(Before, After!);
+    }
+
+    /// <summary>Builds and validates the complete target ownership and gaps without touching live geometry.</summary>
+    /// <param name="Changes">Complete target rectangles for every moved, swapped or displaced node.</param>
+    /// <param name="GapGrowth">All measured gap increases belonging to the same candidate.</param>
+    /// <param name="After">Receives the immutable complete candidate only when every check succeeds.</param>
+    /// <returns>False with no live mutation for missing nodes, shared cells or mandatory-geometry failures.</returns>
+    internal bool TryPrepare(IReadOnlyDictionary<string, FlowchartCellRegion> Changes,
+        IReadOnlyList<FlowchartCellGapGrowth> GapGrowth, out Snapshot? After)
+    {
         ArgumentNullException.ThrowIfNull(Changes);
+        ArgumentNullException.ThrowIfNull(GapGrowth);
+        After = null;
         var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
         foreach (var Change in Changes)
         {
@@ -112,9 +134,38 @@ internal sealed class FlowchartLogicalGrid
         for (int First = 0; First < Ordered.Length; First++)
         for (int Second = 0; Second < First; Second++)
             if (Ordered[First].Overlaps(Ordered[Second])) return false;
-        // A swap or group translation is legal as one assignment even when applying
-        // its members separately would temporarily occupy another member's old cells.
-        foreach (var Change in Changes) Regions[Change.Key] = Change.Value;
+        var CandidateColumns = new Dictionary<int, double>(ColumnGaps);
+        var CandidateRows = new Dictionary<int, double>(RowGaps);
+        foreach (var Growth in GapGrowth)
+        {
+            if (!double.IsFinite(Growth.Shortfall) || Growth.Shortfall < 0)
+                throw new ArgumentOutOfRangeException(nameof(GapGrowth));
+            if (!double.IsFinite(Growth.GridStep) || Growth.GridStep <= 0)
+                throw new ArgumentOutOfRangeException(nameof(GapGrowth));
+            if (Growth.Shortfall == 0) continue;
+            var Gaps = Growth.Horizontal ? CandidateColumns : CandidateRows;
+            double Initial = Growth.Horizontal ? Configuration.ColumnGap : Configuration.RowGap;
+            double Updated = Gaps.GetValueOrDefault(Growth.After, Initial)
+                + Math.Ceiling(Growth.Shortfall / Growth.GridStep) * Growth.GridStep;
+            if (!double.IsFinite(Updated)) throw new ArgumentOutOfRangeException(nameof(GapGrowth));
+            Gaps[Growth.After] = Updated;
+        }
+        After = Changes.All(Change => Regions[Change.Key] == Change.Value) && GapGrowth.All(Growth => Growth.Shortfall == 0)
+            ? Current : new(this, Candidate, CandidateColumns, CandidateRows);
+        return true;
+    }
+
+    /// <summary>Publishes all validated target regions and gaps with a single state replacement.</summary>
+    /// <param name="Before">Exact state used to prepare the candidate.</param>
+    /// <param name="After">Complete validated candidate owned by this grid.</param>
+    /// <returns>False without mutation if another accepted repair made the prepared assignment stale.</returns>
+    internal bool TryCommit(Snapshot Before, Snapshot After)
+    {
+        ArgumentNullException.ThrowIfNull(Before);
+        ArgumentNullException.ThrowIfNull(After);
+        if (!ReferenceEquals(Before.Owner, this) || !ReferenceEquals(After.Owner, this)
+            || !ReferenceEquals(Current, Before)) return false;
+        Current = After;
         return true;
     }
 
@@ -162,7 +213,7 @@ internal sealed class FlowchartLogicalGrid
 
     /// <summary>Captures cell ownership and grown gaps together for exact candidate rollback.</summary>
     /// <returns>An immutable snapshot tied to this diagram's grid.</returns>
-    internal Snapshot Capture() => new(this, Regions, ColumnGaps, RowGaps);
+    internal Snapshot Capture() => Current;
 
     /// <summary>Restores the complete authoritative state without reconstructing cells from pixel geometry.</summary>
     /// <param name="State">A snapshot previously captured from this grid.</param>
@@ -170,12 +221,7 @@ internal sealed class FlowchartLogicalGrid
     {
         ArgumentNullException.ThrowIfNull(State);
         if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("The snapshot belongs to another grid.", nameof(State));
-        Regions.Clear();
-        foreach (var Pair in State.Regions) Regions.Add(Pair.Key, Pair.Value);
-        ColumnGaps.Clear();
-        foreach (var Pair in State.ColumnGaps) ColumnGaps.Add(Pair.Key, Pair.Value);
-        RowGaps.Clear();
-        foreach (var Pair in State.RowGaps) RowGaps.Add(Pair.Key, Pair.Value);
+        Current = State;
     }
 
     /// <summary>Immutable complete repair state, including space inserted between logical cells.</summary>
@@ -186,8 +232,8 @@ internal sealed class FlowchartLogicalGrid
         /// <param name="Regions">Current node cell rectangles.</param>
         /// <param name="ColumnGaps">Current grown column gaps.</param>
         /// <param name="RowGaps">Current grown row gaps.</param>
-        internal Snapshot(FlowchartLogicalGrid Owner, IDictionary<string, FlowchartCellRegion> Regions,
-            IDictionary<int, double> ColumnGaps, IDictionary<int, double> RowGaps)
+        internal Snapshot(FlowchartLogicalGrid Owner, IReadOnlyDictionary<string, FlowchartCellRegion> Regions,
+            IReadOnlyDictionary<int, double> ColumnGaps, IReadOnlyDictionary<int, double> RowGaps)
         {
             this.Owner = Owner;
             this.Regions = new ReadOnlyDictionary<string, FlowchartCellRegion>(new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal));
@@ -216,14 +262,9 @@ internal sealed class FlowchartLogicalGrid
     /// <param name="GridStep">Configured drawing step used to round the shortfall upwards.</param>
     internal void GrowGap(bool Horizontal, int After, double Shortfall, double GridStep)
     {
-        if (!double.IsFinite(Shortfall) || Shortfall < 0) throw new ArgumentOutOfRangeException(nameof(Shortfall));
-        if (!double.IsFinite(GridStep) || GridStep <= 0) throw new ArgumentOutOfRangeException(nameof(GridStep));
-        if (Shortfall == 0) return;
-        var Gaps = Horizontal ? ColumnGaps : RowGaps;
-        double Initial = Horizontal ? Configuration.ColumnGap : Configuration.RowGap;
-        double Updated = Gaps.GetValueOrDefault(After, Initial) + Math.Ceiling(Shortfall / GridStep) * GridStep;
-        if (!double.IsFinite(Updated)) throw new ArgumentOutOfRangeException(nameof(Shortfall));
-        Gaps[After] = Updated;
+        var Before = Capture();
+        if (TryPrepare(new Dictionary<string, FlowchartCellRegion>(), [new(Horizontal, After, Shortfall, GridStep)], out var Candidate))
+            TryCommit(Before, Candidate!);
     }
 
     /// <summary>Measures the continuous visible rectangle, including every grown internal gap it spans.</summary>
@@ -247,7 +288,7 @@ internal sealed class FlowchartLogicalGrid
     /// <param name="Gap">Initial gap.</param>
     /// <param name="Grown">Sparse current gap extents.</param>
     /// <returns>The continuous region extent.</returns>
-    private static double Extent(int Start, int Span, double Cell, double Gap, Dictionary<int, double> Grown) =>
+    private static double Extent(int Start, int Span, double Cell, double Gap, IReadOnlyDictionary<int, double> Grown) =>
         Span * Cell + (Span - 1.0) * Gap
         + Grown.Where(Pair => Pair.Key >= Start && Pair.Key < (long)Start + Span - 1).Sum(Pair => Pair.Value - Gap);
 
@@ -257,8 +298,15 @@ internal sealed class FlowchartLogicalGrid
     /// <param name="Gap">Initial gap.</param>
     /// <param name="Grown">Sparse current gap extents.</param>
     /// <returns>The physical start coordinate.</returns>
-    private static double Position(int Index, double Cell, double Gap, Dictionary<int, double> Grown) =>
+    private static double Position(int Index, double Cell, double Gap, IReadOnlyDictionary<int, double> Grown) =>
         Index * (Cell + Gap) + (Index >= 0
             ? Grown.Where(Pair => Pair.Key >= 0 && Pair.Key < Index).Sum(Pair => Pair.Value - Gap)
             : -Grown.Where(Pair => Pair.Key >= Index && Pair.Key < 0).Sum(Pair => Pair.Value - Gap));
 }
+
+/// <summary>One measured gap increase included in a complete atomic repair assignment.</summary>
+/// <param name="Horizontal">True for column gaps, false for row gaps.</param>
+/// <param name="After">Declared index preceding the gap.</param>
+/// <param name="Shortfall">Missing geometric clearance, independent of cell ownership.</param>
+/// <param name="GridStep">Existing drawing-grid step used to round the increase.</param>
+internal sealed record FlowchartCellGapGrowth(bool Horizontal, int After, double Shortfall, double GridStep);
