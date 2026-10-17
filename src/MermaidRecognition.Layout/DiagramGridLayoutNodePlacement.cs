@@ -829,6 +829,11 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed,
         FlowchartDirection Direction)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Placed, Direction);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<FlowchartLayoutNodeBounds> Bounds = [];
         foreach (GridNode Node in Placed)

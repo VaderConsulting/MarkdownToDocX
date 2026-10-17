@@ -1,0 +1,65 @@
+using MermaidRecognition.Contract;
+using MermaidRecognition.Kinds.Flowchart;
+
+namespace MermaidRecognition.Layout.Tests;
+
+/// <summary>Checks atomic spine lanes and collector rows without a drawing-coordinate round trip.</summary>
+[TestFixture]
+public sealed class FlowchartCellSpinePlacementTests
+{
+    /// <summary>Spine nodes align by starting column and a labelled detour receives a whole margin lane and collector row.</summary>
+    [Test]
+    public void SpineAndCollectorPublishTogether()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        Assert.That(FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom), Is.True);
+        Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(Grid.RegionOf("D").StartColumn));
+        Assert.That(Grid.RegionOf("T").StartColumn, Is.EqualTo(Grid.RegionOf("D").StartColumn));
+        Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(0));
+        Assert.That(Grid.RegionOf("B").StartRow, Is.EqualTo(Grid.RegionOf("T").EndRow));
+    }
+
+    /// <summary>A blocked late target rejects the entire plan and restores neither cached pixels nor a partially moved prefix.</summary>
+    [Test]
+    public void OccupiedSpineTargetRejectsAllMembers()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        Assert.That(Grid.TryPlace("obstacle", new(2, 2, 1, 1)), Is.True);
+        var Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
+        var Before = Grid.Capture();
+        Assert.That(FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom), Is.False);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+    }
+
+    /// <summary>Explicit hint ownership wins over automatic spine lanes.</summary>
+    [Test]
+    public void HintedBranchRemainsFixed()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        Nodes.Single(Node => Node.Id == "B").PlacementHintLocked = true;
+        var Before = Grid.RegionOf("B");
+        FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom);
+        Assert.That(Grid.RegionOf("B"), Is.SameAs(Before));
+    }
+
+    /// <summary>Creates one labelled detour with a three-source terminal collector and unrelated original columns.</summary>
+    /// <returns>Graph, bound nodes and their shared ownership.</returns>
+    private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
+    {
+        var Contract = new DiagramContract();
+        foreach (string Id in new[] { "D", "A", "B", "C", "T" })
+            Contract.NodesMutable.Add(new NodeContract { Id = Id, Shape = Id == "D" ? "diamond" : "rect" });
+        Contract.EdgesMutable.AddRange([new() { SourceId = "D", TargetId = "A", Label = "Yes" },
+            new() { SourceId = "D", TargetId = "B", Label = "No" }, new() { SourceId = "A", TargetId = "T" },
+            new() { SourceId = "B", TargetId = "T" }, new() { SourceId = "C", TargetId = "T" }]);
+        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        var Nodes = new List<DiagramGridLayout.GridNode>();
+        int Index = 0;
+        foreach (var Node in Contract.Nodes)
+        {
+            Assert.That(Grid.TryPlace(Node.Id, new(Index * 2, Index + 2, 1, 1)), Is.True);
+            var Bound = new DiagramGridLayout.GridNode { Id = Node.Id }; Bound.BindCells(Grid); Nodes.Add(Bound); Index++;
+        }
+        return (Contract, Nodes, Grid);
+    }
+}

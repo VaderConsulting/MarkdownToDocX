@@ -847,3 +847,16 @@ legality gates. Production cells remain off. The latest measured cells-off audit
 is 42.14 s/A142 12.5521 s with all previous zero gates zero and exact geometry
 unchanged across 673. No weights, baseline rows or rules changed; independent
 text spans stay off and F32/EIP261 remains parked.
+
+### Spine-column cell conversion
+
+Spine and side-branch lanes now use complete logical reservations in the
+cells-on path. Graph and label selection is shared with the existing processor;
+collector rows use region boundaries. Locked regions stay fixed. A collision
+rejects the whole proposed spine plan without changing cells or gaps. Three
+new tests pass, and the focused selection is 158. The post-conversion census
+runs all 673 diagnostic cases in 3.5153 s. Its next first catches include
+GridCompaction (388) and AlignSingleTerminalChildren1 (208). No cells-on legality
+audit is claimed before all writers have been converted. Cells off retains the
+legacy path. Production activation, independent text spans and the parked
+F32/EIP261 routing work remain unchanged.

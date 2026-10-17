@@ -11,7 +11,7 @@ namespace MermaidRecognition.Layout;
 /// <summary>
 /// Keeps the primary TB/BT spine in one column and assigns side branches to margin lanes (F58).
 /// </summary>
-public static class FlowchartSpineColumnPostProcessor
+public static partial class FlowchartSpineColumnPostProcessor
 {
     private const double COLLINEAR_EPSILON_PX = 0.75;
 
@@ -221,9 +221,9 @@ public static class FlowchartSpineColumnPostProcessor
         }
     }
 
-    private static bool ShouldApplySpineColumnLayout(
+    private static bool ShouldApplySpineColumnLayout<T>(
         DiagramContract Contract,
-        Dictionary<string, FlowchartLayoutNodeBounds> MutableById)
+        IReadOnlyDictionary<string, T> MutableById)
     {
         if (!HasNonDecisionTerminalCollectorSink(Contract, MutableById))
         {
@@ -246,9 +246,9 @@ public static class FlowchartSpineColumnPostProcessor
         return false;
     }
 
-    private static bool HasNonDecisionTerminalCollectorSink(
+    private static bool HasNonDecisionTerminalCollectorSink<T>(
         DiagramContract Contract,
-        Dictionary<string, FlowchartLayoutNodeBounds> MutableById)
+        IReadOnlyDictionary<string, T> MutableById)
     {
         foreach (NodeContract Node in Contract.Nodes)
         {
@@ -399,10 +399,10 @@ public static class FlowchartSpineColumnPostProcessor
         return CollectorRowY;
     }
 
-    private static bool IsTerminalCollectorTarget(
+    private static bool IsTerminalCollectorTarget<T>(
         DiagramContract Contract,
         string TargetNodeId,
-        Dictionary<string, FlowchartLayoutNodeBounds> MutableById)
+        IReadOnlyDictionary<string, T> MutableById)
     {
         if (!MutableById.ContainsKey(TargetNodeId))
         {
