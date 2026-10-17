@@ -1145,3 +1145,13 @@ plan. A late tail collision or hinted root rejects the whole assignment.
 The output-chain collector is shared with vertical loop placement. Three tests
 pass, focused count 249. The next census is census-after-cell-shared-fans.log;
 remaining grouped writers and frame-fit failures still prevent full acceptance.
+
+### Whole-cell standalone group member packing
+
+Standalone artifact groups now compare every finite declared-order column
+count through pure prepared cell states, preserve whole-region centring and
+publish only the best complete legal improvement. A fixed end member rejects
+all improving candidates without live trial mutation. Two tests pass, focused
+count 251. The subsequent census is census-after-cell-group-members.log;
+remaining grouped-placement writers and hard frame-fit failures still prevent
+full cells-on acceptance. Production cells and independent text spans stay off.
