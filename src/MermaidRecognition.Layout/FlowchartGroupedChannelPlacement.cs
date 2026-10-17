@@ -6,7 +6,7 @@ using System.Linq;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Places complete many-to-many sibling groups beside a measured shared routing channel.</summary>
-internal static class FlowchartGroupedChannelPlacement
+internal static partial class FlowchartGroupedChannelPlacement
 {
     /// <summary>Aligns unhinted source and target groups whose members form a complete bipartite block.</summary>
     /// <param name="Contract">The graph, group membership and authoritative hints.</param>
@@ -40,6 +40,15 @@ internal static class FlowchartGroupedChannelPlacement
             if (Members.Any(Node => Node.PlacementHintLocked || Definitions[Node.Id].PlacementHint?.IsActive == true)
                 || Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true
                     && Members.Any(Node => DiagramGridLayout.IsInsideGroup(Contract, Node.Id, Group.Id)))) continue;
+            if (Members.Any(Node => Node.CellNode != null))
+            {
+                if (ApplyCellBlock(Nodes, Sources, Targets))
+                {
+                    foreach (var Node in Members) Used.Add(Node.Id);
+                    Changed = true;
+                }
+                continue;
+            }
 
             // Capacity is measured before frames are fitted. All rectangular
             // nodes retain common dimensions when the busy sides need growth.

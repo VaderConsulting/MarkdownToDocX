@@ -52,6 +52,8 @@ internal static partial class FlowchartPartnerRankLayout
                 || Parent.Rank == Children[0].Rank
                 || Parents.Any(Node => !Outgoing[Node.Id].Select(Edge => Edge.TargetId).Order().SequenceEqual(Targets.Order()))
                 || Children.Any(Node => !Incoming[Node.Id].Select(Edge => Edge.SourceId).Order().SequenceEqual(Sources.Order()))) continue;
+            if (Parents.Any(Node => Node.CellNode != null)
+                && FlowchartGroupedChannelPlacement.OwnsCompleteCellBlock(Contract, Nodes, Parents, Children)) continue;
             int LargestSideCount = Math.Max(Parents.Length, Children.Length);
             int Pitch = Math.Max(CORNER_TRACK_PITCH,
                 Parents.Concat(Children).Min(Node => CrossSize(Node, Horizontal)) / (LargestSideCount + 1));

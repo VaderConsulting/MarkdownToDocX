@@ -17,7 +17,7 @@ internal static partial class FlowchartGroupMemberPacking
         int Rows = Members.Max(Node => Before.Regions[Node.Id].RowSpan), Columns = Members.Max(Node => Before.Regions[Node.Id].ColumnSpan);
         long Left = Before.Regions.Values.Min(Region => Region.StartColumn), Right = Before.Regions.Values.Max(Region => Region.EndColumn);
         long Top = Before.Regions.Values.Min(Region => Region.StartRow), Bottom = Before.Regions.Values.Max(Region => Region.EndRow);
-        var Current = CellMemberScore(Members, Before);
+        var Current = FlowchartCellCandidateScore.Measure(Members, Before, IncludeEmptySpace: false);
         double BestScore = Current.Score, BestArea = Current.Area;
         FlowchartCellRepair.Assignment? Best = null;
         for (int Count = 1; Count <= Members.Count; Count++)
@@ -34,7 +34,7 @@ internal static partial class FlowchartGroupMemberPacking
             }
             var Plan = FlowchartCellRepair.PlanAssignment(Members, Targets);
             if (Plan == null) continue;
-            var Candidate = CellMemberScore(Members, Plan.After);
+            var Candidate = FlowchartCellCandidateScore.Measure(Members, Plan.After, IncludeEmptySpace: false);
             if (Candidate.Score < BestScore - 0.0001 || Best != null && Candidate.Score == BestScore && Candidate.Area < BestArea)
             {
                 Best = Plan; BestScore = Candidate.Score; BestArea = Candidate.Area;
@@ -43,15 +43,4 @@ internal static partial class FlowchartGroupMemberPacking
         return Best?.TryApply() == true;
     }
 
-    /// <summary>Projects a complete immutable candidate into the existing standalone block size/aspect score.</summary>
-    /// <param name="Members">Complete standalone group.</param>
-    /// <param name="State">Prepared regions and gaps; never temporarily published.</param>
-    /// <returns>Established score and deterministic area tie-break.</returns>
-    private static (double Score, double Area) CellMemberScore(List<DiagramGridLayout.GridNode> Members, FlowchartLogicalGrid.Snapshot State)
-    {
-        var Bounds = Members.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State)).ToArray();
-        double Width = Bounds.Max(Box => Box.CenterX + Box.Width / 2) - Bounds.Min(Box => Box.CenterX - Box.Width / 2);
-        double Height = Bounds.Max(Box => Box.CenterY + Box.Height / 2) - Bounds.Min(Box => Box.CenterY - Box.Height / 2);
-        return (FlowchartLayoutScore.Calculate(Width, Height, 0, 0), Width * Height);
-    }
 }

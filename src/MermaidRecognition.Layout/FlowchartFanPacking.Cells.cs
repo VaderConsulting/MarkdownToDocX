@@ -28,7 +28,7 @@ internal static partial class FlowchartFanPacking
         int LeafRows = Leaves.Max(Node => Before.Regions[Node.Id].RowSpan), LeafColumns = Leaves.Max(Node => Before.Regions[Node.Id].ColumnSpan);
         int OriginRow = Leaves.Append(Hub).Min(Node => Before.Regions[Node.Id].StartRow);
         int OriginColumn = Leaves.Append(Hub).Min(Node => Before.Regions[Node.Id].StartColumn);
-        double BestScore = MandatoryGrowth ? double.PositiveInfinity : CellFanScore(Nodes, Before);
+        double BestScore = MandatoryGrowth ? double.PositiveInfinity : FlowchartCellCandidateScore.Measure(Nodes, Before).Score;
         FlowchartCellRepair.Assignment? Best = null;
         // Initial packing has one finite option per declared column count,
         // matching the existing fan planner. No route search occurs here.
@@ -77,7 +77,7 @@ internal static partial class FlowchartFanPacking
             }
             var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Targets, Growth);
             if (Plan == null) continue;
-            double Score = CellFanScore(Nodes, Plan.After);
+            double Score = FlowchartCellCandidateScore.Measure(Nodes, Plan.After).Score;
             if (Score < BestScore - 0.0001) { Best = Plan; BestScore = Score; }
         }
         return Best?.TryApply() == true;
@@ -96,16 +96,4 @@ internal static partial class FlowchartFanPacking
         return 0;
     }
 
-    /// <summary>Scores geometry projected from one complete ownership/gap state, including unrelated diagram nodes.</summary>
-    /// <param name="Nodes">Complete diagram.</param>
-    /// <param name="State">Immutable prepared state; it is never temporarily published for scoring.</param>
-    /// <returns>The existing overall size/aspect/empty-space score with unchanged weights.</returns>
-    private static double CellFanScore(List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid.Snapshot State)
-    {
-        var Bounds = Nodes.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State)).ToArray();
-        double Width = Bounds.Max(Box => Box.CenterX + Box.Width / 2) - Bounds.Min(Box => Box.CenterX - Box.Width / 2);
-        double Height = Bounds.Max(Box => Box.CenterY + Box.Height / 2) - Bounds.Min(Box => Box.CenterY - Box.Height / 2);
-        double Used = Bounds.Sum(Box => (Box.Width + DiagramGridMetrics.NODE_GAP_PX) * (Box.Height + DiagramGridMetrics.NODE_GAP_PX));
-        return FlowchartLayoutScore.Calculate(Width, Height, 0, Math.Max(0, 1 - Used / Math.Max(1, Width * Height)));
-    }
 }

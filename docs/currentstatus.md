@@ -1155,3 +1155,18 @@ all improving candidates without live trial mutation. Two tests pass, focused
 count 251. The subsequent census is census-after-cell-group-members.log;
 remaining grouped-placement writers and hard frame-fit failures still prevent
 full cells-on acceptance. Production cells and independent text spans stay off.
+
+### Whole-cell grouped many-to-many channels
+
+Complete unhinted group pairs now measure source/target side capacity separately,
+plan both complete memberships and compare external-gap/whole-column channel
+alternatives before publication. Unrelated nodes keep their spans. Hinted gap
+participants stay exact through a legal whole-column alternative. The partner
+rank detector delegates these same complete group pairs to channel placement,
+preventing obsolete axis and port-size assumptions from being retained.
+
+Candidate score projection is now shared by fan, standalone-member and channel
+planners with each caller's existing empty-space policy unchanged. Four tests
+pass, focused count 255. The next census is census-after-cell-grouped-channels.log;
+remaining grouped/external leaf writers and hard frame-fit failures still prevent
+full cells-on acceptance. Production cells and independent text spans stay off.
