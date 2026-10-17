@@ -947,3 +947,13 @@ any node. Explicit hints remain fixed and exact rollback restores cells and gaps
 Three new tests pass, focused count 179. The post-conversion census log is
 census-after-cell-terminal-branches.log. Cells-on audit acceptance is still
 pending remaining guard catches and frame-fit failures.
+
+### Whole-cell terminal decision outcomes
+
+Two terminal decision outcomes now receive opposite side reservations in a
+single plan, retaining spans and main-axis positions. A blocked second target
+rejects both moves and ordering changes. Three tests pass, focused count 182.
+The census-after-cell-decision-targets.log records the subsequent catches and
+frame failures. The latest full cells-off audit emits all 673 summaries in
+44.76 s, A142 13.6358 s, with all prior zero gates zero and unchanged totals:
+4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0, shared pairs=2089.

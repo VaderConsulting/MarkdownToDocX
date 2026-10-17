@@ -241,6 +241,11 @@ public static partial class DiagramGridLayout
         int CrossPitch,
         bool CoordinatesPlaced)
     {
+        if (CoordinatesPlaced && Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellTerminalDecisionTargets(Contract, Placed, Horizontal);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();

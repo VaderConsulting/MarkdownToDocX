@@ -8,6 +8,45 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans logical placement alignments without assigning derived pixel positions.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Assigns two terminal decision outcomes to opposite logical side lanes as one exclusive reservation plan.</summary>
+    /// <param name="Contract">Graph used to select sole-input terminal children.</param>
+    /// <param name="Placed">Complete diagram sharing one authoritative grid.</param>
+    /// <param name="Horizontal">Whether cross-axis side lanes use rows.</param>
+    /// <returns>Whether all selected child reservations were accepted together.</returns>
+    internal static bool AlignCellTerminalDecisionTargets(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed);
+        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var Ordering = new Dictionary<GridNode, int>();
+        foreach (var Parent in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToArray();
+            if (Outgoing.Length != 2 || Outgoing[0].TargetId == Outgoing[1].TargetId) continue;
+            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToArray();
+            if (Children.Length != 2 || Children[0].Rank != Children[1].Rank
+                || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
+                    || Visible.Any(Edge => Edge.SourceId == Child.Id) || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
+            var Ordered = Children.OrderBy(Child => Child.Column).ThenBy(Child => Child.Id, StringComparer.Ordinal).ToArray();
+            var Anchor = Targets[Parent.Id];
+            for (int Index = 0; Index < Ordered.Length; Index++)
+            {
+                var Child = Ordered[Index];
+                if (Child.PlacementHintLocked) continue;
+                var Region = Targets[Child.Id];
+                int Cross = Horizontal ? (Index == 0 ? checked(Anchor.StartRow - Region.RowSpan) : Anchor.EndRow)
+                    : (Index == 0 ? checked(Anchor.StartColumn - Region.ColumnSpan) : Anchor.EndColumn);
+                Targets[Child.Id] = new(Horizontal ? Cross : Region.StartRow,
+                    Horizontal ? Region.StartColumn : Cross, Region.RowSpan, Region.ColumnSpan);
+                Ordering[Child] = Parent.Column + (Index == 0 ? -1 : 1);
+            }
+        }
+        if (!FlowchartCellRepair.TryAssign(Placed, Targets)) return false;
+        foreach (var Pair in Ordering) Pair.Key.Column = Pair.Value;
+        return true;
+    }
+
     /// <summary>Centres an odd terminal fan and its unbranched input chain by one complete logical reservation plan.</summary>
     /// <param name="Contract">Visible graph and common-group restrictions.</param>
     /// <param name="Placed">All diagram nodes sharing cell authority.</param>
