@@ -10,6 +10,8 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartLayoutResult
 {
+    /// <summary>Per-invocation counts distinguishing legacy writes from actual checks on cell-bound nodes.</summary>
+    internal FlowchartCellWriteCoverage? CellWriteCoverage { get; set; }
     /// <summary>Mutable routing and rendering state owned by this layout.</summary>
     public FlowchartRenderContext RenderContext { get; internal set; } = new();
 

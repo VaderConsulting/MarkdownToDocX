@@ -709,5 +709,119 @@ converted cell-backed repairs. Production cell activation and the remaining
 placement/packing/resize conversion are still pending, so the catalogue's zero
 snapshot difference is preservation evidence, not proof of global cell authority.
 Independent spans remain disabled. F32/EIP261 remains parked. Baseline rows,
-rules.yaml, weights and DOCX files were not changed. This increment is uncommitted;
-the last checkpoint remains c4895ff. No push was made.
+rules.yaml, weights and DOCX files were not changed. This atomic repair increment
+was subsequently checkpointed as 50f1357, as described below. No push was made.
+
+### Repair checkpoint, real guard coverage, and initial placement start
+
+Checkpoint `50f135769a194de4af7b4d3cd3fb63e8a9fb05dd` has the imperative subject
+"Apply cell-region repairs atomically with exact rollback". It includes only the
+finished repair conversion, its 120 passing focused tests, and the recorded
+zero-geometry-change verification across 673 scenarios. Its body explicitly
+states that production nodes are not cell-bound and therefore that catalogue
+run never exercised the bound-node guard. DOCX files were excluded; no push.
+
+The uncommitted follow-up now reports primary nodes, cell-bound nodes, all
+pixel-write checks, checks on bound nodes, and rejections for each scenario.
+Detached legacy trial-node writes and nested group reflow checks are included;
+primary node counts are not inflated by reflows. Six open-mode scenarios are
+explicitly exempt from experimental binding. Native failures report no created
+or bound nodes instead of claiming coverage.
+
+Debug builds and all test hosts retain hard failures. Release production policy
+rejects the write before touching backing fields, cells or gaps, and retains a
+diagnostic with the caller chain, current repair step, coordinate/method and
+node id. Diagnostics survive candidate rollback and SVG BeginRender. Release
+behavior is tested with the strict test switch temporarily disabled only in
+those dedicated policy tests. Normal tests enable the switch through a shared
+module initializer; Debug always throws regardless of the switch.
+
+The separate explicit cells-on fixture is test-only. It builds declared regions
+from logical ranks/columns and premeasured common spans, binds all reachable grid
+nodes before placement, and executes real pipeline stages until the first
+illegal write. It does not infer occupancy from final pixel positions, enable
+independent text spans, alter the production default, or pretend a guard catch
+is a completed legal layout.
+
+| Run | Scenarios | Primary nodes | Bound nodes | All write checks | Bound-node checks | Rejections | Time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cells off, full production audit | 673 | 3833 | 0 | 411937 | 0 | 0 | 45.56 s |
+| Cells on, explicit guard census | 673 | 3833 | 3806 | 25358 | 662 | 662 | 3.925 s |
+
+The cells-on time includes the test host and stops early at guard failures; it
+is not comparable to a completed route audit. All 662 reachable grid scenarios
+were bound and caught a write. Six open scenarios contain 27 unbound nodes; five
+existing native failures never reached binding. First blocked paths:
+
+| Repair path | Scenarios |
+| --- | ---: |
+| NodePlacementStage/PlaceOnGrid -> SetMain | 648 |
+| PlacementHintStage -> PlaceRelative -> Translate | 13 |
+| PlacementHintStage -> PushToBoundary -> Translate | 1 |
+
+These are first blockers, not an exhaustive clearance of the later pipeline.
+No broad placement rewrite or automatic pixel-to-cell snapping was used to
+hide them. Per-scenario reports and caller chains are in
+`out/logical-grid-prerequisite/cell-guard-coverage-off.csv`,
+`cell-guard-coverage-on.csv` and `cell-guard-paths-on.csv`. Full census log:
+`cell-guard-catalogue-on.log` (all 673 explicit diagnostic tests pass).
+
+All 142 focused Release tests pass: the original 120, 15 guard/coverage tests,
+and seven initial producer tests. The targeted Debug guard selection passes
+25 tests. Logs: `guard-combined-release-tests.log`, `guard-debug-tests.log`.
+The cells-off full audit still emits all 673 summaries. Every previously zero
+gate stays zero. Other totals remain 4.2=44, 5.9=1694, 3.1=4, 4.1=0,
+4.11=3, 5.8=0, shared pairs=2089, 3.2/4.7=0, 3.3/5.2=5 and 4.9=6.
+A142 takes 14.8603 s. Five native failures and the known findings remain;
+the audit exits nonzero for those unchanged findings. Cells-on legality gates
+cannot be measured past the first failing write and are not reported as zero.
+Exact cells-off rendered comparison: 673 scenarios, zero changed, zero missing,
+40.103 s. Logs: `cell-guard-catalogue-off-audit.log` and
+`cell-guard-cells-off-geometry.log`. No snapshot changes need explaining.
+
+Profiling found a reporting gap: the older AUDIT_TIME line is below assertions,
+so it omits failing scenarios including A142. New CELL_AUDIT_PROFILE output is
+written in finally without changing checker logic. Inclusive stage totals are
+17.159 s model completion/checking and 14.626 s coupled route repair; final
+diagnostics is 12.577 s within completion, not an additional independent cost.
+A142 spends 8.124 s in completion (including 4.845 s final diagnostics),
+2.998 s fitting frames and 2.895 s in coupled repair. Profile CSV:
+`cell-guard-audit-stage-profile.csv` in the same directory. A142 remains above
+the 10-second target; this work makes no speed-improvement claim.
+
+Initial placement has started with FlowchartCellInitialPlacement, a shared pure
+rank/column-to-region producer. It receives already measured integer spans,
+builds the whole deterministic ownership plan, resolves duplicate proposals by
+whole cells and exposes no partially built grid. It neither reads pixel centres
+nor changes fixed base cells. Its tests cover all four directions, stable input
+ordering and invalid spans; the explicit census now uses this producer. It is
+not called by production placement. Next work is to replace PlaceOnGrid's pixel
+cursor and the hint translations with logical region assignment, then continue
+past those first blockers. Group packing, frame-aware rank gaps and remaining
+writers still need integration. Independent text spans remain disabled;
+F32/EIP261 remains parked for routing work. Baselines, rules.yaml, weights and
+DOCX files were not changed. Guard coverage/Release policy and initial-producer
+work remain uncommitted after the requested 50f1357 checkpoint.
+
+### Initial-placement conversion checkpoint (latest replacement queue)
+
+The latest request replaces all earlier queued directions. The cell-bound
+PlaceOnGrid branch now plans all logical rank/column reservations and publishes
+one atomic assignment; it never derives cells from pixels. Locked hint regions
+remain fixed. Production cells remain off and independent text spans disabled.
+The focused selection passes 144 tests (including the previous 120). The full
+cells-off audit emits 673 summaries in 42.14 s; A142 takes 12.5521 s. Every
+previous zero gate stays zero. Quality totals: 4.2=44, 5.9=1694, 3.1=4,
+4.1=0, 4.11=3, 5.8=0 and shared-track pairs=2089. The existing 25 failing
+scenarios and five native failures are unchanged. The exact cells-off geometry
+comparison finds zero changed scenarios out of 673 (35.136 s).
+
+The post-conversion cells-on diagnostic census visits all 673 scenarios in
+2.888 s test-host time. It stops at the first blocked writer, not at a completed
+layout: 281 spine-column adjustments, 249 GridCompaction, 105 first terminal
+child alignments, 13 relative hints, five first terminal decision alignments,
+four first terminal fan centring, two unbranched decision input alignments,
+one partner-rank preparation, one crowded-side growth and one boundary push.
+It does not establish cells-on gate totals or full-audit time. Placement hints
+are next, followed by one caught path at a time with tests and checkpoints.
+F32/EIP261 stays parked. No DOCX files are included in this checkpoint.

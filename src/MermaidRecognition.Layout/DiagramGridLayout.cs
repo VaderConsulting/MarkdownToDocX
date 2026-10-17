@@ -87,6 +87,7 @@ public static partial class DiagramGridLayout
         bool SkipRootGroupRepacking)
     {
         GridLayoutState State = new(Contract, LaidOut, RenderContext) { SkipRootGroupRepacking = SkipRootGroupRepacking };
+        using IDisposable CoverageScope = FlowchartCellPixelWriteGuard.ActivateCoverage(State.CellWriteCoverage);
         if (!State.IsReady) return State.Copy;
         FlowchartRenderContext Context = State.Copy.RenderContext;
         Context.LayoutStageTrace.Clear();
@@ -107,7 +108,10 @@ public static partial class DiagramGridLayout
         void Run(string Name, Action<GridLayoutState> Stage)
         {
             Context.LayoutStageTrace.Add(Name);
-            MeasureLayoutStage(Name, () => Stage(State));
+            string? PreviousStage = Context.ActiveLayoutStage;
+            Context.ActiveLayoutStage = Name;
+            try { MeasureLayoutStage(Name, () => Stage(State)); }
+            finally { Context.ActiveLayoutStage = PreviousStage; }
             if (FrameOverlapStageObserver != null)
                 FrameOverlapStageObserver(Name, CountUnrelatedFrameOverlaps(State.Contract, State.Frames));
             ObserveCrossings(State, Name);
@@ -694,35 +698,42 @@ public static partial class DiagramGridLayout
         private int _height;
         /// <summary>The authoritative region view when this node participates in logical-cell repair.</summary>
         internal FlowchartCellNode? CellNode { get; private set; }
+        /// <summary>Per-layout coverage; nested reflows retain their own counters.</summary>
+        internal FlowchartCellWriteCoverage? CellWriteCoverage;
+        /// <summary>Owning diagnostic sink, independent of unrelated ambient render contexts.</summary>
+        internal FlowchartRenderContext? PixelWriteContext;
         public bool PlacementHintLocked;
-        public double X { get => CellNode?.X ?? _x; set { RequireUnboundPixels(); if (!PlacementHintLocked) _x = value; } }
-        public double Y { get => CellNode?.Y ?? _y; set { RequireUnboundPixels(); if (!PlacementHintLocked) _y = value; } }
+        public double X { get => CellNode?.X ?? _x; set { if (AllowPixelWrite(nameof(X)) && !PlacementHintLocked) _x = value; } }
+        public double Y { get => CellNode?.Y ?? _y; set { if (AllowPixelWrite(nameof(Y)) && !PlacementHintLocked) _y = value; } }
         /// <summary>Retains the legacy coordinate adapter only for a node without logical-cell authority.</summary>
         /// <param name="Value">Legacy transformed vertical coordinate.</param>
-        public void SetYAfterCoordinateTransform(double Value) { RequireUnboundPixels(); _y = Value; }
+        public void SetYAfterCoordinateTransform(double Value) { if (AllowPixelWrite(nameof(SetYAfterCoordinateTransform))) _y = Value; }
         /// <summary>Retains legacy frame placement only until a node is bound to explicit cell ownership.</summary>
         /// <param name="X">Legacy horizontal coordinate.</param>
         /// <param name="Y">Legacy vertical coordinate.</param>
-        public void SetPositionFromFrameFit(double X, double Y) { RequireUnboundPixels(); _x = X; _y = Y; }
+        public void SetPositionFromFrameFit(double X, double Y) { if (AllowPixelWrite(nameof(SetPositionFromFrameFit))) { _x = X; _y = Y; } }
 
-        public int Width { get => CellNode == null ? _width : checked((int)CellNode.Width); set { RequireUnboundPixels(); _width = value; } }
+        public int Width { get => CellNode == null ? _width : checked((int)CellNode.Width); set { if (AllowPixelWrite(nameof(Width))) _width = value; } }
 
-        public int Height { get => CellNode == null ? _height : checked((int)CellNode.Height); set { RequireUnboundPixels(); _height = value; } }
+        public int Height { get => CellNode == null ? _height : checked((int)CellNode.Height); set { if (AllowPixelWrite(nameof(Height))) _height = value; } }
 
         /// <summary>Binds an explicitly allocated region; existing pixel fields are not consulted or converted.</summary>
         /// <param name="Grid">Grid already owning this node's whole-cell reservation.</param>
-        internal void BindCells(FlowchartLogicalGrid Grid)
+        /// <param name="Context">Optional explicit owner for persistent repair diagnostics.</param>
+        internal void BindCells(FlowchartLogicalGrid Grid, FlowchartRenderContext? Context = null)
         {
             if (CellNode != null) throw new InvalidOperationException("A node is already bound to its cell grid.");
             CellNode = new(Grid, Id, IsDiamond);
+            PixelWriteContext = Context ?? PixelWriteContext ?? FlowchartRenderContext.Current;
+            CellWriteCoverage ??= new() { Nodes = 1 };
+            CellWriteCoverage.BoundNodes++;
         }
 
-        /// <summary>Prevents an unconverted repair or pixel rollback from bypassing authoritative cell ownership.</summary>
+        /// <summary>Rejects an unconverted repair without changing cell authority or legacy backing fields.</summary>
+        /// <param name="Member">Attempted drawing coordinate, extent or adapter method.</param>
+        /// <returns>Whether this unbound node still permits legacy pixel writes.</returns>
         /// <exception cref="InvalidOperationException">The node's region is already authoritative.</exception>
-        private void RequireUnboundPixels()
-        {
-            if (CellNode != null) throw new InvalidOperationException("Change the node's cell region instead of writing derived pixel geometry.");
-        }
+        private bool AllowPixelWrite(string Member) => FlowchartCellPixelWriteGuard.AllowWrite(this, Member);
 
         public int Rank;
 

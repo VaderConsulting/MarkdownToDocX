@@ -115,9 +115,11 @@ public sealed class RouteRuleCatalogueAuditTests
             ? (stage, count) => frameOverlapStages.Add((stage, count)) : null;
         DiagramGridLayout.OrthogonalRouteCleanupObserver = edgeId => orthogonalCleanupRoutes.Add(edgeId);
         FlowchartLayoutResult layout;
+        Stopwatch layoutClock = Stopwatch.StartNew();
         try
         {
             bool layoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(contract, out layout!);
+            CellGuardCatalogueReporting.Write(scenario.Id, "off", layout, layoutSucceeded ? "completed" : "native-layout-failed");
             if (!layoutSucceeded)
             {
                 string failedCategory = scenario.Enterprise ? "enterprise"
@@ -130,6 +132,12 @@ public sealed class RouteRuleCatalogueAuditTests
         }
         finally
         {
+            layoutClock.Stop();
+            // The older AUDIT_TIME line is below assertions and omits failed
+            // scenarios such as A142. Always preserve their measured stages too.
+            TestContext.Out.WriteLine($"CELL_AUDIT_PROFILE|{scenario.Id}|layoutMs={layoutClock.Elapsed.TotalMilliseconds:0.000}|"
+                + System.Text.Json.JsonSerializer.Serialize(stageTimes.Where(item => item.Ms >= 0)
+                    .Select(item => new { Name = item.Stage, Milliseconds = item.Ms })));
             DiagramGridLayout.LayoutStageObserver = null;
             DiagramGridLayout.LayoutStageTimingObserver = null;
             DiagramGridLayout.GroupFrameFitPassObserver = null;

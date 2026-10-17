@@ -1182,6 +1182,12 @@ public static partial class DiagramGridLayout
         FlowchartLayoutResult Copy,
         DiagramContract Contract)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            if (!FlowchartCellInitialPlacement.TryAssign(Placed, Horizontal))
+                throw new InvalidOperationException("Initial whole-cell placement could not publish its complete region plan.");
+            return;
+        }
         int RankCount = 0;
         foreach (GridNode Node in Placed)
         {

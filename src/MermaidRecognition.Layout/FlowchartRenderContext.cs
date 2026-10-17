@@ -13,6 +13,12 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartRenderContext
 {
+    /// <summary>Persistent diagnostics for rejected direct writes, retained through candidate rollback and SVG painting.</summary>
+    internal List<FlowchartLayoutQualityFailure> RejectedCellPixelWritesMutable { get; } = [];
+    /// <summary>Rejected cell-derived geometry writes, naming the repair path and node without crashing a Release conversion.</summary>
+    public IReadOnlyList<FlowchartLayoutQualityFailure> RejectedCellPixelWrites => RejectedCellPixelWritesMutable;
+    /// <summary>Current named pipeline stage, restored across nested group reflows.</summary>
+    internal string? ActiveLayoutStage { get; set; }
     private static readonly AsyncLocal<FlowchartRenderContext?> Ambient = new();
 
     internal sealed class RepairSearchBudget

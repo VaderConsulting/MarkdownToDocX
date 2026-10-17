@@ -25,11 +25,14 @@ public static partial class DiagramGridLayout
             Copy = CopyResult(LaidOut);
             Copy.RenderContext = RenderContext ?? LaidOut.RenderContext ?? FlowchartRenderContext.Current;
             MoveBudget = Copy.RenderContext.MoveBeforeDetourBudget;
+            Copy.CellWriteCoverage = CellWriteCoverage;
             IsReady = Contract != null && Copy.NodeBounds.Count > 0;
         }
 
         public DiagramContract Contract { get; }
         public FlowchartLayoutResult Copy { get; }
+        /// <summary>Coverage belonging to this invocation rather than its optional local group reflows.</summary>
+        public FlowchartCellWriteCoverage CellWriteCoverage { get; } = new();
         public bool IsReady { get; }
         public bool SkipRootGroupRepacking { get; set; }
         public FlowchartDirection Direction { get; set; }
@@ -87,6 +90,8 @@ public static partial class DiagramGridLayout
                 State.Placed.Add(new GridNode
                 {
                     Id = Bounds.NodeId,
+                    CellWriteCoverage = State.CellWriteCoverage,
+                    PixelWriteContext = State.Copy.RenderContext,
                     GeometryProvider = Node?.GeometryProvider,
                     Shape = State.Nodes.TryGetValue(Bounds.NodeId, out NodeContract? ShapeNode) ? ShapeNode.Shape : null,
                     GroupId = GroupOf(State.Contract, Bounds.NodeId),
@@ -101,6 +106,7 @@ public static partial class DiagramGridLayout
             }
 
             AssignRanks(State.Placed, State.Horizontal);
+            State.CellWriteCoverage.Nodes = State.Placed.Count;
             AssignColumns(State.Placed, State.Horizontal, State.CrossPitch);
             if (!State.Open)
             {
@@ -143,7 +149,11 @@ public static partial class DiagramGridLayout
             FlowchartLayoutResult Copy = State.Copy;
             void Step(string Name, Action Action)
             {
-                Action();
+                var Context = State.Copy.RenderContext;
+                string? Previous = Context.ActiveLayoutStage;
+                Context.ActiveLayoutStage = "NodePlacementStage/" + Name;
+                try { Action(); }
+                finally { Context.ActiveLayoutStage = Previous; }
             }
 
             if (!Open)
