@@ -2,18 +2,20 @@ using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Layout.Tests;
 
-/// <summary>Checks whole-group centring, complete collision rejection and explicit hint priority.</summary>
+/// <summary>Checks the nested midpoint bypass without removing membership, frame growth or explicit hint protection.</summary>
 [TestFixture]
 public sealed class FlowchartCellNestedPlacementTests
 {
-    /// <summary>Every nested member translates by the same whole-cell offset, retaining its span and internal separation.</summary>
-    [Test]
-    public void CentresAllNestedMembersTogether()
+    /// <summary>A lone nested group keeps its declared regions instead of moving to the direct members' midpoint.</summary>
+    /// <param name="Horizontal">Whether the cross axis uses rows.</param>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void PreservesAllNestedMembers(bool Horizontal)
     {
         var (Contract, Nodes, Grid) = Fixture();
-        Assert.That(DiagramGridLayout.CentreCellNestedGroups(Contract, Nodes, false), Is.True);
-        Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(1));
-        Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(3));
+        var Before = Grid.Capture();
+        Invoke(Contract, Nodes, Horizontal);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
     /// <summary>An occupied late member target rejects the whole nested-group move and every gap change.</summary>
@@ -24,7 +26,7 @@ public sealed class FlowchartCellNestedPlacementTests
         Grid.TryPlace("O", new(2, 3, 1, 1));
         var O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
         var Before = Grid.Capture();
-        Assert.That(DiagramGridLayout.CentreCellNestedGroups(Contract, Nodes, false), Is.False);
+        Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
@@ -35,9 +37,17 @@ public sealed class FlowchartCellNestedPlacementTests
         var (Contract, Nodes, Grid) = Fixture();
         Nodes.Single(Node => Node.Id == "A").PlacementHintLocked = true;
         var Before = Grid.Capture();
-        DiagramGridLayout.CentreCellNestedGroups(Contract, Nodes, false);
+        Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
     }
+
+    /// <summary>Calls the real legacy group dispatcher, keeping the regression independent of a replacement helper.</summary>
+    /// <param name="Contract">Nested membership.</param>
+    /// <param name="Nodes">Authoritative members.</param>
+    /// <param name="Horizontal">Flow orientation.</param>
+    private static void Invoke(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal) =>
+        typeof(DiagramGridLayout).GetMethod("CenterLoneNestedGroups", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(null, [Contract, Nodes, Horizontal]);
 
     /// <summary>Creates a lone child container with two members and one direct parent member.</summary>
     /// <returns>Contract, bound members and parent grid.</returns>

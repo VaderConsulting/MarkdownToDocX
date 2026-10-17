@@ -77,3 +77,19 @@ focused tests pass (the original 270 included, with the superseded centring
 expectations replaced by both-phase bypass tests). Production cells and
 independent spans remain off. Full cells-off verification follows the complete
 placement-policy review; the unbound branch is unchanged in this checkpoint.
+
+## Superseded: nested group centring (208010f)
+
+The midpoint translation in 208010f is superseded for cell-bound placement.
+CenterLoneNestedGroups now bypasses authoritative regions, and its cell-only
+implementation is removed. The pass only aligned the nested member envelope
+with the direct parent members' midpoint. Membership, title sizing, frame
+containment and scored frame-clearance repair remain in their existing paths.
+This follows the explicit placement-policy review instruction; rules.yaml is
+unchanged and the production cells-off centring branch is preserved.
+
+Census placement-policy-01-terminal-fan.log -> placement-policy-02-nested-group.log:
+zero writer catches; A164/A165 remain the only hard failures; the same 660 bound
+cases complete. Bends are 3270 -> 3272, entirely A114 (141 -> 143). All 279 focused
+tests pass. Straightening must compete as complete whole-cell routed candidates,
+not be recovered by reinstating an envelope-midpoint write.

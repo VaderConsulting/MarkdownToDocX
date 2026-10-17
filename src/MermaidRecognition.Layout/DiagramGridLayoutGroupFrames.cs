@@ -13,11 +13,10 @@ namespace MermaidRecognition.Layout;
 public static partial class DiagramGridLayout
 {    private static void CenterLoneNestedGroups(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        if (Placed.Any(Node => Node.CellNode != null))
-        {
-            CentreCellNestedGroups(Contract, Placed, Horizontal);
-            return;
-        }
+        // This is an aesthetic midpoint translation, not containment or
+        // clearance. Cell frames derive from their members; do not reposition
+        // those regions to align two envelopes' centres.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         foreach (GroupContract Parent in Contract.Groups)
         {
             if (Parent.ChildGroupIds.Count != 1)
