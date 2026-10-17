@@ -127,7 +127,9 @@ if (!string.IsNullOrWhiteSpace(only))
 string outDir = Path.Combine(Path.GetTempPath(), "md2docx-diagram-profile-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(outDir);
 string dll = Assembly.GetExecutingAssembly().Location;
-string dotnet = Environment.ProcessPath!;
+// The harness may itself run through its apphost. Launch the managed worker
+// with dotnet explicitly so the assembly path is not mistaken for an argument.
+string dotnet = "dotnet";
 string resultsPath = args.Length == 3 ? Path.GetFullPath(args[2])
     : Path.Combine(root, "diagram-profile-results.jsonl");
 var results = File.Exists(resultsPath)
@@ -142,11 +144,14 @@ try
         if (completed.Contains((diagram.File, diagram.Index))) continue;
         string input = Path.Combine(outDir, $"{diagram.File}-{diagram.Index:D4}.json");
         File.WriteAllText(input, JsonSerializer.Serialize(diagram));
-        var startInfo = new ProcessStartInfo(dotnet, $"\"{dll}\" --worker \"{input}\"")
+        var startInfo = new ProcessStartInfo(dotnet)
         {
             UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
             CreateNoWindow = true, WorkingDirectory = root
         };
+        startInfo.ArgumentList.Add(dll);
+        startInfo.ArgumentList.Add("--worker");
+        startInfo.ArgumentList.Add(input);
         using var process = Process.Start(startInfo)!;
         var outputTask = process.StandardOutput.ReadToEndAsync();
         var errorTask = process.StandardError.ReadToEndAsync();
