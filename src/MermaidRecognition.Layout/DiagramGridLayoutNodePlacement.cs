@@ -336,6 +336,11 @@ public static partial class DiagramGridLayout
     private static void AlignSingleTerminalChildren(DiagramContract Contract, List<GridNode> Placed,
         bool Horizontal, bool CoordinatesPlaced)
     {
+        if (CoordinatesPlaced && Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellTerminalChildren(Contract, Placed, Horizontal);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();

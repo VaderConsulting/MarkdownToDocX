@@ -883,3 +883,13 @@ is unchanged. Two tests pass, focused count 163. The subsequent census completes
 no gate or checker was weakened. Remaining writer catches and first-failure
 paths are in census-after-cell-centres.log. The next common writer is terminal
 child alignment. Full cells-on legality and geometry comparison remain pending.
+
+### Whole-cell terminal-child alignment
+
+Terminal-child alignment builds the complete cross-axis reservation plan first.
+A blocked plan leaves both ownership and ordering metadata unchanged; hinted
+children remain fixed. Four new tests pass, focused selection 167. The census
+runs all 673 cases in 16.2115 s, with 664 diagnostic passes and nine hard frame-fit
+failures (see census-after-cell-terminal-child.log). The next most common writer
+is DisconnectedPacking, 43 cases. This is still an incomplete cells-on pipeline,
+not a passing cells-on audit. Cells-off production is unchanged.
