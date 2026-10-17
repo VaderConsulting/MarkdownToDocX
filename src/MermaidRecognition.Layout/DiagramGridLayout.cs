@@ -140,11 +140,16 @@ public static partial class DiagramGridLayout
         Nodes.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node =>
             $"{Node.Id}:{BitConverter.DoubleToInt64Bits(Node.X):X16},{BitConverter.DoubleToInt64Bits(Node.Y):X16},{Node.Width},{Node.Height}"));
 
+    /// <summary>Snaps legacy unbound centres; whole-cell reservations already own their exact derived centres.</summary>
+    /// <param name="Nodes">Nodes crossing a placement or frame-fit boundary.</param>
     private static void SnapGridNodeCentres(IEnumerable<GridNode> Nodes)
     {
         double Unit = DiagramGridMetrics.GRID_UNIT_PX;
         foreach (GridNode Node in Nodes)
         {
+            // A half-cell centre is valid when a node spans an odd number of
+            // cells. Pixel snapping must never replace its authoritative region.
+            if (Node.CellNode != null) continue;
             double X = Math.Round(Node.X / Unit, MidpointRounding.AwayFromZero) * Unit;
             double Y = Math.Round(Node.Y / Unit, MidpointRounding.AwayFromZero) * Unit;
             if (X != Node.X || Y != Node.Y) Node.SetPositionFromFrameFit(X, Y);

@@ -872,3 +872,14 @@ followed by terminal child alignment (208). Fine-grid pixel snapping must not
 write over authoritative region centres. Other pending writers remain visible
 in census-after-cell-compaction.log. Production remains cells off; zero-gate
 and exact-geometry evidence for cells off is unchanged from the last full run.
+
+### Preserve cell-derived centres at legacy snapping boundaries
+
+Cell-bound nodes now retain their exact region-derived centres at legacy fine-grid
+snapping boundaries, both before and after the routing adapter. Unbound snapping
+is unchanged. Two tests pass, focused count 163. The subsequent census completes
+673 cases in 16.117 s but is NOT clean: eight real frame-fit failures are exposed
+(F42, F141, A162, A167, A169, EIP78, EIP266 and EIP271). These remain hard failures;
+no gate or checker was weakened. Remaining writer catches and first-failure
+paths are in census-after-cell-centres.log. The next common writer is terminal
+child alignment. Full cells-on legality and geometry comparison remain pending.
