@@ -7,10 +7,15 @@ using MermaidRecognition.Kinds.Flowchart;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Positions circular collectors before independent per-edge port allocation.</summary>
-internal static class FlowchartCircularJunctionLayout
+internal static partial class FlowchartCircularJunctionLayout
 {
     internal static void AlignFans(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            AlignCellFans(Contract, Nodes, Horizontal);
+            return;
+        }
         var ById = Nodes.ToDictionary(Node => Node.Id);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge)

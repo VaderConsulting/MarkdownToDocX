@@ -977,3 +977,15 @@ anchors or occupied targets prevent a partial fan. Three tests pass, focused
 count 189. The next writer census is in census-after-cell-fan-in.log. Full
 cells-on legality acceptance and final profiling are still pending the clean
 census; production cells and independent text spans remain off.
+
+### Whole-cell circular junction alignment
+
+Circular fan-out and collector chains now plan complete cross-axis cell
+reservations, retain locks, and reject all moves on collision. Half-cell
+medians resolve to a deterministic whole logical start without fractional
+occupancy. Three tests pass, focused count 192. The next census is recorded
+in census-after-cell-circular-fans.log; acceptance remains pending the remaining
+writers and eleven frame-fit failures. The legacy resize paths also need care:
+the revised specification permits growth for measured allocated-port capacity,
+not neighbour count alone. Do not activate independent text spans during this
+conversion.
