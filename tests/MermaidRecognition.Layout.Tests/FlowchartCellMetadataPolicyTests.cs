@@ -56,6 +56,21 @@ public sealed class FlowchartCellMetadataPolicyTests
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
+    /// <summary>A presumed straight-chord blocker cannot force a pre-score swap through column metadata.</summary>
+    [Test]
+    public void ChordProposalDoesNotSwapOrderingColumns()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        Assert.That(Grid.TryPlace("O", new(4, 0, 1, 1)), Is.True);
+        var Obstacle = new DiagramGridLayout.GridNode { Id = "O", Rank = 2, Column = 0 };
+        Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
+        var Before = Grid.Capture();
+        var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        DiagramGridLayout.ResolveVerticalChordBlockers(Contract, Nodes);
+        Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+    }
+
     /// <summary>Builds a forward fan with a converging merge and deliberately distinct ordering columns.</summary>
     /// <returns>Contract, bound nodes and authoritative grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()

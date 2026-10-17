@@ -1171,8 +1171,11 @@ public static partial class DiagramGridLayout
     /// Rules A3/A5: when a parent and child sit in different columns, any same-rank node
     /// that shares the parent column blocks their vertical chord and swaps aside.
     /// </summary>
-    private static void ResolveVerticalChordBlockers(DiagramContract Contract, List<GridNode> Placed)
+    internal static void ResolveVerticalChordBlockers(DiagramContract Contract, List<GridNode> Placed)
     {
+        // This swap only prescribes a straight parent/child column. Actual
+        // cell occupancy, legality and bend cost decide swaps after routing.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         Dictionary<string, int> ParentCount = new Dictionary<string, int>(StringComparer.Ordinal);

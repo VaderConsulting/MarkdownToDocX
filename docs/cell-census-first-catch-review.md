@@ -323,3 +323,16 @@ already trimmed after placement. Other ordering/collision cascading remains.
 Census placement-policy-17-decision-columns.log -> placement-policy-18-detour-columns.log:
 660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3204 -> 3201,
 entirely F58 (14 -> 11). All 295 focused tests pass.
+
+## Superseded: pre-placement chord straightening swaps
+
+ResolveVerticalChordBlockers bypasses bound nodes: it only swapped a child onto
+a parent's column while displacing the apparent blocker. No actual cell
+occupancy or routed score justified that alignment. Complete region swaps,
+displacements, legality checks and bend/crossing scoring remain in route repair.
+
+Census placement-policy-18-detour-columns.log -> placement-policy-19-chord-columns.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3201 -> 3211:
+A113 113 -> 121, A117 122 -> 138, A142 334 -> 322, A18 18 -> 20, A42 11 -> 4,
+A52 3 -> 6. All 296 focused tests pass. The test preserves both column metadata
+and exact ownership despite a topology that previously triggered the swap.
