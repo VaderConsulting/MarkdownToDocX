@@ -275,7 +275,8 @@ public static partial class DiagramGridLayout
                 CenterX = Node.X,
                 CenterY = Node.Y,
                 Width = Node.Width,
-                Height = Node.Height
+                Height = Node.Height,
+                Geometry = Node.GeometryProvider?.Create(Node.Width, Node.Height)
             };
         }
 

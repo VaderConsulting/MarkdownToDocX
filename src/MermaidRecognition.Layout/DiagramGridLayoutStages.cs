@@ -87,6 +87,7 @@ public static partial class DiagramGridLayout
                 State.Placed.Add(new GridNode
                 {
                     Id = Bounds.NodeId,
+                    GeometryProvider = Node?.GeometryProvider,
                     Shape = State.Nodes.TryGetValue(Bounds.NodeId, out NodeContract? ShapeNode) ? ShapeNode.Shape : null,
                     GroupId = GroupOf(State.Contract, Bounds.NodeId),
                     OldX = Bounds.CenterX,

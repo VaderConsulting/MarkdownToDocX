@@ -218,6 +218,12 @@ internal static class FlowchartRoutingHints
             {
                 var End = Ordered[Index];
                 double Fraction = (Index + 1.0) / (Ordered.Length + 1.0);
+                if (Nodes.GetValueOrDefault(End.Box.NodeId)?.GeometryProvider is { } Provider)
+                {
+                    if (Provider.Create(End.Box.Width, End.Box.Height).ConnectionBoundary.TryPort(End.Side, Fraction, out var BodyPort))
+                        Result[(End.Route, End.Source)] = (End.Box.CenterX + BodyPort.X, End.Box.CenterY - BodyPort.Y);
+                    continue;
+                }
                 if (circle)
                 {
                     double Radius = Math.Min(End.Box.Width, End.Box.Height) / 2.0;
@@ -277,6 +283,8 @@ internal static class FlowchartRoutingHints
 
     private static bool OnOutline(FlowchartLayoutPoint Point, FlowchartLayoutNodeBounds Box)
     {
+        if (Box.Geometry is { } Geometry)
+            return Geometry.ConnectionBoundary.Contains(Point.X - Box.CenterX, Box.CenterY - Point.Y, 0.01);
         double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
         double Top = Box.CenterY - Box.Height / 2.0, Bottom = Box.CenterY + Box.Height / 2.0;
         bool OnVertical = (Math.Abs(Point.X - Left) < 0.01 || Math.Abs(Point.X - Right) < 0.01)

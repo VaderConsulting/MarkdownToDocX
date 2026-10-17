@@ -55,8 +55,11 @@ public static partial class DiagramGridLayout
                     || Nodes.TryGetValue(Route.TargetId, out var CircularTarget) && CircularTarget.Shape == "circle");
             string StraightExit = string.Empty, StraightEntry = string.Empty;
             bool HasStraightCandidate = RoutingHint == null && !CircularReturn
+                && (ContractEdge == null || !BackEdges.Contains(ContractEdge))
                 && TryAssignStraightPortSides(Source, Target, Direction,
-                    out StraightExit, out StraightEntry);
+                    out StraightExit, out StraightEntry)
+                && SupportsNextGeometrySide(Source, StraightExit, Ends, Nodes)
+                && SupportsNextGeometrySide(Target, StraightEntry, Ends, Nodes);
             if (HasStraightCandidate && StraightChordIsClear(
                     Contract,
                     Source,
@@ -111,6 +114,34 @@ public static partial class DiagramGridLayout
                     ? HintSide(RoutingHint.Enter.Value)
                     : FacingSide(Item.Target, Item.Source);
             }
+            else if (ContractEdge != null && BackEdges.Contains(ContractEdge)
+                && Item.Source.Id != Item.Target.Id)
+            {
+                string ReturnSide = ReturnTrackSide(Item.Source, Item.Target, Horizontal, Placed);
+                string Downstream = Direction switch
+                {
+                    FlowchartDirection.BottomToTop => "top",
+                    FlowchartDirection.LeftToRight => "right",
+                    FlowchartDirection.RightToLeft => "left",
+                    _ => "bottom"
+                };
+                bool DownstreamUsed = Contract.Edges.Any(Other => !ReferenceEquals(Other, ContractEdge)
+                    && Other.SourceId == Item.Source.Id && Other.Stroke != "invisible"
+                    && TryBox(Other.TargetId, ById, FrameById, out var OtherTarget)
+                    && FacingSide(Item.Source, OtherTarget) == Downstream);
+                Exit = DownstreamUsed ? ReturnSide : Downstream;
+                Entry = ReturnSide;
+            }
+            else if (Horizontal && ById.TryGetValue(Item.Source.Id, out var WrapSource)
+                && ById.TryGetValue(Item.Target.Id, out var WrapTarget)
+                && WrapTarget.Rank > WrapSource.Rank && WrapTarget.Y != WrapSource.Y
+                && (WrapTarget.X - WrapSource.X) * (Direction == FlowchartDirection.RightToLeft ? -1 : 1) < 0
+                && Contract.Edges.Count(Edge => Edge.SourceId == Item.Source.Id && Edge.Stroke != "invisible") == 1
+                && Contract.Edges.Count(Edge => Edge.TargetId == Item.Target.Id && Edge.Stroke != "invisible") == 1)
+            {
+                Exit = WrapTarget.Y < WrapSource.Y ? "bottom" : "top";
+                Entry = WrapTarget.Y < WrapSource.Y ? "top" : "bottom";
+            }
             else
             {
                 // Geometry owns the first side choice for every ordinary edge,
@@ -120,6 +151,11 @@ public static partial class DiagramGridLayout
                 // substitute for allocating sides from the placed node geometry.
                 Exit = FacingSide(Item.Source, Item.Target);
                 Entry = FacingSide(Item.Target, Item.Source);
+            }
+            if (RoutingHint == null)
+            {
+                Exit = EligibleGeometrySide(Item.Source, Item.Target, Exit, Ends, Nodes);
+                Entry = EligibleGeometrySide(Item.Target, Item.Source, Entry, Ends, Nodes);
             }
             Item.Route.ExitSide = Exit;
             Item.Route.EntrySide = Entry;
@@ -186,6 +222,74 @@ public static partial class DiagramGridLayout
         ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Copy.RenderContext);
         LayoutStageTimingObserver?.Invoke("allocation/free-side-comparison", SideTimer.Elapsed.TotalMilliseconds);
 
+    }
+
+    /// <summary>Retains the preferred side when its renderer-owned boundary has capacity, otherwise compares eligible sides.</summary>
+    /// <param name="Box">Node or frame receiving a port.</param>
+    /// <param name="Other">The neighbour used to compare terminal distance.</param>
+    /// <param name="Preferred">The ordinary geometry or return-channel side.</param>
+    /// <param name="Ends">Already allocated connection ends.</param>
+    /// <param name="Nodes">Renderer geometry definitions.</param>
+    /// <returns>An eligible side, or the original side when no legal allocation is available.</returns>
+    private static string EligibleGeometrySide(BoxRef Box, BoxRef Other, string Preferred,
+        List<PortEnd> Ends, Dictionary<string, NodeContract> Nodes)
+    {
+        if (!Nodes.TryGetValue(Box.Id, out var Node) || Node.GeometryProvider == null) return Preferred;
+        int Count(string Side) => Ends.Count(End => End.Box.Id == Box.Id && End.Side == Side) + 1;
+        if (SupportsGeometrySide(Box, Preferred, Count(Preferred), Nodes)) return Preferred;
+        var Geometry = Node.GeometryProvider.Create(Box.Width, Box.Height);
+        return new[] { "top", "bottom", "left", "right" }
+            .Where(Side => SupportsGeometrySide(Box, Side, Count(Side), Nodes))
+            .OrderBy(Side =>
+            {
+                Geometry.ConnectionBoundary.TryPort(Side, 0.5, out var Port);
+                return Math.Abs(Box.CenterX + Port.X - Other.CenterX)
+                    + Math.Abs(Box.CenterY - Port.Y - Other.CenterY);
+            }).FirstOrDefault() ?? Preferred;
+    }
+
+    /// <summary>Checks an additional renderer-owned port without scanning ordinary nodes' accumulated ends.</summary>
+    /// <param name="Box">Endpoint being allocated.</param>
+    /// <param name="Side">Proposed compass side.</param>
+    /// <param name="Ends">Connection ends already assigned in this pass.</param>
+    /// <param name="Nodes">Renderer-owned geometry definitions.</param>
+    /// <returns>Whether this side can accept the next allocated connection end.</returns>
+    private static bool SupportsNextGeometrySide(BoxRef Box, string Side, List<PortEnd> Ends, Dictionary<string, NodeContract> Nodes) =>
+        !Nodes.TryGetValue(Box.Id, out var Node) || Node.GeometryProvider == null
+        || SupportsGeometrySide(Box, Side, Ends.Count(End => End.Box.Id == Box.Id && End.Side == Side) + 1, Nodes);
+
+    /// <summary>Checks the actual connection boundary rather than assuming every visual rectangle edge receives ports.</summary>
+    /// <param name="Box">Measured endpoint bounds.</param>
+    /// <param name="Side">Requested compass side.</param>
+    /// <param name="Count">Number of jointly allocated ports.</param>
+    /// <param name="Nodes">Renderer-owned definitions.</param>
+    /// <returns>Whether every allocated position belongs to an eligible connection segment.</returns>
+    private static bool SupportsGeometrySide(BoxRef Box, string Side, int Count, Dictionary<string, NodeContract> Nodes)
+    {
+        if (!Nodes.TryGetValue(Box.Id, out var Node) || Node.GeometryProvider == null) return true;
+        var Boundary = Node.GeometryProvider.Create(Box.Width, Box.Height).ConnectionBoundary;
+        for (int Index = 1; Index <= Count; Index++)
+            if (!Boundary.TryPort(Side, Index / (Count + 1.0), out _)) return false;
+        return true;
+    }
+
+    /// <summary>Chooses the outside return channel from source position and occupied branch space.</summary>
+    /// <param name="Source">The later node.</param>
+    /// <param name="Target">The earlier node.</param>
+    /// <param name="Horizontal">Whether the main flow is horizontal.</param>
+    /// <param name="Placed">Measured node positions used to compare free sides.</param>
+    /// <returns>A side perpendicular to the main flow, defaulting to page-right in vertical flow.</returns>
+    private static string ReturnTrackSide(BoxRef Source, BoxRef Target, bool Horizontal, IReadOnlyList<GridNode> Placed)
+    {
+        double SourceCross = Horizontal ? Source.CenterY : Source.CenterX;
+        double TargetCross = Horizontal ? Target.CenterY : Target.CenterX;
+        string Positive = Horizontal ? "top" : "right", Negative = Horizontal ? "bottom" : "left";
+        if (SourceCross > TargetCross) return Positive;
+        if (SourceCross < TargetCross) return Negative;
+        int PositiveNodes = Placed.Count(Node => (Horizontal ? Node.Y : Node.X) > SourceCross);
+        int NegativeNodes = Placed.Count(Node => (Horizontal ? Node.Y : Node.X) < SourceCross);
+        if (PositiveNodes != NegativeNodes) return PositiveNodes < NegativeNodes ? Positive : Negative;
+        return Horizontal ? Negative : Positive;
     }
 
     /// <summary>Compares free sides before accepting a shared rectangular side, including the displaced neighbouring ports.</summary>
@@ -295,6 +399,10 @@ public static partial class DiagramGridLayout
             foreach (string Exit in new[] { OriginalExit, "bottom", "top", "left", "right" }.Distinct())
             foreach (string Entry in new[] { OriginalEntry, "top", "bottom", "left", "right" }.Distinct())
             {
+                if (!SupportsGeometrySide(Source.Box, Exit,
+                        ByNode[Source.Box.Id].Count(End => !ReferenceEquals(End, Source) && End.Side == Exit) + 1, Nodes)
+                    || !SupportsGeometrySide(Target.Box, Entry,
+                        ByNode[Target.Box.Id].Count(End => !ReferenceEquals(End, Target) && End.Side == Entry) + 1, Nodes)) continue;
                 if (Examined >= FlowchartLayoutRules.RepairCandidateMoves) continue;
                 if (Exit == OriginalExit && Entry == OriginalEntry) continue;
                 // Sharing can be necessary; compare it with every available side
@@ -544,7 +652,16 @@ public static partial class DiagramGridLayout
                 Destinations.Add((End.Other.CenterX - Box.CenterX, End.Other.CenterY - Box.CenterY));
             }
 
-            if (FlowchartDiamondPorts.TryAssign((int)Box.Width, (int)Box.Height, Destinations, out IReadOnlyList<FlowchartDiamondPort> Ports)
+            var Reservations = Enumerable.Range(0, Group.Count).Where(Index =>
+            {
+                var End = Group[Index];
+                if (End.KeepsCentre) return true;
+                if (End.Route.Points.Count != 2) return false;
+                var A = End.Route.Points[0]; var B = End.Route.Points[^1];
+                return Math.Abs(A.X - B.X) < 0.001 && Math.Abs(End.Box.CenterX - End.Other.CenterX) < 0.001
+                    || Math.Abs(A.Y - B.Y) < 0.001 && Math.Abs(End.Box.CenterY - End.Other.CenterY) < 0.001;
+            }).ToHashSet();
+            if (FlowchartDiamondPorts.TryAssign((int)Box.Width, (int)Box.Height, Destinations, out IReadOnlyList<FlowchartDiamondPort> Ports, Reservations)
                 && Ports.Count == Group.Count)
             {
                 for (int Index = 0; Index < Group.Count; Index++)
@@ -619,6 +736,14 @@ public static partial class DiagramGridLayout
                 X = Box.Right;
                 Y = Box.Top - Along;
                 OutX = 1;
+            }
+
+            if (Nodes.TryGetValue(Box.Id, out var GeometryNode) && GeometryNode.GeometryProvider is { } Provider)
+            {
+                if (Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(
+                    Side, (Index + 1.0) / (Group.Count + 1.0), out var Port))
+                    SetEnd(Group[Index], Box.CenterX + Port.X, Box.CenterY - Port.Y, Port.NormalX, -Port.NormalY);
+                continue;
             }
 
             bool HorizontalBracketEdge = Side is "top" or "bottom"
@@ -730,6 +855,9 @@ public static partial class DiagramGridLayout
 
     private static void SetEnd(PortEnd End, double X, double Y, double OutX, double OutY)
     {
+        // A rejected geometry candidate may have cleared the provisional path.
+        // Allocation still owns both anchors of that declared relationship.
+        while (End.Route.Points.Count < 2) End.Route.Points.Add(new FlowchartLayoutPoint());
         End.OutX = OutX;
         End.OutY = OutY;
         if (End.IsSource)

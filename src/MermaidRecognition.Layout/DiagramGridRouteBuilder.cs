@@ -17,6 +17,9 @@ public static class DiagramGridRouteBuilder
     /// </summary>
     public const int CORNER_RADIUS_PX = 20;
 
+    /// <summary>Existing arrowhead-length terminal allowance used by the route builder.</summary>
+    internal const double ARROWHEAD_LENGTH_PX = 10;
+
     private const double COLLINEAR_EPSILON_PX = 0.75;
 
     private const double HOOK_DOT_PRODUCT_THRESHOLD = -0.15;
@@ -366,12 +369,18 @@ public static class DiagramGridRouteBuilder
         (double X, double Y) ExitNormal = default,
         (double X, double Y) EntryNormal = default)
     {
+        // Renderer-defined connection bodies can be smaller than their visual boxes.
+        // Reject an ineligible terminal before either the straight or fallback family runs.
+        if (SourceBounds.Geometry is { } SourceGeometry
+                && !SourceGeometry.ConnectionBoundary.Contains(StartX - SourceBounds.CenterX, SourceBounds.CenterY - StartY, COLLINEAR_EPSILON_PX)
+            || TargetBounds.Geometry is { } TargetGeometry
+                && !TargetGeometry.ConnectionBoundary.Contains(EndX - TargetBounds.CenterX, TargetBounds.CenterY - EndY, COLLINEAR_EPSILON_PX)) return [];
         // The rounded corner consumes one radius of the terminal segment.
         // Keep another radius at the source and an arrow length at the target.
         double SourceStubLength = ResolveFrameExitLength(StartX, StartY, ExitSide,
             CORNER_RADIUS_PX * 2, SourceId, TargetId, Contract, BoundsById);
         double TargetStubLength = ResolveFrameExitLength(EndX, EndY, EntrySide,
-            CORNER_RADIUS_PX + 10, TargetId, SourceId, Contract, BoundsById);
+            CORNER_RADIUS_PX + ARROWHEAD_LENGTH_PX, TargetId, SourceId, Contract, BoundsById);
         (double SourceStubX, double SourceStubY) = ResolvePortStub(
             StartX, StartY, SourceBounds, SourceShape, ExitSide, SourceStubLength,
             ExitNormal.X, ExitNormal.Y);
@@ -1683,7 +1692,8 @@ public static class DiagramGridRouteBuilder
                 CenterX = Node.X,
                 CenterY = Node.Y,
                 Width = Node.Width,
-                Height = Node.Height
+                Height = Node.Height,
+                Geometry = Node.GeometryProvider?.Create(Node.Width, Node.Height)
             };
         }
 

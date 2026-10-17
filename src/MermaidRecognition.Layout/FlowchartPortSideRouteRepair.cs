@@ -487,8 +487,19 @@ internal static class FlowchartPortSideRouteRepair
         };
         string Exit = Horizontal ? Sign > 0 ? "right" : "left" : Sign > 0 ? "top" : "bottom";
         string Entry = Horizontal ? Sign > 0 ? "left" : "right" : Sign > 0 ? "bottom" : "top";
+        if (!TryGeometryPort(Source, Exit, ref Start) || !TryGeometryPort(Target, Entry, ref End)) return null;
         if (!Directions([Start, End], Exit, Entry)) return null;
+        if (Math.Abs(Start.X - End.X) > 0.001 && Math.Abs(Start.Y - End.Y) > 0.001) return null;
         return New([Start, End], Exit, Entry, Direction) with { ReallocatesPorts = true };
+
+        // Keep the fallback outline path unchanged for shapes without a geometry provider.
+        bool TryGeometryPort(FlowchartLayoutNodeBounds Box, string Side, ref FlowchartLayoutPoint Point)
+        {
+            if (!Nodes.TryGetValue(Box.NodeId, out var Node) || Node.GeometryProvider == null) return true;
+            if (!Node.GeometryProvider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, 0.5, out var Port)) return false;
+            Point = new() { X = Box.CenterX + Port.X, Y = Box.CenterY - Port.Y };
+            return true;
+        }
     }
 
     private static bool IsFreeVerticalTrack(double X, double MinY, double MaxY,

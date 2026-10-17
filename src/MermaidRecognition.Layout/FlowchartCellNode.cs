@@ -1,0 +1,68 @@
+using System;
+using MermaidRecognition.Contract;
+
+namespace MermaidRecognition.Layout;
+
+/// <summary>A node view whose position and size are derived exclusively from its occupied cell region.</summary>
+internal sealed class FlowchartCellNode
+{
+    /// <summary>Creates a view of an existing reservation without inspecting or converting pixel bounds.</summary>
+    /// <param name="Grid">The owning diagram's authoritative cell state.</param>
+    /// <param name="NodeId">The node whose reservation already exists.</param>
+    /// <param name="Diamond">Whether the drawn diamond is centred in, rather than fills, its reservation.</param>
+    internal FlowchartCellNode(FlowchartLogicalGrid Grid, string NodeId, bool Diamond)
+    {
+        ArgumentNullException.ThrowIfNull(Grid);
+        ArgumentException.ThrowIfNullOrEmpty(NodeId);
+        _ = Grid.RegionOf(NodeId);
+        this.Grid = Grid;
+        this.NodeId = NodeId;
+        this.Diamond = Diamond;
+        if (Diamond) Grid.Require(NodeId, Region => Grid.Measure(Region).Width >= Grid.Configuration.CellWidth
+            && Grid.Measure(Region).Height >= Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR);
+    }
+
+    /// <summary>The only mutable source of node occupancy and derived extents.</summary>
+    internal FlowchartLogicalGrid Grid { get; }
+    /// <summary>Identity of the single node occupying this region.</summary>
+    internal string NodeId { get; }
+    /// <summary>Whether the visible silhouette is a proportion-preserving diamond.</summary>
+    private bool Diamond { get; }
+    /// <summary>The exact occupied rectangle; it is never inferred from the view's centre.</summary>
+    internal FlowchartCellRegion Region => Grid.RegionOf(NodeId);
+    /// <summary>Horizontal centre of the reserved rectangle in page coordinates.</summary>
+    internal double X => Grid.Origin(Region).X + Grid.Measure(Region).Width / 2;
+    /// <summary>Vertical centre of the reserved rectangle in page-down coordinates.</summary>
+    internal double Y => RoutingFlip is { } Flip ? Flip - PageY : PageY;
+    /// <summary>Page-down centre before the existing routing coordinate adapter.</summary>
+    private double PageY => Grid.Origin(Region).Y + Grid.Measure(Region).Height / 2;
+    /// <summary>Shared reflection origin supplied by the existing coordinate boundary, never inferred from a node position.</summary>
+    private double? RoutingFlip { get; set; }
+
+    /// <summary>Projects the same unchanged region into the existing routing coordinate frame.</summary>
+    /// <param name="Flip">Diagram-wide reflection origin computed by the established coordinate adapter.</param>
+    internal void UseRoutingCoordinates(double Flip)
+    {
+        if (!double.IsFinite(Flip)) throw new ArgumentOutOfRangeException(nameof(Flip));
+        RoutingFlip = Flip;
+    }
+    /// <summary>Visible width, including internal gaps for a rectangular node.</summary>
+    internal double Width => Diamond ? DiamondScale * Grid.Configuration.CellWidth : Grid.Measure(Region).Width;
+    /// <summary>Visible height, including internal gaps for a rectangular node.</summary>
+    internal double Height => Diamond ? DiamondScale * Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR
+        : Grid.Measure(Region).Height;
+    /// <summary>Shape scale selected by the declared spans; growing an internal routing gap never enlarges the diamond merely to fill it.</summary>
+    private double DiamondScale => Math.Floor(Math.Min(
+        (Region.ColumnSpan * Grid.Configuration.CellWidth + (Region.ColumnSpan - 1.0) * Grid.Configuration.ColumnGap) / Grid.Configuration.CellWidth,
+        (Region.RowSpan * Grid.Configuration.CellHeight + (Region.RowSpan - 1.0) * Grid.Configuration.RowGap)
+            / (Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR)));
+
+    /// <summary>Builds the current renderer-facing bounds without retaining any independent pixel position or size.</summary>
+    /// <param name="Provider">Optional renderer-owned connection and obstacle geometry.</param>
+    /// <returns>The geometry derived from the current complete cell state.</returns>
+    internal FlowchartLayoutNodeBounds Bounds(INodeGeometryProvider? Provider = null) => new()
+    {
+        NodeId = NodeId, CenterX = X, CenterY = Y, Width = Width, Height = Height,
+        Geometry = Provider?.Create(Width, Height)
+    };
+}

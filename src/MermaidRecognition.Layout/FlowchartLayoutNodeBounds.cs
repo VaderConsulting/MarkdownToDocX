@@ -5,6 +5,9 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartLayoutNodeBounds
 {
+    /// <summary>Renderer-owned local page-down geometry, when the visual box differs from the connection body.</summary>
+    public MermaidRecognition.Contract.NodeGeometry? Geometry { get; init; }
+
     public string NodeId { get; init; } = string.Empty;
 
     public double CenterX { get; init; }

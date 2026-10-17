@@ -221,12 +221,14 @@ public static class FlowchartDiamondPorts
     /// <param name="HeightPx">Diamond cell height.</param>
     /// <param name="Destinations">Other-node positions relative to the diamond centre.</param>
     /// <param name="Ports">One port per destination, in the same order.</param>
+    /// <param name="ReservedVertices">Indices whose legal straight routes reserve an axis-facing tip before slanted-edge allocation.</param>
     /// <returns>True when the destinations can be assigned.</returns>
     public static bool TryAssign(
         int WidthPx,
         int HeightPx,
         IReadOnlyList<(double X, double Y)> Destinations,
-        out IReadOnlyList<FlowchartDiamondPort> Ports)
+        out IReadOnlyList<FlowchartDiamondPort> Ports,
+        IReadOnlySet<int>? ReservedVertices = null)
     {
         Ports = [];
         if (Destinations.Count == 0)
@@ -249,9 +251,13 @@ public static class FlowchartDiamondPorts
             // participate in symmetric sloped-edge allocation instead.
             bool Horizontal = Math.Abs(Destination.Y) < 0.001 && Math.Abs(Destination.X) > 0.001;
             bool Vertical = Math.Abs(Destination.X) < 0.001 && Math.Abs(Destination.Y) > 0.001;
-            if ((Horizontal || Vertical) && Destinations.Count(Other =>
+            bool Reserved = ReservedVertices?.Contains(Index) == true
+                && !Enumerable.Range(0, Index).Any(Other => ReservedVertices.Contains(Other)
+                    && (Horizontal ? Math.Abs(Destinations[Other].Y) < 0.001 && Math.Sign(Destinations[Other].X) == Math.Sign(Destination.X)
+                        : Math.Abs(Destinations[Other].X) < 0.001 && Math.Sign(Destinations[Other].Y) == Math.Sign(Destination.Y)));
+            if ((Horizontal || Vertical) && (Reserved || Destinations.Count(Other =>
                     Horizontal ? Math.Abs(Other.X) >= Math.Abs(Other.Y) && Math.Sign(Other.X) == Math.Sign(Destination.X)
-                        : Math.Abs(Other.Y) > Math.Abs(Other.X) && Math.Sign(Other.Y) == Math.Sign(Destination.Y)) == 1)
+                        : Math.Abs(Other.Y) > Math.Abs(Other.X) && Math.Sign(Other.Y) == Math.Sign(Destination.Y)) == 1))
             {
                 int Nx = Horizontal ? Math.Sign(Destination.X) : 0;
                 int Ny = Vertical ? Math.Sign(Destination.Y) : 0;

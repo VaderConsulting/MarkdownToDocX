@@ -26,6 +26,7 @@ public static class FlowchartRouteRuleChecker
         Dictionary<string, NodeContract> nodes = contract.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
         List<EdgeContract> edges = contract.Edges
             .Where(edge => !string.Equals(edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        var backEdges = FlowchartBackEdgeHelper.FindBackEdges(contract);
 
         List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> matched = [];
         HashSet<FlowchartLayoutEdgeRoute> used = [];
@@ -43,7 +44,7 @@ public static class FlowchartRouteRuleChecker
             CheckTerminal(edge, route, false, boxes, nodes, findings);
             CheckOrthogonal(edge, route, nodes, boxes, findings);
             CheckAlignedStraight(edge, route, findings);
-            CheckSideChoice(edge, route, contract, boxes, findings);
+            if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings);
             CheckFrameRun(edge, route, contract, boxes, findings);
             CheckObstacles(edge, route, contract, layout, boxes, nodes, findings);
         }
@@ -113,7 +114,12 @@ public static class FlowchartRouteRuleChecker
             for (int Index = 1; Index < Route.Points.Count && !Blocked; Index++)
             {
                 var A = Route.Points[Index - 1]; var B = Route.Points[Index];
-                if (FlowchartDiamondAttachHelper.IsDiamondShape(Node?.Shape))
+                if (Node?.GeometryProvider is { } Provider)
+                {
+                    Blocked = Provider.Create(Box.Width, Box.Height).ObstacleGeometry.IntersectsSegmentInterior(
+                        A.X - Box.CenterX, Box.CenterY - A.Y, B.X - Box.CenterX, Box.CenterY - B.Y);
+                }
+                else if (FlowchartDiamondAttachHelper.IsDiamondShape(Node?.Shape))
                 {
                     double Ratio = Box.Width / Box.Height;
                     double Ax = A.X - Box.CenterX, Ay = (A.Y - Box.CenterY) * Ratio;
@@ -174,7 +180,10 @@ public static class FlowchartRouteRuleChecker
             return;
         }
         nodes.TryGetValue(id, out NodeContract? node);
-        bool onOutline = IsOnOutline(point, box, node?.Shape, side);
+        bool onOutline = node?.GeometryProvider is { } Provider
+            ? Provider.Create(box.Width, box.Height).ConnectionBoundary.Contains(
+                point.X - box.CenterX, box.CenterY - point.Y, Tolerance)
+            : IsOnOutline(point, box, node?.Shape, side);
         if (!onOutline)
             findings.Add(new Finding("3.1", EdgeName(edge), $"{(source ? "source" : "target")} port does not end on the {side} outline of '{id}'"));
         if (route.Points.Count > 1)
@@ -333,6 +342,15 @@ public static class FlowchartRouteRuleChecker
                     : circle
                         ? Math.Abs(actual - expected) * Math.PI * Math.Min(box.Width, box.Height) / 2.0
                     : Math.Abs(actual - expected) * Math.Max(box.Width, box.Height);
+                if (node?.GeometryProvider is { } Provider)
+                {
+                    bool Eligible = Provider.Create(box.Width, box.Height).ConnectionBoundary
+                        .TryPort(ordered[i].Side, expected, out var Port);
+                    distributionError = Eligible
+                        ? Math.Max(Math.Abs(ordered[i].Point.X - box.CenterX - Port.X),
+                            Math.Abs(box.CenterY - ordered[i].Point.Y - Port.Y))
+                        : double.PositiveInfinity;
+                }
                 if (distributionError > Tolerance)
                 {
                     findings.Add(new Finding("3.2/4.7", group.Key.Node, $"{group.Key.PortGroup} port {i + 1}/{ordered.Length} is at {actual:0.###}, expected {expected:0.###}"));

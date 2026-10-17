@@ -742,6 +742,17 @@ public sealed class RouteRuleCatalogueAuditTests
             {
                 AuditPort port = ordered[index];
                 double expected = (index + 1.0) / (ordered.Length + 1.0);
+                if (nodes.GetValueOrDefault(port.NodeId)?.GeometryProvider is { } provider)
+                {
+                    // A decorated node's visual rectangle is not its connection boundary.
+                    // Check the allocated position against the independently supplied body.
+                    bool eligible = provider.Create(box.Width, box.Height).ConnectionBoundary
+                        .TryPort(port.Side, expected, out var bodyPort);
+                    if (!eligible || Math.Abs(port.Point.X - box.CenterX - bodyPort.X) > 1.0
+                        || Math.Abs(box.CenterY - port.Point.Y - bodyPort.Y) > 1.0)
+                        offSlotFaults.Add($"{port.NodeId}|{port.Route.EdgeId}|ineligible or displaced connection-body slot");
+                    continue;
+                }
                 double parameter = PortParameter(port, box);
                 double length = port.Shape.Equals("circle", StringComparison.OrdinalIgnoreCase)
                     || port.Shape.Equals("doublecircle", StringComparison.OrdinalIgnoreCase)

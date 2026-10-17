@@ -12,6 +12,16 @@ internal static class FlowchartLayoutRules
     private static readonly IReadOnlyDictionary<string, double> _parameters = LoadParameters();
 
     internal static double BendScore => Get("score_bend");
+    /// <summary>Fixed configured width of one logical cell, independent of diagram labels.</summary>
+    internal static double BaseCellWidth => Get("base_cell_width");
+    /// <summary>Fixed configured height of one logical cell, independent of diagram labels.</summary>
+    internal static double BaseCellHeight => Get("base_cell_height");
+    /// <summary>Configured minimum node text inset in pixels.</summary>
+    internal static double NodeTextPadding => Get("node_text_padding");
+    /// <summary>Initial row gap in pixels, before measured clearance growth.</summary>
+    internal static double BaseRowGap => Get("base_rank_gap") * Get("grid_step");
+    /// <summary>Initial column gap in pixels, before measured clearance growth.</summary>
+    internal static double BaseColumnGap => Get("base_column_gap") * Get("grid_step");
     internal static double CrossingScore => Get("score_crossing");
     internal static double DisconnectedEndScore => Get("score_disconnected_end");
     internal static double TargetAspectWidth => Get("target_aspect_width");

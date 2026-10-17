@@ -268,7 +268,7 @@ public static partial class DiagramGridLayout
             double Across(FlowchartLayoutPoint Point) => Horizontal ? Point.Y : Point.X;
             double Sign = Math.Sign(Along(Next) - Along(Start));
             double Gap = (Along(End) - Along(Start)) * Sign;
-            double Needed = 3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10;
+            double Needed = 3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridRouteBuilder.ARROWHEAD_LENGTH_PX;
             if (Sign == 0 || Math.Sign(Along(End) - Along(Previous)) != Sign || Gap <= 0 || Gap >= Needed
                 || Math.Abs(Across(End) - Across(Start)) < 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) continue;
             double Cut = (Along(Start) + Along(End)) / 2;
@@ -369,7 +369,8 @@ public static partial class DiagramGridLayout
                 CenterX = Node.X,
                 CenterY = Node.Y,
                 Width = Node.Width,
-                Height = Node.Height
+                Height = Node.Height,
+                Geometry = Node.GeometryProvider?.Create(Node.Width, Node.Height)
             };
         }
 
@@ -399,7 +400,8 @@ public static partial class DiagramGridLayout
                 CenterX = Node.X,
                 CenterY = Node.Y,
                 Width = Node.Width,
-                Height = Node.Height
+                Height = Node.Height,
+                Geometry = Node.GeometryProvider?.Create(Node.Width, Node.Height)
             });
         }
 
@@ -625,7 +627,8 @@ public static partial class DiagramGridLayout
                 CenterX = Bounds.CenterX,
                 CenterY = Bounds.CenterY,
                 Width = Bounds.Width,
-                Height = Bounds.Height
+                Height = Bounds.Height,
+                Geometry = Bounds.Geometry
             });
         }
 
@@ -672,6 +675,9 @@ public static partial class DiagramGridLayout
 
     internal sealed class GridNode
     {
+        /// <summary>Rebuilds renderer-owned local geometry after a node dimension change.</summary>
+        public INodeGeometryProvider? GeometryProvider;
+
         public string Id = string.Empty;
 
         public string? Shape;
@@ -684,15 +690,39 @@ public static partial class DiagramGridLayout
 
         private double _x;
         private double _y;
+        private int _width;
+        private int _height;
+        /// <summary>The authoritative region view when this node participates in logical-cell repair.</summary>
+        internal FlowchartCellNode? CellNode { get; private set; }
         public bool PlacementHintLocked;
-        public double X { get => _x; set { if (!PlacementHintLocked) _x = value; } }
-        public double Y { get => _y; set { if (!PlacementHintLocked) _y = value; } }
-        public void SetYAfterCoordinateTransform(double Value) => _y = Value;
-        public void SetPositionFromFrameFit(double X, double Y) { _x = X; _y = Y; }
+        public double X { get => CellNode?.X ?? _x; set { RequireUnboundPixels(); if (!PlacementHintLocked) _x = value; } }
+        public double Y { get => CellNode?.Y ?? _y; set { RequireUnboundPixels(); if (!PlacementHintLocked) _y = value; } }
+        /// <summary>Retains the legacy coordinate adapter only for a node without logical-cell authority.</summary>
+        /// <param name="Value">Legacy transformed vertical coordinate.</param>
+        public void SetYAfterCoordinateTransform(double Value) { RequireUnboundPixels(); _y = Value; }
+        /// <summary>Retains legacy frame placement only until a node is bound to explicit cell ownership.</summary>
+        /// <param name="X">Legacy horizontal coordinate.</param>
+        /// <param name="Y">Legacy vertical coordinate.</param>
+        public void SetPositionFromFrameFit(double X, double Y) { RequireUnboundPixels(); _x = X; _y = Y; }
 
-        public int Width;
+        public int Width { get => CellNode == null ? _width : checked((int)CellNode.Width); set { RequireUnboundPixels(); _width = value; } }
 
-        public int Height;
+        public int Height { get => CellNode == null ? _height : checked((int)CellNode.Height); set { RequireUnboundPixels(); _height = value; } }
+
+        /// <summary>Binds an explicitly allocated region; existing pixel fields are not consulted or converted.</summary>
+        /// <param name="Grid">Grid already owning this node's whole-cell reservation.</param>
+        internal void BindCells(FlowchartLogicalGrid Grid)
+        {
+            if (CellNode != null) throw new InvalidOperationException("A node is already bound to its cell grid.");
+            CellNode = new(Grid, Id, IsDiamond);
+        }
+
+        /// <summary>Prevents an unconverted repair or pixel rollback from bypassing authoritative cell ownership.</summary>
+        /// <exception cref="InvalidOperationException">The node's region is already authoritative.</exception>
+        private void RequireUnboundPixels()
+        {
+            if (CellNode != null) throw new InvalidOperationException("Change the node's cell region instead of writing derived pixel geometry.");
+        }
 
         public int Rank;
 

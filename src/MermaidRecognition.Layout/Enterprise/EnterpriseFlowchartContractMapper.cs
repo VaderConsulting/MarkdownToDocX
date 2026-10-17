@@ -227,6 +227,10 @@ public static class EnterpriseFlowchartContractMapper
             ParentGroupId = ParentContainerId(Document, Element.Id, Containers),
             LayoutWidth = Size.Width,
             LayoutHeight = Size.Height,
+            GeometryProvider = EnterpriseElementCatalog.Elements[Element.ElementType].BoxKind is
+                EnterpriseBoxKind.Contract or EnterpriseBoxKind.Representation
+                ? new EnterpriseDecoratedNodeGeometry(EnterpriseElementCatalog.Elements[Element.ElementType].BoxKind)
+                : null,
             PlacementHint = Element.PlacementHint
         };
         NodeContract.MetadataMutable["enterpriseElementType"] = new RawMetadata(

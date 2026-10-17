@@ -35,6 +35,9 @@ internal static class FlowchartAlignedRouteStraightener
                 Start = new() { X = Source.CenterX + (Right ? Source.Width : -Source.Width) / 2.0, Y = Source.CenterY };
                 End = new() { X = Target.CenterX + (Right ? -Target.Width : Target.Width) / 2.0, Y = Target.CenterY };
             }
+            if (!TryGeometryPort(Source, Exit, 0.5, ref Start)
+                || !TryGeometryPort(Target, Entry, 0.5, ref End)) continue;
+            if (Math.Abs(Start.X - End.X) > 0.5 && Math.Abs(Start.Y - End.Y) > 0.5) continue;
             if (HitsBox(Route, Start, End, Bounds) || PortUsed(Layout, Route, Start, AtSource: true)
                 || PortUsed(Layout, Route, End, AtSource: false)) continue;
             if (WouldWorsenInteractions(Layout, Route, [Start, End])) continue;
@@ -91,6 +94,8 @@ internal static class FlowchartAlignedRouteStraightener
                 bool ExitHorizontal = Exit is "left" or "right";
                 if (ExitHorizontal == (Entry is "left" or "right")) continue;
                 FlowchartLayoutPoint Start = Port(Source, Exit, ExitFraction), End = Port(Target, Entry, EntryFraction);
+                if (!TryGeometryPort(Source, Exit, ExitFraction, ref Start)
+                    || !TryGeometryPort(Target, Entry, EntryFraction, ref End)) continue;
                 FlowchartLayoutPoint Bend = ExitHorizontal
                     ? new() { X = End.X, Y = Start.Y }
                     : new() { X = Start.X, Y = End.Y };
@@ -245,6 +250,20 @@ internal static class FlowchartAlignedRouteStraightener
             if ((Math.Abs(Points[Index].X - Points[Index - 1].X) < 0.5)
                 != (Math.Abs(Points[Index + 1].X - Points[Index].X) < 0.5)) Count++;
         return Count;
+    }
+
+    /// <summary>Uses the renderer connection body when it differs from the visual rectangle.</summary>
+    /// <param name="Box">The current measured node geometry.</param>
+    /// <param name="Side">Requested compass side.</param>
+    /// <param name="Fraction">Position along the eligible edge.</param>
+    /// <param name="Point">Receives the routing-space port; unchanged for legacy outlines.</param>
+    /// <returns>Whether the requested position is eligible.</returns>
+    private static bool TryGeometryPort(FlowchartLayoutNodeBounds Box, string Side, double Fraction, ref FlowchartLayoutPoint Point)
+    {
+        if (Box.Geometry == null) return true;
+        if (!Box.Geometry.ConnectionBoundary.TryPort(Side, Fraction, out var Port)) return false;
+        Point = new() { X = Box.CenterX + Port.X, Y = Box.CenterY - Port.Y };
+        return true;
     }
 
     private static FlowchartLayoutPoint Port(FlowchartLayoutNodeBounds Box, string Side, double Fraction)

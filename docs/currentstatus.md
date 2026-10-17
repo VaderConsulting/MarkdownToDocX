@@ -374,3 +374,166 @@ If the vendored Mermaid changes, update this pin, the recognition fixtures and `
 ## Maintenance rule
 
 Update this file at the end of every completed task. Remove a finished task, keep only lessons worth keeping under "Do not repeat", and delete anything that is no longer true instead of adding history.
+
+## Reviewed DOCX layout round in progress — 17 October 2026
+
+The coordinate migration is parked in `out/route-cost/parked-coordinate-migration.patch`
+against 7226be4. Do not reapply it before this layout round is committed and a
+new geometry baseline is captured. The rule source now requests 20 points per
+bend and 100 per off-table node; generated rulebook and JSON were refreshed.
+
+The table-alignment integration reached the three-attempt stop rule. First,
+compacting all rows/columns after frame fitting removed grouped channel space
+and F73 exceeded the 59-second progress watchdog (only 73 summaries).
+Second, excluding groups and retaining a fine-grid horizontal pitch completed
+the focused run but raised crossing counts in A153 (69 against 24), A110
+(269 against 258), and A113 (147 against 120). Third, expanding validated
+bands without compacting existing space restored six of seven crossing
+regressions, but A110 still had 260 against 258. The integration was removed;
+the table model, independent measurement, score term and tests remain for the
+next frame-aware complete-candidate implementation. No checker threshold or
+baseline row was changed to accept these results.
+
+The accepted baseline full suites were captured once in the separate
+`out/audit-speed-work` worktree: layout 792 passed / 208 failed (1000 total),
+rule validation 966 passed / 160 failed (1126 total), converter 62 passed /
+1 failed (63 total). Logs are `out/route-cost/layout-round-baseline-*-tests.log`;
+the converter failure is ConvertText_MultipleEnterpriseErrors_UseOneVisibleLineEach.
+New focused table, capacity and score tests currently total 13 passing tests.
+This is work in progress, not a completed layout round or an approved migration
+baseline. No new layout-round commit or DOCX regeneration has been made yet.
+
+## Revised logical-grid prerequisite and shape integration — 17 October 2026
+
+This section supersedes the older inferred-table/off-grid-penalty plan above.
+The current `Instructions/rules.yaml` is authoritative. Rule 1.3 permits each
+node to grow independently by whole cells, based on measured text, allocated
+port capacity and mandatory geometry. Neighbour count alone is not a growth
+request. Representation bottom ports use the horizontal line through the wave
+endpoints, with vertical terminal runs; rule 4.1 has not been extended.
+
+The unfinished layout fault batch was parked in
+`out/logical-grid-prerequisite/paused-layout/tracked-source.patch`, with owned
+new files retained under that directory and a `new-files.txt` inventory. Its
+base is 7226be4. Do not blindly restore its inferred variable-band grid or
+count-based fan sizing: both conflict with the revised cell-region model.
+The separate coordinate migration remains parked. No migration has resumed.
+
+### Renderer measurements and defaults
+
+`DiagramGridMetrics` defines a 30 px drawing step, 150 px standard rectangular
+width and 60 px standard height. `FlowchartRenderOptions` defaults to 16 px
+Trebuchet MS/Verdana/Arial text and 15 px label padding. The estimator currently
+uses 30 px horizontal padding on each side and 15 px on each vertical side.
+`FlowchartSugiyamaSvgRenderer.AppendNodeLabel` paints multiline text at 1.5 em,
+so two default lines plus vertical padding need 78 px, rounded up to 90 px.
+The existing minimum label box is 67.2 px; adding its existing 60 px total
+horizontal padding needs 127.2 px, below the existing 150 px standard width.
+
+Only the three requested parameter defaults were set for this prerequisite:
+`base_cell_width = 150`, `base_cell_height = 90`, `node_text_padding = 15`.
+The rulebook and JSON twin were regenerated with `Build-Rulebook.ps1`.
+Other rule edits already in the working tree belong to the revised user
+specification, not to an engine implementation claim.
+
+Real integration incompatibilities remain. Production grid preparation still
+derives one shared size from all labels, placement and repair helpers still
+move or resize pixel boxes, and their 30 px moves are not logical-cell moves.
+Text sizing uses width heuristics, a different 1.25 em/8 px measurement path,
+and can ignore the resolved per-node font used to paint the SVG. The shared
+layout project has no actual-font measurement service. SkiaSharp 3.119.4 is
+already used by DOCX rasterisation and its installed native assets include
+win-arm64; no additional native dependency has been added to the layout
+project during this increment.
+
+### Shape integration completed, grid engine integration still pending
+
+The renderer-owned `NodeGeometry` contract separates visual bounds, eligible
+connection boundary and occupied silhouette. Contract and representation
+providers now participate in shared allocation, routing clearance, terminal
+checking, legal hints and the independent slot audit. The router has no new
+contract/representation shape-name branches. Local geometry is page-down;
+the existing routing adapter converts its points and normals to routing Y-up.
+The enterprise drawings retain their existing outlines and numeric constants.
+
+The contract's 6 px top decoration remains an obstacle; body ports are inset
+and its north approach is ineligible because it crosses that decoration.
+The representation endpoint line is 8 px above its visual box bottom. The
+unchanged wave protrudes below that line on its right half, so the provider
+rejects positions whose vertical approach would cross the wave. The centre
+bottom port and vertical terminal remain available. Five painted arrowhead
+variants touch the wave at the tip without crossing it. Impossible geometry
+hints use the existing reported hint-rejection path; legal hints retain their
+requested sides and connection-body ports.
+
+The restored return/wrap regressions pass. EIP166 exposed another allocation
+mismatch: a legal straight tip was restored after allocating two slanted-edge
+ports, leaving its sibling at a two-port fraction. Allocation now reserves the
+straight tip first and redistributes remaining slanted-edge ports at source.
+An ineligible route candidate can clear provisional points, so allocating a
+declared relationship now recreates its two anchors before writing endpoints.
+
+The logical-grid foundation is implemented and tested, but is NOT enabled as
+the production placement engine. `FlowchartLogicalGrid` owns immutable base
+configuration, explicit integer cell regions, atomic occupancy changes and
+sparse grown gaps. Its dimensions include every internal grown gap.
+`FlowchartNodeSpanCandidates` measures wrapping before deriving finite,
+undominated width/height candidates, preserves explicit blank lines and long
+words, and accepts measured mandatory geometry minima. `FlowchartPortCapacity`
+measures separation between allocated points and never infers growth from a
+neighbour count. The 13 logical-grid tests do not prove the old renderer now
+implements logical regions. Next, wire renderer font measurement and retained
+wrapping into sizing, make regions authoritative across placement and repair,
+then compare complete span/layout candidates under the unchanged score. Keep
+open mode outside that path and preserve hint precedence. Finish this before
+restoring the paused fault list or per-diagram switches.
+
+### Verification and unresolved checker dependency
+
+The final focused prerequisite selection passes 54 tests: shape providers,
+painted guides and arrowheads, valid/impossible hints, geometry contracts,
+return/wrap behavior, the decision return-slot regression and logical cells.
+The established routing regression selection remains 34 passing / 2 known
+failures (F153 and LargeFanOut), including the existing illegal-path tests.
+The broader Enterprise selection was 201 passing / 28 failing. Of those,
+24 were already in the recorded full-suite baseline; four opposing-pair tests
+expect straight reverse links and conflict with the restored rule 5.3 return
+behavior. Their expectations were not changed to conceal the difference.
+
+Measured increments, in Release on this ARM machine:
+
+| Increment | Summaries | Seconds | A142 seconds | 4.2 | 5.9 | 3.1 | 4.1 | 4.11 | 5.8 | Shared pairs |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Numeric defaults only | 673 | 37.03 | 12.4163 | 39 | 1700 | 4 | 0 | 3 | 0 | 2083 |
+| Shape integration and return slots | 673 | 34.76 | 10.4240 | 44 | 1694 | 4 | 0 | 3 | 0 | 2089 |
+| Final shape guards and tested grid foundation | 673 | 38.98 | 11.6791 | 44 | 1694 | 4 | 0 | 3 | 0 | 2089 |
+
+Final slot, node/frame grid, title-band, unrelated frame overlap, missing-route,
+NoLegalRoute, illegal-path, cleanup and hint-accounting gates are zero. The
+five existing native layout failures remain unmeasured; the audit therefore
+still exits nonzero for known failures and shared-track findings. This is not
+full acceptance. Baseline rows were not edited. Logs are under
+`out/logical-grid-prerequisite/`, especially `increment3-final-audit.log`.
+
+The legacy 4.2 checker still counts aligned terminals whose required directions
+disagree. The revised rule explicitly excludes those illegal straight routes.
+Three integration attempts at correcting that checker exposed a repair
+dependency: F32 and EIP261 retained illegal paths; synchronising early bounds
+removed them but changed other side/crossing outcomes. The checker refinement
+was parked rather than leaving nonzero legality gates or changing unrelated
+geometry. Its helper and two direct tests are saved in
+`out/logical-grid-prerequisite/parked-direction-agreement-helper.txt` and
+`FlowchartAlignedPortDirectionTests.cs`. Fix candidate/rollback geometry and
+late writer legality before reinstating it. Thus the current 44 is the legacy
+reported count, not a claim that all 44 represent legal straight alternatives.
+
+No prerequisite commit, DOCX regeneration, push or coordinate migration has
+been performed in this increment. The three previously dirty DOCX files were
+left alone. Resume the paused layout fault list after production cell-region
+integration passes its audits.
+
+### Shape and cell foundation checkpoint
+
+The finished shape integration, restored return/wrap behavior and tested cell-region foundation are checkpointed before production repair activation. Cell views, atomic ownership transactions, guarded pixel writes and their unit tests are included. The partially integrated repair searches and engine fixtures remain uncommitted. Independent spans remain disabled, and F32/EIP261 remains parked for routing work. The checkpoint is verified separately from those unfinished repair branches.
+
+Isolated checkpoint verification passed 74 focused tests, including the original 54. Its full Release audit emitted all 673 summaries in 37.30 s, A142 11.8293 s, with every previously zero gate still zero. Existing totals are unchanged: 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0 and shared pairs=2089. Five native failures remain unmeasured. The audit still exits nonzero for known findings. Logs: out/logical-grid-prerequisite/checkpoint-focused-tests.log and checkpoint-audit.log.
