@@ -275,3 +275,17 @@ Census placement-policy-15a-intergroup.log -> placement-policy-15-chain-columns-
 86 case totals change, including increases, in the comparison CSV. All 290
 focused tests pass. The added metadata test checks that both ordering columns
 and exact ownership survive the actual main-chain dispatcher.
+
+## Superseded: legacy terminal-row pixel/rank assignment
+
+Removing the hidden fan-in median rewrite exposed A173's terminal-row writer.
+Bounded-hole detection is retained as an unpublished whole-cell leaf candidate;
+legacy centre-based pixel/rank publication is bypassed. The complete routed
+score checks hints, clearance and total route cost before any region changes.
+Focused tests verify candidate publication is deferred, rank is untouched and
+hinted leaves are excluded. A173 is a real-source completion regression.
+
+The isolated census placement-policy-15-chain-columns-final.log -> placement-policy-16a-terminal-holes.log
+retains 660 completed bound cases, zero catches, A164/A165 and all case bend
+counts (3158 total). The focused selection has 293 passing tests with the
+companion fan-in bypass; the terminal-hole tests also pass independently.

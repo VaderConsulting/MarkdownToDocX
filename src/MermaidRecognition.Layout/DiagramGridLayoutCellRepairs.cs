@@ -34,6 +34,7 @@ public static partial class DiagramGridLayout
                     || FlowchartLayoutScore.CountCorners(Route.Points) > 0)
                 .SelectMany(Route => new[] { Route.SourceId, Route.TargetId }).Distinct(StringComparer.Ordinal).ToArray();
             foreach (var Candidate in FlowchartJunctionBranchCompaction.CellCandidates(State.Contract, State.Placed, State.Horizontal)
+                .Concat(FlowchartTerminalRowPlacement.CellCandidates(State.Contract, State.Placed, State.Horizontal))
                 .Concat(CellRouteMoveCandidates(State.Contract, State.Placed, State.Horizontal, Units)))
             {
                 var Plan = FlowchartCellRepair.PlanMove(Candidate.Nodes, Candidate.Rows, Candidate.Columns)
