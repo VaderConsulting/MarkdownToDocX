@@ -69,7 +69,8 @@ public static partial class DiagramGridLayout
                 || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)
                 || Input.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Input.Id) != 1) continue;
             var Anchor = Targets[Decision.Id]; var RetryBefore = Targets[Retry.Id];
-            Targets[Finish.Id] = WithCellCross(Targets[Finish.Id], Anchor.StartRow, true);
+            // Success keeps its existing region. This plan only provides the
+            // retry corridor; straightening competes after routes are built.
             Targets[Retry.Id] = new(Anchor.EndRow, Anchor.StartColumn, RetryBefore.RowSpan, RetryBefore.ColumnSpan);
             var D = Decision.CellNode!.Bounds(Anchor, Decision.GeometryProvider);
             var R = Retry.CellNode!.Bounds(Targets[Retry.Id], Retry.GeometryProvider);

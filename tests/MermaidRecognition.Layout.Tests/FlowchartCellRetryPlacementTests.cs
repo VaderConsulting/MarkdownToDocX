@@ -19,6 +19,17 @@ public sealed class FlowchartCellRetryPlacementTests
         Assert.That(R.Rank, Is.EqualTo(D.Rank));
     }
 
+    /// <summary>A success node on another row is not aligned as a side effect of measured retry clearance.</summary>
+    [Test]
+    public void RetryClearancePreservesSuccessRegion()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        Assert.That(Grid.TryPlace("F", new(1, 4, 1, 1)), Is.True);
+        var Before = Grid.RegionOf("F");
+        Assert.That(DiagramGridLayout.AlignCellHorizontalRetryOutcomes(Contract, Nodes), Is.True);
+        Assert.That(Grid.RegionOf("F"), Is.SameAs(Before));
+    }
+
     /// <summary>A hint or occupied retry target rejects the complete automatic move and leaves rank metadata untouched.</summary>
     /// <param name="Hint">Whether rejection comes from a hint rather than occupied cells.</param>
     [TestCase(false)]

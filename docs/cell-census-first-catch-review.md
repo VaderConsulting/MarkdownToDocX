@@ -226,3 +226,14 @@ Census placement-policy-11-spine.log -> placement-policy-12-loop-tails.log:
 660 completed bound cases; zero catches; A164/A165 unchanged; bends unchanged
 at 3242 in every completed case. All 288 focused tests pass, including an
 intentionally offset tail that must remain offset after side separation.
+
+## Superseded: success-node alignment in horizontal retries (19686f6)
+
+Retry topology, rank ordering and measured departure clearance remain. The
+success node keeps its existing region; making its route straight is no longer
+an unconditional side effect of providing a legal retry corridor.
+
+Census placement-policy-12-loop-tails.log -> placement-policy-13-retry.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3242 -> 3236:
+F124 and F34 each improve 7 -> 4. All 289 focused tests pass, including an offset
+success node whose exact region must survive the retry clearance repair.
