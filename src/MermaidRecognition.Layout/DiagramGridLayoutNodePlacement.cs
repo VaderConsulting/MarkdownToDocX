@@ -474,6 +474,11 @@ public static partial class DiagramGridLayout
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
         if (Horizontal) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellVerticalLoopBranches(Contract, Placed);
+            return;
+        }
         var ById = IndexPlaced(Placed);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Forward = Contract.Edges.Where(Edge => !Back.Contains(Edge)

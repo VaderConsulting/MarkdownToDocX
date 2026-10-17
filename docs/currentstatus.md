@@ -1121,3 +1121,11 @@ geometry is rechecked before publication; unresolved clearance never leaks
 an accepted region. Three tests pass, focused count 240. The post-conversion
 census is census-after-cell-horizontal-retries.log. The remaining writers and
 hard frame-fit failures still prevent a complete cells-on acceptance audit.
+
+### Whole-cell vertical loop branches
+
+Vertical loops and their complete continuing tails now use opposite logical
+cell lanes in one ownership plan. An occupied or hinted late tail member
+rejects both the tail and return branch. Three tests pass, focused count 243.
+The next census is census-after-cell-vertical-loops.log; full cells-on acceptance
+remains pending the remaining writers and hard frame-fit failures.

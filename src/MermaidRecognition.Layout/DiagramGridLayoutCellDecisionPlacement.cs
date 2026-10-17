@@ -8,6 +8,44 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans decision detours and loop placement on authoritative logical reservations.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Plans vertical return branches and complete continuing tails on opposite whole-cell lanes.</summary>
+    /// <param name="Contract">Forward and return topology.</param>
+    /// <param name="Placed">Complete diagram ownership.</param>
+    /// <returns>Whether the complete legal branch/tail assignment was accepted.</returns>
+    internal static bool AlignCellVerticalLoopBranches(DiagramContract Contract, List<GridNode> Placed)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed); var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Forward = Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToArray();
+            var Outgoing = Forward.Where(Edge => Edge.SourceId == Decision.Id).ToArray();
+            if (Incoming.Length != 1 || Outgoing.Length != 2) continue;
+            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToArray();
+            var Loop = Children.FirstOrDefault(Child => Back.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Incoming[0].SourceId));
+            if (Children.Length != 2 || Children[0] == Children[1] || Loop == null || Loop.PlacementHintLocked
+                || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
+            var Continuation = Children.First(Child => Child != Loop);
+            var Tail = new List<GridNode>(); var Current = Continuation; var Seen = new HashSet<string>(StringComparer.Ordinal);
+            while (Seen.Add(Current.Id))
+            {
+                Tail.Add(Current);
+                var Next = Forward.Where(Edge => Edge.SourceId == Current.Id).ToArray();
+                if (Next.Length != 1 || !ById.TryGetValue(Next[0].TargetId, out var Child) || Child.IsDiamond
+                    || Child.GroupId != Continuation.GroupId || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1) break;
+                Current = Child;
+            }
+            if (Tail.Any(Node => Node.PlacementHintLocked)) continue;
+            int Centre = Targets[Decision.Id].StartColumn;
+            int Pitch = Tail.Append(Loop).Append(Decision).Max(Node => Targets[Node.Id].ColumnSpan);
+            Targets[Loop.Id] = WithCellCross(Targets[Loop.Id], checked(Centre + Pitch), false);
+            foreach (var Node in Tail) Targets[Node.Id] = WithCellCross(Targets[Node.Id], checked(Centre - Pitch), false);
+        }
+        return FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
     /// <summary>Plans horizontal success and retry outcomes together using whole cells and measured departure clearance.</summary>
     /// <param name="Contract">Declared decision and return topology.</param>
     /// <param name="Placed">Complete authoritative diagram ownership.</param>
