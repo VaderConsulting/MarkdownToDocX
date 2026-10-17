@@ -198,11 +198,17 @@ public static class FlowchartEdgeLabelClearanceHelper
         List<(double X, double Y)> Samples = new List<(double X, double Y)>(OwnSamples);
         if (OtherGuideSvgPoints is not null && ObstacleIndex == null)
         {
+            // Keep the exact existing sampled geometry, but query neighbouring
+            // samples through the same broad phase used by the SVG painter.
+            // Canvas measurement has no painter index and previously scanned
+            // every other connector at every candidate label position.
+            ObstacleIndex = new FlowchartSvgSpatialIndex();
             foreach (IReadOnlyList<(double X, double Y)> OtherPoints in OtherGuideSvgPoints)
             {
                 if (OtherPoints.Count >= 2)
                 {
-                    Samples.AddRange(SampleConnector(OtherPoints));
+                    foreach (var Sample in SampleConnector(OtherPoints))
+                        ObstacleIndex.AddPoint(Sample.X, Sample.Y);
                 }
             }
         }

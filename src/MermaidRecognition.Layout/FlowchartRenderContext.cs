@@ -64,6 +64,9 @@ public sealed class FlowchartRenderContext
 
     internal DiagramContract? CachedRouteContract { get; set; }
 
+    /// <summary>Exact endpoint and obstacle geometry associated with the cached guide family.</summary>
+    internal string? CachedRouteGeometry { get; set; }
+
     internal List<FlowchartResolvedGuide>? CachedRouteGuides { get; set; }
 
     internal List<(EdgeContract Edge, IReadOnlyList<(double X, double Y)> Points)>? CachedSvgRenderGuides { get; set; }
@@ -87,6 +90,7 @@ public sealed class FlowchartRenderContext
         TerminalCandidateCache.Clear();
         IsSvgEdgePainting = false;
         CachedRouteContract = null;
+        CachedRouteGeometry = null;
         CachedRouteGuides = null;
         CachedSvgRenderGuides = null;
         CachedLabelSpatialIndex = null;

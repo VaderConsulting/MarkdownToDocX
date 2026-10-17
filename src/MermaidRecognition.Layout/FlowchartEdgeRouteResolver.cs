@@ -34,7 +34,7 @@ public static class FlowchartEdgeRouteResolver
             BoundsById,
             NodeById,
             Direction,
-            Layout?.RenderContext ?? new FlowchartRenderContext());
+            Layout?.RenderContext ?? FlowchartRenderContext.Current);
         long Scanned = 0;
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
@@ -75,7 +75,8 @@ public static class FlowchartEdgeRouteResolver
     {
         if (Layout == null
             && RenderContext.CachedRouteGuides != null
-            && ReferenceEquals(RenderContext.CachedRouteContract, Contract))
+            && ReferenceEquals(RenderContext.CachedRouteContract, Contract)
+            && RenderContext.CachedRouteGeometry == GuideGeometry(BoundsById))
         {
             return RenderContext.CachedRouteGuides;
         }
@@ -220,8 +221,16 @@ public static class FlowchartEdgeRouteResolver
 
         RenderContext.CachedRouteContract = Contract;
         RenderContext.CachedRouteGuides = Guides;
+        RenderContext.CachedRouteGeometry = GuideGeometry(BoundsById);
         return Guides;
     }
+
+    /// <summary>Identifies the complete supplied geometry so reused render contexts cannot return guides from an earlier frame fit.</summary>
+    /// <param name="Bounds">The endpoint and obstacle bounds supplied to this guide lookup.</param>
+    /// <returns>A deterministic exact-double signature, independent of dictionary insertion order.</returns>
+    private static string GuideGeometry(IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds) =>
+        string.Join(";", Bounds.OrderBy(Pair => Pair.Key, StringComparer.Ordinal).Select(Pair =>
+            FormattableString.Invariant($"{Pair.Key}:{Pair.Value.CenterX:R},{Pair.Value.CenterY:R},{Pair.Value.Width:R},{Pair.Value.Height:R}")));
 
     private static bool UsedGridLayoutRoutes(FlowchartLayoutResult? Layout, List<FlowchartResolvedGuide> Guides)
     {
