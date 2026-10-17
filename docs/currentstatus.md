@@ -35,6 +35,60 @@ rejected. The original baseline rows, rules.yaml, score weights and hints are
 unchanged. The following paragraphs describe the earlier checkpoint, not the
 current totals.
 
+### DOCX conversion profiling and exact-geometry speed fix
+
+`03fe4ca` reuses the scoped guide-search context and invalidates it when endpoint
+or obstacle bounds change. Canvas label queries index the same sampled neighbour
+points instead of repeatedly scanning them. All 673 page-geometry snapshots
+matched exactly, with zero changed or missing scenarios. Five new equivalence
+and cache invalidation tests pass. `60fcd77` fixes apphost-based worker launching
+in the profiling harness.
+
+The complete whole-document profile measured flow.md at 30.513 seconds,
+enterprise.md at 83.156 seconds and EIP.md at 46.848 seconds. Enterprise previously
+took 454.900 seconds in the same profiling mode. The current ten slowest diagrams
+are A142 12.008 s, A165 10.411 s, F153 6.300 s, A114 5.583 s, A115 3.926 s,
+A167 3.923 s, A163 3.785 s, A164 3.636 s, F151 3.029 s and A166 2.959 s.
+The raw timings are in out/route-cost/away-docx-diagram-times-after.jsonl.
+
+The first speed attempt, indexing sampled neighbours alone, reduced point
+checks but still timed out at 60 seconds. The profile exposed the other cost:
+each per-edge lookup created a fresh context and reran the full guide search.
+Reusing that context reduced the isolated A114 conversion to 7.496 seconds and
+its canvas label measurement to 2.097 seconds. In the warmed document conversion,
+A114 fell from 371.998 to 5.583 seconds. The existing
+Render_FormatV1Diagram_BreaksStrokeAroundEdgeLabels test still fails for the
+same stroke-gap assertion on the unchanged checkpoint and the new code; it is
+not fixed by this performance work. Audit speed and the A142 layout search are
+still open.
+
+### Real empty-group packing hang and latest accepted audit
+
+`58822a5` fixes a real enterprise diagram with nested members, a right-of child
+hint and an unrelated empty group. Empty-frame placement previously accepted
+touching borders, while sibling packing required clearance and repeatedly moved
+the unlocked members beside a locked hint. Both steps now use the same clearance
+calculation. Explicit empty-frame hints retain their exact gap. Five new public
+parser/layout tests pass, together with all 12 existing frame invariants.
+
+The first unhinted reproduction settled normally. Adding a real child hint
+reproduced the hang. The first clearance fix changed A167's hinted empty frames;
+preserving explicit hint spacing corrected that. The final exact comparison
+covered all 673 scenarios with zero changed or missing snapshots (76.284 s).
+The two older SiblingFrameClearanceTests failures were reproduced with the
+unchanged group-frame implementation; they remain open rather than being hidden.
+
+The latest accepted audit emitted all 673 summaries in **85.04 seconds**. A142
+took **39.7853 seconds**. Totals are **4.2 = 39, 5.9 = 1700, 3.1 = 4, 4.11 = 3,
+5.8 = 0 and shared-track pairs = 2083**. All hard legality gates, including
+illegal paths, title bands, frame overlap, missing routes and off-slot ports,
+remain zero. The focused side/cost regression selection retains 34 passes and
+the same two known failures; the original 23 passes and both illegal-path cases
+remain passing. Baseline rows, rules.yaml, weights and hints are unchanged.
+The side-fix checkpoint satisfies the requested comparison against 06ede99.
+
+The following performance and quality paragraphs are older checkpoint history.
+
 The full audit emits all 673 summaries in 54.14 seconds, down from 84.52 seconds at 404ce4c but above c6605bd's 48.78 seconds. A142 takes 24.7305 seconds in the final audit (23.90 seconds in the isolated prepared-geometry profile), still above its 10-second target. The five existing failed layouts remain F65, F70, F87, F88 and A01; the 668 successful layouts are measured, and failed layouts are not reported as successful zero-finding diagrams.
 
 Current totals: 4.2 = 39, 5.9 = 1788, 3.1 = 4, 4.1 = 0 and shared-track pairs = 2271. Every hard legality gate remains zero. All 13 previously passing regressions and the F29/F119 illegal-path tests pass. F61 remains at zero bends and crossings. Eight new regression cases pin the recovered crossing ceilings. Baseline rows, rules.yaml, weights and hint constraints are unchanged.
