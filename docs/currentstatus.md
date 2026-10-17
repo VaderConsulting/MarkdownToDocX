@@ -1059,3 +1059,12 @@ corridors. Hinted participants reject all gap growth unchanged. Three tests
 pass, focused count 212. The census-after-cell-partner-gaps.log records the
 next pending writers and frame-fit failures. Full cells-on acceptance remains
 pending the clean census.
+
+### Whole-cell sparse-rank compaction
+
+Sparse rank bands reuse complete logical lanes across disjoint main-axis
+strips. Rank-skipping connections keep separate lanes and their measured
+corridor clearance grows as shared external gaps. Hinted gap participants
+reject complete candidates unchanged. Three tests pass, focused count 215.
+The next census is census-after-cell-sparse-compaction.log; full cells-on
+acceptance and final profiling remain pending the clean census.
