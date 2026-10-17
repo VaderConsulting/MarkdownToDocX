@@ -261,3 +261,17 @@ The isolated census placement-policy-14-detours.log -> placement-policy-15a-inte
 retains 660 completed bound cases, zero catches, A164/A165 and every case's bend
 count (3236 total). Three real-source regressions cover A111 and the two missing
 partner-track cases A110/F136; all pass.
+
+## Superseded: hidden forward-chain column alignment before initial placement
+
+The initial region producer's legacy AlignForwardMainChainColumn caller now
+bypasses bound nodes in both calls. It only rewrote every main-chain Column to
+the root's column, indirectly forcing alignment when initial regions were
+assigned. Original native rank/order metadata remains; straightening competes
+as whole-cell routed candidates instead. The cells-off branch is unchanged.
+
+Census placement-policy-15a-intergroup.log -> placement-policy-15-chain-columns-final.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3236 -> 3158;
+86 case totals change, including increases, in the comparison CSV. All 290
+focused tests pass. The added metadata test checks that both ordering columns
+and exact ownership survive the actual main-chain dispatcher.

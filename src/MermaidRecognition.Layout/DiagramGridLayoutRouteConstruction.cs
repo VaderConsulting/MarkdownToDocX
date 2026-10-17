@@ -212,12 +212,14 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// B15: keeps the forward main chain in one column; back edges never pull nodes sideways.
     /// </summary>
-    private static void AlignForwardMainChainColumn(
+    internal static void AlignForwardMainChainColumn(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
     {
-        if (Horizontal || Placed.Count == 0)
+        // Initial logical ordering must not smuggle a forced spine alignment
+        // into the region producer. Whole-cell straightening is scored later.
+        if (Placed.Any(Node => Node.CellNode != null) || Horizontal || Placed.Count == 0)
         {
             return;
         }
