@@ -6,15 +6,16 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellDecisionAlignmentTests
 {
-    /// <summary>A chain moves in one transaction on either physical cross axis.</summary>
+    /// <summary>The real dispatcher leaves each upstream region untouched on either cross axis.</summary>
     /// <param name="Horizontal">Whether to align logical rows.</param>
     [TestCase(false)]
     [TestCase(true)]
-    public void AlignsEveryUpstreamChainMemberTogether(bool Horizontal)
+    public void BypassesForcedInputChainAlignment(bool Horizontal)
     {
         var (Contract, Nodes, Grid) = Fixture(Horizontal);
-        Assert.That(DiagramGridLayout.AlignCellDecisionInputs(Contract, Nodes, Horizontal), Is.True);
-        Assert.That(Nodes.Select(Node => Horizontal ? Grid.RegionOf(Node.Id).StartRow : Grid.RegionOf(Node.Id).StartColumn), Is.All.EqualTo(2));
+        var Before = Grid.Capture();
+        DiagramGridLayout.AlignUnbranchedDecisionInputs(Contract, Nodes, Horizontal);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
     /// <summary>A blocked early input rejects the whole chain, including members planned before the conflict was discovered.</summary>
@@ -25,7 +26,7 @@ public sealed class FlowchartCellDecisionAlignmentTests
         Grid.TryPlace("obstacle", new(0, 2, 1, 1));
         var Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
         var Before = Grid.Capture();
-        Assert.That(DiagramGridLayout.AlignCellDecisionInputs(Contract, Nodes, false), Is.False);
+        DiagramGridLayout.AlignUnbranchedDecisionInputs(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 

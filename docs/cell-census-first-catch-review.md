@@ -192,3 +192,14 @@ Census placement-policy-08-circular-fans.log -> placement-policy-09-input-fans.l
 660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3233 -> 3242.
 A12, EIP183 and F122 each change 0 -> 2; F125, F142 and F35 each change 3 -> 4.
 These lose the previous preset symmetry. All 287 focused tests pass.
+
+## Superseded: forced decision input-chain alignment (7c0ab95)
+
+The sole-input chain assignment is bypassed by the actual placement dispatcher
+for cell-bound nodes. Its helper and private chain writer are removed; neither
+performed ordering or measured clearance work. Straight input routes now compete
+in the whole-cell routed scorer, preserving exact region/gap rollback and hints.
+
+Census placement-policy-09-input-fans.log -> placement-policy-10-decision-inputs.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3242 -> 3240:
+F124 and F34 each improve 8 -> 7. All 287 focused tests pass.

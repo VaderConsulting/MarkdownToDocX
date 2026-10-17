@@ -378,12 +378,12 @@ public static partial class DiagramGridLayout
     /// A sole forward input enters a decision straight on its upstream vertex.
     /// Return edges into that input do not displace it from the decision's row.
     /// </summary>
-    private static void AlignUnbranchedDecisionInputs(
+    internal static void AlignUnbranchedDecisionInputs(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
         if (Placed.Any(Node => Node.CellNode != null))
         {
-            AlignCellDecisionInputs(Contract, Placed, Horizontal);
+            // Straight inputs compete as whole-cell routed candidates, never forced centre alignment.
             return;
         }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
