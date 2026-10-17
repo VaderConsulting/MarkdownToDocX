@@ -1455,6 +1455,11 @@ public static partial class DiagramGridLayout
                     ? HintSide(Edge.RoutingHint.Enter.Value) : Route.EntrySide);
         }
 
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            GrowCellCrowdedSides(Placed, Counts, BoxWidth, BoxHeight);
+            return;
+        }
         foreach (KeyValuePair<string, int> Pair in Counts)
         {
             if (Pair.Value <= DiagramGridMetrics.TRACKS_PER_GAP)

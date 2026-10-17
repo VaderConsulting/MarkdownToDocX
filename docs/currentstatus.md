@@ -989,3 +989,15 @@ writers and eleven frame-fit failures. The legacy resize paths also need care:
 the revised specification permits growth for measured allocated-port capacity,
 not neighbour count alone. Do not activate independent text spans during this
 conversion.
+
+### Measured port-capacity cell growth
+
+The crowded-side cell branch now measures allocated boundary ports using the
+existing renderer-derived pitch policy. It offers whole-cell span increments
+only for an actual measured separation shortfall; a sufficient boundary never
+grows just because of neighbour count. Ineligible sides need reassignment,
+and occupied growth rejects the complete plan. Three tests pass, focused count
+195. The census runs 673 cases in 14.6221 s with eleven frame-fit failures;
+GrowCrowdedSides is no longer caught. The remaining legacy parallel-label resize
+is distinct and still pending conversion. No independent text-span selection
+or production cell activation has been enabled.
