@@ -312,3 +312,14 @@ ordering and routed scoring supply straightening without centre positioning.
 Census placement-policy-16-merge-columns-final.log -> placement-policy-17-decision-columns.log:
 660 completed bound cases; zero catches; A164/A165 unchanged. Every completed
 case's bend count is unchanged (3204 total). All 294 focused tests pass.
+
+## Superseded: hidden detour rejoin column alignment
+
+The initial producer's detour metadata retains left/right branch ordering but
+no longer puts the rejoin on the decision's column for bound nodes. This
+removes the pre-placement counterpart of the continuing-merge straightening
+already trimmed after placement. Other ordering/collision cascading remains.
+
+Census placement-policy-17-decision-columns.log -> placement-policy-18-detour-columns.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3204 -> 3201,
+entirely F58 (14 -> 11). All 295 focused tests pass.

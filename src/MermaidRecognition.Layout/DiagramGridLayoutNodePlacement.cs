@@ -963,7 +963,7 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// Rulebook 2.6 / decision 4: place the detour child beside the spine; the rejoin node stays on the spine.
     /// </summary>
-    private static void AlignBypassDetourColumns(
+    internal static void AlignBypassDetourColumns(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
@@ -1055,7 +1055,9 @@ public static partial class DiagramGridLayout
             IntermediateChild.Column = BranchIsLeft
                 ? DecisionParent.Column - 1
                 : DecisionParent.Column + 1;
-            Candidate.Column = DecisionParent.Column;
+            // Keep detour side order, but do not force a cell merge onto the
+            // decision's line before the routed scorer can compare positions.
+            if (Candidate.CellNode == null) Candidate.Column = DecisionParent.Column;
         }
 
         CascadeColumns(Placed);

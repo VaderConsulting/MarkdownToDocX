@@ -42,6 +42,20 @@ public sealed class FlowchartCellMetadataPolicyTests
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
+    /// <summary>Detour metadata keeps its side ordering without putting a continuing merge on the decision line.</summary>
+    [Test]
+    public void DetourPreservesIndependentMergeColumn()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        Contract.EdgesMutable.Clear();
+        Contract.EdgesMutable.AddRange([new() { SourceId = "D", TargetId = "B" }, new() { SourceId = "D", TargetId = "M" }, new() { SourceId = "B", TargetId = "M" }]);
+        var Before = Grid.Capture();
+        int Column = Nodes.Single(Node => Node.Id == "M").Column;
+        DiagramGridLayout.AlignBypassDetourColumns(Contract, Nodes, false);
+        Assert.That(Nodes.Single(Node => Node.Id == "M").Column, Is.EqualTo(Column));
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+    }
+
     /// <summary>Builds a forward fan with a converging merge and deliberately distinct ordering columns.</summary>
     /// <returns>Contract, bound nodes and authoritative grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
