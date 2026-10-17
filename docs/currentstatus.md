@@ -1049,3 +1049,13 @@ specialised candidate leaves ownership untouched and ordinary joint allocation
 handles the declared links. Three tests pass, focused count 209. The next
 census is census-after-cell-partner-preparation.log. Production remains cells
 off and no independent text-span selector has been enabled.
+
+### Authoritative partner channel gaps
+
+Partner channel repair now grows measured shared external gaps with all affected
+nodes in one plan. It never translates pixels or edits frame edges by hand;
+frames are rebuilt from accepted regions. Internal gaps are not used as routing
+corridors. Hinted participants reject all gap growth unchanged. Three tests
+pass, focused count 212. The census-after-cell-partner-gaps.log records the
+next pending writers and frame-fit failures. Full cells-on acceptance remains
+pending the clean census.

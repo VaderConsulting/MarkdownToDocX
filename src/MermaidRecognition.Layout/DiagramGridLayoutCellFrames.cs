@@ -209,7 +209,7 @@ public static partial class DiagramGridLayout
     /// <param name="Contract">Group definitions and title measurements.</param>
     /// <param name="Placed">Nodes sharing one cell grid and coordinate direction.</param>
     /// <param name="Frames">Destination derived cache.</param>
-    private static void ReplaceCellFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
+    internal static void ReplaceCellFrames(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
     {
         _ = FlowchartCellRepair.Capture(Placed);
         bool Routing = Placed[0].CellNode!.UsesRoutingCoordinates;

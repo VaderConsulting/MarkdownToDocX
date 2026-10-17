@@ -123,6 +123,7 @@ internal static partial class FlowchartPartnerRankLayout
     internal static bool GrowGaps(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         List<DiagramGridLayout.GridFrame> Frames, List<Partners> Blocks, bool Horizontal)
     {
+        if (Nodes.Any(Node => Node.CellNode != null)) return GrowCellGaps(Contract, Nodes, Frames, Blocks, Horizontal);
         bool Changed = false;
         foreach (var Block in Blocks)
         {
