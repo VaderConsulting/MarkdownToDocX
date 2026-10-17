@@ -53,8 +53,17 @@ public sealed class CellGuardCatalogueProbeTests
                 Status = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out Layout!) ? "completed" : "native-layout-failed";
                 return;
             }
-            if (Contract.Nodes.Count == 0 || !NativeRenderCapabilities.CanRender(Contract)
-                || !FlowchartDagrePlacement.TryPlace(Contract, out var Native)) return;
+            if (Contract.Nodes.Count == 0 || !NativeRenderCapabilities.CanRender(Contract))
+            {
+                ReportNativeSkip(Scenario.Id, Contract,
+                    Contract.Nodes.Count == 0 ? "no-nodes" : "native-render-ineligible");
+                return;
+            }
+            if (!FlowchartDagrePlacement.TryPlace(Contract, out var Native))
+            {
+                ReportNativeSkip(Scenario.Id, Contract, "native-placement-returned-false");
+                return;
+            }
             Type StateType = typeof(DiagramGridLayout).GetNestedType("GridLayoutState", BindingFlags.NonPublic)!;
             object State = Activator.CreateInstance(StateType, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
                 null, [Contract, Native, Context], null)!;
@@ -92,6 +101,15 @@ public sealed class CellGuardCatalogueProbeTests
             TestContext.Out.WriteLine($"CELL_GUARD_PROBE_TIME|{Scenario.Id}|milliseconds={Clock.Elapsed.TotalMilliseconds:0.000}|stage={Stage}");
         }
     }
+
+    /// <summary>Explains a pre-binding exit without treating unsupported or remarked source as a cell-repair failure.</summary>
+    /// <param name="Id">Catalogue identity retained in the census.</param>
+    /// <param name="Contract">Parsed source, including original eligibility diagnostics.</param>
+    /// <param name="Reason">The exact predicate that prevented native placement or binding.</param>
+    private static void ReportNativeSkip(string Id, DiagramContract Contract, string Reason) =>
+        TestContext.Out.WriteLine($"CELL_GUARD_NATIVE_SKIP|{Id}|reason={Reason}|nodes={Contract.Nodes.Count}|remark={Contract.RemarkStatus}|diagnostics="
+            + System.Text.Json.JsonSerializer.Serialize(Contract.Diagnostics.Select(Diagnostic => new
+                { Diagnostic.Code, Diagnostic.Severity, Diagnostic.Message })));
 
     /// <summary>Builds a provisional common-span test seed from logical ranks/columns, never from final pixel positions or inferred midpoints.</summary>
     /// <param name="StateType">Existing engine state type used by the stage fixture.</param>

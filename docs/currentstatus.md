@@ -1244,3 +1244,31 @@ order, messages and escaping), not only JSON structural equality: 673 scenarios,
 zero changes, zero missing, 34.301 s. The original cells-off geometry capture
 also matches all 673 with zero changes/missing, 42.139 s. Five routing-hint tests
 pass in addition to the 268 focused tests. No DOCX file is committed.
+
+### Reconcile the historical 662 first catches (2026-10-18)
+
+The requested grouping already existed in the original CSV: 648 initial
+PlaceOnGrid -> SetMain writes, 13 PlaceRelative -> Translate writes and one
+PushToBoundary -> Translate write. Initial placement was converted first in
+9eddf0f (144 focused passes), clearing its 648 original blockers. Placement
+hints followed in 0a65ada (155 passes), clearing the remaining 14 before later
+repairs. docs/cell-census-first-catch-review.md records all 35 finished
+conversion checkpoints, tests, before/after catch counts, and how many scenarios
+get past the immediately preceding first writer. No conversion was repeated.
+
+Two fresh full censuses confirm zero caught writers. The native-reason run
+completes all 673 cases in 21.5003 s: 645 completed bound grid scenarios, 17 hard
+frame-fit failures, six completed unbound open-mode scenarios, and five known
+pre-binding exits. Primary nodes: 3,833 total, 3,806 bound, 27 open/unbound.
+The focused selection passes all 268 tests again.
+
+The five exits are not new Dagre failures: F65/F70/F87/F88 are CatalogueRemarked
+and NativeRenderCapabilities excludes them before Dagre is attempted; A01 is
+the valid empty/header-only diagram and has no nodes to bind. The probe now
+reports the precise skip predicate and original recognition diagnostics without
+changing its outcomes or the production path. F151/F152/F153 bind all 160 nodes
+and complete the current probe. Native skips have not been repaired or removed
+from the audit. The seventeen frame-fit failures remain open, not accepted as
+zero legality findings. Production cells and independent spans stay off, the
+six open-mode cases stay unbound, and F32/EIP261 remains parked. No engine,
+rulebook, baseline, score weight, geometry or DOCX change is part of this review.
