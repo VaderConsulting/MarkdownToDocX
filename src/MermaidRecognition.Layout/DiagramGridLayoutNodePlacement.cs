@@ -532,6 +532,11 @@ public static partial class DiagramGridLayout
     private static void AlignDecisionDetours(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellDecisionDetours(Contract, Placed, Horizontal);
+            return;
+        }
         var Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
         foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))

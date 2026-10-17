@@ -1096,3 +1096,19 @@ vertical loops, simple decision merges, shared fan/tails, grouped channels,
 group member packing, and two later grouped-placement paths. The census is
 not clean; full cells-on gates, layout-difference analysis and final profiling
 remain pending. Production cells and independent text spans stay off.
+
+### Whole-cell decision detours
+
+Decision detours, merges and optional early terminal inputs now form one
+complete reservation plan; rank metadata changes only after acceptance.
+Four tests pass, focused count 237. The next census is recorded in
+census-after-cell-decision-detours.log. Remaining writers and frame-fit
+failures still prevent full cells-on acceptance.
+
+A real coordinate consequence is recorded for later mandatory-span/routing
+work: with base height 90 and row gap 60, a centred base diamond reserves two
+rows (height 240, centre 120), while a one-row rectangular node centres at
+45 plus whole 150-pixel row pitches. Whole-cell moves alone cannot align those
+centres. A compatible mandatory span candidate may be needed when independent
+span selection is enabled; do not introduce forbidden per-node pixel offsets.
+Production cells remain off; F32/EIP261 stays parked for routing work.
