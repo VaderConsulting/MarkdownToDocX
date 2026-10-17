@@ -1030,3 +1030,12 @@ alignment shares the circular-junction planner and joins the same complete
 reservation plan. Three tests pass, focused count 204. The subsequent census is
 recorded in census-after-cell-junction-branches.log; full cells-on acceptance
 is still pending remaining writers and frame-fit failures.
+
+### Preserve authoritative overlap validation
+
+The legacy pixel rank-band overlap pass no longer moves cell-bound nodes whose
+regions already enforce exclusive occupancy and mandatory body containment.
+This preserves legal same-row relative hints even when original native ranks
+differ. Two tests pass, focused count 206. The 673-case census runs in 19.3786 s
+with sixteen frame-fit failures still exposed; remaining writer paths are in
+census-after-cell-overlap-boundary.log. Full cells-on audit acceptance is pending.

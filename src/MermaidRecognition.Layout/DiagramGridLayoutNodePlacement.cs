@@ -1518,6 +1518,15 @@ public static partial class DiagramGridLayout
 
     private static void SeparateOverlaps(List<GridNode> Placed, bool Horizontal)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            // Each complete cell assignment already rejects shared occupancy;
+            // rectangular bodies fill their regions and diamonds fit inside
+            // theirs. Legacy rank metadata must not push disjoint regions (or
+            // undo a same-row hint) merely to separate their pixel rank bands.
+            _ = FlowchartCellRepair.Capture(Placed);
+            return;
+        }
         HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
         bool Moved;
         do
