@@ -142,3 +142,18 @@ positions compete through the routed score; no preset alignment is restored.
 Census placement-policy-04-simple-merges.log -> placement-policy-05-decision-outcomes.log:
 660 common completed bound cases; no writer catches; A164/A165 unchanged.
 Bends 3234 -> 3232: F125 and F35 each improve 4 -> 3. All 286 focused tests pass.
+
+## Superseded: forced partner rank alignment (a160586)
+
+Partner preparation retains measured port capacity, whole-cell span growth and
+atomic clearance packing. It no longer puts independently placed ranks on one
+shared anchor or forces a child onto its partner's line. Straight-channel claims
+are retained only when actual renderer-owned ports already align. Non-aligned
+projected matching pairs receive a track instead of assuming forced alignment.
+
+Census placement-policy-05-decision-outcomes.log -> placement-policy-06-partner-ranks-final.log:
+660 common completed bound cases; zero writer catches; hard frame failures remain
+A164/A165. Bends 3232 -> 3238: A110 166 -> 170, F136 12 -> 14, because the
+previous forced alignment has been removed. All 287 focused tests pass.
+The first census exposed missing specialised tracks for these two matching
+pairs (not frame failures); the cell-only track enumeration now includes them.

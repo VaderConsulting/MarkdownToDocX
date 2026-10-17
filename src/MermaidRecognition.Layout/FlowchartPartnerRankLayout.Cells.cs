@@ -62,7 +62,7 @@ internal static partial class FlowchartPartnerRankLayout
     /// <summary>Plans required port extents and every partner lane together before applying any specialised many-to-many placement.</summary>
     /// <param name="Blocks">Complete detected partner blocks.</param>
     /// <param name="Horizontal">Whether the cross axis is logical rows.</param>
-    /// <param name="Align">Whether automatic alignment is allowed.</param>
+    /// <param name="Align">Legacy alignment option; cell preparation retains only mandatory capacity and overlap clearance.</param>
     /// <returns>Whether the complete exclusive assignment was accepted; failure leaves all cell regions and gaps unchanged.</returns>
     internal static bool PrepareCells(List<Partners> Blocks, bool Horizontal, bool Align = true)
     {
@@ -83,30 +83,52 @@ internal static partial class FlowchartPartnerRankLayout
             }
         }
         if (!DiagramGridLayout.TryPlanCellMinimumExtents(Nodes, Minimums, Before.Regions, out var Targets)) return false;
-        if (Align)
-        foreach (var Block in Blocks)
-        {
-            var Members = Block.Parents.Concat(Block.Children).ToArray();
-            int Pitch = Members.Max(Node => Horizontal ? Targets[Node.Id].RowSpan : Targets[Node.Id].ColumnSpan);
-            int Anchor = Horizontal ? Targets[Block.Parents[0].Id].StartRow : Targets[Block.Parents[0].Id].StartColumn;
-            var Longer = Block.Children.Length > Block.Parents.Length ? Block.Children : Block.Parents;
-            for (int Index = 0; Index < Longer.Length; Index++) Set(Longer[Index], checked(Anchor + Index * Pitch));
-            foreach (var Pair in Block.AlignedChildren)
-            {
-                var Reference = Block.Children.Length > Block.Parents.Length ? Block.Children[Pair.Value] : Block.Parents[Pair.Key];
-                var Moving = Block.Children.Length > Block.Parents.Length ? Block.Parents[Pair.Key] : Block.Children[Pair.Value];
-                Set(Moving, Horizontal ? Targets[Reference.Id].StartRow : Targets[Reference.Id].StartColumn);
-            }
-        }
-        return FlowchartCellRepair.TryAssign(Nodes, Targets.Where(Pair => Nodes.Any(Node => Node.Id == Pair.Key))
-            .ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal));
-
-        // Only the private full plan changes. All extents and both ranks must
-        // pass ownership and hint checks together before anything is published.
-        void Set(DiagramGridLayout.GridNode Node, int Cross)
+        var Packed = new List<DiagramGridLayout.GridNode>();
+        foreach (var Node in Nodes.OrderBy(Node => Horizontal ? Before.Regions[Node.Id].StartColumn : Before.Regions[Node.Id].StartRow)
+            .ThenBy(Node => Horizontal ? Before.Regions[Node.Id].StartRow : Before.Regions[Node.Id].StartColumn))
         {
             var Region = Targets[Node.Id];
-            Targets[Node.Id] = new(Horizontal ? Cross : Region.StartRow, Horizontal ? Region.StartColumn : Cross, Region.RowSpan, Region.ColumnSpan);
+            foreach (var Other in Packed)
+            {
+                var Obstacle = Targets[Other.Id];
+                if (!Region.Overlaps(Obstacle)) continue;
+                Region = new(Horizontal ? Obstacle.EndRow : Region.StartRow,
+                    Horizontal ? Region.StartColumn : Obstacle.EndColumn, Region.RowSpan, Region.ColumnSpan);
+            }
+            Targets[Node.Id] = Region; Packed.Add(Node);
         }
+        // Each rank keeps its own original start. Only capacity-induced
+        // overlap moves a later member; no partner is placed on another
+        // rank's centre or start line merely to make a straight connector.
+        var Changes = Targets.Where(Pair => Nodes.Any(Node => Node.Id == Pair.Key)).ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
+        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Changes);
+        if (Plan == null) return false;
+        var Updated = Blocks.Select(Block => Block with { AlignedChildren = Block.AlignedChildren
+            .Where(Pair => PortsAlreadyAlign(Block.Parents[Pair.Key], Block.Children[Pair.Value], Plan.After, Horizontal))
+            .ToDictionary(Pair => Pair.Key, Pair => Pair.Value) }).ToArray();
+        if (!Plan.TryApply()) return false;
+        for (int Index = 0; Index < Updated.Length; Index++) Blocks[Index] = Updated[Index];
+        return true;
+    }
+
+    /// <summary>Retains a straight-channel claim only when the renderer-owned facing ports already align.</summary>
+    /// <param name="Source">Parent with measured required capacity.</param>
+    /// <param name="Target">Child in its independently placed rank.</param>
+    /// <param name="State">Complete prepared ownership, not yet published.</param>
+    /// <param name="Horizontal">Whether flow advances across columns.</param>
+    /// <returns>Whether midpoint boundary ports actually share a track; it never repositions either node.</returns>
+    private static bool PortsAlreadyAlign(DiagramGridLayout.GridNode Source, DiagramGridLayout.GridNode Target,
+        FlowchartLogicalGrid.Snapshot State, bool Horizontal)
+    {
+        var A = Source.CellNode!.Bounds(State.Regions[Source.Id], Source.GeometryProvider, State);
+        var B = Target.CellNode!.Bounds(State.Regions[Target.Id], Target.GeometryProvider, State);
+        bool Forward = Horizontal ? State.Regions[Source.Id].StartColumn < State.Regions[Target.Id].StartColumn
+            : State.Regions[Source.Id].StartRow < State.Regions[Target.Id].StartRow;
+        string Exit = Horizontal ? Forward ? "right" : "left" : Forward ? "bottom" : "top";
+        string Entry = Horizontal ? Forward ? "left" : "right" : Forward ? "top" : "bottom";
+        if (!(A.Geometry ?? NodeGeometry.Rectangle(A.Width, A.Height)).ConnectionBoundary.TryPort(Exit, 0.5, out var P)
+            || !(B.Geometry ?? NodeGeometry.Rectangle(B.Width, B.Height)).ConnectionBoundary.TryPort(Entry, 0.5, out var Q)) return false;
+        double Sign = Source.CellNode.UsesRoutingCoordinates ? -1 : 1;
+        return Math.Abs(Horizontal ? A.CenterY + Sign * P.Y - B.CenterY - Sign * Q.Y : A.CenterX + P.X - B.CenterX - Q.X) <= 0.001;
     }
 }

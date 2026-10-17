@@ -4,6 +4,20 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellPartnerPreparationTests
 {
+    /// <summary>Capacity clearance packs each rank independently rather than aligning partners that started in different columns.</summary>
+    [Test]
+    public void CapacityGrowthDoesNotForcePartnerAlignment()
+    {
+        var (Blocks, _, Grid) = Fixture();
+        Assert.That(Grid.TryMove(["C0", "C1"], 0, 1), Is.True);
+        Assert.That(FlowchartPartnerRankLayout.PrepareCells(Blocks, false), Is.True);
+        Assert.That(Grid.RegionOf("P0").StartColumn, Is.EqualTo(0));
+        Assert.That(Grid.RegionOf("P1").StartColumn, Is.EqualTo(2));
+        Assert.That(Grid.RegionOf("C0").StartColumn, Is.EqualTo(1));
+        Assert.That(Grid.RegionOf("C1").StartColumn, Is.EqualTo(3));
+        Assert.That(Blocks[0].AlignedChildren, Is.Empty);
+    }
+
     /// <summary>Both ranks grow and move together, preserving aligned partner starts without sharing cells.</summary>
     [Test]
     public void PartnerExtentsAndBothRanksPublishTogether()

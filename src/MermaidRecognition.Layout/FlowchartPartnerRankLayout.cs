@@ -242,6 +242,12 @@ internal static partial class FlowchartPartnerRankLayout
             .OrderByDescending(Pair => Pair.Parent).ThenByDescending(Pair => Pair.Child)
             .Concat(BentPairs.Where(Pair => Pair.Child < ProjectedChild(Pair.Parent))
                 .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child)).ToList();
+        // Independent cell ranks need a track even for a projected matching
+        // pair when its actual ports do not align. Legacy placement always
+        // aligned these pairs, so its track order stays unchanged.
+        if (Nodes.Any(Node => Node.CellNode != null))
+            Bent.AddRange(BentPairs.Where(Pair => Pair.Child == ProjectedChild(Pair.Parent))
+                .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child));
         var Lanes = Bent.Select((Pair, Index) => (Pair,
             Lane: Flow * (Start + TERMINAL_RESERVE + Index * CORNER_TRACK_PITCH)))
             .ToDictionary(Item => Item.Pair, Item => Item.Lane);
