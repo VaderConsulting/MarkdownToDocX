@@ -908,3 +908,12 @@ The requested enterprise.docx regeneration completed successfully in 116.162 s
 using the current Release ARM64 WinForms build:
 .\src\Converter\bin\Release\net10.0-windows\win-arm64\Converter.exe -in enterprise.md -out enterprise.docx
 The converter reported no rendering errors. The generated DOCX stays uncommitted.
+
+### Whole-cell decision input alignment
+
+Unbranched decision input chains now build one complete cross-axis cell plan;
+return edges do not drive the forward chain. Locked inputs stop automatic
+alignment, and any occupancy failure leaves the complete chain unchanged.
+Three tests pass, focused count 172. The census-after-cell-decision-inputs.log
+records the next writers and unresolved frame fits; no cells-on gate pass is
+claimed. Production and independent text spans remain off.

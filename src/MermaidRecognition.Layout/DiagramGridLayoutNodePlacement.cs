@@ -369,6 +369,11 @@ public static partial class DiagramGridLayout
     private static void AlignUnbranchedDecisionInputs(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellDecisionInputs(Contract, Placed, Horizontal);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)

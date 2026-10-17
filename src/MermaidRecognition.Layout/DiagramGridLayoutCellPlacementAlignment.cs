@@ -8,6 +8,41 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans logical placement alignments without assigning derived pixel positions.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Plans each unbranched upstream chain against its decision's logical cross-axis start, with complete collision rejection.</summary>
+    /// <param name="Contract">Graph whose return edges do not determine forward alignment.</param>
+    /// <param name="Placed">Complete diagram ownership.</param>
+    /// <param name="Horizontal">Whether the cross axis uses rows.</param>
+    /// <returns>Whether the complete assignment was legal and accepted.</returns>
+    internal static bool AlignCellDecisionInputs(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed);
+        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        {
+            var Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToArray();
+            if (Incoming.Length != 1 || !ById.TryGetValue(Incoming[0].SourceId, out var Input)
+                || Input.IsDiamond || Input.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.SourceId == Input.Id) != 1) continue;
+            var Anchor = Targets[Decision.Id];
+            var Visited = new HashSet<string>(StringComparer.Ordinal);
+            while (Visited.Add(Input.Id))
+            {
+                if (Input.PlacementHintLocked) break;
+                var Region = Targets[Input.Id];
+                Targets[Input.Id] = new(Horizontal ? Anchor.StartRow : Region.StartRow,
+                    Horizontal ? Region.StartColumn : Anchor.StartColumn, Region.RowSpan, Region.ColumnSpan);
+                Incoming = Forward.Where(Edge => Edge.TargetId == Input.Id).ToArray();
+                if (Incoming.Length != 1 || !ById.TryGetValue(Incoming[0].SourceId, out var Previous)
+                    || Previous.IsDiamond || Previous.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.SourceId == Previous.Id) != 1) break;
+                Input = Previous;
+            }
+        }
+        return FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
     /// <summary>Plans every sole terminal child's cross-axis reservation before applying the complete assignment.</summary>
     /// <param name="Contract">Visible graph used by the existing terminal-child selection.</param>
     /// <param name="Placed">Complete shared cell ownership.</param>
