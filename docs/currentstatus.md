@@ -1068,3 +1068,12 @@ corridor clearance grows as shared external gaps. Hinted gap participants
 reject complete candidates unchanged. Three tests pass, focused count 215.
 The next census is census-after-cell-sparse-compaction.log; full cells-on
 acceptance and final profiling remain pending the clean census.
+
+### Whole-cell independent terminal inputs
+
+Independent terminal inputs now plan complete beside-collector reservations,
+check measured clearance and shared occupancy, and update logical rank only
+after the full assignment is accepted. Hinted inputs keep their region and
+rank. Three tests pass, focused count 218. The next census is recorded in
+census-after-cell-terminal-inputs.log; full cells-on acceptance remains pending
+remaining writer paths and hard frame-fit failures.
