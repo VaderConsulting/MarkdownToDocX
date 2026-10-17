@@ -237,3 +237,13 @@ Census placement-policy-12-loop-tails.log -> placement-policy-13-retry.log:
 660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3242 -> 3236:
 F124 and F34 each improve 7 -> 4. All 289 focused tests pass, including an offset
 success node whose exact region must survive the retry clearance repair.
+
+## Superseded: continuing-merge alignment in decision detours (d692607)
+
+Detour side ordering and multi-input terminal collection lanes remain. A
+continuing merge no longer gets the decision's start merely to straighten the
+direct branch; its independent region is preserved for routed scoring.
+
+Census placement-policy-13-retry.log -> placement-policy-14-detours.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Every completed
+case retains its bend count (3236 total). All 289 focused tests pass.

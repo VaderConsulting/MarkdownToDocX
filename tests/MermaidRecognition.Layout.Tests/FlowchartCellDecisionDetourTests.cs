@@ -6,16 +6,17 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellDecisionDetourTests
 {
-    /// <summary>A direct merge stays on the decision lane and the detour receives a whole-cell side lane.</summary>
+    /// <summary>A continuing merge keeps its original region while the detour receives a whole-cell side lane.</summary>
     /// <param name="Horizontal">Whether the cross axis is rows.</param>
     [TestCase(false)]
     [TestCase(true)]
     public void DetourAndMergePublishTogether(bool Horizontal)
     {
         var (Contract, Nodes, Grid) = Fixture(Horizontal);
+        var Before = Grid.RegionOf("M");
         Assert.That(DiagramGridLayout.AlignCellDecisionDetours(Contract, Nodes, Horizontal), Is.True);
         int Centre = Horizontal ? Grid.RegionOf("D").StartRow : Grid.RegionOf("D").StartColumn;
-        Assert.That(Horizontal ? Grid.RegionOf("M").StartRow : Grid.RegionOf("M").StartColumn, Is.EqualTo(Centre));
+        Assert.That(Grid.RegionOf("M"), Is.SameAs(Before));
         Assert.That(Horizontal ? Grid.RegionOf("B").StartRow : Grid.RegionOf("B").StartColumn, Is.LessThan(Centre));
     }
 
@@ -29,7 +30,7 @@ public sealed class FlowchartCellDecisionDetourTests
         if (Hint) Nodes.Single(Node => Node.Id == "M").PlacementHintLocked = true;
         else
         {
-            Grid.TryPlace("O", new(4, 2, 1, 1));
+            Grid.TryPlace("O", new(2, 1, 1, 1));
             var O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
         }
         var Before = Grid.Capture();

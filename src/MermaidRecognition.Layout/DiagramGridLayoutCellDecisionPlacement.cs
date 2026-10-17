@@ -127,7 +127,9 @@ public static partial class DiagramGridLayout
             int Pitch = new[] { Decision, Detour, Merge }.Max(Node => Horizontal ? Targets[Node.Id].RowSpan : Targets[Node.Id].ColumnSpan);
             bool Terminal = !Visible.Any(Edge => Edge.SourceId == Merge.Id) && Visible.Count(Edge => Edge.TargetId == Merge.Id) > 2;
             Targets[Detour.Id] = WithCellCross(Targets[Detour.Id], checked(Centre + (Terminal ? Pitch : -Pitch)), Horizontal);
-            Targets[Merge.Id] = WithCellCross(Targets[Merge.Id], checked(Centre - (Terminal ? Pitch : 0)), Horizontal);
+            // Terminal multi-input placement reserves a separate collecting
+            // lane. A continuing merge keeps its independently chosen start.
+            if (Terminal) Targets[Merge.Id] = WithCellCross(Targets[Merge.Id], checked(Centre - Pitch), Horizontal);
             if (!Terminal) continue;
             foreach (var Incoming in Visible.Where(Edge => Edge.TargetId == Merge.Id && Edge.SourceId != Decision.Id && Edge.SourceId != Detour.Id))
             {
