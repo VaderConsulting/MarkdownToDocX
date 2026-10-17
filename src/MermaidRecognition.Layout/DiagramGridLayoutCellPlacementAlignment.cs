@@ -8,6 +8,47 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans logical placement alignments without assigning derived pixel positions.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Plans independent odd input fans in neighbouring whole-cell lanes while retaining anchored inputs.</summary>
+    /// <param name="Contract">Visible incoming and upstream relationships.</param>
+    /// <param name="Placed">Complete shared grid ownership.</param>
+    /// <param name="Horizontal">Whether input lanes use logical rows.</param>
+    /// <returns>Whether the complete legal fan plan was accepted.</returns>
+    internal static bool CompactCellIndependentFanIn(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed);
+        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        foreach (var Target in Placed)
+        {
+            var Incoming = Visible.Where(Edge => Edge.TargetId == Target.Id).ToArray();
+            if (Incoming.Length < 3 || Incoming.Length % 2 == 0 || Incoming.Select(Edge => Edge.SourceId).Distinct().Count() != Incoming.Length) continue;
+            var Parents = Incoming.Where(Edge => ById.ContainsKey(Edge.SourceId)).Select(Edge => ById[Edge.SourceId])
+                .OrderBy(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn).ToArray();
+            if (Parents.Length != Incoming.Length || Parents.Select(Node => Node.Rank).Distinct().Count() != 1
+                || Parents.Any(Parent => Parent.Rank == Target.Rank || Parent.GroupId != Target.GroupId || Visible.Count(Edge => Edge.SourceId == Parent.Id) != 1)
+                || Placed.Any(Node => Node.Rank == Parents[0].Rank && !Parents.Contains(Node))) continue;
+            int Centre = Horizontal ? Targets[Target.Id].StartRow : Targets[Target.Id].StartColumn;
+            int Pitch = Parents.Max(Node => Horizontal ? Targets[Node.Id].RowSpan : Targets[Node.Id].ColumnSpan);
+            var Anchored = Parents.Where(Node => Node.PlacementHintLocked || Visible.Any(Edge => Edge.TargetId == Node.Id)).ToArray();
+            foreach (var Parent in Anchored)
+            {
+                int Offset = Array.IndexOf(Parents, Parent) - Parents.Length / 2;
+                int Distance = (Horizontal ? Targets[Parent.Id].StartRow : Targets[Parent.Id].StartColumn) - Centre;
+                if (Offset != 0 && Distance % Offset == 0) Pitch = Math.Max(Pitch, Distance / Offset);
+            }
+            if (Anchored.Any(Parent => (Horizontal ? Targets[Parent.Id].StartRow : Targets[Parent.Id].StartColumn)
+                != checked(Centre + (Array.IndexOf(Parents, Parent) - Parents.Length / 2) * Pitch))) continue;
+            for (int Index = 0; Index < Parents.Length; Index++)
+            {
+                var Parent = Parents[Index]; var Region = Targets[Parent.Id];
+                int Cross = checked(Centre + (Index - Parents.Length / 2) * Pitch);
+                Targets[Parent.Id] = new(Horizontal ? Cross : Region.StartRow, Horizontal ? Region.StartColumn : Cross, Region.RowSpan, Region.ColumnSpan);
+            }
+        }
+        return FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
     /// <summary>Assigns two terminal decision outcomes to opposite logical side lanes as one exclusive reservation plan.</summary>
     /// <param name="Contract">Graph used to select sole-input terminal children.</param>
     /// <param name="Placed">Complete diagram sharing one authoritative grid.</param>

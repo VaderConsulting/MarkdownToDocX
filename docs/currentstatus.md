@@ -968,3 +968,12 @@ tail rejects the complete plan before mutation. Four tests pass, focused count
 186. The census-after-cell-chain-wrapping.log records remaining catches and
 frame failures. The census is still not clean, so the full cells-on gate audit,
 layout-difference grouping and final speed work remain pending.
+
+### Whole-cell independent input fans
+
+Independent fan-in compaction plans every parent's reservation before applying
+any move. Anchored inputs determine an integer logical pitch, and incompatible
+anchors or occupied targets prevent a partial fan. Three tests pass, focused
+count 189. The next writer census is in census-after-cell-fan-in.log. Full
+cells-on legality acceptance and final profiling are still pending the clean
+census; production cells and independent text spans remain off.

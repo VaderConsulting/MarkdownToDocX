@@ -714,6 +714,11 @@ public static partial class DiagramGridLayout
     internal static void CompactIndependentFanIn(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            CompactCellIndependentFanIn(Contract, Placed, Horizontal);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
