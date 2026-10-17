@@ -218,10 +218,10 @@ public static partial class DiagramGridLayout
             List<GridFrame> Frames = State.Frames;
             List<string> RefitTriggers = [];
             string PreviousMembers = GroupMemberPositionSignature(Contract, Placed);
-            if (!Open) CenterLoneNestedGroups(Contract, Placed, Horizontal);
+            if (!Open) MeasureLayoutStage("group-fit/center-nested", () => CenterLoneNestedGroups(Contract, Placed, Horizontal));
             RecordMemberChange("center nested members");
             if (!Open && !State.SkipRootGroupRepacking)
-                CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal, State.Copy.RenderContext);
+                MeasureLayoutStage("group-fit/compact-roots", () => CompactOverlappingRootGroups(Contract, Placed, Frames, Horizontal, State.Copy.RenderContext));
             RecordMemberChange("compact overlapping root groups");
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
@@ -229,13 +229,17 @@ public static partial class DiagramGridLayout
             {
                 RecordMemberChange("partner-rank gap growth");
             }
-            if (!Open && FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
+            bool GroupedLeavesMoved = false;
+            if (!Open) MeasureLayoutStage("group-fit/grouped-leaves", () => GroupedLeavesMoved = FlowchartGroupedLeafPlacement.Apply(Contract, Placed, Frames, Horizontal));
+            if (GroupedLeavesMoved)
             {
                 RecordMemberChange("grouped leaf placement");
                 Frames.Clear();
                 BuildFrames(Contract, Placed, Frames);
             }
-            if (!Open && FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal))
+            bool ExternalLeavesMoved = false;
+            if (!Open) MeasureLayoutStage("group-fit/external-leaves", () => ExternalLeavesMoved = FlowchartExternalLeafPlacement.Apply(Contract, Placed, Frames, Horizontal));
+            if (ExternalLeavesMoved)
             {
                 RecordMemberChange("external leaf placement");
                 Frames.Clear();
@@ -243,18 +247,20 @@ public static partial class DiagramGridLayout
             }
             if (!Open)
             {
-                FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal);
+                MeasureLayoutStage("group-fit/intergroup-nodes", () => FlowchartIntergroupNodePlacement.Apply(Contract, Placed, Frames, Horizontal));
             }
             if (!Open)
             {
                 Frames.Clear();
                 BuildFrames(Contract, Placed, Frames);
             }
-            if (GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal))
+            bool TerminalGapsGrew = false;
+            MeasureLayoutStage("group-fit/terminal-gaps", () => TerminalGapsGrew = GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal));
+            if (TerminalGapsGrew)
             {
                 RecordMemberChange("same-rank label gap growth");
             }
-            ResolveHintedTerminalClearance(State);
+            MeasureLayoutStage("group-fit/hinted-terminal-clearance", () => ResolveHintedTerminalClearance(State));
             Frames.Clear();
             BuildFrames(Contract, Placed, Frames);
             // Placement hints are relative constraints. Earlier packing and
@@ -262,7 +268,9 @@ public static partial class DiagramGridLayout
             // hint pass, so refresh the relationships against the final frame
             // geometry before locking the hinted positions for route repair.
             foreach (GridNode Node in Placed) Node.PlacementHintLocked = false;
-            if (FlowchartPlacementHints.Apply(Contract, Placed, Frames))
+            bool HintsMoved = false;
+            MeasureLayoutStage("group-fit/refresh-hints", () => HintsMoved = FlowchartPlacementHints.Apply(Contract, Placed, Frames));
+            if (HintsMoved)
             {
                 RecordMemberChange("refresh relative placement hints");
                 Frames.Clear();
@@ -275,8 +283,8 @@ public static partial class DiagramGridLayout
                 BuildFrames(Contract, Placed, Frames);
             }
             CaptureHintedNodePositions(State);
-            FitFrames(Contract, Placed, Frames, Horizontal,
-                RefitTriggers.Count == 0 ? "stage settlement" : string.Join(" + ", RefitTriggers.Distinct(StringComparer.Ordinal)));
+            MeasureLayoutStage("group-fit/settle-frames", () => FitFrames(Contract, Placed, Frames, Horizontal,
+                RefitTriggers.Count == 0 ? "stage settlement" : string.Join(" + ", RefitTriggers.Distinct(StringComparer.Ordinal))));
             if (!Open)
             {
                 SnapGridNodeCentres(Placed);

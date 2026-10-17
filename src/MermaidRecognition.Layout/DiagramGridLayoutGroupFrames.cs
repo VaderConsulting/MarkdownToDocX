@@ -194,7 +194,9 @@ public static partial class DiagramGridLayout
         while (true)
         {
             Frames.Clear();
-            BuildFrames(Contract, Placed, Frames); // BuildFrames is bottom-up.
+            // Keep the iterative boundary observable, including iterations
+            // that only separate siblings and never refit an individual frame.
+            MeasureLayoutStage("group-fit/rebuild-frames", () => BuildFrames(Contract, Placed, Frames));
             (double X, double Y)[] BeforeUnrelatedFrameSeparation = Placed.Select(Node => (Node.X, Node.Y)).ToArray();
             if (SeparateUnrelatedFrames(Contract, Placed, Frames))
             {
@@ -462,6 +464,28 @@ public static partial class DiagramGridLayout
         UnhonouredReason = Hint.UnhonouredReason
     };
 
+    /// <summary>Measures the same required grid clearance for empty-frame placement and later sibling packing.</summary>
+    /// <param name="A">The first frame in placement coordinates.</param>
+    /// <param name="B">The unrelated second frame in the same coordinates.</param>
+    /// <param name="Horizontal">Whether the flow's main axis is horizontal.</param>
+    /// <param name="Sequential">Whether two populated frames occupy separate rank ranges.</param>
+    /// <returns>The separation axis and missing clearance; zero means that no translation is required.</returns>
+    private static (bool AlongMain, double Missing) SiblingFrameShortfall(GridFrame A, GridFrame B,
+        bool Horizontal, bool Sequential)
+    {
+        double MainGap = Horizontal
+            ? Math.Max(A.Left, B.Left) - Math.Min(A.Right, B.Right)
+            : Math.Max(A.Top, B.Top) - Math.Min(A.Bottom, B.Bottom);
+        double CrossGap = Horizontal
+            ? Math.Max(A.Top, B.Top) - Math.Min(A.Bottom, B.Bottom)
+            : Math.Max(A.Left, B.Left) - Math.Min(A.Right, B.Right);
+        bool AlongMain = CrossGap <= 0 && (MainGap >= 0 || Sequential);
+        double Needed = AlongMain ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX
+            : DiagramGridMetrics.GRID_UNIT_PX;
+        double Gap = AlongMain ? MainGap : CrossGap;
+        return (AlongMain, Gap >= Needed || !AlongMain && MainGap >= 0 ? 0 : Needed - Gap);
+    }
+
     private static bool SeparateSiblingFrames(
         DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames, bool Horizontal)
     {
@@ -482,24 +506,18 @@ public static partial class DiagramGridLayout
             var B = Frames[Second];
             if (Ancestor(A.Id, B.Id) || Ancestor(B.Id, A.Id)) continue;
             double MainMin(GridFrame Frame) => Horizontal ? Frame.Left : Frame.Top;
-            double MainMax(GridFrame Frame) => Horizontal ? Frame.Right : Frame.Bottom;
             double CrossMin(GridFrame Frame) => Horizontal ? Frame.Top : Frame.Left;
-            double CrossMax(GridFrame Frame) => Horizontal ? Frame.Bottom : Frame.Right;
-            double MainGap = Math.Max(MainMin(A), MainMin(B)) - Math.Min(MainMax(A), MainMax(B));
-            double CrossGap = Math.Max(CrossMin(A), CrossMin(B)) - Math.Min(CrossMax(A), CrossMax(B));
             var AMembers = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, A.Id)).ToArray();
             var BMembers = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, B.Id)).ToArray();
             bool Sequential = AMembers.Length > 0 && BMembers.Length > 0
                 && (AMembers.Max(Node => Node.Rank) < BMembers.Min(Node => Node.Rank)
                     || BMembers.Max(Node => Node.Rank) < AMembers.Min(Node => Node.Rank));
-            bool AlongMain = CrossGap <= 0 && (MainGap >= 0 || Sequential);
-            double Needed = AlongMain ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX
-                : DiagramGridMetrics.GRID_UNIT_PX;
-            double Gap = AlongMain ? MainGap : CrossGap;
-            if (Gap >= Needed || (!AlongMain && MainGap >= 0)) continue;
+            var Shortfall = SiblingFrameShortfall(A, B, Horizontal, Sequential);
+            bool AlongMain = Shortfall.AlongMain;
+            if (Shortfall.Missing <= 0) continue;
             var Moving = AlongMain ? (MainMin(A) > MainMin(B) ? A : B)
                 : (CrossMin(A) < CrossMin(B) ? A : B);
-            int Shift = DiagramGridMetrics.CeilToGrid(Needed - Gap) * (AlongMain ? 1 : -1);
+            int Shift = DiagramGridMetrics.CeilToGrid(Shortfall.Missing) * (AlongMain ? 1 : -1);
             var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Moving.Id)).ToHashSet();
             var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
             bool Added;
@@ -1030,9 +1048,9 @@ public static partial class DiagramGridLayout
             && Group.ChildGroupIds.Count == 0
             && !Contract.Nodes.Any(Node => string.Equals(Node.ParentGroupId, Group.Id, StringComparison.Ordinal));
 
-        bool Overlaps(GridFrame A, GridFrame B) =>
-            Math.Min(A.Right, B.Right) > Math.Max(A.Left, B.Left)
-            && Math.Min(A.Bottom, B.Bottom) > Math.Max(A.Top, B.Top);
+        var Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        bool Overlaps(GridFrame A, GridFrame B) => SiblingFrameShortfall(A, B, Horizontal, false).Missing > 0;
 
         foreach (GroupContract Group in Ordered.Where(IsEmpty)
                      .OrderBy(Group => Group.PlacementHint?.SourceLine ?? int.MaxValue))
@@ -1055,7 +1073,12 @@ public static partial class DiagramGridLayout
 
             while (Frames.Any(Other => Other != Frame
                        && !IsAncestor(Group.Id, Other.Id) && !IsAncestor(Other.Id, Group.Id)
-                       && Overlaps(Frame, Other)))
+                       // A placement hint keeps its original exact spacing;
+                       // only unhinted empty frames use the automatic sibling
+                       // clearance. Existing hinted overlap repair is unchanged.
+                       && (Hint == null ? Overlaps(Frame, Other)
+                           : Math.Min(Frame.Right, Other.Right) > Math.Max(Frame.Left, Other.Left)
+                             && Math.Min(Frame.Bottom, Other.Bottom) > Math.Max(Frame.Top, Other.Top))))
             {
                 Frame.Left += StepX * DiagramGridMetrics.GRID_UNIT_PX;
                 Frame.Right += StepX * DiagramGridMetrics.GRID_UNIT_PX;
