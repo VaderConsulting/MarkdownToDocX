@@ -2,6 +2,40 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Latest cell placement policy review — 18 October 2026
+
+Reviewed every converted placement path after the terminal-child correction.
+Centre-only paths now bypass bound nodes; mixed paths retain ordering, measured
+capacity and clearance. Straightening competes through complete whole-cell
+routed candidates using the existing score and named limits. Rule 2.10 source
+representatives order nominations, never define fractional node positions.
+
+The individual checkpoints run from 645607b through b2b85a9. Each bypass/trim
+has its own commit and census evidence. Full path decisions, every commit hash,
+per-step bend/frame counts and timings are in `cell-placement-policy-review.md`;
+individual Superseded notes remain in `cell-census-first-catch-review.md`.
+
+Final checks: 296 focused passes and 12 real-source frame/placement regression
+passes. Cells-on census: all 673 cases, zero writer catches, 3,806 bound nodes,
+660 completed bound scenarios and the same two frame failures, A164/A165.
+The six open-mode scenarios remain unbound and five native skips/empty cases
+remain unchanged. Completed-case bends are 3,270 -> 3,211 (70 improved, 81 rose,
+509 unchanged); failed frame cases have no route total. The census takes
+34.4947 seconds. No full cells-on legality acceptance is claimed.
+
+Cells-off: all 673 summary rows are byte-identical in original order; all prior
+zero legality/slot/grid/hint gates remain zero. Audit 46.46 seconds; A142
+15.8487 seconds. Quality totals remain 4.2=44, 5.9=1694, 3.1=4, 4.1=0,
+4.11=3, 5.8=0, shared tracks=2089. The existing 25 audit failures/skip cases
+remain; no checker or baseline was changed. Exact page geometry and ordered
+diagnostics match the pre-change capture in all 673 cases: changed=0,
+missing=0, 38.937 seconds. No speed improvement is claimed for this review.
+
+Production cells and independent text spans remain OFF. `rules.yaml`, weights,
+hint behaviour and unrelated cells-off output remain unchanged. F32/EIP261
+stays parked for routing work. A164/A165 and experimental layout quality
+remain open. No DOCX files were included in these checkpoints; nothing pushed.
+
 ## The project
 
 `md2docx` is a C#/.NET converter that turns Markdown with Mermaid diagrams into DOCX. Flowcharts, enterprise (ArchiMate 3.2) and EIP diagrams use the native path: Mermaid recognition, one shared grid layout, native routing and an SVG render, with the frozen Naiad renderer as fallback when a flowchart fails natively. All other diagram kinds still render through Naiad. Recognition reaches level L4 for the nine started kinds (flowchart, sequence, class, state, ER, pie, gantt, mindmap, git graph) and L1 for the rest. Enterprise diagrams use a `mermaid` code fence only. Layout modes, placement hints, notes, plain connections and the optional legend (`config.legend`, `--legend`) are supported.
