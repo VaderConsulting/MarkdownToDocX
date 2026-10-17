@@ -736,7 +736,7 @@ public static partial class DiagramGridLayout
     {
         if (Placed.Any(Node => Node.CellNode != null))
         {
-            CompactCellIndependentFanIn(Contract, Placed, Horizontal);
+            // Empty strips compact elsewhere; fan symmetry is not a cell placement constraint.
             return;
         }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);

@@ -6,13 +6,15 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellFanInTests
 {
-    /// <summary>Independent inputs compact into neighbouring reservations centred on the target's logical cross-axis start.</summary>
+    /// <summary>Independent input order and positions survive the real dispatcher without forced fan symmetry.</summary>
     [Test]
     public void CompactsEveryIndependentInputTogether()
     {
         var (Contract, Nodes, Grid) = Fixture();
-        Assert.That(DiagramGridLayout.CompactCellIndependentFanIn(Contract, Nodes, false), Is.True);
-        Assert.That(Nodes.Take(3).Select(Node => Grid.RegionOf(Node.Id).StartColumn), Is.EqualTo(new[] { 2, 3, 4 }));
+        var Before = Grid.Capture();
+        DiagramGridLayout.CompactIndependentFanIn(Contract, Nodes, false, DiagramGridMetrics.NODE_GAP_PX);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+        Assert.That(Nodes.Take(3).Select(Node => Grid.RegionOf(Node.Id).StartColumn), Is.EqualTo(new[] { 0, 3, 6 }));
     }
 
     /// <summary>A hinted outside input preserves the full anchored pitch instead of moving the hint to a smaller fan.</summary>
@@ -22,7 +24,7 @@ public sealed class FlowchartCellFanInTests
         var (Contract, Nodes, Grid) = Fixture();
         Nodes[0].PlacementHintLocked = true;
         var Before = Grid.Capture();
-        DiagramGridLayout.CompactCellIndependentFanIn(Contract, Nodes, false);
+        DiagramGridLayout.CompactIndependentFanIn(Contract, Nodes, false, DiagramGridMetrics.NODE_GAP_PX);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
     }
 
@@ -34,7 +36,7 @@ public sealed class FlowchartCellFanInTests
         Grid.TryPlace("O", new(0, 2, 1, 1));
         var O = new DiagramGridLayout.GridNode { Id = "O", Rank = 99 }; O.BindCells(Grid); Nodes.Add(O);
         var Before = Grid.Capture();
-        Assert.That(DiagramGridLayout.CompactCellIndependentFanIn(Contract, Nodes, false), Is.False);
+        DiagramGridLayout.CompactIndependentFanIn(Contract, Nodes, false, DiagramGridMetrics.NODE_GAP_PX);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 

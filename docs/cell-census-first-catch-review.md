@@ -180,3 +180,15 @@ now compete without a preset collector position.
 Census placement-policy-07-junction-branches.log -> placement-policy-08-circular-fans.log:
 660 completed bound cases, zero writer catches, A164/A165 unchanged. Bends
 3244 -> 3233: A112 29 -> 24, A137 8 -> 4, A47 8 -> 6. All 287 focused tests pass.
+
+## Superseded: symmetric independent input fan placement (d523a67)
+
+The odd fan compactor's preset target-centred lanes are bypassed for cells and
+the helper is removed. Original input order and hint locks remain. Whole empty
+strips still compact in the general compactor; routed scoring supplies any
+straightening instead of a symmetric assignment about the target.
+
+Census placement-policy-08-circular-fans.log -> placement-policy-09-input-fans.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3233 -> 3242.
+A12, EIP183 and F122 each change 0 -> 2; F125, F142 and F35 each change 3 -> 4.
+These lose the previous preset symmetry. All 287 focused tests pass.
