@@ -825,3 +825,25 @@ one partner-rank preparation, one crowded-side growth and one boundary push.
 It does not establish cells-on gate totals or full-audit time. Placement hints
 are next, followed by one caught path at a time with tests and checkpoints.
 F32/EIP261 stays parked. No DOCX files are included in this checkpoint.
+
+### Whole-cell node/member hint conversion
+
+The cell-bound placement hint branch plans source-ordered node and nested-group
+member reservations together. +n is n whole cells, relative alignment uses
+starting rows/columns, and pushes use logical sibling boundaries. Accepted
+hints protect earlier relationships; cyclic later hints are rejected with a
+reason. Explicit hints can move locked owners; automatic repair locks do not
+veto them. Locked-node reapplication uses the same complete plan. The unchanged
+empty-group frame placement remains responsible for groups without members;
+there is no node occupancy to translate in that case.
+
+Eleven new hint tests pass, taking the focused selection to 155. The census
+passes 673 diagnostic tests in 3.5940 s; all 662 reachable grid layouts now get
+past the initial hint stage. First catches are spine-column adjustment (295),
+GridCompaction (249), terminal child alignment (105), decision-target alignment
+(5), terminal fan centring (4), unbranched decision inputs (2), partner-rank
+preparation (1), and crowded-side growth (1). It still does not certify cells-on
+legality gates. Production cells remain off. The latest measured cells-off audit
+is 42.14 s/A142 12.5521 s with all previous zero gates zero and exact geometry
+unchanged across 673. No weights, baseline rows or rules changed; independent
+text spans stay off and F32/EIP261 remains parked.

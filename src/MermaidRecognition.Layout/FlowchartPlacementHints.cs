@@ -7,7 +7,7 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Applies source-ordered node and group placement hints to grid nodes.</summary>
-internal static class FlowchartPlacementHints
+internal static partial class FlowchartPlacementHints
 {
     private sealed record HintItem(string Id, string? ParentId, PlacementHintContract Hint, bool IsGroup);
 
@@ -15,6 +15,7 @@ internal static class FlowchartPlacementHints
         IReadOnlyList<DiagramGridLayout.GridFrame>? CurrentFrames = null)
     {
         if (Nodes.Count == 0) return false;
+        if (Nodes.Any(Node => Node.CellNode != null)) return ApplyCells(Contract, Nodes);
 
         Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
@@ -108,6 +109,7 @@ internal static class FlowchartPlacementHints
         List<DiagramGridLayout.GridNode> All,
         int MinimumGap)
     {
+        if (Node.CellNode != null) return ApplyCells(Contract, All);
         NodeContract? ContractNode = Contract.Nodes.FirstOrDefault(Item => Item.Id == Node.Id);
         PlacementHintContract? Hint = ContractNode?.PlacementHint;
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
@@ -135,6 +137,7 @@ internal static class FlowchartPlacementHints
         IReadOnlyList<DiagramGridLayout.GridFrame> Frames,
         int MinimumGap)
     {
+        if (Node.CellNode != null) return ApplyCells(Contract, All);
         NodeContract? ContractNode = Contract.Nodes.FirstOrDefault(Item => Item.Id == Node.Id);
         PlacementHintContract? Hint = ContractNode?.PlacementHint;
         if (Hint?.IsActive != true || Hint.Kind == PlacementHintKind.Push || string.IsNullOrEmpty(Hint.PeerId))
