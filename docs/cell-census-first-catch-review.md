@@ -169,3 +169,14 @@ Census placement-policy-06-partner-ranks-final.log -> placement-policy-07-juncti
 660 common completed bound cases; zero writer catches; A164/A165 unchanged.
 Bends 3238 -> 3244: A112 27 -> 29, A47 4 -> 8 after removing preset collector
 alignment. All 287 focused tests pass, including candidate atomicity and order.
+
+## Superseded: circular junction fan and collector centring (88562e5)
+
+The fan median and midpoint assignment, including its input/output-chain
+alignment, is bypassed for bound nodes. The helper is removed. It had no
+independent capacity, ordering or clearance work; complete routed candidates
+now compete without a preset collector position.
+
+Census placement-policy-07-junction-branches.log -> placement-policy-08-circular-fans.log:
+660 completed bound cases, zero writer catches, A164/A165 unchanged. Bends
+3244 -> 3233: A112 29 -> 24, A137 8 -> 4, A47 8 -> 6. All 287 focused tests pass.

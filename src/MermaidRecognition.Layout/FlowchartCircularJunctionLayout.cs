@@ -13,7 +13,8 @@ internal static partial class FlowchartCircularJunctionLayout
     {
         if (Nodes.Any(Node => Node.CellNode != null))
         {
-            AlignCellFans(Contract, Nodes, Horizontal);
+            // Whole-cell candidates are scored after routing; this pass only
+            // centres a junction and its chain and has no cell placement role.
             return;
         }
         var ById = Nodes.ToDictionary(Node => Node.Id);

@@ -6,16 +6,16 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellCircularFanTests
 {
-    /// <summary>A junction and its sole chain align together to the middle whole-cell neighbour.</summary>
+    /// <summary>The real placement dispatcher leaves junction and chain regions for routed scoring.</summary>
     /// <param name="FanOut">Whether the junction fans out or collects inputs.</param>
     [TestCase(true)]
     [TestCase(false)]
-    public void AlignsJunctionAndChainTogether(bool FanOut)
+    public void BypassesForcedJunctionAndChainAlignment(bool FanOut)
     {
         var (Contract, Nodes, Grid) = Fixture(FanOut);
-        Assert.That(FlowchartCircularJunctionLayout.AlignCellFans(Contract, Nodes, false), Is.True);
-        Assert.That(Grid.RegionOf("J").StartColumn, Is.EqualTo(1));
-        Assert.That(Grid.RegionOf("chain").StartColumn, Is.EqualTo(1));
+        var Before = Grid.Capture();
+        FlowchartCircularJunctionLayout.AlignFans(Contract, Nodes, false);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
     /// <summary>A late chain collision rejects the junction move as well as every other planned region.</summary>
@@ -26,7 +26,7 @@ public sealed class FlowchartCellCircularFanTests
         Grid.TryPlace("O", new(-1, 1, 1, 1));
         var O = new DiagramGridLayout.GridNode { Id = "O", Rank = 99 }; O.BindCells(Grid); Nodes.Add(O);
         var Before = Grid.Capture();
-        Assert.That(FlowchartCircularJunctionLayout.AlignCellFans(Contract, Nodes, false), Is.False);
+        FlowchartCircularJunctionLayout.AlignFans(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
