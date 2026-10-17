@@ -17,6 +17,17 @@ public sealed class FlowchartCellLoopPlacementTests
         Assert.That(Grid.RegionOf("T").StartColumn, Is.EqualTo(1));
     }
 
+    /// <summary>Side separation translates the complete tail without flattening its original cross-axis offsets.</summary>
+    [Test]
+    public void PreservesTailOffsetsForRoutedScoring()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        var Before = Grid.RegionOf("T");
+        Assert.That(Grid.TryPlace("T", new(Before.StartRow, Before.StartColumn + 1, Before.RowSpan, Before.ColumnSpan)), Is.True);
+        Assert.That(DiagramGridLayout.AlignCellVerticalLoopBranches(Contract, Nodes), Is.True);
+        Assert.That(Grid.RegionOf("T").StartColumn - Grid.RegionOf("C").StartColumn, Is.EqualTo(1));
+    }
+
     /// <summary>A late occupied or hinted tail member rejects both the continuation chain and the return branch.</summary>
     /// <param name="Hint">Whether the tail is anchored by a hint instead of blocked cells.</param>
     [TestCase(false)]

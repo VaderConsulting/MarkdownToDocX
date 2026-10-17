@@ -215,3 +215,14 @@ still publish as one validated assignment, preserving hint locks and rollback.
 Census placement-policy-10-decision-inputs.log -> placement-policy-11-spine.log:
 660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3240 -> 3242,
 entirely F58 (12 -> 14). All 287 focused tests pass.
+
+## Superseded: flattened continuation tails in vertical loop placement (0e1c61d)
+
+Return/continuation side ordering remains. The continuing tail now translates
+as one unit, preserving its existing offsets instead of forcing every member
+onto one line. A routed score must justify any subsequent straightening.
+
+Census placement-policy-11-spine.log -> placement-policy-12-loop-tails.log:
+660 completed bound cases; zero catches; A164/A165 unchanged; bends unchanged
+at 3242 in every completed case. All 288 focused tests pass, including an
+intentionally offset tail that must remain offset after side separation.

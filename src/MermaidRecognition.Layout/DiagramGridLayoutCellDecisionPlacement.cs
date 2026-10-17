@@ -35,7 +35,10 @@ public static partial class DiagramGridLayout
             int Centre = Targets[Decision.Id].StartColumn;
             int Pitch = Tail.Append(Loop).Append(Decision).Max(Node => Targets[Node.Id].ColumnSpan);
             Targets[Loop.Id] = WithCellCross(Targets[Loop.Id], checked(Centre + Pitch), false);
-            foreach (var Node in Tail) Targets[Node.Id] = WithCellCross(Targets[Node.Id], checked(Centre - Pitch), false);
+            int Shift = checked(Centre - Pitch - Targets[Continuation.Id].StartColumn);
+            // Keep the return/continuation side order, but preserve every
+            // existing tail offset. Only routed scoring may straighten it.
+            foreach (var Node in Tail) Targets[Node.Id] = WithCellCross(Targets[Node.Id], checked(Targets[Node.Id].StartColumn + Shift), false);
         }
         return FlowchartCellRepair.TryAssign(Placed, Targets);
     }
