@@ -8,6 +8,65 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans logical placement alignments without assigning derived pixel positions.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Plans shared fan roots and all unbranched tails together, preserving independent input and group restrictions.</summary>
+    /// <param name="Contract">Visible graph and return classification.</param>
+    /// <param name="Placed">Complete shared ownership.</param>
+    /// <param name="Horizontal">Whether cross-axis starts use rows.</param>
+    /// <returns>Successfully planned shared roots, or an empty set when the complete assignment was rejected.</returns>
+    internal static HashSet<string> AlignCellSharedFanSourcesAndTails(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    {
+        var Before = FlowchartCellRepair.Capture(Placed);
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = IndexPlaced(Placed); var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Visible = Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var Aligned = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var Source in Placed.Where(Node => !Node.IsDiamond && !Visible.Any(Edge => Edge.TargetId == Node.Id)))
+        {
+            var Children = Visible.Where(Edge => Edge.SourceId == Source.Id && ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).Distinct().ToArray();
+            if (Children.Length < 2 || Children.Select(Node => Node.Rank).Distinct().Count() != 1
+                || Children.Any(Node => Node.IsDiamond || Node.Rank == Source.Rank || Node.GroupId != Source.GroupId)) continue;
+            if (!Children.All(Child =>
+                {
+                    var Others = Visible.Where(Edge => Edge.TargetId == Child.Id && Edge.SourceId != Source.Id).ToArray();
+                    return Others.Length > 0 && Others.All(Edge => ById.TryGetValue(Edge.SourceId, out var Parent)
+                        && Parent.Rank == Source.Rank && Parent.GroupId == Source.GroupId && !Parent.IsDiamond
+                        && !Visible.Any(Incoming => Incoming.TargetId == Parent.Id) && Visible.Count(Outgoing => Outgoing.SourceId == Parent.Id) == 1);
+                })) continue;
+            int Start = Children.Min(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn);
+            int End = Children.Max(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn);
+            int Centre = checked((int)Math.Floor(((double)Start + End) / 2));
+            Targets[Source.Id] = WithCellCross(Targets[Source.Id], Centre, Horizontal); Aligned.Add(Source.Id);
+            foreach (var Child in Children)
+            {
+                int Anchor = Horizontal ? Targets[Child.Id].StartRow : Targets[Child.Id].StartColumn;
+                foreach (var Node in CellOutputChain(Child, ById, Visible).Skip(1)) Targets[Node.Id] = WithCellCross(Targets[Node.Id], Anchor, Horizontal);
+            }
+        }
+        return FlowchartCellRepair.TryAssign(Placed, Targets) ? Aligned : new(StringComparer.Ordinal);
+    }
+
+    /// <summary>Finds a complete sole-output tail without crossing a decision, merge or group boundary.</summary>
+    /// <param name="Start">First member, included in the returned chain.</param>
+    /// <param name="ById">Present node lookup.</param>
+    /// <param name="Edges">Caller-selected visible or forward relationships.</param>
+    /// <param name="RequireRankChange">Whether a same-rank continuation terminates this caller's chain.</param>
+    /// <returns>Traversal-ordered members; ownership has not changed.</returns>
+    private static IReadOnlyList<GridNode> CellOutputChain(GridNode Start, IReadOnlyDictionary<string, GridNode> ById,
+        IReadOnlyList<EdgeContract> Edges, bool RequireRankChange = true)
+    {
+        var Result = new List<GridNode>(); var Seen = new HashSet<string>(StringComparer.Ordinal); var Current = Start;
+        while (Seen.Add(Current.Id))
+        {
+            Result.Add(Current);
+            var Next = Edges.Where(Edge => Edge.SourceId == Current.Id).ToArray();
+            if (Next.Length != 1 || !ById.TryGetValue(Next[0].TargetId, out var Child) || Child.IsDiamond
+                || Child.GroupId != Start.GroupId || RequireRankChange && Child.Rank == Current.Rank
+                || Edges.Count(Edge => Edge.TargetId == Child.Id) != 1) break;
+            Current = Child;
+        }
+        return Result;
+    }
+
     /// <summary>Plans independent odd input fans in neighbouring whole-cell lanes while retaining anchored inputs.</summary>
     /// <param name="Contract">Visible incoming and upstream relationships.</param>
     /// <param name="Placed">Complete shared grid ownership.</param>

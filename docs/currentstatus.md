@@ -1137,3 +1137,11 @@ side-lane assignment. Hinted or occupied merge targets retain all selected
 reservations unchanged. Three tests pass, focused count 246. The next census
 is census-after-cell-simple-merges.log. Full cells-on acceptance is still
 pending remaining shared/grouped writers and hard frame-fit failures.
+
+### Whole-cell shared fan roots and tails
+
+Shared roots and all selected unbranched tails now use one complete reservation
+plan. A late tail collision or hinted root rejects the whole assignment.
+The output-chain collector is shared with vertical loop placement. Three tests
+pass, focused count 249. The next census is census-after-cell-shared-fans.log;
+remaining grouped writers and frame-fit failures still prevent full acceptance.

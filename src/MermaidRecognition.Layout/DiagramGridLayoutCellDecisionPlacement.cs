@@ -49,15 +49,7 @@ public static partial class DiagramGridLayout
             if (Children.Length != 2 || Children[0] == Children[1] || Loop == null || Loop.PlacementHintLocked
                 || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
             var Continuation = Children.First(Child => Child != Loop);
-            var Tail = new List<GridNode>(); var Current = Continuation; var Seen = new HashSet<string>(StringComparer.Ordinal);
-            while (Seen.Add(Current.Id))
-            {
-                Tail.Add(Current);
-                var Next = Forward.Where(Edge => Edge.SourceId == Current.Id).ToArray();
-                if (Next.Length != 1 || !ById.TryGetValue(Next[0].TargetId, out var Child) || Child.IsDiamond
-                    || Child.GroupId != Continuation.GroupId || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1) break;
-                Current = Child;
-            }
+            var Tail = CellOutputChain(Continuation, ById, Forward, RequireRankChange: false);
             if (Tail.Any(Node => Node.PlacementHintLocked)) continue;
             int Centre = Targets[Decision.Id].StartColumn;
             int Pitch = Tail.Append(Loop).Append(Decision).Max(Node => Targets[Node.Id].ColumnSpan);
