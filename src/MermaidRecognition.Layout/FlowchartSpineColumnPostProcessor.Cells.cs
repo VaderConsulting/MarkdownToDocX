@@ -28,7 +28,7 @@ public static partial class FlowchartSpineColumnPostProcessor
         int Pitch = Targets.Values.Max(Region => Region.ColumnSpan);
         var Locked = Nodes.Where(Node => Node.PlacementHintLocked).Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
 
-        foreach (string Id in Spine) Set(Id, null, SpineColumn);
+        // Retain labelled side ordering only; spine straightening belongs to routed scoring.
         var Sides = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
             && Targets.ContainsKey(Edge.SourceId) && Targets.ContainsKey(Edge.TargetId) && !Spine.Contains(Edge.TargetId)
             && IsDecisionShape(GetNodeShape(Contract, Edge.SourceId))).Select(Edge => Edge.TargetId).ToHashSet(StringComparer.Ordinal);
@@ -41,19 +41,6 @@ public static partial class FlowchartSpineColumnPostProcessor
                 && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
                 && IsNoLabeledEdge(FindDecisionEdgeToTarget(Contract, Id))) Column = checked(SpineColumn - 2 * Pitch);
             Set(Id, null, Column);
-        }
-        foreach (var Node in Contract.Nodes.Where(Node => IsTerminalCollectorTarget(Contract, Node.Id, Targets)))
-        {
-            var Sources = Contract.Edges.Where(Edge => Edge.TargetId == Node.Id && Targets.ContainsKey(Edge.SourceId)
-                && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).Select(Edge => Edge.SourceId).ToArray();
-            int Row = Sources.Where(Id => Targets[Id].StartColumn >= SpineColumn - Pitch
-                    && !IsDecisionShape(GetNodeShape(Contract, Id)) && Targets[Id].StartRow > Targets[Node.Id].StartRow)
-                .Select(Id => Targets[Id].StartRow).DefaultIfEmpty(Targets[Node.Id].EndRow).Min();
-            foreach (string Id in Sources)
-            {
-                if (Targets[Id].StartColumn < SpineColumn - Pitch) Set(Id, Row, checked(SpineColumn - 2 * Pitch));
-                else if (IsSpineColumnCollectorSource(Contract, Id)) Set(Id, null, SpineColumn);
-            }
         }
         return FlowchartCellRepair.TryAssign(Nodes, Targets);
 

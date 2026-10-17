@@ -7,16 +7,16 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellSpinePlacementTests
 {
-    /// <summary>Spine nodes align by starting column and a labelled detour receives a whole margin lane and collector row.</summary>
+    /// <summary>Labelled side ordering remains while spine and collector members keep their original regions.</summary>
     [Test]
-    public void SpineAndCollectorPublishTogether()
+    public void KeepsLabelledSideOrderingWithoutSpineOrCollectorAlignment()
     {
         var (Contract, Nodes, Grid) = Fixture();
         Assert.That(FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom), Is.True);
-        Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(Grid.RegionOf("D").StartColumn));
-        Assert.That(Grid.RegionOf("T").StartColumn, Is.EqualTo(Grid.RegionOf("D").StartColumn));
+        Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(3));
+        Assert.That(Grid.RegionOf("T").StartColumn, Is.EqualTo(6));
         Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(0));
-        Assert.That(Grid.RegionOf("B").StartRow, Is.EqualTo(Grid.RegionOf("T").EndRow));
+        Assert.That(Grid.RegionOf("B").StartRow, Is.EqualTo(4));
     }
 
     /// <summary>A blocked late target rejects the entire plan and restores neither cached pixels nor a partially moved prefix.</summary>
@@ -24,7 +24,7 @@ public sealed class FlowchartCellSpinePlacementTests
     public void OccupiedSpineTargetRejectsAllMembers()
     {
         var (Contract, Nodes, Grid) = Fixture();
-        Assert.That(Grid.TryPlace("obstacle", new(2, 2, 1, 1)), Is.True);
+        Assert.That(Grid.TryPlace("obstacle", new(4, 0, 1, 1)), Is.True);
         var Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
         var Before = Grid.Capture();
         Assert.That(FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom), Is.False);

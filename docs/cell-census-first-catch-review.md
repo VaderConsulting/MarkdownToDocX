@@ -203,3 +203,15 @@ in the whole-cell routed scorer, preserving exact region/gap rollback and hints.
 Census placement-policy-09-input-fans.log -> placement-policy-10-decision-inputs.log:
 660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3242 -> 3240:
 F124 and F34 each improve 8 -> 7. All 287 focused tests pass.
+
+## Superseded: forced spine and terminal collector alignment (777df62)
+
+Spine graph detection and labelled decision-side ordering remain. Cell-bound
+spine members no longer share a forced column; terminal collector sources no
+longer receive preset rows or spine columns. Those parts only straightened
+lines. Whole-cell routed scoring supplies straightening. Side-lane changes
+still publish as one validated assignment, preserving hint locks and rollback.
+
+Census placement-policy-10-decision-inputs.log -> placement-policy-11-spine.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3240 -> 3242,
+entirely F58 (12 -> 14). All 287 focused tests pass.
