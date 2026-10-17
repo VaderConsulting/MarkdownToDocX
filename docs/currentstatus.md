@@ -917,3 +917,15 @@ alignment, and any occupancy failure leaves the complete chain unchanged.
 Three tests pass, focused count 172. The census-after-cell-decision-inputs.log
 records the next writers and unresolved frame fits; no cells-on gate pass is
 claimed. Production and independent text spans remain off.
+
+### Parent-grid root container reflow
+
+The cell-bound root reflow no longer runs an unbound local layout or copies
+its pixel coordinates back. It compacts private logical member regions,
+enumerates complete parent-grid container plans under repair_candidate_moves
+and repair_chain_depth, checks ownership and derived frame conflicts and then
+publishes one improving assignment. Every rejected trial restores the original
+regions and gaps. Two tests pass, focused count 174. The census visits 673 cases
+in 17.9431 s with eleven hard frame-fit failures; A165 and A168 are newly exposed
+after their earlier root write is removed. Remaining writer paths are recorded
+in census-after-cell-root-packing.log. No full cells-on gate pass is claimed.

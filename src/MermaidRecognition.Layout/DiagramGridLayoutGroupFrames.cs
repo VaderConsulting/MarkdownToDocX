@@ -95,6 +95,11 @@ public static partial class DiagramGridLayout
             && First.Left < Second.Right && First.Right > Second.Left
             && First.Top < Second.Bottom && First.Bottom > Second.Top));
         if (!Overlapping) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            PackCellRootGroups(Contract, Placed, Frames);
+            return;
+        }
         DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root groups: {Roots.Count} overlapping root frames");
 
         // Global ranks can scatter a container's members between other containers.
