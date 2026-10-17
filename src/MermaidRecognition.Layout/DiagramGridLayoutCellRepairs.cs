@@ -17,7 +17,7 @@ public static partial class DiagramGridLayout
         /// <returns>Accepted move count and complete candidates examined.</returns>
         private static (int Moved, int Examined) MoveBeforeDetourCells(GridLayoutState State,
             int CandidateLimit, int MoveLimit, HashSet<string> Attempted) =>
-            SearchCellAssignments(State, MoveCellOptions(State), CandidateLimit, MoveLimit, Attempted);
+            SearchCellAssignments(State, MoveCellOptions(State), CandidateLimit, MoveLimit, Attempted, PreserveBends: true);
 
         /// <summary>One already validated complete target state; no callback can construct targets while changing live geometry.</summary>
         /// <param name="Key">Deterministic assignment identity.</param>
@@ -33,20 +33,13 @@ public static partial class DiagramGridLayout
             var Units = State.Copy.EdgeRoutes.Where(Route => Route.Points.Count < 2
                     || FlowchartLayoutScore.CountCorners(Route.Points) > 0)
                 .SelectMany(Route => new[] { Route.SourceId, Route.TargetId }).Distinct(StringComparer.Ordinal).ToArray();
-            foreach (string Id in Units)
+            foreach (var Candidate in CellRouteMoveCandidates(State.Contract, State.Placed, State.Horizontal, Units))
             {
-                var Moving = State.Placed.Where(Node => Node.Id == Id || IsInsideGroup(State.Contract, Node.Id, Id)).ToArray();
-                foreach (int Distance in Enumerable.Range(1, FlowchartLayoutRules.RepairChainDepth))
-                foreach (var Direction in new[] { (Rows: -1, Columns: 0), (Rows: 1, Columns: 0), (Rows: 0, Columns: -1), (Rows: 0, Columns: 1) })
-                {
-                    int Rows = Direction.Rows * Distance, Columns = Direction.Columns * Distance;
-                    var Plan = FlowchartCellRepair.PlanMove(Moving, Rows, Columns)
-                        ?? FlowchartCellRepair.PlanDisplacement(State.Placed, Moving, Rows, Columns);
-                    if (Plan != null) yield return new("move|" + Id + "|" + Distance + "|" + Direction.Rows + "," + Direction.Columns, Id, Plan);
-                }
+                var Plan = FlowchartCellRepair.PlanMove(Candidate.Nodes, Candidate.Rows, Candidate.Columns)
+                    ?? FlowchartCellRepair.PlanDisplacement(State.Placed, Candidate.Nodes, Candidate.Rows, Candidate.Columns);
+                if (Plan != null) yield return new("move|" + Candidate.Key, Candidate.Subject, Plan);
             }
         }
-
         /// <summary>Offers atomic region swaps for the existing settled side, crossing and shared-track search.</summary>
         /// <param name="State">The complete cell-bound model.</param>
         /// <param name="IncludeSideFaults">Whether facing-side faults nominate nodes.</param>
@@ -214,10 +207,11 @@ public static partial class DiagramGridLayout
         /// <param name="MoveLimit">Remaining named chain budget.</param>
         /// <param name="Attempted">Assignments already tried for this exact cell geometry.</param>
         /// <param name="Shortfall">Optional measured mandatory shortfall; reducing it takes precedence over a quality-only score improvement.</param>
+        /// <param name="PreserveBends">Whether straightening rejects added bends instead of trading them for a different diagram shape.</param>
         /// <returns>Accepted option count and candidates examined.</returns>
         private static (int Moved, int Examined) SearchCellAssignments(GridLayoutState State,
             IEnumerable<CellRepairOption> Options, int CandidateLimit, int MoveLimit, HashSet<string> Attempted,
-            Func<double>? Shortfall = null)
+            Func<double>? Shortfall = null, bool PreserveBends = false)
         {
             CandidateLimit = Math.Min(CandidateLimit,
                 FlowchartLayoutRules.RepairCandidateMoves - State.MoveBudget.CandidateMoves);
@@ -279,6 +273,7 @@ public static partial class DiagramGridLayout
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
                         && ExtraLength <= FlowchartLayoutRules.RepairExtraLength && ExtraBends <= FlowchartLayoutRules.RepairExtraBends
+                        && (!PreserveBends || ExtraBends <= 0)
                         && ChangedLines <= FlowchartLayoutRules.RepairChainLines;
                     RouteRepairCandidateObserver?.Invoke("cell-move", Option.Subject, Cost, Legal);
                     if (!Legal || Remaining > BestShortfall

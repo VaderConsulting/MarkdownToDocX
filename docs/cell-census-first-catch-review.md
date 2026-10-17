@@ -93,3 +93,27 @@ zero writer catches; A164/A165 remain the only hard failures; the same 660 bound
 cases complete. Bends are 3270 -> 3272, entirely A114 (141 -> 143). All 279 focused
 tests pass. Straightening must compete as complete whole-cell routed candidates,
 not be recovered by reinstating an envelope-midpoint write.
+
+## Superseded: shared fan midpoint and forced tail alignment (4838a67)
+
+The midpoint/root and unconditional tail-position assignments in 4838a67 are
+superseded for cells. Topological shared-source classification is retained;
+no root, tail, ordering metadata or gap is written by that classification.
+Straightening now competes in the existing complete routed-score search.
+
+That search now offers peer-start/far-boundary translations, whole unbranched
+tails and compass moves as atomic region candidates, interleaved across units.
+Its candidate ordering uses rule 2.10: each source contributes (A+B)/2 over its
+inclusive occupied cells; a dominant source takes priority and tied sources'
+representatives are averaged. The possibly fractional result is ordering-only,
+never rounded into occupancy. Normal hint locks, route legality, exact rollback
+and the existing named candidate/chain/line limits remain. Straightening rejects
+an increase in bends in the scored candidate; all original score weights stay
+unchanged. Later routing passes can still change a scenario's final bend total.
+
+Census placement-policy-02-nested-group.log -> placement-policy-03-shared-fans-final.log:
+zero writer catches; A164/A165 unchanged; the same 660 bound cases complete.
+Bends total 3272 -> 3238; 93 scenario totals change. The full before/after rows
+are in the latter log's .bends.csv sidecar, including increases as well as gains.
+All 285 focused tests pass. Cells-off verification is pending the final review
+run; the new candidate enumerator is called only by the cell-bound repair path.

@@ -785,7 +785,7 @@ public static partial class DiagramGridLayout
     /// <summary>Centres a shared fan between independent inputs and straightens its unbranched tails.</summary>
     internal static HashSet<string> AlignSharedFanSourcesAndTails(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        if (Placed.Any(Node => Node.CellNode != null)) return AlignCellSharedFanSourcesAndTails(Contract, Placed, Horizontal);
+        if (Placed.Any(Node => Node.CellNode != null)) return SelectCellSharedFanSources(Contract, Placed, Horizontal);
         var Aligned = new HashSet<string>(StringComparer.Ordinal);
         var ById = IndexPlaced(Placed);
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);

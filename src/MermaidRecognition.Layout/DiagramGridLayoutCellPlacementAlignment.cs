@@ -8,41 +8,33 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans logical placement alignments without assigning derived pixel positions.</summary>
 public static partial class DiagramGridLayout
 {
-    /// <summary>Plans shared fan roots and all unbranched tails together, preserving independent input and group restrictions.</summary>
+    /// <summary>Classifies shared fan roots without forcing midpoint placement or tail alignment.</summary>
     /// <param name="Contract">Visible graph and return classification.</param>
     /// <param name="Placed">Complete shared ownership.</param>
     /// <param name="Horizontal">Whether cross-axis starts use rows.</param>
-    /// <returns>Successfully planned shared roots, or an empty set when the complete assignment was rejected.</returns>
-    internal static HashSet<string> AlignCellSharedFanSourcesAndTails(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
+    /// <returns>Topologically eligible shared roots; no region, gap or ordering metadata changes.</returns>
+    internal static HashSet<string> SelectCellSharedFanSources(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed); var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var ById = IndexPlaced(Placed);
+        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Visible = Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var Aligned = new HashSet<string>(StringComparer.Ordinal);
+        var Selected = new HashSet<string>(StringComparer.Ordinal);
         foreach (var Source in Placed.Where(Node => !Node.IsDiamond && !Visible.Any(Edge => Edge.TargetId == Node.Id)))
         {
             var Children = Visible.Where(Edge => Edge.SourceId == Source.Id && ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).Distinct().ToArray();
             if (Children.Length < 2 || Children.Select(Node => Node.Rank).Distinct().Count() != 1
                 || Children.Any(Node => Node.IsDiamond || Node.Rank == Source.Rank || Node.GroupId != Source.GroupId)) continue;
-            if (!Children.All(Child =>
+            if (Children.All(Child =>
                 {
                     var Others = Visible.Where(Edge => Edge.TargetId == Child.Id && Edge.SourceId != Source.Id).ToArray();
                     return Others.Length > 0 && Others.All(Edge => ById.TryGetValue(Edge.SourceId, out var Parent)
                         && Parent.Rank == Source.Rank && Parent.GroupId == Source.GroupId && !Parent.IsDiamond
                         && !Visible.Any(Incoming => Incoming.TargetId == Parent.Id) && Visible.Count(Outgoing => Outgoing.SourceId == Parent.Id) == 1);
-                })) continue;
-            int Start = Children.Min(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn);
-            int End = Children.Max(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn);
-            int Centre = checked((int)Math.Floor(((double)Start + End) / 2));
-            Targets[Source.Id] = WithCellCross(Targets[Source.Id], Centre, Horizontal); Aligned.Add(Source.Id);
-            foreach (var Child in Children)
-            {
-                int Anchor = Horizontal ? Targets[Child.Id].StartRow : Targets[Child.Id].StartColumn;
-                foreach (var Node in CellOutputChain(Child, ById, Visible).Skip(1)) Targets[Node.Id] = WithCellCross(Targets[Node.Id], Anchor, Horizontal);
-            }
+                })) Selected.Add(Source.Id);
         }
-        return FlowchartCellRepair.TryAssign(Placed, Targets) ? Aligned : new(StringComparer.Ordinal);
+        // Keep topology classification, not midpoint or tail-position writes.
+        // Whole-cell source/tail candidates compete in the routed score.
+        return Selected;
     }
 
     /// <summary>Finds a complete sole-output tail without crossing a decision, merge or group boundary.</summary>
