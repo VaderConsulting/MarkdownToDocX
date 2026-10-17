@@ -247,3 +247,17 @@ direct branch; its independent region is preserved for routed scoring.
 Census placement-policy-13-retry.log -> placement-policy-14-detours.log:
 660 completed bound cases; zero catches; A164/A165 unchanged. Every completed
 case retains its bend count (3236 total). All 289 focused tests pass.
+
+## Superseded: legacy intergroup connector centre/pixel placement
+
+Removing the hidden main-chain column rewrite exposed the previously dormant
+FlowchartIntergroupNodePlacement pixel writer in A111. Its nearest-anchor centre
+and clamped 30-pixel proposals are bypassed for cells. Mandatory frame/title
+clearance remains in the cell frame fitter; endpoint/group positions compete
+as complete region candidates in the routed scorer. No legacy direct write is
+converted back into ownership.
+
+The isolated census placement-policy-14-detours.log -> placement-policy-15a-intergroup.log
+retains 660 completed bound cases, zero catches, A164/A165 and every case's bend
+count (3236 total). Three real-source regressions cover A111 and the two missing
+partner-track cases A110/F136; all pass.
