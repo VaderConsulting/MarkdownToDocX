@@ -709,6 +709,8 @@ public static partial class DiagramGridLayout
         /// <summary>Owning diagnostic sink, independent of unrelated ambient render contexts.</summary>
         internal FlowchartRenderContext? PixelWriteContext;
         public bool PlacementHintLocked;
+        /// <summary>Validates actual logical hint relationships on a complete proposed ownership map; null retains a manual absolute lock.</summary>
+        internal Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>? CellHintValidator;
         public double X { get => CellNode?.X ?? _x; set { if (AllowPixelWrite(nameof(X)) && !PlacementHintLocked) _x = value; } }
         public double Y { get => CellNode?.Y ?? _y; set { if (AllowPixelWrite(nameof(Y)) && !PlacementHintLocked) _y = value; } }
         /// <summary>Retains the legacy coordinate adapter only for a node without logical-cell authority.</summary>

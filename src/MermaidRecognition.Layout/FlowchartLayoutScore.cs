@@ -393,6 +393,15 @@ internal static class FlowchartLayoutScore
         return Corners > 3;
     }
 
+    /// <summary>Scores complete pre-routing node and frame geometry using the existing aspect and raster empty-space terms.</summary>
+    /// <param name="Layout">Projected candidate bounds, including every frame; no route has yet been selected.</param>
+    /// <returns>The unchanged placement terms of the layout score, with no invented route penalties.</returns>
+    internal static double MeasurePlacement(FlowchartLayoutResult Layout)
+    {
+        var (Width, Height) = Bounds(Layout);
+        return Calculate(Width, Height, 0, EmptyAreaShare(Layout, Width, Height));
+    }
+
     internal static double Calculate(double Width, double Height, int Crossings, double EmptyShare)
         => Calculate(Width, Height, Crossings, 0, EmptyShare);
 

@@ -37,6 +37,12 @@ public sealed class CellGuardCatalogueProbeTests
     [TestCaseSource(nameof(Catalogue))]
     [CancelAfter(60000)]
     public void ProbeBoundCatalogue(RouteRuleCatalogueAuditTests.Scenario Scenario)
+        => RunBoundCatalogue(Scenario, RequireCompletion: false);
+
+    /// <summary>Runs the real bound pipeline; regression callers require completion rather than accepting a diagnostic first catch.</summary>
+    /// <param name="Scenario">Unchanged catalogue source.</param>
+    /// <param name="RequireCompletion">Whether a pre-binding skip or blocked writer must fail the regression.</param>
+    internal static void RunBoundCatalogue(RouteRuleCatalogueAuditTests.Scenario Scenario, bool RequireCompletion)
     {
         var Clock = Stopwatch.StartNew();
         var Contract = Scenario.Enterprise
@@ -45,6 +51,8 @@ public sealed class CellGuardCatalogueProbeTests
         var Context = new FlowchartRenderContext();
         FlowchartLayoutResult? Layout = null;
         string Mode = "on", Status = "native-layout-failed", Stage = "native-placement";
+        if (Environment.GetEnvironmentVariable("CELL_FRAME_TRACE") == "1")
+            DiagramGridLayout.GroupFrameFitPassObserver = Message => TestContext.Out.WriteLine($"CELL_FRAME_TRACE|{Scenario.Id}|{Message}");
         try
         {
             if (Contract.LayoutMode == DiagramLayoutMode.Open)
@@ -86,6 +94,7 @@ public sealed class CellGuardCatalogueProbeTests
         {
             Status = "guard-caught";
             TestContext.Out.WriteLine($"CELL_GUARD_CAUGHT|{Scenario.Id}|stage={Stage}|{Diagnostic.Description}");
+            if (RequireCompletion) Assert.Fail("Frame regression stopped at a direct pixel write: " + Diagnostic.Description);
         }
         catch (Exception Failure)
         {
@@ -96,10 +105,14 @@ public sealed class CellGuardCatalogueProbeTests
         }
         finally
         {
+            DiagramGridLayout.GroupFrameFitPassObserver = null;
             Context.ActiveLayoutStage = null;
             CellGuardCatalogueReporting.Write(Scenario.Id, Mode, Layout, Status);
             TestContext.Out.WriteLine($"CELL_GUARD_PROBE_TIME|{Scenario.Id}|milliseconds={Clock.Elapsed.TotalMilliseconds:0.000}|stage={Stage}");
+            if (RequireCompletion && Status == "native-layout-failed")
+                Assert.Fail("A frame regression exited before binding: " + Scenario.Id);
         }
+        if (RequireCompletion) Assert.That(Status, Is.EqualTo("completed"), "A frame regression must finish every real cell-bound stage.");
     }
 
     /// <summary>Explains a pre-binding exit without treating unsupported or remarked source as a cell-repair failure.</summary>

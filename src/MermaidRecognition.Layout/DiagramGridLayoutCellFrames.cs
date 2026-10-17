@@ -53,7 +53,23 @@ public static partial class DiagramGridLayout
             while (CellFrameConflicts(Contract, Placed, Frames, DiagramGridMetrics.GRID_UNIT_PX).Count != 0)
             {
                 if (!SearchCellFrameAssignment(Contract, Placed, Frames, BudgetOverride: Context.MoveBeforeDetourBudget))
+                {
+                    GroupFrameFitPassObserver?.Invoke("CELL_FRAME_UNRESOLVED|" + System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Trigger,
+                        Context.MoveBeforeDetourBudget.CandidateMoves,
+                        Context.MoveBeforeDetourBudget.AcceptedMoves,
+                        Conflicts = CellFrameConflicts(Contract, Placed, Frames, DiagramGridMetrics.GRID_UNIT_PX),
+                        Frames = Frames.Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }),
+                        Nodes = Placed.Select(Node => new { Node.Id, Node.GroupId, Node.PlacementHintLocked,
+                            Region = new { Node.CellNode!.Region.StartRow, Node.CellNode.Region.StartColumn,
+                                Node.CellNode.Region.RowSpan, Node.CellNode.Region.ColumnSpan },
+                            Node.X, Node.Y, Node.Width, Node.Height }),
+                        Rows = Placed[0].CellNode!.Grid.Capture().RowGaps,
+                        Columns = Placed[0].CellNode!.Grid.Capture().ColumnGaps
+                    }));
                     throw new InvalidOperationException($"Unresolved cell-region frame conflict after {Trigger}; no legal assignment within the named repair limits.");
+                }
                 Accepted++;
             }
             GroupFrameRefitObserver?.Invoke($"cell refit for {Trigger}; {Accepted} whole-cell assignments; stable frame fit");
@@ -73,7 +89,9 @@ public static partial class DiagramGridLayout
     /// <param name="Key">Stable conflict identity for rejecting newly introduced conflicts.</param>
     /// <param name="First">First member group.</param>
     /// <param name="Second">Other group or foreign node.</param>
-    private sealed record CellFrameConflict(string Key, string First, string Second);
+    /// <param name="ShortfallX">Measured horizontal separation still needed to clear the two visual bounds.</param>
+    /// <param name="ShortfallY">Measured vertical separation still needed to clear the two visual bounds.</param>
+    private sealed record CellFrameConflict(string Key, string First, string Second, double ShortfallX, double ShortfallY);
 
     /// <summary>Finds conflicts in derived geometry, using cells solely as ownership and movement inputs.</summary>
     /// <param name="Contract">Group ancestry and relationship clearances.</param>
@@ -94,7 +112,10 @@ public static partial class DiagramGridLayout
                     && Frame.Left < Other.Right && Other.Left < Frame.Right
                     && Math.Min(Frame.Top, Frame.Bottom) < Math.Max(Other.Top, Other.Bottom)
                     && Math.Min(Other.Top, Other.Bottom) < Math.Max(Frame.Top, Frame.Bottom))
-                    Conflicts.Add(new("frames|" + Frame.Id + "|" + Other.Id, Frame.Id, Other.Id));
+                    Conflicts.Add(new("frames|" + Frame.Id + "|" + Other.Id, Frame.Id, Other.Id,
+                        Math.Min(Frame.Right - Other.Left, Other.Right - Frame.Left),
+                        Math.Min(Math.Max(Frame.Top, Frame.Bottom) - Math.Min(Other.Top, Other.Bottom),
+                            Math.Max(Other.Top, Other.Bottom) - Math.Min(Frame.Top, Frame.Bottom))));
             foreach (var Node in Placed.Where(Node => !IsInsideGroup(Contract, Node.Id, Frame.Id)))
             {
                 var Box = PreparedBounds?.GetValueOrDefault(Node.Id);
@@ -113,7 +134,10 @@ public static partial class DiagramGridLayout
                 if (X + Width / 2.0 > Frame.Left - Gap && X - Width / 2.0 < Frame.Right + Gap
                     && Y + Height / 2.0 > Math.Min(Frame.Top, Frame.Bottom) - Gap
                     && Y - Height / 2.0 < Math.Max(Frame.Top, Frame.Bottom) + Gap)
-                    Conflicts.Add(new("node|" + Frame.Id + "|" + Node.Id, Frame.Id, Node.Id));
+                    Conflicts.Add(new("node|" + Frame.Id + "|" + Node.Id, Frame.Id, Node.Id,
+                        Math.Min(X + Width / 2 - Frame.Left + Gap, Frame.Right + Gap - X + Width / 2),
+                        Math.Min(Y + Height / 2 - Math.Min(Frame.Top, Frame.Bottom) + Gap,
+                            Math.Max(Frame.Top, Frame.Bottom) + Gap - Y + Height / 2)));
             }
         }
         return Conflicts.OrderBy(Conflict => Conflict.Key, StringComparer.Ordinal).ToList();
@@ -130,7 +154,7 @@ public static partial class DiagramGridLayout
         CellFrameConflicts(Contract, Placed, Frames, DiagramGridMetrics.GRID_UNIT_PX, Bounds)
             .Select(Conflict => Conflict.Key).ToHashSet(StringComparer.Ordinal);
 
-    /// <summary>Scores complete region translations and retains only a strict conflict reduction with no new conflicts.</summary>
+    /// <summary>Delegates complete region and measured-gap candidates to the scored cell-authoritative legality search.</summary>
     /// <param name="Contract">Group ancestry and placement hints.</param>
     /// <param name="Placed">All ownership participants, including fixed obstacles.</param>
     /// <param name="Frames">Derived frame cache; rejected candidates restore its exact objects.</param>
@@ -145,77 +169,8 @@ public static partial class DiagramGridLayout
         string? ConcernedFrame = null, string? ConcernedNode = null,
         FlowchartRenderContext.RepairSearchBudget? BudgetOverride = null)
     {
-        var Original = FlowchartCellRepair.Capture(Placed);
-        var OriginalFrames = Frames.ToArray();
-        var Before = CellFrameConflicts(Contract, Placed, Frames, RequiredGap);
-        if (Before.Count == 0) return false;
-        var Existing = Before.Select(Conflict => Conflict.Key).ToHashSet(StringComparer.Ordinal);
-        var Required = Before.Where(Conflict => (ConcernedFrame == null || Conflict.First == ConcernedFrame
-                || Conflict.Second == ConcernedFrame) && (ConcernedNode == null
-                || Conflict.Key == "node|" + ConcernedFrame + "|" + ConcernedNode))
-            .Select(Conflict => Conflict.Key).ToHashSet(StringComparer.Ordinal);
-        if (Required.Count == 0) return false;
-        var Budget = BudgetOverride ?? FlowchartRenderContext.Current.MoveBeforeDetourBudget;
-        if (Budget.AcceptedMoves >= FlowchartLayoutRules.RepairChainDepth) return false;
-        var Positions = Placed.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y), StringComparer.Ordinal);
-        FlowchartLogicalGrid.Snapshot? Best = null;
-        GridFrame[]? BestFrames = null;
-        int BestRemaining = Before.Count;
-        double BestLength = double.PositiveInfinity;
-        var Units = Before.SelectMany(Conflict => new[] { Conflict.First, Conflict.Second })
-            .Distinct(StringComparer.Ordinal).Where(Id => MovingOnly == null || Id == MovingOnly).ToArray();
-        foreach (string Unit in Units)
-        {
-            var Moving = Placed.Where(Node => Node.Id == Unit || IsInsideGroup(Contract, Node.Id, Unit)).ToArray();
-            if (Moving.Length == 0 || Moving.Any(Node => Node.PlacementHintLocked
-                || RouteRepairStage.HasHintedContainingGroup(Contract, Node.Id))) continue;
-            var MovingIds = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-            if (Contract.Edges.Count(Edge => MovingIds.Contains(Edge.SourceId) || MovingIds.Contains(Edge.TargetId))
-                > FlowchartLayoutRules.RepairChainLines) continue;
-            // Relative dependents cannot be silently left behind when their peer moves.
-            if (HasExternalCellHintDependent(Contract, Unit, Moving)) continue;
-            foreach (int Distance in Enumerable.Range(1, FlowchartLayoutRules.RepairChainDepth))
-            foreach (var Delta in new[] { (Rows: -Distance, Columns: 0), (Rows: Distance, Columns: 0),
-                (Rows: 0, Columns: -Distance), (Rows: 0, Columns: Distance) })
-            {
-                if (Budget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) break;
-                Budget.CandidateMoves++;
-                var Plan = FlowchartCellRepair.PlanMove(Moving, Delta.Rows, Delta.Columns)
-                    ?? FlowchartCellRepair.PlanDisplacement(Placed, Moving, Delta.Rows, Delta.Columns);
-                if (Plan == null) continue;
-                var Participants = Plan.Nodes.ToArray();
-                if (Participants.Any(Node => RouteRepairStage.HasHintedContainingGroup(Contract, Node.Id))
-                    || HasExternalCellHintDependent(Contract, Unit, Participants)) continue;
-                var ParticipantIds = Participants.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-                if (Contract.Edges.Count(Edge => ParticipantIds.Contains(Edge.SourceId) || ParticipantIds.Contains(Edge.TargetId))
-                    > FlowchartLayoutRules.RepairChainLines) continue;
-                try
-                {
-                    if (!Plan.TryApply()) continue;
-                    ReplaceCellFrames(Contract, Placed, Frames);
-                    GroupFrameFitPassObserver?.Invoke($"cell frame candidate {Unit}: ({Delta.Rows},{Delta.Columns})");
-                    var After = CellFrameConflicts(Contract, Placed, Frames, RequiredGap);
-                    if (After.Any(Conflict => !Existing.Contains(Conflict.Key)) || After.Count >= Before.Count) continue;
-                    if (After.Count(Conflict => Required.Contains(Conflict.Key)) >= Required.Count) continue;
-                    double Length = Participants.Sum(Node => Math.Abs(Node.X - Positions[Node.Id].X) + Math.Abs(Node.Y - Positions[Node.Id].Y));
-                    if (After.Count > BestRemaining || After.Count == BestRemaining && Length >= BestLength) continue;
-                    BestRemaining = After.Count;
-                    BestLength = Length;
-                    Best = FlowchartCellRepair.Capture(Placed);
-                    BestFrames = Frames.ToArray();
-                }
-                finally
-                {
-                    FlowchartCellRepair.Restore(Placed, Original);
-                    Frames.Clear(); Frames.AddRange(OriginalFrames);
-                }
-            }
-        }
-        if (Best == null) return false;
-        FlowchartCellRepair.Restore(Placed, Best);
-        Frames.Clear(); Frames.AddRange(BestFrames!);
-        Budget.AcceptedMoves++;
-        return true;
+        return SearchScoredCellFrameAssignment(Contract, Placed, Frames, MovingOnly, RequiredGap,
+            ConcernedFrame, ConcernedNode, BudgetOverride ?? FlowchartRenderContext.Current.MoveBeforeDetourBudget);
     }
 
     /// <summary>Protects hints attached to nodes or groups outside a proposed moving unit.</summary>

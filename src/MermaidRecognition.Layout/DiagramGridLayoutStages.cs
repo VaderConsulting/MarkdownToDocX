@@ -1530,6 +1530,12 @@ public static partial class DiagramGridLayout
     private static void CaptureHintedNodePositions(GridLayoutState State)
     {
         State.HintedNodePositions.Clear();
+        if (State.Placed.Any(Node => Node.CellNode != null))
+        {
+            Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool> Validate =
+                Regions => FlowchartPlacementHints.CellHintsMatch(State.Contract, State.Placed, Regions);
+            foreach (var Node in State.Placed) Node.CellHintValidator = Validate;
+        }
         HashSet<string> Hinted = State.Contract.Nodes
             .Where(Node => Node.PlacementHint?.IsActive == true)
             .Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);

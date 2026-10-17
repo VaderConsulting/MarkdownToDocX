@@ -112,9 +112,11 @@ internal static class FlowchartCellRepair
     /// <param name="Nodes">Every moved node and every node whose geometry is affected by gap growth.</param>
     /// <param name="Changes">Complete final rectangles; disconnected or fractional occupancy cannot enter this integer rectangle type.</param>
     /// <param name="GapGrowth">Optional complete set of measured gap increases.</param>
+    /// <param name="AllowHintedRegionRepair">Whether a legality repair may offer a region change that still satisfies every actual logical hint; ordinary optimizations retain hint locks.</param>
     /// <returns>A validated assignment that has not changed the grid, or null for shared occupancy, incomplete participants or hints.</returns>
     internal static Assignment? PlanAssignment(IReadOnlyList<DiagramGridLayout.GridNode> Nodes,
-        IReadOnlyDictionary<string, FlowchartCellRegion> Changes, IReadOnlyList<FlowchartCellGapGrowth>? GapGrowth = null)
+        IReadOnlyDictionary<string, FlowchartCellRegion> Changes, IReadOnlyList<FlowchartCellGapGrowth>? GapGrowth = null,
+        bool AllowHintedRegionRepair = false)
     {
         ArgumentNullException.ThrowIfNull(Changes);
         if (!TryGrid(Nodes, out var Grid)) return null;
@@ -123,7 +125,8 @@ internal static class FlowchartCellRepair
         {
             if (!ById.TryGetValue(Change.Key, out var Node)) return null;
             var Before = Grid.RegionOf(Change.Key);
-            if (Node.PlacementHintLocked && Change.Value != Before) return null;
+            if (Node.PlacementHintLocked && Change.Value != Before
+                && (!AllowHintedRegionRepair || Node.CellHintValidator == null)) return null;
         }
         var Original = Grid.Capture();
         foreach (var Growth in GapGrowth ?? [])
@@ -133,14 +136,16 @@ internal static class FlowchartCellRepair
             var Target = Changes.GetValueOrDefault(Pair.Key, Pair.Value);
             if (!AffectedByGap(Pair.Value, Growth.Horizontal, Growth.After)
                 && !AffectedByGap(Target, Growth.Horizontal, Growth.After)) continue;
-            if (!ById.TryGetValue(Pair.Key, out var Node) || Node.PlacementHintLocked) return null;
+            if (!ById.TryGetValue(Pair.Key, out var Node) || Node.PlacementHintLocked && Node.CellHintValidator == null) return null;
         }
         var Affected = Nodes.Where(Node => Changes.TryGetValue(Node.Id, out var Target) && Target != Node.CellNode!.Region
             || (GapGrowth ?? []).Any(Growth => Growth.Shortfall != 0
                 && (AffectedByGap(Node.CellNode!.Region, Growth.Horizontal, Growth.After)
                     || AffectedByGap(Changes.GetValueOrDefault(Node.Id, Node.CellNode!.Region), Growth.Horizontal, Growth.After)))).ToArray();
-        return Grid.TryPrepare(Changes, GapGrowth ?? [], out var Candidate)
-            ? new(Grid, Affected, Original, Candidate!) : null;
+        if (!Grid.TryPrepare(Changes, GapGrowth ?? [], out var Candidate)) return null;
+        if (Nodes.Select(Node => Node.CellHintValidator).OfType<Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>>()
+            .Distinct().Any(Validate => !Validate(Candidate!.Regions))) return null;
+        return new(Grid, Affected, Original, Candidate!, AllowHintedRegionRepair);
     }
 
     /// <summary>Builds a complete displacement chain before any moving node or neighbour changes cells.</summary>
@@ -180,15 +185,19 @@ internal static class FlowchartCellRepair
     internal sealed class Assignment
     {
         private readonly FlowchartLogicalGrid Grid;
+        /// <summary>Allows only legality searches to move an actually hinted reservation while preserving its relationship.</summary>
+        private readonly bool AllowHintedRegionRepair;
         /// <summary>Captures participants and both complete states without retaining mutable target dictionaries.</summary>
         /// <param name="Grid">Owning diagram grid.</param>
         /// <param name="Nodes">Complete moving or gap-affected participant set.</param>
         /// <param name="Before">Exact original ownership and gaps.</param>
         /// <param name="After">Complete validated target ownership and gaps.</param>
+        /// <param name="AllowHintedRegionRepair">Whether this is a legality repair permitted to preserve a hint through a changed reservation.</param>
         internal Assignment(FlowchartLogicalGrid Grid, IReadOnlyList<DiagramGridLayout.GridNode> Nodes,
-            FlowchartLogicalGrid.Snapshot Before, FlowchartLogicalGrid.Snapshot After)
+            FlowchartLogicalGrid.Snapshot Before, FlowchartLogicalGrid.Snapshot After, bool AllowHintedRegionRepair)
         {
             this.Grid = Grid; this.Nodes = Array.AsReadOnly(Nodes.ToArray()); this.Before = Before; this.After = After;
+            this.AllowHintedRegionRepair = AllowHintedRegionRepair;
         }
         /// <summary>All participants, including displaced neighbours, for the caller's hint and route-chain checks.</summary>
         internal IReadOnlyList<DiagramGridLayout.GridNode> Nodes { get; }
@@ -198,7 +207,10 @@ internal static class FlowchartCellRepair
         internal FlowchartLogicalGrid.Snapshot After { get; }
         /// <summary>Applies every target together only if its original state is still current.</summary>
         /// <returns>False without mutation for a stale candidate or a participant pinned since planning.</returns>
-        internal bool TryApply() => !Nodes.Any(Node => Node.PlacementHintLocked) && Grid.TryCommit(Before, After);
+        internal bool TryApply() => !Nodes.Any(Node => Node.PlacementHintLocked && (Node.CellHintValidator == null
+                || !AllowHintedRegionRepair && Before.Regions[Node.Id] != After.Regions[Node.Id]))
+            && !Nodes.Select(Node => Node.CellHintValidator).OfType<Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>>()
+                .Distinct().Any(Validate => !Validate(After.Regions)) && Grid.TryCommit(Before, After);
         /// <summary>Restores source ownership and every grown gap together without pixel copyback.</summary>
         internal void Rollback() => Grid.Restore(Before);
     }

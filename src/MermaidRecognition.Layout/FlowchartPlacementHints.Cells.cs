@@ -8,6 +8,24 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans explicit placement in logical cells before publishing any derived geometry.</summary>
 internal static partial class FlowchartPlacementHints
 {
+    /// <summary>Checks honoured logical relationships for a complete repair, allowing legal gap growth without converting hints into pixel pins.</summary>
+    /// <param name="Contract">Active explicit placement relationships.</param>
+    /// <param name="Nodes">All diagram members sharing the candidate grid.</param>
+    /// <param name="Regions">Complete proposed ownership.</param>
+    /// <returns>Whether every nonempty hinted unit retains its start alignment, direction and minimum whole-cell offset.</returns>
+    internal static bool CellHintsMatch(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
+        IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
+    {
+        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        var Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
+        var Items = Contract.Nodes.Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
+            .Select(Node => new HintItem(Node.Id, Node.ParentGroupId, Node.PlacementHint!, false))
+            .Concat(Contract.Groups.Where(Group => Group.PlacementHint?.IsActive == true)
+                .Select(Group => new HintItem(Group.Id, Group.ParentGroupId, Group.PlacementHint!, true)));
+        return Items.All(Item => UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups).Count == 0
+            || CellHintMatches(Item, Nodes, ById, Groups, Regions));
+    }
+
     /// <summary>Applies source-ordered hints as one complete ownership transaction; automatic placement locks cannot veto explicit hints.</summary>
     /// <param name="Contract">Declared hints and group membership.</param>
     /// <param name="Nodes">Complete diagram sharing one authoritative grid.</param>

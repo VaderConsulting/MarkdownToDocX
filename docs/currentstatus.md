@@ -1320,3 +1320,39 @@ zero missing (33.246 s). Logs: terminal-policy-removal-off-audit.log,
 terminal-policy-removal-off-geometry.log and terminal-removal-focused-tests.log.
 Production cells and independent spans remain off; F32/EIP261 stays parked.
 No DOCX files, baseline rows, rules or weights are changed in this checkpoint.
+
+### Repair the eight reviewed cell-frame failures by score (2026-10-18)
+
+Snapping was already committed in f046ae7. The detailed cause, measured
+shortfall and accepted assignment for each of F42, F141, A162, A167, A169,
+EIP78, EIP266 and EIP271 is in docs/cell-frame-fit-eight-review.md. All eight
+now complete the full experimental cell-bound pipeline. No rule conflict was
+found in the requested eight; no checker condition, rule, baseline or weight
+was changed. Node spans remain fixed.
+
+Frame fitting now compares complete external-gap, whole-cell unit and combined
+assignments using the existing placement score including derived frames. Gap
+and move alternatives compete; no fixed repair order is imposed. The old
+translation-distance tie-break and chain-depth-as-distance cap are gone.
+Empty-frame collisions also offer whole connected-component moves. Actual
+hint relationships are validated in cells, allowing external gaps without
+pixel pins. Only legality repairs may change a hinted region while preserving
+its declared start alignment and direction; ordinary optimization locks and
+manual absolute pins remain strict. Transactions remain atomic with exact
+region/gap and frame-cache rollback. Existing named search limits remain.
+
+All 277 focused layout tests pass (the original 163 included), plus eight new
+non-explicit catalogue regressions that require completion rather than merely
+passing a first-catch diagnostic. The full census improves from seventeen hard
+frame-fit failures to two (A164/A165); no direct writer is caught. Completed
+bound cases rise from 645 to 660; the six open scenarios stay unbound and the
+five known native skips remain. Census time is 26.4261 s. These two unresolved
+cases are search limitations, not proven rule conflicts; full cells-on legality
+acceptance remains pending. F32/EIP261 stays parked and production cells and
+independent spans remain off.
+
+Fresh cells-off audit: all 673 identical summaries, 35.05 s, A142 10.6321 s.
+Every previous zero gate remains zero and all quality totals remain unchanged.
+Exact page geometry and ordered serialized diagnostics compare identically for
+all 673 (33.859 s). The detailed report names every evidence log. No DOCX files
+are part of this checkpoint.
