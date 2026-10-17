@@ -938,3 +938,12 @@ after acceptance. The input-chain planner is shared with decision input
 alignment. Two additional tests pass, focused count 176. The exact cells-off
 geometry rerun after root packing remains unchanged for all 673 scenarios
 (42.015 s); no pixel results were used to infer cell regions.
+
+### Whole-cell terminal side branches
+
+Terminal branch placement now proposes integer logical side lanes, measures
+forward-derived clearance and prepares the complete occupancy before applying
+any node. Explicit hints remain fixed and exact rollback restores cells and gaps.
+Three new tests pass, focused count 179. The post-conversion census log is
+census-after-cell-terminal-branches.log. Cells-on audit acceptance is still
+pending remaining guard catches and frame-fit failures.

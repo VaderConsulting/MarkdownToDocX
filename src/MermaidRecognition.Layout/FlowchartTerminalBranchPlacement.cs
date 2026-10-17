@@ -6,11 +6,16 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Keeps terminal branches beside a parent's straight continuation.</summary>
-internal static class FlowchartTerminalBranchPlacement
+internal static partial class FlowchartTerminalBranchPlacement
 {
     internal static void Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         bool Horizontal, int CrossPitch)
     {
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            ApplyCells(Contract, Nodes, Horizontal, CrossPitch);
+            return;
+        }
         var ById = Nodes.ToDictionary(Node => Node.Id);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge)
