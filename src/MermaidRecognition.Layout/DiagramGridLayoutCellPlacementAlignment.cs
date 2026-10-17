@@ -147,33 +147,7 @@ public static partial class DiagramGridLayout
         return true;
     }
 
-    /// <summary>Centres an odd terminal fan and its unbranched input chain by one complete logical reservation plan.</summary>
-    /// <param name="Contract">Visible graph and common-group restrictions.</param>
-    /// <param name="Placed">All diagram nodes sharing cell authority.</param>
-    /// <param name="Horizontal">Whether cross-axis alignment uses rows.</param>
-    /// <returns>Whether all proposed reservations were legal and accepted together.</returns>
-    internal static bool CentreCellTerminalFans(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
-    {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed);
-        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var Ordering = new Dictionary<GridNode, int>();
-        foreach (var Parent in Placed.Where(Node => !Node.IsDiamond))
-        {
-            var Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToArray();
-            if (Outgoing.Length < 3 || Outgoing.Length % 2 == 0 || Outgoing.Select(Edge => Edge.TargetId).Distinct().Count() != Outgoing.Length) continue;
-            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToArray();
-            if (Children.Length != Outgoing.Length || Children.Select(Node => Node.Rank).Distinct().Count() != 1
-                || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
-                    || Visible.Any(Edge => Edge.SourceId == Child.Id) || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
-            var Middle = Children.OrderBy(Node => Horizontal ? Targets[Node.Id].StartRow : Targets[Node.Id].StartColumn).ElementAt(Children.Length / 2);
-            foreach (var Node in PlanCellInputChain(Parent, Targets[Middle.Id], Targets, ById, Visible, Horizontal)) Ordering[Node] = Middle.Column;
-        }
-        if (!FlowchartCellRepair.TryAssign(Placed, Targets)) return false;
-        foreach (var Pair in Ordering) Pair.Key.Column = Pair.Value;
-        return true;
-    }
+
 
     /// <summary>Plans each unbranched upstream chain against its decision's logical cross-axis start, with complete collision rejection.</summary>
     /// <param name="Contract">Graph whose return edges do not determine forward alignment.</param>

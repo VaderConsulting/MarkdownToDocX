@@ -89,6 +89,16 @@ public sealed class CellGuardCatalogueProbeTests
                 Context.ActiveLayoutStage = Next;
                 InvokeStage(Next, State);
             }
+            if (Environment.GetEnvironmentVariable("CELL_CENSUS_METRICS") == "1")
+            {
+                int Bends = 0;
+                foreach (var Route in Layout.EdgeRoutes)
+                {
+                    int Count = FlowchartLayoutScore.CountCorners(Route.Points); Bends += Count;
+                    TestContext.Out.WriteLine($"CELL_CENSUS_ROUTE|{Scenario.Id}|{Route.EdgeId}|bends={Count}");
+                }
+                TestContext.Out.WriteLine($"CELL_CENSUS_METRICS|{Scenario.Id}|routes={Layout.EdgeRoutes.Count}|bends={Bends}");
+            }
         }
         catch (TargetInvocationException Failure) when (Failure.InnerException?.Data["CellPixelWriteDiagnostic"] is FlowchartLayoutQualityFailure Diagnostic)
         {

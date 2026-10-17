@@ -60,3 +60,20 @@ cell-bound nodes. Fresh before/after censuses retain zero writer catches and
 the same 17 frame-fit failures (21.3973 s before, 20.6686 s after). The focused
 selection now passes 270 tests. Cells-off geometry remains exact for all 673;
 the full audit retains all 673 identical summaries and all prior zero gates.
+
+## Superseded: terminal fan centring (690e995)
+
+The cell-bound median-child centring conversion in 690e995 is superseded.
+Both pre-placement Column rewriting and post-placement parent/input-chain
+alignment are bypassed. The pass did no independent ordering or clearance
+work. Cells-off keeps the legacy implementation. Whole-cell routed candidates,
+not a median-child assignment, are responsible for any straightening.
+
+Census placement-policy-00-before.log -> placement-policy-01-terminal-fan.log:
+660 completed bound cases in both, hard failures A164/A165 unchanged, zero
+writer catches. Model bends on those same cases are 3270 -> 3270. F142 changes
+6 -> 3 and EIP178 changes 2 -> 5; all other case totals are unchanged. All 278
+focused tests pass (the original 270 included, with the superseded centring
+expectations replaced by both-phase bypass tests). Production cells and
+independent spans remain off. Full cells-off verification follows the complete
+placement-policy review; the unbound branch is unchanged in this checkpoint.
