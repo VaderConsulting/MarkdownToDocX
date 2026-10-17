@@ -679,6 +679,11 @@ public static partial class DiagramGridLayout
     private static void AlignSimpleDecisionMerges(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellSimpleDecisionMerges(Contract, Placed, Horizontal);
+            return;
+        }
         foreach (var (Decision, Left, Right, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
         {
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(

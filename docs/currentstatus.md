@@ -1129,3 +1129,11 @@ cell lanes in one ownership plan. An occupied or hinted late tail member
 rejects both the tail and return branch. Three tests pass, focused count 243.
 The next census is census-after-cell-vertical-loops.log; full cells-on acceptance
 remains pending the remaining writers and hard frame-fit failures.
+
+### Whole-cell simple decision merges
+
+Both independent branches and their terminal merge now form a single complete
+side-lane assignment. Hinted or occupied merge targets retain all selected
+reservations unchanged. Three tests pass, focused count 246. The next census
+is census-after-cell-simple-merges.log. Full cells-on acceptance is still
+pending remaining shared/grouped writers and hard frame-fit failures.
