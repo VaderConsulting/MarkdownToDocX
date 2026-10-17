@@ -893,3 +893,18 @@ runs all 673 cases in 16.2115 s, with 664 diagnostic passes and nine hard frame-
 failures (see census-after-cell-terminal-child.log). The next most common writer
 is DisconnectedPacking, 43 cases. This is still an incomplete cells-on pipeline,
 not a passing cells-on audit. Cells-off production is unchanged.
+
+### Whole-cell disconnected-component packing
+
+Disconnected packing reuses graph/root-group membership, enumerates complete
+whole-cell row packings, scores their forward-derived geometry and publishes
+only the best legal improvement. A hinted member anchors its whole component.
+Two tests pass, focused count 169. The census runs 673 cases in 14.9393 s with
+nine hard frame-fit failures and remaining writer catches. DisconnectedPacking
+is no longer caught. The largest combined stage category is GroupFrameStage
+(27 writers); the next individual paths are listed in the census log.
+
+The requested enterprise.docx regeneration completed successfully in 116.162 s
+using the current Release ARM64 WinForms build:
+.\src\Converter\bin\Release\net10.0-windows\win-arm64\Converter.exe -in enterprise.md -out enterprise.docx
+The converter reported no rendering errors. The generated DOCX stays uncommitted.
