@@ -14,6 +14,69 @@ F17 offers straight connections at the diamond tips in the initial search. F30 o
 
 ## Cheapest legal layout repair — checkpoint, 16 October 2026
 
+### Latest accepted speed checkpoint, 17 October 2026
+
+`7b1eb66` restores the audit target without changing geometry. The final audit
+emitted all **673 summaries in 40.57 seconds**, with **A142 at 12.0016 seconds**.
+The whole command, including its explicit build and test discovery, took
+**46.537 seconds**, also below the 48.78-second target. The audit now explicitly
+builds and runs **Release**, matching the ARM64 DOCX converter; `-Configuration
+Debug` remains available for investigation. These are Release measurements,
+not a claim that the old Debug execution path now meets the time target.
+
+The main regression was introduced by `6372bd4`. A142's Debug native completion
+stage measured 11.123 s at 2b299a6, 12.872 s immediately before 6372bd4 and
+28.124 s at the accepted pre-fix head. The added final facing-assignment and
+settled-facing searches accounted for 6.762 s and 9.544 s respectively in the
+latter trace. They validate complete assignments, but repeatedly searched
+identical allocated terminals and remeasured restored baseline models. The
+same added work affects other diagrams. The earlier 85.04-second audit used
+Debug; the 12-second DOCX measurement used Release. Mixing those configurations
+made the audit/conversion gap look like a separate routing path.
+
+The engine now caches immutable built side-search paths against exact ordered
+obstacle geometry, endpoints, sides, normals, shapes, direction and hint state.
+Geometry changes clear that cache. It also carries forward the authoritative
+baseline score after an accepted option or an exact rejected-option rollback.
+Candidate order, complete-assignment checking, legality checking and the named
+16-move, 3-operation and 12-line limits are retained. No new limit, weight or
+scenario-specific engine condition was added. Most of the audit time reduction
+comes from matching the converter's optimized build; route and score reuse
+also removes engine work.
+
+The Release engine matched **all 673 saved geometry snapshots exactly**, with
+zero changed or missing cases (37.637 s). The focused routing regressions have
+34 passes and the same two known failures, F153 and LargeFanOut; the original
+23 passes and both illegal-path tests are retained. All 22 selected frame,
+packing, label-index and guide-cache checks pass. Audit totals are unchanged:
+**4.2 = 39, 5.9 = 1700, 3.1 = 4, 4.1 = 0, 4.11 = 3, 5.8 = 0 and shared-track
+pairs = 2083**. Every hard legality gate remains zero. The five existing failed
+native layouts remain explicitly unmeasured; none is silently counted as a
+successful zero-finding layout. Baseline rows, rules.yaml, weights and hint
+behaviour are unchanged. Audit exit status remains nonzero for the existing
+quality/shared-track and failed-native cases.
+
+Validation ran in the isolated accepted worktree `out/audit-speed-work`, so the
+uncommitted coordinate prototype was not built or altered for this work. The
+speed-only staged Git tree was checked against that validated tree before the
+commit. The uncommitted migration diff also matched its saved pre-work diff
+exactly after ignoring Git index hashes and shifted hunk line numbers. The
+root working tree still contains the unfinished migration; do not
+use it as the accepted audit checkout. Logs are under
+`out/route-cost/speed-final-*`, with exact comparison evidence in
+`speed-release-exact-geometry.log`. Nothing was pushed and the DOCX files were
+not committed.
+
+The migration is diagnosis only. [The migration diagnosis and proposed
+plan](route-coordinate-migration-diagnosis-2026-10-17.md) lists all recorded
+failures and measures the four surviving attempt-3 snapshots. Attempts 1 and
+2 did not retain their coordinate arrays, so their displacement magnitudes
+cannot honestly be recovered without replaying them. No migration was rerun.
+The plan requires immutable stage/candidate traces and a full consumer/order/
+rounding inventory before another coordinate edit. The prototype remains
+uncommitted; A142's 10-second target, F153, the large fans and remaining shared
+tracks are still open.
+
 ### Verified side-routing checkpoint, 17 October 2026
 
 The side-routing fixes are committed in `6372bd4`, after the separate frame
@@ -61,7 +124,7 @@ same stroke-gap assertion on the unchanged checkpoint and the new code; it is
 not fixed by this performance work. Audit speed and the A142 layout search are
 still open.
 
-### Real empty-group packing hang and latest accepted audit
+### Real empty-group packing hang and earlier accepted audit
 
 `58822a5` fixes a real enterprise diagram with nested members, a right-of child
 hint and an unrelated empty group. Empty-frame placement previously accepted
@@ -77,7 +140,7 @@ covered all 673 scenarios with zero changed or missing snapshots (76.284 s).
 The two older SiblingFrameClearanceTests failures were reproduced with the
 unchanged group-frame implementation; they remain open rather than being hidden.
 
-The latest accepted audit emitted all 673 summaries in **85.04 seconds**. A142
+Before the speed correction, the audit emitted all 673 summaries in **85.04 seconds**. A142
 took **39.7853 seconds**. Totals are **4.2 = 39, 5.9 = 1700, 3.1 = 4, 4.11 = 3,
 5.8 = 0 and shared-track pairs = 2083**. All hard legality gates, including
 illegal paths, title bands, frame overlap, missing routes and off-slot ports,
@@ -92,7 +155,8 @@ scenario-specific conditions; none were added.
 
 ### Page-down migration — uncommitted and not accepted
 
-The accepted code remains at 58822a5 (with later documentation/tool commits).
+The accepted pre-migration code was 58822a5; the speed-only checkpoint is now
+7b1eb66 (with separate documentation/tool commits).
 The source working tree now contains an incomplete page-down prototype. It
 builds, but it must not be used as an accepted converter or described as passing
 the audit. The totals above belong to the accepted checkpoint, not this prototype.
