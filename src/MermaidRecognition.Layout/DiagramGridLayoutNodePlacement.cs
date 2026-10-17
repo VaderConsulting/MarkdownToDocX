@@ -343,14 +343,18 @@ public static partial class DiagramGridLayout
         }
     }
 
+    /// <summary>Retains legacy sole-terminal centre alignment only for unbound placement; authoritative cell regions are never adjusted by this policy.</summary>
+    /// <param name="Contract">Visible relationships used to identify sole-input terminal children.</param>
+    /// <param name="Placed">Placement nodes, whose existing cell ownership makes both legacy phases inapplicable.</param>
+    /// <param name="Horizontal">Whether the legacy cross axis is vertical.</param>
+    /// <param name="CoordinatesPlaced">Whether to update legacy pixel coordinates as well as ordering metadata.</param>
     private static void AlignSingleTerminalChildren(DiagramContract Contract, List<GridNode> Placed,
         bool Horizontal, bool CoordinatesPlaced)
     {
-        if (CoordinatesPlaced && Placed.Any(Node => Node.CellNode != null))
-        {
-            AlignCellTerminalChildren(Contract, Placed, Horizontal);
-            return;
-        }
+        // This legacy pass exists only to straighten parent/child centres.
+        // Cell placement has no centre-positioning policy: skip both its
+        // pre-placement column rewrite and its later coordinate adjustment.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();

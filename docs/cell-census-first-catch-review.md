@@ -49,3 +49,14 @@ Native-skip instrumentation rerun: census-first-catch-native-reasons.log, 673 ca
 Hard frame-fit scenarios: F42, F141, A114, A115, A142, A162, A164, A165, A166, A167, A168, A169, EIP42, EIP78, EIP266, EIP271 and EIP296. No cell-enabled legality acceptance is claimed while they remain.
 
 Production cells and independent text spans remain disabled. Latest cells-off validation retains all 673 byte-identical summaries, every prior zero gate, exact diagnostic findings and zero geometry changes. The 268 focused tests and five routing-hint tests pass. F32/EIP261 remains parked. No DOCX files or unrelated work are included in this report checkpoint.
+
+## Subsequent terminal-policy correction
+
+The terminal-child row above records the historical conversion e3fee8f and its
+then-current census. That conversion is now superseded: the cell helper was
+removed because the legacy pass existed only to align centres. Both its
+pre-placement ordering rewrite and post-placement adjustment are bypassed for
+cell-bound nodes. Fresh before/after censuses retain zero writer catches and
+the same 17 frame-fit failures (21.3973 s before, 20.6686 s after). The focused
+selection now passes 270 tests. Cells-off geometry remains exact for all 673;
+the full audit retains all 673 identical summaries and all prior zero gates.

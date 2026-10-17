@@ -1272,3 +1272,51 @@ from the audit. The seventeen frame-fit failures remain open, not accepted as
 zero legality findings. Production cells and independent spans stay off, the
 six open-mode cases stay unbound, and F32/EIP261 remains parked. No engine,
 rulebook, baseline, score weight, geometry or DOCX change is part of this review.
+
+### Remove the terminal-child centre policy from cells (2026-10-18)
+
+Spine conversion is already checkpointed in 777df62. Whole-empty-strip
+compaction is already checkpointed separately in 593fcb4. That planner removes
+only globally empty cross-axis rows/columns, preserves region spans, retains
+existing grown gaps, and grows any required external boundary to at least the
+caller's minimum. It does not shrink external gaps. One complete region/gap
+assignment is accepted or rejected; a hinted region vetoes an incompatible
+plan. Its three tests cover both axes, the minimum gap, hint rejection and
+exact region/gap rollback. No second compaction rewrite was needed.
+
+Inspection confirms that legacy AlignSingleTerminalChildren only aligns a sole
+terminal child's centre with its parent's cross axis. The previous experimental
+conversion e3fee8f had translated that policy into starting-cell alignment.
+Per the clarified instruction, that cell helper is now deleted entirely, and
+both pre-placement Column rewriting and post-placement alignment are skipped
+for cell-bound nodes. The unbound legacy branch is unchanged to preserve
+production geometry. Six regression cases exercise the real dispatcher across
+both axes and both phases, unequal spans, ordering preservation and hinted
+ownership. They replace the four tests for the withdrawn alignment policy;
+the focused selection increases from 268 to 270 passes, retaining the original
+158 tests.
+
+Historical census after spine: 388 compaction first catches and 208 terminal
+child first catches. After compaction, the next dominant writer was centre
+snapping (370), already disabled for bound nodes in f046ae7. Once that boundary
+was cleared, all 208 terminal-child catches were passed by e3fee8f; the next
+largest group was disconnected packing (43), subsequently converted in 39508b6.
+These are historical early-exit census results, not current outstanding writers.
+
+Fresh before-removal census: all 673 cases, 21.3973 s, no writer catches,
+645 completed bound grid cases, the same 17 hard frame-fit failures, six open
+cases completing unbound, and five known pre-binding skips. After removal:
+all 673 cases, 20.6686 s, identical status for every case and no writer catches.
+No next writer group is exposed. The seventeen frame-fit failures remain open;
+this is not a passing cells-on legality audit. Logs use census-compaction-
+confirmed-before-terminal-removal and census-after-terminal-centre-policy-removal.
+
+Fresh cells-off audit: all 673 byte-identical summaries in 35.41 s, A142
+10.6803 s. Every previously zero gate remains zero; unchanged totals include
+4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0 and shared pairs=2089. The same
+25 known failed scenarios and five pre-binding skips remain. Exact comparison
+against authoritative-cells-before.jsonl reports 673 scenarios, zero changed,
+zero missing (33.246 s). Logs: terminal-policy-removal-off-audit.log,
+terminal-policy-removal-off-geometry.log and terminal-removal-focused-tests.log.
+Production cells and independent spans remain off; F32/EIP261 stays parked.
+No DOCX files, baseline rows, rules or weights are changed in this checkpoint.
