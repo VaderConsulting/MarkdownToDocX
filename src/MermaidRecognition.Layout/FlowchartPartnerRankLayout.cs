@@ -6,7 +6,7 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Plans complete many-to-many fans as aligned ranks with nested tracks.</summary>
-internal static class FlowchartPartnerRankLayout
+internal static partial class FlowchartPartnerRankLayout
 {
     private const int TRACK_PITCH = 6;
     // Reserve enough track slots that a crossing stays on the straight part
@@ -63,6 +63,13 @@ internal static class FlowchartPartnerRankLayout
 
     internal static void Prepare(List<Partners> Blocks, bool Horizontal, bool Align = true)
     {
+        if (Blocks.SelectMany(Block => Block.Parents.Concat(Block.Children)).Any(Node => Node.CellNode != null))
+        {
+            // A rejected whole-cell specialised plan leaves ordinary joint
+            // allocation responsible for these links, never stale port sizes.
+            if (!PrepareCells(Blocks, Horizontal, Align)) Blocks.Clear();
+            return;
+        }
         for (int BlockIndex = 0; BlockIndex < Blocks.Count; BlockIndex++)
         {
             var Block = Blocks[BlockIndex];

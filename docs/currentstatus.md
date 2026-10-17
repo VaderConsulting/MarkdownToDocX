@@ -1039,3 +1039,13 @@ This preserves legal same-row relative hints even when original native ranks
 differ. Two tests pass, focused count 206. The 673-case census runs in 19.3786 s
 with sixteen frame-fit failures still exposed; remaining writer paths are in
 census-after-cell-overlap-boundary.log. Full cells-on audit acceptance is pending.
+
+### Whole-cell partner-rank preparation
+
+Specialised partner preparation plans required track-port extents and both
+rank lane assignments together. It shares the measured extent planner with
+parallel sizing, never resizes and then aligns nodes separately. A rejected
+specialised candidate leaves ownership untouched and ordinary joint allocation
+handles the declared links. Three tests pass, focused count 209. The next
+census is census-after-cell-partner-preparation.log. Production remains cells
+off and no independent text-span selector has been enabled.

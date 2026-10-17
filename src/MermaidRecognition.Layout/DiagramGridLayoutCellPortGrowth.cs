@@ -15,7 +15,20 @@ public static partial class DiagramGridLayout
     internal static bool GrowCellMinimumExtents(List<GridNode> Placed, IReadOnlyDictionary<string, (double Width, double Height)> Minimums)
     {
         var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        return TryPlanCellMinimumExtents(Placed, Minimums, Before.Regions, out var Targets)
+            && FlowchartCellRepair.TryAssign(Placed, Targets);
+    }
+
+    /// <summary>Builds measured span requirements on a caller's private ownership plan without applying any resize.</summary>
+    /// <param name="Placed">Affected cell-backed nodes.</param>
+    /// <param name="Minimums">Measured required visible extents.</param>
+    /// <param name="Initial">Complete authoritative or private reservations.</param>
+    /// <param name="Targets">Receives the complete private span plan.</param>
+    /// <returns>Whether all measured requirements have a bounded whole-cell candidate.</returns>
+    internal static bool TryPlanCellMinimumExtents(List<GridNode> Placed, IReadOnlyDictionary<string, (double Width, double Height)> Minimums,
+        IReadOnlyDictionary<string, FlowchartCellRegion> Initial, out Dictionary<string, FlowchartCellRegion> Targets)
+    {
+        Targets = new Dictionary<string, FlowchartCellRegion>(Initial, StringComparer.Ordinal);
         foreach (var Node in Placed)
         {
             if (!Minimums.TryGetValue(Node.Id, out var Minimum)) continue;
@@ -32,7 +45,7 @@ public static partial class DiagramGridLayout
             if (!Fits) return false;
             Targets[Node.Id] = Region;
         }
-        return FlowchartCellRepair.TryAssign(Placed, Targets);
+        return true;
     }
 
     /// <summary>Plans the complete crowded-side span assignment using the existing renderer-derived minimum port pitch.</summary>
