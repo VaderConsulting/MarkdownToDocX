@@ -8,7 +8,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Wraps isolated simple paths onto the measured diagram grid.</summary>
-internal static class FlowchartChainWrapping
+internal static partial class FlowchartChainWrapping
 {
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
@@ -66,6 +66,11 @@ internal static class FlowchartChainWrapping
                     Size, Options.EdgeLabelFontSizePx, Horizontal: true) + DiagramGridRouteBuilder.CORNER_RADIUS_PX));
                 RowGap = Math.Max(RowGap, RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                     Size, Options.EdgeLabelFontSizePx, Horizontal: false) + DiagramGridRouteBuilder.CORNER_RADIUS_PX));
+            }
+            if (Path.Any(Node => Node.CellNode != null))
+            {
+                Changed |= ApplyCellPath(Path, Horizontal, ColumnGap, RowGap);
+                continue;
             }
             FlowchartWrapPlan.Plan Plan = FlowchartWrapPlan.Choose(
                 Path.Count, NodeWidth, NodeHeight, ColumnGap, RowGap, Horizontal);

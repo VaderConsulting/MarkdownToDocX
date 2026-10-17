@@ -957,3 +957,14 @@ The census-after-cell-decision-targets.log records the subsequent catches and
 frame failures. The latest full cells-off audit emits all 673 summaries in
 44.76 s, A142 13.6358 s, with all prior zero gates zero and unchanged totals:
 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0, shared pairs=2089.
+
+### Whole-cell chain wrapping
+
+Chain wrapping now proposes complete whole-span rows/columns and measured
+label-clearance gaps in one transaction. The established wrap selector sees
+only forward-derived reservation dimensions. A worse aspect ratio restores
+the exact original snapshot, including gaps grown during the trial; a locked
+tail rejects the complete plan before mutation. Four tests pass, focused count
+186. The census-after-cell-chain-wrapping.log records remaining catches and
+frame failures. The census is still not clean, so the full cells-on gate audit,
+layout-difference grouping and final speed work remain pending.
