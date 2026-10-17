@@ -1001,3 +1001,13 @@ and occupied growth rejects the complete plan. Three tests pass, focused count
 GrowCrowdedSides is no longer caught. The remaining legacy parallel-label resize
 is distinct and still pending conversion. No independent text-span selection
 or production cell activation has been enabled.
+
+### Whole-cell lone nested-group centring
+
+Nested-group centring builds one complete translated member plan from logical
+region envelopes. It keeps hinted groups fixed and rejects every translated
+member when a target is occupied. Three tests pass, focused count 198. The
+673-case census runs in 15.1441 s, with 15 hard frame-fit failures now exposed
+past their former writer catches. It remains an incomplete experimental run;
+production cells and independent text spans remain off, and the next pending
+writers include parallel relationship sizing and junction branch compaction.

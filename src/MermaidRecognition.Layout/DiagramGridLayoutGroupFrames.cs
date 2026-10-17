@@ -13,6 +13,11 @@ namespace MermaidRecognition.Layout;
 public static partial class DiagramGridLayout
 {    private static void CenterLoneNestedGroups(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            CentreCellNestedGroups(Contract, Placed, Horizontal);
+            return;
+        }
         foreach (GroupContract Parent in Contract.Groups)
         {
             if (Parent.ChildGroupIds.Count != 1)
