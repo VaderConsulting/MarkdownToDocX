@@ -130,3 +130,15 @@ construction remain. Whole-cell scored candidates now supply straightening.
 Census placement-policy-03-shared-fans-final.log -> placement-policy-04-simple-merges.log:
 660 common completed bound cases; zero writer catches; hard failures remain
 A164/A165. Bends 3238 -> 3234, entirely F53 (5 -> 1). All 286 focused tests pass.
+
+## Superseded: symmetric decision terminal outcomes (a870dbc)
+
+The forced outcome lanes and parent-column +/-1 metadata rewrites in a870dbc
+are superseded for cell-bound nodes in both placement phases. Initial branch
+order is retained, not replaced by a decision-midpoint arrangement. Topology,
+joint symmetric port allocation and ordinary clearance checks remain. Whole-cell
+positions compete through the routed score; no preset alignment is restored.
+
+Census placement-policy-04-simple-merges.log -> placement-policy-05-decision-outcomes.log:
+660 common completed bound cases; no writer catches; A164/A165 unchanged.
+Bends 3234 -> 3232: F125 and F35 each improve 4 -> 3. All 286 focused tests pass.

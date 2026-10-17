@@ -241,11 +241,10 @@ public static partial class DiagramGridLayout
         int CrossPitch,
         bool CoordinatesPlaced)
     {
-        if (CoordinatesPlaced && Placed.Any(Node => Node.CellNode != null))
-        {
-            AlignCellTerminalDecisionTargets(Contract, Placed, Horizontal);
-            return;
-        }
+        // Both metadata and position writes forced symmetric outcome lanes.
+        // Keep initial ordering; let real allocated-port costs select whole
+        // cell alternatives rather than imposing the decision's centre line.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();

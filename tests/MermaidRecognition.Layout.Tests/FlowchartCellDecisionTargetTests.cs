@@ -6,17 +6,17 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellDecisionTargetTests
 {
-    /// <summary>Two terminal children occupy opposite adjacent side lanes without changing their spans or main-axis rank.</summary>
+    /// <summary>Both phases preserve initial branch order and regions for scored routing candidates.</summary>
     /// <param name="Horizontal">Whether the cross axis is logical rows.</param>
     [TestCase(false)]
     [TestCase(true)]
     public void OutcomesUseOppositeWholeCellSideLanes(bool Horizontal)
     {
         var (Contract, Nodes, Grid) = Fixture(Horizontal);
-        Assert.That(DiagramGridLayout.AlignCellTerminalDecisionTargets(Contract, Nodes, Horizontal), Is.True);
-        var D = Grid.RegionOf("D"); var A = Grid.RegionOf("A"); var B = Grid.RegionOf("B");
-        Assert.That(Horizontal ? A.EndRow : A.EndColumn, Is.EqualTo(Horizontal ? D.StartRow : D.StartColumn));
-        Assert.That(Horizontal ? B.StartRow : B.StartColumn, Is.EqualTo(Horizontal ? D.EndRow : D.EndColumn));
+        var Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        Invoke(Contract, Nodes, Horizontal);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+        Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
     }
 
     /// <summary>A colliding second outcome rejects both children and preserves logical metadata and exact cell/gap state.</summary>
@@ -27,9 +27,20 @@ public sealed class FlowchartCellDecisionTargetTests
         Grid.TryPlace("O", new(4, 3, 1, 1));
         var O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
         var Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
-        Assert.That(DiagramGridLayout.AlignCellTerminalDecisionTargets(Contract, Nodes, false), Is.False);
+        Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
+    }
+
+    /// <summary>Calls both real legacy phases, including their ordering metadata writes.</summary>
+    /// <param name="Contract">Visible outcomes.</param>
+    /// <param name="Nodes">Authoritative members.</param>
+    /// <param name="Horizontal">Flow orientation.</param>
+    private static void Invoke(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
+    {
+        var Method = typeof(DiagramGridLayout).GetMethod("AlignTerminalDecisionTargets", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        Method.Invoke(null, [Contract, Nodes, Horizontal, DiagramGridMetrics.GRID_UNIT_PX, false]);
+        Method.Invoke(null, [Contract, Nodes, Horizontal, DiagramGridMetrics.GRID_UNIT_PX, true]);
     }
 
     /// <summary>Creates one two-row diamond and two same-rank terminal outcomes.</summary>
