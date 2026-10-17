@@ -10,6 +10,29 @@ namespace MermaidRecognition.Layout;
 /// <summary>Cell-authoritative frame fitting and foreign-node eviction, with derived drawing caches only.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Builds derived frames from an immutable complete cell candidate without publishing regions or copying pixels back.</summary>
+    /// <param name="Contract">Nested membership, titles and frame hints.</param>
+    /// <param name="Placed">Authoritative nodes and renderer geometry definitions.</param>
+    /// <param name="State">Complete prepared ownership and gaps.</param>
+    /// <returns>Fresh projected frames in the nodes' existing coordinate direction.</returns>
+    internal static List<GridFrame> ProjectCellFrames(DiagramContract Contract, List<GridNode> Placed, FlowchartLogicalGrid.Snapshot State)
+    {
+        var Views = new List<GridNode>();
+        foreach (var Node in Placed)
+        {
+            var Box = Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State);
+            // These are disposable frame-builder views derived forward from
+            // cells. They never own reservations and are never copied back.
+            Views.Add(new GridNode { Id = Node.Id, GroupId = Node.GroupId, IsDiamond = Node.IsDiamond,
+                Shape = Node.Shape, GeometryProvider = Node.GeometryProvider, Rank = Node.Rank, Column = Node.Column,
+                X = Box.CenterX, Y = Box.CenterY, Width = checked((int)Box.Width), Height = checked((int)Box.Height) });
+        }
+        var Frames = new List<GridFrame>();
+        if (Placed[0].CellNode!.UsesRoutingCoordinates) BuildFramesYUp(Contract, Views, Frames);
+        else BuildFrames(Contract, Views, Frames);
+        return Frames;
+    }
+
     /// <summary>Settles derived group frames by trying whole-cell member assignments, without pixel trial nodes.</summary>
     /// <param name="Contract">Membership and fixed placement hints.</param>
     /// <param name="Placed">Nodes sharing one authoritative cell grid.</param>
@@ -57,9 +80,11 @@ public static partial class DiagramGridLayout
     /// <param name="Placed">Cell-bound nodes in one coordinate view.</param>
     /// <param name="Frames">Frames already derived in that view.</param>
     /// <param name="RequiredGap">Measured caller clearance; it never determines cell coordinates.</param>
+    /// <param name="PreparedBounds">Optional pure candidate geometry, avoiding any temporary ownership publication.</param>
     /// <returns>Deterministic distinct conflict identities and their two movable units.</returns>
     private static List<CellFrameConflict> CellFrameConflicts(DiagramContract Contract,
-        List<GridNode> Placed, List<GridFrame> Frames, int RequiredGap)
+        List<GridNode> Placed, List<GridFrame> Frames, int RequiredGap,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>? PreparedBounds = null)
     {
         List<CellFrameConflict> Conflicts = [];
         foreach (var Frame in Frames)
@@ -72,6 +97,9 @@ public static partial class DiagramGridLayout
                     Conflicts.Add(new("frames|" + Frame.Id + "|" + Other.Id, Frame.Id, Other.Id));
             foreach (var Node in Placed.Where(Node => !IsInsideGroup(Contract, Node.Id, Frame.Id)))
             {
+                var Box = PreparedBounds?.GetValueOrDefault(Node.Id);
+                double X = Box?.CenterX ?? Node.X, Y = Box?.CenterY ?? Node.Y;
+                double Width = Box?.Width ?? Node.Width, Height = Box?.Height ?? Node.Height;
                 int Gap = RequiredGap;
                 if (Contract.Edges.Any(Edge => Edge.SourceId == Node.Id
                         && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id))
@@ -82,14 +110,25 @@ public static partial class DiagramGridLayout
                 if (Parent != null && IsInsideGroup(Contract, Node.Id, Parent))
                     Gap = Math.Max(Gap, DiagramGridMetrics.CeilToGrid(
                         FlowchartSubgraphGapThresholds.ResolveDirectMemberNestedGapPx(FlowchartRenderOptions.FromContract(Contract))));
-                if (Node.X + Node.Width / 2.0 > Frame.Left - Gap && Node.X - Node.Width / 2.0 < Frame.Right + Gap
-                    && Node.Y + Node.Height / 2.0 > Math.Min(Frame.Top, Frame.Bottom) - Gap
-                    && Node.Y - Node.Height / 2.0 < Math.Max(Frame.Top, Frame.Bottom) + Gap)
+                if (X + Width / 2.0 > Frame.Left - Gap && X - Width / 2.0 < Frame.Right + Gap
+                    && Y + Height / 2.0 > Math.Min(Frame.Top, Frame.Bottom) - Gap
+                    && Y - Height / 2.0 < Math.Max(Frame.Top, Frame.Bottom) + Gap)
                     Conflicts.Add(new("node|" + Frame.Id + "|" + Node.Id, Frame.Id, Node.Id));
             }
         }
         return Conflicts.OrderBy(Conflict => Conflict.Key, StringComparer.Ordinal).ToList();
     }
+
+    /// <summary>Checks complete projected cell candidates against the same hard frame-conflict identities as live fitting.</summary>
+    /// <param name="Contract">Membership and mandatory clearances.</param>
+    /// <param name="Placed">Declared nodes supplying membership.</param>
+    /// <param name="Frames">Frames projected from the same prepared state.</param>
+    /// <param name="Bounds">Node bounds projected from that state.</param>
+    /// <returns>Stable conflict keys, without publishing or mutating the candidate.</returns>
+    internal static HashSet<string> ProjectedCellFrameConflictKeys(DiagramContract Contract, List<GridNode> Placed,
+        List<GridFrame> Frames, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds) =>
+        CellFrameConflicts(Contract, Placed, Frames, DiagramGridMetrics.GRID_UNIT_PX, Bounds)
+            .Select(Conflict => Conflict.Key).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>Scores complete region translations and retains only a strict conflict reduction with no new conflicts.</summary>
     /// <param name="Contract">Group ancestry and placement hints.</param>

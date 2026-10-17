@@ -1170,3 +1170,21 @@ planners with each caller's existing empty-space policy unchanged. Four tests
 pass, focused count 255. The next census is census-after-cell-grouped-channels.log;
 remaining grouped/external leaf writers and hard frame-fit failures still prevent
 full cells-on acceptance. Production cells and independent text spans stay off.
+
+### Atomic grouped leaf placement and shared frame projection
+
+Grouped leaf placement now uses a shared complete region/gap planner rather
+than pixel assignments. Both sides are offered before farther candidates;
+search uses the existing repair_candidate_moves limit across leaf placement.
+Prepared frames and body bounds are checked before publication, including
+new frame conflicts, title bands, geometry-provider side eligibility and body
+collisions. Rounded gap growth is retained exactly across private prefix plans.
+Projected nested/empty frames match accepted geometry in both coordinate views.
+
+Nine focused tests for grouped leaves, frame projection and the tested shared
+external mode pass, focused count 264. Only the grouped caller is connected in
+this checkpoint; the external caller is the next conversion. The 673-case census
+runs in 21.0747 s with seventeen hard frame-fit failures (A142 is newly exposed)
+and four first-writer catches: external leaves in F59/A56 and same-rank labelled
+gap growth in A58/A138. This is not a passing cells-on audit. Production cells
+and independent text spans stay off; F32/EIP261 remains parked.

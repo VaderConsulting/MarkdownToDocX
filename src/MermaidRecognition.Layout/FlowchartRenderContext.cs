@@ -19,6 +19,8 @@ public sealed class FlowchartRenderContext
     public IReadOnlyList<FlowchartLayoutQualityFailure> RejectedCellPixelWrites => RejectedCellPixelWritesMutable;
     /// <summary>Current named pipeline stage, restored across nested group reflows.</summary>
     internal string? ActiveLayoutStage { get; set; }
+    /// <summary>Optional cell-backed leaf candidates spent across grouped and external placement in this diagram.</summary>
+    internal int CellLeafCandidateMoves { get; set; }
     private static readonly AsyncLocal<FlowchartRenderContext?> Ambient = new();
 
     internal sealed class RepairSearchBudget

@@ -69,6 +69,7 @@ public static partial class DiagramGridLayout
         // Rule ids: 1.1–1.7 (measured boxes, grid dimensions and rank coordinates).
         public static void Apply(GridLayoutState State)
         {
+            State.Copy.RenderContext.CellLeafCandidateMoves = 0;
             State.Direction = FlowchartDirectionNormalizer.Normalize(State.Contract.Direction);
             State.Horizontal = State.Direction == FlowchartDirection.LeftToRight
                 || State.Direction == FlowchartDirection.RightToLeft;
