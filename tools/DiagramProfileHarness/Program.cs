@@ -10,6 +10,22 @@ using MDConverter.Pipeline;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 
+if (args.Length == 3 && args[0] == "--profile-documents")
+{
+    string documentRoot = Path.GetFullPath(args[1]);
+    using var writer = new StreamWriter(args[2], append: false) { AutoFlush = true };
+    foreach (string file in new[] { "flow.md", "enterprise.md", "EIP.md" })
+    {
+        var progress = new DocumentDiagramTimer(file, writer);
+        var clock = Stopwatch.StartNew();
+        _ = new MarkdownToDocxConverter(new MarkdownToDocxOptions(), progress)
+            .ConvertText(File.ReadAllText(Path.Combine(documentRoot, file)), documentRoot);
+        progress.Report(100, "Complete");
+        Console.WriteLine($"DOCUMENT_DONE|{file}|{clock.Elapsed.TotalSeconds:0.000}s");
+    }
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--worker")
 {
     var d = JsonSerializer.Deserialize<Diagram>(File.ReadAllText(args[1]))!;
@@ -177,3 +193,31 @@ Console.WriteLine("SUMMARY " + JsonSerializer.Serialize(new
 record Diagram(string File, int Index, string Name, string Source);
 record Result(string File, int Index, string Name, double Milliseconds, bool Success,
     string Error, Dictionary<string, double> Stages, Dictionary<string, long> Counts, string? SvgSha256);
+
+/// <summary>Measures each diagram block inside a real whole-document conversion without process-start overhead.</summary>
+/// <param name="File">The source catalogue recorded with each diagram timing.</param>
+/// <param name="Writer">The caller-owned JSON-lines output; the timer does not close it.</param>
+sealed class DocumentDiagramTimer(string File, TextWriter Writer) : IConversionProgressReporter
+{
+    private readonly Stopwatch _clock = new();
+    private string? _diagram;
+    private int _index;
+
+    /// <summary>Closes the preceding diagram timing and starts the next diagram when its write begins.</summary>
+    /// <param name="PercentComplete">The converter's current progress percentage.</param>
+    /// <param name="Message">The block description, including its enclosing source heading.</param>
+    public void Report(int PercentComplete, string Message)
+    {
+        if (_diagram != null)
+        {
+            _clock.Stop();
+            Writer.WriteLine(JsonSerializer.Serialize(new { File, Index = _index, Heading = _diagram,
+                Milliseconds = _clock.Elapsed.TotalMilliseconds }));
+            _diagram = null;
+        }
+        if (!Message.StartsWith("Writing Mermaid diagram", StringComparison.Ordinal)) return;
+        _index++;
+        _diagram = Message;
+        _clock.Restart();
+    }
+}
