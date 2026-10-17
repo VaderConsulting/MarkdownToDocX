@@ -12,10 +12,10 @@ internal static partial class FlowchartJunctionBranchCompaction
     /// <param name="Contract">Visible graph, return classification and group exemption.</param>
     /// <param name="Nodes">Complete shared grid ownership.</param>
     /// <param name="Horizontal">Whether the cross axis uses rows.</param>
-    /// <returns>Whether the complete legal branch/collector plan was accepted.</returns>
-    internal static bool ApplyCells(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
+    /// <returns>Unpublished branch translations for complete routed scoring; collectors are never centred here.</returns>
+    internal static IEnumerable<DiagramGridLayout.CellRouteMoveTarget> CellCandidates(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        if (Contract.Groups.Count > 0) return false;
+        if (Contract.Groups.Count > 0) yield break;
         var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Nodes[0].CellNode!.Grid;
         var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
         var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
@@ -53,12 +53,12 @@ internal static partial class FlowchartJunctionBranchCompaction
                             Horizontal ? Region.StartColumn : Candidate, Region.RowSpan, Region.ColumnSpan);
                     }
                     if (!Grid.TryPrepare(Trial, [], out _) || !Clear(Chain, Nodes, Trial, Horizontal)) continue;
-                    Targets = Trial; break;
+                    yield return new($"junction|{Junction.Id}|{Branch.Id}|{Candidate}", Branch.Id,
+                        Chain.OrderBy(Node => Node.Id, StringComparer.Ordinal).ToArray(),
+                        Horizontal ? Candidate - Original : 0, Horizontal ? 0 : Candidate - Original);
                 }
             }
         }
-        var Complete = FlowchartCircularJunctionLayout.PlanCellFans(Contract, Nodes, Horizontal, Targets, IncludeFanOut: false);
-        return FlowchartCellRepair.TryAssign(Nodes, Complete);
     }
 
     /// <summary>Checks forward-derived clearance without converting any measured drawing coordinate into cell ownership.</summary>

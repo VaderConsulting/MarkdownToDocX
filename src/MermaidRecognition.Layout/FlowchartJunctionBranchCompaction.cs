@@ -14,7 +14,8 @@ internal static partial class FlowchartJunctionBranchCompaction
         if (Contract.Groups.Count > 0) return;
         if (Nodes.Any(Node => Node.CellNode != null))
         {
-            ApplyCells(Contract, Nodes, Horizontal);
+            // Cell branch proposals compete in the complete routed score.
+            // Placement does not force a junction or collector alignment.
             return;
         }
         var ById = Nodes.ToDictionary(Node => Node.Id);

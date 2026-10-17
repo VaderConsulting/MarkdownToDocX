@@ -157,3 +157,15 @@ A164/A165. Bends 3232 -> 3238: A110 166 -> 170, F136 12 -> 14, because the
 previous forced alignment has been removed. All 287 focused tests pass.
 The first census exposed missing specialised tracks for these two matching
 pairs (not frame failures); the cell-only track enumeration now includes them.
+
+## Superseded: unconditional junction branch and collector assignment (103d4f9)
+
+The cell branch pass no longer applies the nearest lane or centres collectors.
+It retains connected branch membership, occupied-rank order, hints and measured
+clearance as unpublished whole-cell candidates. The complete routed scorer
+chooses among those options; rejected options restore exact ownership and gaps.
+
+Census placement-policy-06-partner-ranks-final.log -> placement-policy-07-junction-branches.log:
+660 common completed bound cases; zero writer catches; A164/A165 unchanged.
+Bends 3238 -> 3244: A112 27 -> 29, A47 4 -> 8 after removing preset collector
+alignment. All 287 focused tests pass, including candidate atomicity and order.

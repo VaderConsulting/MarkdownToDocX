@@ -12,7 +12,11 @@ public sealed class FlowchartCellJunctionBranchTests
     {
         var (Contract, Nodes, Grid) = Fixture();
         var Before = Grid.Capture();
-        Assert.That(FlowchartJunctionBranchCompaction.ApplyCells(Contract, Nodes, false), Is.True);
+        var Candidates = FlowchartJunctionBranchCompaction.CellCandidates(Contract, Nodes, false).ToArray();
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+        var Candidate = Candidates.First(Item => Item.Subject == "A");
+        Assert.That(Candidate.Nodes.Select(Node => Node.Id), Is.EquivalentTo(new[] { "A", "B" }));
+        Assert.That(FlowchartCellRepair.PlanMove(Candidate.Nodes, Candidate.Rows, Candidate.Columns)!.TryApply(), Is.True);
         Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(1));
         Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(1));
         Grid.Restore(Before);
@@ -26,7 +30,7 @@ public sealed class FlowchartCellJunctionBranchTests
         var (Contract, Nodes, Grid) = Fixture();
         Nodes.Single(Node => Node.Id == "B").PlacementHintLocked = true;
         var Before = Grid.Capture();
-        FlowchartJunctionBranchCompaction.ApplyCells(Contract, Nodes, false);
+        Assert.That(FlowchartJunctionBranchCompaction.CellCandidates(Contract, Nodes, false).Any(Item => Item.Subject == "A"), Is.False);
         Assert.That(Grid.RegionOf("A"), Is.SameAs(Before.Regions["A"]));
         Assert.That(Grid.RegionOf("B"), Is.SameAs(Before.Regions["B"]));
     }
@@ -38,7 +42,8 @@ public sealed class FlowchartCellJunctionBranchTests
         var (Contract, Nodes, Grid) = Fixture();
         Grid.TryPlace("O", new(2, 2, 1, 1));
         var O = new DiagramGridLayout.GridNode { Id = "O", Rank = 2 }; O.BindCells(Grid); Nodes.Add(O);
-        FlowchartJunctionBranchCompaction.ApplyCells(Contract, Nodes, false);
+        var Candidates = FlowchartJunctionBranchCompaction.CellCandidates(Contract, Nodes, false).ToArray();
+        Assert.That(Candidates.Where(Item => Item.Subject == "A").All(Item => 4 + Item.Columns > 2), Is.True);
         Assert.That(Grid.RegionOf("A").StartColumn, Is.GreaterThan(Grid.RegionOf("O").StartColumn));
         Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(Grid.RegionOf("A").StartColumn));
     }

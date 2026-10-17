@@ -33,7 +33,8 @@ public static partial class DiagramGridLayout
             var Units = State.Copy.EdgeRoutes.Where(Route => Route.Points.Count < 2
                     || FlowchartLayoutScore.CountCorners(Route.Points) > 0)
                 .SelectMany(Route => new[] { Route.SourceId, Route.TargetId }).Distinct(StringComparer.Ordinal).ToArray();
-            foreach (var Candidate in CellRouteMoveCandidates(State.Contract, State.Placed, State.Horizontal, Units))
+            foreach (var Candidate in FlowchartJunctionBranchCompaction.CellCandidates(State.Contract, State.Placed, State.Horizontal)
+                .Concat(CellRouteMoveCandidates(State.Contract, State.Placed, State.Horizontal, Units)))
             {
                 var Plan = FlowchartCellRepair.PlanMove(Candidate.Nodes, Candidate.Rows, Candidate.Columns)
                     ?? FlowchartCellRepair.PlanDisplacement(State.Placed, Candidate.Nodes, Candidate.Rows, Candidate.Columns);
