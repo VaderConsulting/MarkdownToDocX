@@ -1,13 +1,20 @@
 param(
-    [int]$BatchTimeoutSeconds = 59
+    [int]$BatchTimeoutSeconds = 59,
+    [ValidateSet('Debug', 'Release')]
+    [string]$Configuration = 'Release'
 )
 
 $ErrorActionPreference = 'Stop'
+Write-Output "AUDIT_CONFIGURATION|$Configuration"
 $project = Join-Path $PSScriptRoot 'MermaidRecognition.RuleValidation.Tests.csproj'
 $results = Join-Path $PSScriptRoot 'TestResults\RouteRuleAudit'
 New-Item -ItemType Directory -Path $results -Force | Out-Null
 
-$testList = & dotnet test $project --no-build --no-restore --list-tests --filter 'FullyQualifiedName~RouteRuleCatalogueAuditTests' 2>&1
+# Audit the optimized engine used by the converter. Building this exact
+# configuration first prevents stale Debug or Release assemblies being audited.
+& dotnet build $project --configuration $Configuration --nologo
+if ($LASTEXITCODE -ne 0) { throw "Could not build the $Configuration route audit." }
+$testList = & dotnet test $project --configuration $Configuration --no-build --no-restore --list-tests --filter 'FullyQualifiedName~RouteRuleCatalogueAuditTests' 2>&1
 if ($LASTEXITCODE -ne 0) { throw "Could not enumerate route-audit scenarios (dotnet exit $LASTEXITCODE)." }
 $expected = @($testList | ForEach-Object {
     if ($_ -match '^\s+RouteRuleAudit_(\S+)\s*$') { $Matches[1] }
@@ -34,7 +41,7 @@ foreach ($prefix in @('Catalogue')) {
     $filter = 'FullyQualifiedName~RouteRuleCatalogueAuditTests'
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
     $process = Start-Process -FilePath 'dotnet' -PassThru -WindowStyle Hidden `
-        -ArgumentList @('test', $project, '--no-build', '--no-restore', '--filter', $filter,
+        -ArgumentList @('test', $project, '--configuration', $Configuration, '--no-build', '--no-restore', '--filter', $filter,
             '--logger', 'console;verbosity=normal', '--logger', "trx;LogFileName=$prefix.trx",
             '--results-directory', $results) `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr

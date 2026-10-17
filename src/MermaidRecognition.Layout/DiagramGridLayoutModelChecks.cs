@@ -322,6 +322,19 @@ public static partial class DiagramGridLayout
             var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
             var Faulty = State.Copy.EdgeRoutes.Where(Route => Before.Any(Finding =>
                 Finding.Subject == Route.EdgeId && Finding.Rule is "4.11" or "5.8")).ToArray();
+            if (Faulty.Length == 0) return;
+            // A route search depends on allocated terminals and obstacles, not
+            // the other connectors being scored. Preserve obstacle order as
+            // well as exact doubles so cached results retain search tie order.
+            string Geometry = System.Text.Json.JsonSerializer.Serialize(Bounds.Select(Item => new
+            {
+                Item.Key, Item.Value.CenterX, Item.Value.CenterY, Item.Value.Width, Item.Value.Height
+            }));
+            if (State.FacingRouteGeometry != Geometry)
+            {
+                State.FacingRouteGeometry = Geometry;
+                State.FacingRoutePaths.Clear();
+            }
             var Plans = Faulty.SelectMany(Route => new[] { (Node: Route.SourceId, Source: true, Route),
                     (Node: Route.TargetId, Source: false, Route) })
                 .GroupBy(End => (End.Node, End.Source))
@@ -330,6 +343,10 @@ public static partial class DiagramGridLayout
                 .Select(Group => Group.Select(End => End.Route).Distinct().ToArray())
                 .Concat(Faulty.Select(Route => new[] { Route })).ToList();
             if (Faulty.Length > 1 && Faulty.Length <= FlowchartLayoutRules.RepairChainLines) Plans.Insert(0, Faulty);
+            // Rejected options restore the entire model. Accepted options
+            // already have an authoritative score, so neither case requires
+            // remeasuring the same baseline before the next bounded option.
+            var BeforeScore = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
             // Changing one terminal may expose that the old opposite-side
             // fallback was only necessary for the superseded departure. Offer
             // the complete facing pair as well, under the same named budget.
@@ -346,7 +363,6 @@ public static partial class DiagramGridLayout
                 var Saved = State.Copy.EdgeRoutes.Select(Item => (Route: Item,
                     Points: Item.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                     Item.ExitSide, Item.EntrySide, Item.ExitNormalX, Item.ExitNormalY, Item.EntryNormalX, Item.EntryNormalY)).ToArray();
-                var BeforeScore = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
                 Examined++;
                 foreach (var Route in Changing)
                 {
@@ -364,15 +380,32 @@ public static partial class DiagramGridLayout
                     var Changed = Item.Route;
                     if (!Bounds.TryGetValue(Changed.SourceId, out var From) || !Bounds.TryGetValue(Changed.TargetId, out var To)) { Complete = false; break; }
                     var Edge = FindContractEdge(State.Contract, Changed);
-                    var Path = DiagramGridRouteBuilder.BuildRoute(Changed.Points[0].X, Changed.Points[0].Y,
-                        From, State.Nodes.GetValueOrDefault(Changed.SourceId)?.Shape, Changed.ExitSide,
-                        Changed.Points[^1].X, Changed.Points[^1].Y, To,
-                        State.Nodes.GetValueOrDefault(Changed.TargetId)?.Shape, Changed.EntrySide,
-                        Bounds, Changed.SourceId, Changed.TargetId, State.Contract, State.Direction, State.Horizontal,
-                        Travel: Edge?.RoutingHint?.Travel, RequireLegal: true,
-                        ExitNormal: (Changed.ExitNormalX, Changed.ExitNormalY), EntryNormal: (Changed.EntryNormalX, Changed.EntryNormalY));
-                    if (Path.Count < 2 && Edge?.RoutingHint is not { IsActive: true, Travel: not null })
-                        Path = BuildAllocatedNormalFallback(State, Bounds, Changed);
+                    string PathKey = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Changed.SourceId, Changed.TargetId, Changed.ExitSide, Changed.EntrySide,
+                        StartX = Changed.Points[0].X, StartY = Changed.Points[0].Y,
+                        EndX = Changed.Points[^1].X, EndY = Changed.Points[^1].Y,
+                        Changed.ExitNormalX, Changed.ExitNormalY, Changed.EntryNormalX, Changed.EntryNormalY,
+                        SourceShape = State.Nodes.GetValueOrDefault(Changed.SourceId)?.Shape,
+                        TargetShape = State.Nodes.GetValueOrDefault(Changed.TargetId)?.Shape,
+                        State.Direction, State.Horizontal, Edge?.RoutingHint?.Travel,
+                        HintActive = Edge?.RoutingHint?.IsActive
+                    });
+                    if (!State.FacingRoutePaths.TryGetValue(PathKey, out var Path))
+                    {
+                        FlowchartRenderContext.ReportOperationCount("facing-route-cache-misses", 1);
+                        Path = DiagramGridRouteBuilder.BuildRoute(Changed.Points[0].X, Changed.Points[0].Y,
+                            From, State.Nodes.GetValueOrDefault(Changed.SourceId)?.Shape, Changed.ExitSide,
+                            Changed.Points[^1].X, Changed.Points[^1].Y, To,
+                            State.Nodes.GetValueOrDefault(Changed.TargetId)?.Shape, Changed.EntrySide,
+                            Bounds, Changed.SourceId, Changed.TargetId, State.Contract, State.Direction, State.Horizontal,
+                            Travel: Edge?.RoutingHint?.Travel, RequireLegal: true,
+                            ExitNormal: (Changed.ExitNormalX, Changed.ExitNormalY), EntryNormal: (Changed.EntryNormalX, Changed.EntryNormalY));
+                        if (Path.Count < 2 && Edge?.RoutingHint is not { IsActive: true, Travel: not null })
+                            Path = BuildAllocatedNormalFallback(State, Bounds, Changed);
+                        State.FacingRoutePaths[PathKey] = Path;
+                    }
+                    else FlowchartRenderContext.ReportOperationCount("facing-route-cache-hits", 1);
                     if (Path.Count < 2) { Complete = false; break; }
                     Changed.Points.Clear();
                     foreach (var Point in Path) Changed.Points.Add(new() { X = Point.X, Y = Point.Y });
@@ -406,7 +439,7 @@ public static partial class DiagramGridLayout
                 RouteRepairCandidateObserver?.Invoke("facing-assignment",
                     $"lines={Affected.Length};complete={Complete};sides={Before.Count(Finding => Finding.Rule is "4.11" or "5.8")}->{After.Count(Finding => Finding.Rule is "4.11" or "5.8")};new={string.Join(",", After.GroupBy(Finding => Finding.Rule).Where(Group => Group.Count() > Before.Count(Finding => Finding.Rule == Group.Key)).Select(Group => Group.Key + ":" + Group.Count()))}",
                     AfterScore.OptimizationScore, Keep);
-                if (Keep) { Before = After; continue; }
+                if (Keep) { Before = After; BeforeScore = AfterScore; continue; }
                 foreach (var Item in Saved)
                 {
                     Item.Route.ExitSide = Item.ExitSide; Item.Route.EntrySide = Item.EntrySide;
