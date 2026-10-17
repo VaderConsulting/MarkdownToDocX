@@ -912,11 +912,13 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// Rulebook 2.4 / 2.10: when several same-rank parents fan into one child, centre the child on the middle parent.
     /// </summary>
-    private static void AlignFanInMergeColumn(
+    internal static void AlignFanInMergeColumn(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
     {
+        // A median source is an ordering input, never a forced merge position.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         if (Horizontal)
         {
             return;

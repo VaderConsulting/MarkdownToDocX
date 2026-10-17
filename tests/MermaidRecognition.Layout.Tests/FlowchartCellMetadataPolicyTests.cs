@@ -18,6 +18,18 @@ public sealed class FlowchartCellMetadataPolicyTests
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
 
+    /// <summary>A converging target retains its independent column instead of being placed on a middle source.</summary>
+    [Test]
+    public void MergeDoesNotRewriteColumns()
+    {
+        var (Contract, Nodes, Grid) = Fixture();
+        var Before = Grid.Capture();
+        var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        DiagramGridLayout.AlignFanInMergeColumn(Contract, Nodes, false);
+        Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+    }
+
     /// <summary>Builds a forward fan with a converging merge and deliberately distinct ordering columns.</summary>
     /// <returns>Contract, bound nodes and authoritative grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()

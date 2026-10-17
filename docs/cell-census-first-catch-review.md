@@ -289,3 +289,15 @@ The isolated census placement-policy-15-chain-columns-final.log -> placement-pol
 retains 660 completed bound cases, zero catches, A164/A165 and all case bend
 counts (3158 total). The focused selection has 293 passing tests with the
 companion fan-in bypass; the terminal-hole tests also pass independently.
+
+## Superseded: hidden fan-in median-column alignment before initial placement
+
+The initial producer's AlignFanInMergeColumn caller bypasses bound nodes. It
+only put a merge on a middle source's column; it had no independent ordering or
+clearance role. Original native order remains, and rule 2.10's separate source
+representatives order the whole-cell routed candidate search.
+
+Census placement-policy-16a-terminal-holes.log -> placement-policy-16-merge-columns-final.log:
+660 completed bound cases; zero catches; A164/A165 unchanged. Bends 3158 -> 3204;
+55 case totals change (including A173's now-completed legal pipeline), recorded
+in the comparison CSV. All 293 focused tests pass. No cells-off branch changes.
