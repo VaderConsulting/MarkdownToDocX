@@ -14,6 +14,27 @@ F17 offers straight connections at the diamond tips in the initial search. F30 o
 
 ## Cheapest legal layout repair — checkpoint, 16 October 2026
 
+### Verified side-routing checkpoint, 17 October 2026
+
+The side-routing fixes are committed in `6372bd4`, after the separate frame
+invariant commit `afe393f` and shared-track checkpoint `06ede99`. Empty hinted
+frames are also covered at repair boundaries and rollback in `ca1b9b9`.
+The current complete audit emitted all 673 summaries in 82.39 seconds. Totals
+are 4.2 = 39, 5.9 = 1700, 3.1 = 4, 4.11 = 3, 5.8 = 0 and shared-track pairs =
+2083. All hard zero gates remain zero; 4.1 is zero and 4.9 remains 6. No scenario
+has a larger 4.11 or 5.8 count than c6605bd. A142 took 38.8553 seconds, so speed
+is still open. The original 23 regression passes are retained; the current
+focused run has 34 passes and two known failures, F153 and the synthetic large
+fan. Both illegal-path cases pass. F148 and A147 now pass their named regressions.
+
+The side search validates complete built assignments and every displaced port,
+refreshes side choices after growth, and sizes channels for their prospective
+facing assignment. The shared legality fallback is offered when the provisional
+terminal family cannot build that assignment. Frame-outline regressions are
+rejected. The original baseline rows, rules.yaml, score weights and hints are
+unchanged. The following paragraphs describe the earlier checkpoint, not the
+current totals.
+
 The full audit emits all 673 summaries in 54.14 seconds, down from 84.52 seconds at 404ce4c but above c6605bd's 48.78 seconds. A142 takes 24.7305 seconds in the final audit (23.90 seconds in the isolated prepared-geometry profile), still above its 10-second target. The five existing failed layouts remain F65, F70, F87, F88 and A01; the 668 successful layouts are measured, and failed layouts are not reported as successful zero-finding diagrams.
 
 Current totals: 4.2 = 39, 5.9 = 1788, 3.1 = 4, 4.1 = 0 and shared-track pairs = 2271. Every hard legality gate remains zero. All 13 previously passing regressions and the F29/F119 illegal-path tests pass. F61 remains at zero bends and crossings. Eight new regression cases pin the recovered crossing ceilings. Baseline rows, rules.yaml, weights and hint constraints are unchanged.
