@@ -16,11 +16,24 @@ internal static partial class FlowchartCircularJunctionLayout
     internal static bool AlignCellFans(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
         var Before = FlowchartCellRepair.Capture(Nodes);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        return FlowchartCellRepair.TryAssign(Nodes, PlanCellFans(Contract, Nodes, Horizontal, Before.Regions));
+    }
+
+    /// <summary>Builds the same complete fan/collector assignment on a caller's private candidate without publishing intermediate regions.</summary>
+    /// <param name="Contract">Visible graph and return classification.</param>
+    /// <param name="Nodes">All diagram nodes.</param>
+    /// <param name="Horizontal">Whether the cross axis is rows.</param>
+    /// <param name="Initial">Complete authoritative or privately proposed ownership.</param>
+    /// <param name="IncludeFanOut">Whether to align fan-out input chains as well as collectors.</param>
+    /// <returns>A complete private reservation plan.</returns>
+    internal static IReadOnlyDictionary<string, FlowchartCellRegion> PlanCellFans(DiagramContract Contract,
+        List<DiagramGridLayout.GridNode> Nodes, bool Horizontal, IReadOnlyDictionary<string, FlowchartCellRegion> Initial, bool IncludeFanOut = true)
+    {
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Initial, StringComparer.Ordinal);
         var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        foreach (bool FanOut in new[] { true, false })
+        foreach (bool FanOut in IncludeFanOut ? new[] { true, false } : new[] { false })
         foreach (var Junction in Nodes.Where(Node => Node.Shape == "circle"))
         {
             var Links = Edges.Where(Edge => FanOut ? Edge.SourceId == Junction.Id : Edge.TargetId == Junction.Id).ToArray();
@@ -47,6 +60,6 @@ internal static partial class FlowchartCircularJunctionLayout
                 Current = Next;
             }
         }
-        return FlowchartCellRepair.TryAssign(Nodes, Targets);
+        return Targets;
     }
 }

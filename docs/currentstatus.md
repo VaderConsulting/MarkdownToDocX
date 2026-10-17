@@ -1021,3 +1021,12 @@ a conversion of the existing label-clearance policy, not a claim that label
 track demand equals minimum port separation. Three tests pass, focused count
 201. The census-after-cell-parallel-extents.log records subsequent writers and
 frame-fit failures. Production cells and independent text spans remain off.
+
+### Whole-cell junction branch compaction
+
+Aligned junction branches now propose nearest whole-cell side tracks, preserving
+occupied-rank order and measuring forward-derived body clearance. Collector
+alignment shares the circular-junction planner and joins the same complete
+reservation plan. Three tests pass, focused count 204. The subsequent census is
+recorded in census-after-cell-junction-branches.log; full cells-on acceptance
+is still pending remaining writers and frame-fit failures.
