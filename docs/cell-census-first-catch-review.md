@@ -117,3 +117,16 @@ Bends total 3272 -> 3238; 93 scenario totals change. The full before/after rows
 are in the latter log's .bends.csv sidecar, including increases as well as gains.
 All 285 focused tests pass. Cells-off verification is pending the final review
 run; the new candidate enumerator is called only by the cell-bound repair path.
+
+## Superseded: preset simple decision-merge positions (1a1d957)
+
+The cell-only symmetric branch/merge placement in 1a1d957 is superseded.
+The legacy dispatcher bypasses cell regions and the helper is removed. It
+forced opposite lanes about the decision and put the merge on the right
+branch's line without a routed score or a measured clearance shortfall.
+The common topology detector, original branch order and obstacle-checked route
+construction remain. Whole-cell scored candidates now supply straightening.
+
+Census placement-policy-03-shared-fans-final.log -> placement-policy-04-simple-merges.log:
+660 common completed bound cases; zero writer catches; hard failures remain
+A164/A165. Bends 3238 -> 3234, entirely F53 (5 -> 1). All 286 focused tests pass.

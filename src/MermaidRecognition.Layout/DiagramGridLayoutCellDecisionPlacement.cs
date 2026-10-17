@@ -8,26 +8,7 @@ namespace MermaidRecognition.Layout;
 /// <summary>Plans decision detours and loop placement on authoritative logical reservations.</summary>
 public static partial class DiagramGridLayout
 {
-    /// <summary>Plans both simple decision branches and their terminal merge on complete whole-cell side lanes.</summary>
-    /// <param name="Contract">Existing generic decision/merge classification.</param>
-    /// <param name="Placed">Complete shared diagram ownership.</param>
-    /// <param name="Horizontal">Whether the cross axis uses rows.</param>
-    /// <returns>Whether the complete legal assignment was accepted.</returns>
-    internal static bool AlignCellSimpleDecisionMerges(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
-    {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        foreach (var (Decision, Left, Right, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
-        {
-            if (new[] { Left, Right, Merge }.Any(Node => Node.PlacementHintLocked)) continue;
-            int Centre = Horizontal ? Targets[Decision.Id].StartRow : Targets[Decision.Id].StartColumn;
-            int Pitch = new[] { Decision, Left, Right, Merge }.Max(Node => Horizontal ? Targets[Node.Id].RowSpan : Targets[Node.Id].ColumnSpan);
-            Targets[Left.Id] = WithCellCross(Targets[Left.Id], checked(Centre - Pitch), Horizontal);
-            Targets[Right.Id] = WithCellCross(Targets[Right.Id], checked(Centre + Pitch), Horizontal);
-            Targets[Merge.Id] = WithCellCross(Targets[Merge.Id], checked(Centre + Pitch), Horizontal);
-        }
-        return FlowchartCellRepair.TryAssign(Placed, Targets);
-    }
+
 
     /// <summary>Plans vertical return branches and complete continuing tails on opposite whole-cell lanes.</summary>
     /// <param name="Contract">Forward and return topology.</param>

@@ -682,11 +682,10 @@ public static partial class DiagramGridLayout
     private static void AlignSimpleDecisionMerges(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
-        if (Placed.Any(Node => Node.CellNode != null))
-        {
-            AlignCellSimpleDecisionMerges(Contract, Placed, Horizontal);
-            return;
-        }
+        // Preserve topology and branch ordering, but do not force symmetric
+        // lanes or place the merge on one child's line. Routed whole-cell
+        // candidates must earn those positions through lower cost.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         foreach (var (Decision, Left, Right, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
         {
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
