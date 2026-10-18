@@ -2,6 +2,42 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Reserve measured frame titles before fitting — 18 October 2026
+
+The initial builder already included measured title width and multiline height.
+The late enlargement was a routing fallback moving a reserved strip away from
+a line, after fitting, rather than missing text space. Width/band reservation
+is now shared by member-backed, empty/nested frames and title routing obstacles,
+using the existing renderer text metric and clearance without new sizing values.
+The existing cell bypass remains; the late growth writer itself now rejects
+bound models before touching output frames or ancestors. No measured catalogue
+case needs late physical growth. Any future spatial change must be a complete
+scored region/gap assignment and frame rebuild, never a direct frame resize.
+
+An isolated unsafe replay reaches the old writer in F45, A58, A138, A167,
+A169 and EIP84. A167 retains three frame overlaps and A169 one. The earlier
+pre-bypass capture also had six A168 overlaps; corrected hints prevent A168
+from reaching that writer in the current replay. A168 stays a regression.
+Replay counts include discarded private route candidates, not drawn enlargements.
+
+The protected census passes all 673 cases in 95.778 s, zero writer catches,
+662 completed bound diagrams / 3,806 nodes; the same six open-mode cases stay
+unbound and five native skips/empty cases remain. Bound-case bends are unchanged
+in every case (total 3,365). All 673 cells-on summary rows match the previous
+checkpoint exactly. Audit 97.62 s, A142 36.9755 s; every legality, grid, exact-slot,
+hint-accounting and cleanup gate zero. Quality: 4.2=52, 5.9=1234, 3.1=2, 4.1=0,
+4.11=5, 5.8=3, shared=346. Quality and speed remain open.
+
+Cells-off: all 673 ordered summaries are byte-identical to the original baseline,
+all previous zero gates zero. Audit 40.88 s, A142 12.7527 s. Exact geometry and
+ordered diagnostics: changed=0, missing=0 across all 673 cases (39.079 s).
+Production cells, independent spans, rules.yaml, weights, hints and the unchanged
+16-candidate limit remain untouched. F32/EIP261 stays parked. All 309 focused
+tests and 40 cell/source regressions pass, including eleven new title cases. Dedicated long-title,
+nested-frame, legacy-writer control and full pipeline checks are described in
+`cell-frame-title-reservation.md`, with the on/off gate table and replay evidence.
+No DOCX files are committed; nothing pushed.
+
 ## A164 candidate diagnosis and original-hint correction — 18 October 2026
 
 Reproduced all 97 historical single-set frame candidates. Every one retained

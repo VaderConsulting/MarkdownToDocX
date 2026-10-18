@@ -37,8 +37,7 @@ internal static class FlowchartFrameTitleBandHelper
         {
             if (!groups.TryGetValue(frame.NodeId, out GroupContract? group)) continue;
             string title = string.IsNullOrWhiteSpace(group.Title) ? group.Id : group.Title;
-            double strip = DiagramGridMetrics.CeilToGrid(Math.Max(DiagramGridMetrics.GRID_UNIT_PX,
-                FlowchartSubgraphSvgRenderer.RequiredTitleBandPx(options.FontSizePx, title.Split('\n').Length)));
+            double strip = FlowchartFrameTitleReservation.BandHeight(options.FontSizePx, title.Split('\n').Length);
             double halfWidth = frame.Width / 2.0;
             double halfHeight = frame.Height / 2.0;
             if (halfWidth <= 0 || halfHeight <= 0) continue;

@@ -1015,10 +1015,9 @@ public static partial class DiagramGridLayout
             }
 
             string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
-            double TitleWidth = Title.Split('\n').Max(Line => FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, Options.FontSizePx));
-            int Strip = DiagramGridMetrics.CeilToGrid(Math.Max(
-                DiagramGridMetrics.GRID_UNIT_PX,
-                FlowchartSubgraphSvgRenderer.RequiredTitleBandPx(Options.FontSizePx, Title.Split('\n').Length)));
+            var TitleReservation = FlowchartFrameTitleReservation.Measure(Title, Options.FontSizePx);
+            double TitleWidth = TitleReservation.TextWidthPx;
+            int Strip = TitleReservation.BandHeightPx;
             int Padding = DiagramGridMetrics.NODE_GAP_PX;
             if (Group.ChildGroupIds.Count > 0)
                 Padding = Math.Max(Padding, DiagramGridMetrics.CeilToGrid(
@@ -1130,11 +1129,9 @@ public static partial class DiagramGridLayout
         FlowchartRenderOptions Options)
     {
         string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
-        string[] Lines = Title.Split('\n');
-        double TitleWidth = Lines.Max(Line => FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, Options.FontSizePx));
-        int Strip = DiagramGridMetrics.CeilToGrid(Math.Max(
-            DiagramGridMetrics.GRID_UNIT_PX,
-            FlowchartSubgraphSvgRenderer.RequiredTitleBandPx(Options.FontSizePx, Lines.Length)));
+        var TitleReservation = FlowchartFrameTitleReservation.Measure(Title, Options.FontSizePx);
+        double TitleWidth = TitleReservation.TextWidthPx;
+        int Strip = TitleReservation.BandHeightPx;
         int Padding = DiagramGridMetrics.NODE_GAP_PX;
         int Width = DiagramGridMetrics.CeilToGrid(TitleWidth + 2.0 * Padding);
         int Height = DiagramGridMetrics.CeilToGrid(Strip + 2.0 * Padding);

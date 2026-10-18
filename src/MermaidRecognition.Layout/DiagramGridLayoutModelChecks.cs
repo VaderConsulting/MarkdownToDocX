@@ -1623,6 +1623,67 @@ public static partial class DiagramGridLayout
             }
         }
 
+        /// <summary>Retains the legacy unbound title-clearance fallback; cell-backed frames can never be resized through this writer.</summary>
+        /// <param name="state">Completed routing model and authoritative ownership.</param>
+        /// <param name="bounds">Legacy mutable drawing index; untouched for bound nodes.</param>
+        /// <param name="groupId">Requested frame and any enclosing ancestors.</param>
+        /// <returns>Whether legacy geometry grew; always false for a cell-backed diagram.</returns>
+        private static bool GrowFrameTitleClearance(GridLayoutState state,
+            Dictionary<string, FlowchartLayoutNodeBounds> bounds, string groupId)
+        {
+            // Cell frames are derived caches. Late routing must repair its path;
+            // any future spatial growth must be a complete scored cell assignment.
+            if (state.Placed.Any(Node => Node.CellNode != null)) return false;
+            if (!bounds.TryGetValue(groupId, out FlowchartLayoutNodeBounds frame))
+                return false;
+            double oldTop = frame.CenterY + frame.Height / 2.0;
+            double bottom = frame.CenterY - frame.Height / 2.0;
+            double newTop = DiagramGridMetrics.CeilToGrid(oldTop) + DiagramGridMetrics.GRID_UNIT_PX;
+            FlowchartLayoutNodeBounds expanded = new()
+            {
+                NodeId = groupId,
+                CenterX = frame.CenterX,
+                CenterY = (bottom + newTop) / 2.0,
+                Width = frame.Width,
+                Height = newTop - bottom
+            };
+            bounds[groupId] = expanded;
+            int clusterIndex = state.Copy.ClusterBoundsMutable.FindIndex(box => box.NodeId == groupId);
+            if (clusterIndex >= 0) state.Copy.ClusterBoundsMutable[clusterIndex] = expanded;
+            else state.Copy.ClusterBoundsMutable.Add(expanded);
+
+            // Keep ancestors enclosing the expanded child. Each adjustment is
+            // also a whole-grid increase and does not change any member position.
+            GroupContract? group = state.Contract.Groups.FirstOrDefault(item => item.Id == groupId);
+            while (!string.IsNullOrEmpty(group?.ParentGroupId))
+            {
+                string parentId = group.ParentGroupId;
+                if (!bounds.TryGetValue(parentId, out FlowchartLayoutNodeBounds parent)) break;
+                double parentBottom = parent.CenterY - parent.Height / 2.0;
+                double parentTop = parent.CenterY + parent.Height / 2.0;
+                double requiredTop = newTop + DiagramGridMetrics.GRID_UNIT_PX;
+                if (parentTop < requiredTop)
+                {
+                    double grownTop = DiagramGridMetrics.CeilToGrid(requiredTop);
+                    FlowchartLayoutNodeBounds expandedParent = new()
+                    {
+                        NodeId = parentId,
+                        CenterX = parent.CenterX,
+                        CenterY = (parentBottom + grownTop) / 2.0,
+                        Width = parent.Width,
+                        Height = grownTop - parentBottom
+                    };
+                    bounds[parentId] = expandedParent;
+                    int parentIndex = state.Copy.ClusterBoundsMutable.FindIndex(box => box.NodeId == parentId);
+                    if (parentIndex >= 0) state.Copy.ClusterBoundsMutable[parentIndex] = expandedParent;
+                    else state.Copy.ClusterBoundsMutable.Add(expandedParent);
+                    newTop = grownTop;
+                }
+                group = state.Contract.Groups.FirstOrDefault(item => item.Id == parentId);
+            }
+            return true;
+        }
+
         /// <summary>Records a cell-frame routing failure for legal-side search instead of mutating derived frame pixels.</summary>
         /// <param name="State">Complete model and retained legal cell ownership.</param>
         /// <param name="Route">Declared link that still intersects a title band.</param>
@@ -1804,59 +1865,6 @@ public static partial class DiagramGridLayout
                     (double X, double Y) a = points[index - 1], b = points[index];
                     if (FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                         a.X, a.Y, b.X, b.Y, nodes, sourceId, targetId)) return false;
-                }
-                return true;
-            }
-
-            static bool GrowFrameTitleClearance(GridLayoutState state,
-                Dictionary<string, FlowchartLayoutNodeBounds> bounds, string groupId)
-            {
-                if (!bounds.TryGetValue(groupId, out FlowchartLayoutNodeBounds frame))
-                    return false;
-                double oldTop = frame.CenterY + frame.Height / 2.0;
-                double bottom = frame.CenterY - frame.Height / 2.0;
-                double newTop = DiagramGridMetrics.CeilToGrid(oldTop) + DiagramGridMetrics.GRID_UNIT_PX;
-                FlowchartLayoutNodeBounds expanded = new()
-                {
-                    NodeId = groupId,
-                    CenterX = frame.CenterX,
-                    CenterY = (bottom + newTop) / 2.0,
-                    Width = frame.Width,
-                    Height = newTop - bottom
-                };
-                bounds[groupId] = expanded;
-                int clusterIndex = state.Copy.ClusterBoundsMutable.FindIndex(box => box.NodeId == groupId);
-                if (clusterIndex >= 0) state.Copy.ClusterBoundsMutable[clusterIndex] = expanded;
-                else state.Copy.ClusterBoundsMutable.Add(expanded);
-
-                // Keep ancestors enclosing the expanded child. Each adjustment is
-                // also a whole-grid increase and does not change any member position.
-                GroupContract? group = state.Contract.Groups.FirstOrDefault(item => item.Id == groupId);
-                while (!string.IsNullOrEmpty(group?.ParentGroupId))
-                {
-                    string parentId = group.ParentGroupId;
-                    if (!bounds.TryGetValue(parentId, out FlowchartLayoutNodeBounds parent)) break;
-                    double parentBottom = parent.CenterY - parent.Height / 2.0;
-                    double parentTop = parent.CenterY + parent.Height / 2.0;
-                    double requiredTop = newTop + DiagramGridMetrics.GRID_UNIT_PX;
-                    if (parentTop < requiredTop)
-                    {
-                        double grownTop = DiagramGridMetrics.CeilToGrid(requiredTop);
-                        FlowchartLayoutNodeBounds expandedParent = new()
-                        {
-                            NodeId = parentId,
-                            CenterX = parent.CenterX,
-                            CenterY = (parentBottom + grownTop) / 2.0,
-                            Width = parent.Width,
-                            Height = grownTop - parentBottom
-                        };
-                        bounds[parentId] = expandedParent;
-                        int parentIndex = state.Copy.ClusterBoundsMutable.FindIndex(box => box.NodeId == parentId);
-                        if (parentIndex >= 0) state.Copy.ClusterBoundsMutable[parentIndex] = expandedParent;
-                        else state.Copy.ClusterBoundsMutable.Add(expandedParent);
-                        newTop = grownTop;
-                    }
-                    group = state.Contract.Groups.FirstOrDefault(item => item.Id == parentId);
                 }
                 return true;
             }
