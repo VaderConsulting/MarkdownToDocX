@@ -13,6 +13,44 @@ public sealed class FlowchartCellMoveSearchTests
 {
     private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
 
+    /// <summary>Incremental line costs agree with the reference scorer after whole-cell geometry changes while an independent route remains exact.</summary>
+    /// <param name="Grow">Whether to change the node span rather than its starting column.</param>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MovingGeometryScoreMatchesReferenceWithoutChangingOtherLines(bool Grow)
+    {
+        var Fixture = CreateState(true, "flowchart TB\nA --> B\nX --> Y",
+            new Dictionary<string, FlowchartCellRegion> { ["A"] = new(0, 0, 1, 1), ["B"] = new(2, 1, 1, 1),
+                ["X"] = new(0, 5, 1, 1), ["Y"] = new(2, 5, 1, 1) });
+        var Context = new FlowchartLayoutScore.CellMovementContext(Fixture.Contract, Fixture.Layout);
+        var Changed = Fixture.Layout.EdgeRoutes.Single(Route => Route.SourceId == "A");
+        var Untouched = Fixture.Layout.EdgeRoutes.Single(Route => Route.SourceId == "X");
+        var Points = Untouched.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        var Plan = FlowchartCellRepair.PlanAssignment(Fixture.Nodes,
+            new Dictionary<string, FlowchartCellRegion> { ["B"] = Grow ? new(2, 1, 2, 1) : new(2, 0, 1, 1) });
+        Assert.That(Plan!.TryApply(), Is.True);
+        var StateType = Fixture.State.GetType();
+        var Placed = (List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(Fixture.State)!;
+        var Frames = (List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(Fixture.State)!;
+        typeof(DiagramGridLayout).GetMethod("WriteBack", StaticPrivate)!.Invoke(null, [Fixture.Layout, Placed, Frames]);
+        var Bounds = Fixture.Layout.NodeBounds.ToDictionary(Box => Box.NodeId);
+        var Definitions = Fixture.Contract.Nodes.ToDictionary(Node => Node.Id);
+        typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!
+            .GetMethod("AllocateFinalPortSlots", StaticPrivate)!.Invoke(null,
+                [Fixture.Contract, Fixture.Layout, Bounds, Definitions, new HashSet<string> { "A", "B" }]);
+        DiagramGridRouteBuilder.RebuildAllRoutes(Fixture.Layout, Placed, Definitions, Fixture.Contract, Frames,
+            FlowchartDirection.TopToBottom, new HashSet<FlowchartLayoutEdgeRoute> { Changed });
+        var Actual = Context.Measure(new HashSet<FlowchartLayoutEdgeRoute> { Changed });
+        var Expected = FlowchartLayoutScore.Measure(Fixture.Contract, Fixture.Layout, false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Actual.OptimizationScore, Is.EqualTo(Expected.OptimizationScore));
+            Assert.That((Actual.Bends, Actual.Crossings, Actual.Disconnections, Actual.Overlaps),
+                Is.EqualTo((Expected.Bends, Expected.Crossings, Expected.Disconnections, Expected.Overlaps)));
+            Assert.That(Untouched.Points.Select(Point => (Point.X, Point.Y)), Is.EqualTo(Points));
+        });
+    }
+
     /// <summary>A rejected trial cannot mutate a painted guide retained by the saved layout, including its kind.</summary>
     [Test]
     public void RejectedCandidateRestoresMutableGuideContents()

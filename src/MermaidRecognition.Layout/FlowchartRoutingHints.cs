@@ -10,6 +10,17 @@ namespace MermaidRecognition.Layout;
 /// <summary>Restores explicit endpoint and track directions after automatic route repair.</summary>
 internal static class FlowchartRoutingHints
 {
+    /// <summary>Restores original active endpoint and travel hints against current bounds without changing frozen routes.</summary>
+    /// <param name="Layout">Current route inventory and hint diagnostics.</param>
+    /// <param name="Contract">Original declarations and active hints.</param>
+    /// <param name="Bounds">Current node and frame obstacles.</param>
+    /// <param name="Nodes">Original shape definitions.</param>
+    /// <param name="Direction">Diagram flow direction.</param>
+    /// <param name="RepairAutomaticRoutesEnabled">Whether to run the established automatic-route repairs afterward.</param>
+    /// <param name="PreserveValidSideHintRoutes">Whether already legal side-hinted paths retain their exact geometry.</param>
+    /// <param name="ReportUnroutedRoutes">Whether failed hinted routes produce diagnostics.</param>
+    /// <param name="ClearUnroutedRoutes">Whether failed hinted routes discard stale path contents.</param>
+    /// <param name="OnlyRoutes">Affected lines, or null to retain the complete original hint pass.</param>
     internal static void Apply(
         FlowchartLayoutResult Layout,
         DiagramContract Contract,
@@ -19,13 +30,14 @@ internal static class FlowchartRoutingHints
         bool RepairAutomaticRoutesEnabled = true,
         bool PreserveValidSideHintRoutes = false,
         bool ReportUnroutedRoutes = false,
-        bool ClearUnroutedRoutes = true)
+        bool ClearUnroutedRoutes = true, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> HintedPorts =
             SelectHintedPorts(Layout, Contract, Bounds);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
+            if (OnlyRoutes != null && !OnlyRoutes.Contains(Route)) continue;
             if (Route.Points.Count < 2) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             RoutingHintContract? Hint = Edge?.RoutingHint;
@@ -139,6 +151,7 @@ internal static class FlowchartRoutingHints
         // slots, orthogonality and obstacle checks must all agree first.
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
+            if (OnlyRoutes != null && !OnlyRoutes.Contains(Route)) continue;
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             if (Edge?.RoutingHint is not { IsActive: true } Hint || Route.Points.Count < 2
                 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds Source)

@@ -12,13 +12,15 @@ internal static class FlowchartDistinctTrackRepair
     /// <param name="Contract">Link declarations and explicit travel constraints.</param>
     /// <param name="Layout">The authoritative final routes and frame bounds.</param>
     /// <param name="Placed">Node bodies used by the internal-run translator.</param>
+    /// <param name="OnlyRoutes">Affected lines eligible for repair, or null for every line.</param>
     /// <returns>Whether an accepted translation reduced shared tracks or shared length; only complete separation may add crossings.</returns>
     internal static bool Apply(DiagramContract Contract, FlowchartLayoutResult Layout,
-        List<DiagramGridLayout.GridNode> Placed)
+        List<DiagramGridLayout.GridNode> Placed, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
+        if (OnlyRoutes is { Count: 0 }) return false;
         bool Changed = false;
         int GlobalShared = FlowchartRouteRuleChecker.Check(Contract, Layout).Count(Finding => Finding.Rule == "5.1");
-        foreach (var Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 4))
+        foreach (var Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 4 && (OnlyRoutes == null || OnlyRoutes.Contains(Route))))
         {
             // Entry/exit hints constrain the unchanged terminals. A travel hint
             // also constrains the interior, so that family is left untouched.

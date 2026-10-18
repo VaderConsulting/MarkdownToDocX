@@ -11,14 +11,36 @@ namespace MermaidRecognition.Layout;
 
 /// <summary>Port allocation and endpoint-attachment helpers for the port stage.</summary>
 public static partial class DiagramGridLayout
-{    private static void AssignPortSides(
+{
+    /// <summary>Allocates the complete visible port inventory using the existing deterministic joint policy.</summary>
+    /// <param name="Contract">Original visible links, groups and routing hints.</param>
+    /// <param name="Copy">Model whose allocated terminals are updated.</param>
+    /// <param name="Placed">Current authoritative node projections.</param>
+    /// <param name="Frames">Current fitted frame projections.</param>
+    /// <param name="Nodes">Shape and geometry-provider definitions.</param>
+    /// <param name="Direction">Diagram flow direction.</param>
+    /// <param name="SharedFanSources">Previously classified shared roots.</param>
+    private static void AssignPortSides(DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed,
+        List<GridFrame> Frames, Dictionary<string, NodeContract> Nodes, FlowchartDirection Direction,
+        HashSet<string> SharedFanSources) => AssignPortSidesScoped(Contract, Copy, Placed, Frames, Nodes, Direction, SharedFanSources, null);
+
+    /// <summary>Reconsiders affected sides while retaining other sides in the joint slot inventory.</summary>
+    /// <param name="Contract">Original visible links, groups and routing hints.</param>
+    /// <param name="Copy">Model whose allocated terminals are updated.</param>
+    /// <param name="Placed">Current authoritative node projections.</param>
+    /// <param name="Frames">Current fitted frame projections.</param>
+    /// <param name="Nodes">Shape and geometry-provider definitions.</param>
+    /// <param name="Direction">Diagram flow direction.</param>
+    /// <param name="SharedFanSources">Previously classified shared roots.</param>
+    /// <param name="OnlyRoutes">Affected lines, or null for the unchanged complete allocation policy.</param>
+    private static void AssignPortSidesScoped(
         DiagramContract Contract,
         FlowchartLayoutResult Copy,
         List<GridNode> Placed,
         List<GridFrame> Frames,
         Dictionary<string, NodeContract> Nodes,
         FlowchartDirection Direction,
-        HashSet<string> SharedFanSources)
+        HashSet<string> SharedFanSources, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes)
     {
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
@@ -41,6 +63,12 @@ public static partial class DiagramGridLayout
                 continue;
             }
 
+            if (OnlyRoutes != null && !OnlyRoutes.Contains(Route))
+            {
+                Ends.Add(new PortEnd { Route = Route, IsSource = true, Side = Route.ExitSide, Box = Source, Other = Target });
+                Ends.Add(new PortEnd { Route = Route, IsSource = false, Side = Route.EntrySide, Box = Target, Other = Source });
+                continue;
+            }
             EdgeContract? ContractEdge = FindContractEdge(Contract, Route);
             if (string.Equals(ContractEdge?.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             {

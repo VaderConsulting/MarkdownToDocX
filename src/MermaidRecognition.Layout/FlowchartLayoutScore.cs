@@ -9,7 +9,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Measures a routed layout using rules 2.13 and 2.14.</summary>
-internal static class FlowchartLayoutScore
+internal static partial class FlowchartLayoutScore
 {
     internal static double BEND_PENALTY => FlowchartLayoutRules.BendScore;
 

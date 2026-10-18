@@ -214,28 +214,52 @@ public static partial class DiagramGridLayout
         private static (int Moved, int Examined) SearchCellAssignments(GridLayoutState State,
             IEnumerable<CellRepairOption> Options, int CandidateLimit, int MoveLimit, HashSet<string> Attempted,
             Func<double>? Shortfall = null, bool PreserveBends = false)
+            => SearchCellAssignmentsCore(State, Options, CandidateLimit, MoveLimit, Attempted, Shortfall, PreserveBends, false);
+
+        /// <summary>Ranks scoped candidates and recovers the same examined assignments with reference completion when no scoped winner survives.</summary>
+        /// <param name="State">Live cell model restored between assignments.</param>
+        /// <param name="Options">Immutable assignments, including the exact examined set during recovery.</param>
+        /// <param name="CandidateLimit">Existing distinct-assignment budget.</param>
+        /// <param name="MoveLimit">Existing accepted-move budget.</param>
+        /// <param name="Attempted">Previously examined assignment identities.</param>
+        /// <param name="Shortfall">Mandatory clearance cost, if applicable.</param>
+        /// <param name="PreserveBends">Whether additional bends disqualify a move.</param>
+        /// <param name="ReferenceCompletion">Whether to recheck already charged assignments using the complete reference router.</param>
+        /// <returns>The accepted move count and number of distinct examined assignments.</returns>
+        private static (int Moved, int Examined) SearchCellAssignmentsCore(GridLayoutState State,
+            IEnumerable<CellRepairOption> Options, int CandidateLimit, int MoveLimit, HashSet<string> Attempted,
+            Func<double>? Shortfall, bool PreserveBends, bool ReferenceCompletion)
         {
             // Provisional route construction is not the option that reaches
             // the painter. Defer cell quality moves until that final model is
             // available, and never recursively place while scoring a trial.
             if (!State.CellFinalRoutingReady || State.Copy.RenderContext.IsEvaluatingCellRouteCandidate) return (0, 0);
-            CandidateLimit = Math.Min(CandidateLimit,
+            if (!ReferenceCompletion) CandidateLimit = Math.Min(CandidateLimit,
                 FlowchartLayoutRules.RepairCandidateMoves - State.MoveBudget.CandidateMoves);
             MoveLimit = Math.Min(MoveLimit,
                 FlowchartLayoutRules.RepairChainDepth - State.MoveBudget.AcceptedMoves);
             if (CandidateLimit <= 0 || MoveLimit <= 0) return (0, 0);
             using var CostTiming = FlowchartCellCostTiming.Begin("final-layout-scoring");
             var Original = new CellGeometrySnapshot(State);
+            // When the whole routing inventory fits the named coupled-line
+            // bound, retain its exact joint search. Freezing even one of those
+            // few interacting tracks can select a different, worse move.
+            bool WholeRouteSet = State.Copy.EdgeRoutes.Count <= FlowchartLayoutRules.RepairChainLines;
             var Before = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
+            var IncrementalScore = new FlowchartLayoutScore.CellMovementContext(State.Contract, State.Copy);
             var BeforeFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
+            bool NeedsHardRepair = BeforeFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7");
             int BeforeFrameOverlaps = CountUnrelatedFrameOverlaps(State.Contract, State.Frames);
             double BeforeLength = RouteLength(State.Copy);
             int BeforeBends = RouteBends(State.Copy);
             double BestScore = Before.OptimizationScore;
             double BestShortfall = Shortfall?.Invoke() ?? 0;
+            double InitialShortfall = BestShortfall;
             CellGeometrySnapshot? Best = null;
+            HashSet<FlowchartLayoutEdgeRoute>? BestAffected = null;
             int Examined = 0;
             string? Winner = null;
+            var ExaminedOptions = new List<CellRepairOption>();
             var CellState = FlowchartCellRepair.Capture(State.Placed);
             string Signature = System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -256,9 +280,10 @@ public static partial class DiagramGridLayout
                 var Ids = Participants.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
                 if (State.Copy.EdgeRoutes.Count(Route => Ids.Contains(Route.SourceId) || Ids.Contains(Route.TargetId))
                     > FlowchartLayoutRules.RepairChainLines) continue;
-                if (!Attempted.Add("cells|" + Signature + "|" + Option.Key)) continue;
+                if (!ReferenceCompletion && !Attempted.Add("cells|" + Signature + "|" + Option.Key)) continue;
                 Examined++;
-                State.MoveBudget.CandidateMoves++;
+                if (NeedsHardRepair) ExaminedOptions.Add(Option);
+                if (!ReferenceCompletion) State.MoveBudget.CandidateMoves++;
                 try
                 {
                     if (!Option.Assignment.TryApply()) continue;
@@ -266,30 +291,18 @@ public static partial class DiagramGridLayout
                     BuildFramesYUp(State.Contract, State.Placed, State.Frames);
                     if (CountUnrelatedFrameOverlaps(State.Contract, State.Frames) > BeforeFrameOverlaps) continue;
                     WriteBack(State.Copy, State.Placed, State.Frames);
-                    using (FlowchartCellCostTiming.Begin("routing"))
+                    HashSet<FlowchartLayoutEdgeRoute>? Affected;
+                    if (ReferenceCompletion || WholeRouteSet)
                     {
-                        AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
-                        DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction);
-                        RefreshHintedRoutes(State);
+                        CompleteReferenceCellCandidate(State);
+                        Affected = State.Copy.EdgeRoutes.ToHashSet();
                     }
-                    bool PreviousEvaluation = State.Copy.RenderContext.IsEvaluatingCellRouteCandidate;
-                    var PreviousCandidateObserver = RouteRepairCandidateObserver;
-                    var PreviousOptionObserver = RouteRepairOptionObserver;
-                    State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = true;
-                    // Nested route options belong to an unpublished trial.
-                    // Reporting them as actual wins also makes a non-profiled
-                    // catalogue pay for thousands of discarded trace strings.
-                    RouteRepairCandidateObserver = null;
-                    RouteRepairOptionObserver = null;
-                    try { ModelRouteCompletionStage.Apply(State); }
-                    finally
-                    {
-                        State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation;
-                        RouteRepairCandidateObserver = PreviousCandidateObserver;
-                        RouteRepairOptionObserver = PreviousOptionObserver;
-                    }
+                    else Affected = CompleteAffectedCellRoutes(State, Original);
+                    if (Affected == null) continue;
+                    if (!NeedsHardRepair) ExaminedOptions.Add(Option);
                     var AfterFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
-                    var After = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
+                    var After = ReferenceCompletion || WholeRouteSet ? FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false)
+                        : IncrementalScore.Measure(Affected);
                     double Remaining = Shortfall?.Invoke() ?? 0;
                     double ExtraLength = RouteLength(State.Copy) - BeforeLength;
                     int ExtraBends = RouteBends(State.Copy) - BeforeBends;
@@ -298,6 +311,7 @@ public static partial class DiagramGridLayout
                         + ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight;
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
+                        && !AfterFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
                         && ExtraLength <= FlowchartLayoutRules.RepairExtraLength && ExtraBends <= FlowchartLayoutRules.RepairExtraBends
                         && (!PreserveBends || ExtraBends <= 0)
                         && ChangedLines <= FlowchartLayoutRules.RepairChainLines;
@@ -307,15 +321,80 @@ public static partial class DiagramGridLayout
                     BestShortfall = Remaining;
                     BestScore = Cost;
                     Best = new(State);
+                    BestAffected = Affected;
                     Winner = Option.Subject;
                 }
                 finally { Original.Restore(State); }
             }
             (Best ?? Original).Restore(State);
-            if (Best == null) return (0, Examined);
+            if (Best == null) return RecoverReferenceCandidates();
+            if (ReferenceCompletion || WholeRouteSet)
+            {
+                State.MoveBudget.AcceptedMoves++;
+                RouteRepairOptionObserver?.Invoke("cell-move", Winner ?? string.Empty);
+                return (1, Examined);
+            }
+            bool PreviousEvaluation = State.Copy.RenderContext.IsEvaluatingCellRouteCandidate;
+            State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = true;
+            try
+            {
+                ModelRouteCompletionStage.Apply(State);
+
+                var Confirmed = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
+                var ConfirmedFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
+                double ExtraLength = RouteLength(State.Copy) - BeforeLength;
+                int ExtraBends = RouteBends(State.Copy) - BeforeBends;
+                int ChangedLines = Original.ChangedLines();
+                double Cost = Confirmed.OptimizationScore + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
+                    + ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight;
+                if (!Original.UnchangedOutside(BestAffected!) || Confirmed.Overlaps > Before.Overlaps || Confirmed.HintsHonoured < Before.HintsHonoured
+                    || !NoNewFindings(BeforeFindings, ConfirmedFindings)
+                    || ConfirmedFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
+                    || CountTitleBandRoutes(State) != 0 || ExtraLength > FlowchartLayoutRules.RepairExtraLength
+                    || ExtraBends > FlowchartLayoutRules.RepairExtraBends || PreserveBends && ExtraBends > 0
+                    || ChangedLines > FlowchartLayoutRules.RepairChainLines
+                    || (Shortfall?.Invoke() ?? 0) > InitialShortfall
+                    || (Shortfall?.Invoke() ?? 0) == InitialShortfall && Cost >= Before.OptimizationScore - 0.001)
+                {
+                    Original.Restore(State);
+                    State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation;
+                    return RecoverReferenceCandidates();
+                }
+            }
+            catch { Original.Restore(State); throw; }
+            finally { State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation; }
             State.MoveBudget.AcceptedMoves++;
             RouteRepairOptionObserver?.Invoke("cell-move", Winner ?? string.Empty);
             return (1, Examined);
+
+            // A provisional rejection is not proof that every already examined
+            // assignment fails after full completion. Rechecking this exact set
+            // spends routing time, but never admits a seventeenth assignment.
+            (int Moved, int Examined) RecoverReferenceCandidates() => ReferenceCompletion || WholeRouteSet || ExaminedOptions.Count == 0
+                ? (0, Examined)
+                : SearchCellAssignmentsCore(State, ExaminedOptions, ExaminedOptions.Count, MoveLimit, Attempted,
+                    Shortfall, PreserveBends, true);
+        }
+
+        /// <summary>Completes one previously examined assignment with the original routing sequence for safe recovery.</summary>
+        /// <param name="State">Applied private candidate; the caller owns exact rollback.</param>
+        private static void CompleteReferenceCellCandidate(GridLayoutState State)
+        {
+            using var Timing = FlowchartCellCostTiming.Begin("routing");
+            AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
+            DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction);
+            RefreshHintedRoutes(State);
+            bool Previous = State.Copy.RenderContext.IsEvaluatingCellRouteCandidate;
+            var PreviousCandidate = RouteRepairCandidateObserver;
+            var PreviousOption = RouteRepairOptionObserver;
+            State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = true;
+            RouteRepairCandidateObserver = null; RouteRepairOptionObserver = null;
+            try { ModelRouteCompletionStage.Apply(State); }
+            finally
+            {
+                State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = Previous;
+                RouteRepairCandidateObserver = PreviousCandidate; RouteRepairOptionObserver = PreviousOption;
+            }
         }
 
         /// <summary>Owns one complete cell, frame, terminal and hint state for accepted options and exact rollback.</summary>
@@ -424,6 +503,56 @@ public static partial class DiagramGridLayout
             /// <returns>The number whose terminals, sides or intermediate geometry differ.</returns>
             internal int ChangedLines() => Routes.Count(Item => Item.Route.ExitSide != Item.Exit
                 || Item.Route.EntrySide != Item.Entry || !Item.Route.Points.Select(Point => (Point.X, Point.Y)).SequenceEqual(Item.Points));
+
+            /// <summary>Identifies all changed endpoint and obstacle bounds, including frames derived from moved members or gaps.</summary>
+            /// <param name="State">Applied cell candidate.</param>
+            /// <returns>Every node or frame whose exact geometry differs.</returns>
+            internal HashSet<string> ChangedBoxes(GridLayoutState State)
+            {
+                var Before = NodeBounds.Concat(ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+                return State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).Where(Box => !Before.TryGetValue(Box.NodeId, out var Old)
+                    || Box.CenterX != Old.CenterX || Box.CenterY != Old.CenterY || Box.Width != Old.Width || Box.Height != Old.Height)
+                    .Select(Box => Box.NodeId).ToHashSet(StringComparer.Ordinal);
+            }
+
+            /// <summary>Finds changed endpoints and corridors near either the old or new obstacle; unaffected paths remain frozen.</summary>
+            /// <param name="State">Applied geometry.</param>
+            /// <param name="Changed">Changed node and frame ids.</param>
+            /// <returns>Conservative routing dependencies.</returns>
+            internal HashSet<FlowchartLayoutEdgeRoute> RoutesAffectedBy(GridLayoutState State, IReadOnlySet<string> Changed)
+            {
+                var OldBounds = NodeBounds.Concat(ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+                var NewBounds = State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+                var Obstacles = NodeBounds.Concat(State.Copy.NodeBounds).Where(Box => Changed.Contains(Box.NodeId)).ToList();
+                foreach (var Band in FlowchartFrameTitleBandHelper.Build(State.Contract, OldBounds)
+                    .Concat(FlowchartFrameTitleBandHelper.Build(State.Contract, NewBounds)).Where(Band => Changed.Contains(Band.GroupId)))
+                    Obstacles.Add(new() { NodeId = Band.GroupId, CenterX = (Band.Left + Band.Right) / 2,
+                        CenterY = (Band.Bottom + Band.Top) / 2, Width = Band.Right - Band.Left, Height = Band.Top - Band.Bottom });
+                double Margin = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+                return Routes.Where(Item => Changed.Contains(Item.Route.SourceId) || Changed.Contains(Item.Route.TargetId)
+                    || Enumerable.Range(1, Math.Max(0, Item.Points.Length - 1)).Any(Index => Obstacles.Any(Box =>
+                        Math.Min(Item.Points[Index - 1].X, Item.Points[Index].X) <= Box.CenterX + Box.Width / 2 + Margin
+                        && Math.Max(Item.Points[Index - 1].X, Item.Points[Index].X) >= Box.CenterX - Box.Width / 2 - Margin
+                        && Math.Min(Item.Points[Index - 1].Y, Item.Points[Index].Y) <= Box.CenterY + Box.Height / 2 + Margin
+                        && Math.Max(Item.Points[Index - 1].Y, Item.Points[Index].Y) >= Box.CenterY - Box.Height / 2 - Margin)))
+                    .Select(Item => Item.Route).ToHashSet();            }
+
+            /// <summary>Includes unchanged neighbours whose side inventory redistributes their allocated terminal.</summary>
+            /// <returns>Routes with changed sides, normals or terminal coordinates.</returns>
+            internal IEnumerable<FlowchartLayoutEdgeRoute> ChangedTerminalRoutes() => Routes.Where(Item =>
+                Item.Route.ExitSide != Item.Exit || Item.Route.EntrySide != Item.Entry
+                || Item.Route.ExitNormalX != Item.ExitX || Item.Route.ExitNormalY != Item.ExitY
+                || Item.Route.EntryNormalX != Item.EntryX || Item.Route.EntryNormalY != Item.EntryY
+                || Item.Points.Length != 0 && (Item.Route.Points.Count == 0
+                    || (Item.Route.Points[0].X, Item.Route.Points[0].Y) != Item.Points[0]
+                    || (Item.Route.Points[^1].X, Item.Route.Points[^1].Y) != Item.Points[^1])).Select(Item => Item.Route);
+
+            /// <summary>Checks exact preservation of every route outside the proposed dependency set.</summary>
+            /// <param name="Affected">Only routes permitted to change.</param>
+            /// <returns>Whether all other sides, normals and points are unchanged.</returns>
+            internal bool UnchangedOutside(IReadOnlySet<FlowchartLayoutEdgeRoute> Affected) => !ChangedTerminalRoutes().Any(Route => !Affected.Contains(Route))
+                && Routes.Where(Item => !Affected.Contains(Item.Route)).All(Item =>
+                    Item.Route.Points.Select(Point => (Point.X, Point.Y)).SequenceEqual(Item.Points));
         }
     }
 }

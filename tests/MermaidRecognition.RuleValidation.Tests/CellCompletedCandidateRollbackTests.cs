@@ -26,6 +26,18 @@ public sealed class CellCompletedCandidateRollbackTests
     /// <param name="Scenario">Unchanged original scenario.</param>
     [TestCaseSource(nameof(Cases))]
     public void RejectedCompletedCandidateRestoresTheWholeLayout(RouteRuleCatalogueAuditTests.Scenario Scenario)
+        => VerifyRejectedCandidate(Scenario, false);
+
+    /// <summary>Recovery rechecks an already charged assignment without extending the sixteen distinct-candidate budget or leaking its completed route.</summary>
+    /// <param name="Scenario">Original source with unchanged hints.</param>
+    [TestCaseSource(nameof(Cases))]
+    public void RejectedReferenceRecoveryRestoresTheWholeLayout(RouteRuleCatalogueAuditTests.Scenario Scenario)
+        => VerifyRejectedCandidate(Scenario, true);
+
+    /// <summary>Runs one forced completed rejection through either the ordinary search or exact recovery and compares all saved state.</summary>
+    /// <param name="Scenario">Original catalogue source.</param>
+    /// <param name="Recovery">Whether the assignment was already charged against the candidate limit.</param>
+    private static void VerifyRejectedCandidate(RouteRuleCatalogueAuditTests.Scenario Scenario, bool Recovery)
     {
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, ObserveCompletedState: State =>
         {
@@ -33,7 +45,7 @@ public sealed class CellCompletedCandidateRollbackTests
             // This is a fresh test invocation of the same bounded search, not extra
             // production budget. The original full pipeline has already completed.
             var Budget = Layout.RenderContext.MoveBeforeDetourBudget;
-            Budget.CandidateMoves = 0; Budget.AcceptedMoves = 0; Budget.AttemptedMoves.Clear();
+            Budget.CandidateMoves = Recovery ? FlowchartLayoutRules.RepairCandidateMoves : 0; Budget.AcceptedMoves = 0; Budget.AttemptedMoves.Clear();
             State.GetType().GetProperty("CellFinalRoutingReady")!.SetValue(State, true);
             var Nodes = (List<DiagramGridLayout.GridNode>)State.GetType().GetProperty("Placed")!.GetValue(State)!;
             var Plan = FlowchartCellRepair.PlanMove(Nodes, 0, 1);
@@ -52,11 +64,12 @@ public sealed class CellCompletedCandidateRollbackTests
             try
             {
                 var Failure = Assert.Throws<TargetInvocationException>(() => Repair
-                    .GetMethod("SearchCellAssignments", BindingFlags.NonPublic | BindingFlags.Static)!
+                    .GetMethod(Recovery ? "SearchCellAssignmentsCore" : "SearchCellAssignments", BindingFlags.NonPublic | BindingFlags.Static)!
                     .Invoke(null, new object?[] { State, Options, FlowchartLayoutRules.RepairCandidateMoves, 1,
-                        new HashSet<string>(), null, false }));
+                        new HashSet<string>(), null, false }.Concat(Recovery ? new object?[] { true } : Array.Empty<object?>()).ToArray()));
                 Assert.That(Failure!.InnerException!.Message, Is.EqualTo("reject-real-completed-candidate"));
                 Assert.That(Snapshot(State), Is.EqualTo(Before));
+                Assert.That(Budget.CandidateMoves, Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
             }
             finally { DiagramGridLayout.RouteRepairCandidateObserver = PreviousCandidate; }
         });

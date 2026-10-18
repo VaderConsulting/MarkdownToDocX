@@ -18,13 +18,19 @@ internal static class FlowchartPortSideRouteRepair
     private sealed record Snapshot(FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutPoint> Points,
         string Exit, string Entry, double ExitX, double ExitY, double EntryX, double EntryY);
 
+    /// <summary>Compares complete built side and terminal candidates, preserving every unrelated stored route.</summary>
+    /// <param name="Layout">Current routed model and its diagnostic context.</param>
+    /// <param name="Contract">Original topology, geometry definitions and hints.</param>
+    /// <param name="AttemptedRouteStates">Previously examined path/dependency signatures, or null for a fresh search.</param>
+    /// <param name="IncludeTerminalCandidates">Whether to offer the existing allocated-terminal candidate family.</param>
+    /// <param name="OnlyRoutes">Affected lines eligible for reconsideration, or null for all lines.</param>
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
-        HashSet<string>? AttemptedRouteStates = null, bool IncludeTerminalCandidates = false)
+        HashSet<string>? AttemptedRouteStates = null, bool IncludeTerminalCandidates = false, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
         if (Layout.NodeBounds.Count == 0 || Layout.EdgeRoutes.Count == 0) return;
         AttemptedRouteStates ??= new(StringComparer.Ordinal);
         FlowchartRouteSpatialIndex Spatial = new(Layout);
-        if (!Layout.EdgeRoutes.Any(Route => Corners(Route.Points) > 0
+        if (!Layout.EdgeRoutes.Any(Route => (OnlyRoutes == null || OnlyRoutes.Contains(Route)) && Corners(Route.Points) > 0
                 && !AttemptedRouteStates.Contains(RouteStateKey(Route) + "|"
                     + Spatial.DependencySignature(Route.Points)))) return;
         FlowchartLayoutScore.Result Initial = FlowchartLayoutScore.Measure(Contract, Layout);
@@ -65,7 +71,7 @@ internal static class FlowchartPortSideRouteRepair
                 Tuples(Route.Points), RoutePointCache[Other]);
             return Interaction.Crossings > 0 || Interaction.Overlap > 0.01;
         });
-        bool Eligible(FlowchartLayoutEdgeRoute Route) => (Corners(Route.Points) > 0 || HasLineInteraction(Route))
+        bool Eligible(FlowchartLayoutEdgeRoute Route) => (OnlyRoutes == null || OnlyRoutes.Contains(Route)) && (Corners(Route.Points) > 0 || HasLineInteraction(Route))
             && CanRerouteUnderHint(Route, Contract)
             // Rule 4.7 sides are assigned jointly from the placed endpoint
             // geometry before route construction. Do not repeat the side

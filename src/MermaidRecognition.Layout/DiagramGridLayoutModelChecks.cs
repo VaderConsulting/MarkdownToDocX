@@ -318,6 +318,7 @@ public static partial class DiagramGridLayout
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.
+
             Layout.ResolvedEdgeGuides = State.Contract.Edges.Where(IsVisible).Select(Edge =>
             {
                 // Every painted connector comes from one declared link and its
@@ -341,11 +342,14 @@ public static partial class DiagramGridLayout
         /// <summary>Compares complete built side assignments against final geometry, including every displaced symmetric port.</summary>
         /// <param name="State">The authoritative final model and its declared hints.</param>
         /// <param name="Bounds">The settled node and frame obstacles used by both allocation and construction.</param>
-        private static void RepairFinalFacingSides(GridLayoutState State, Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        /// <param name="OnlyRoutes">Affected lines eligible for side repair, or null for the complete existing search.</param>
+        private static void RepairFinalFacingSides(GridLayoutState State, Dictionary<string, FlowchartLayoutNodeBounds> Bounds,
+            IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
         {
+            if (OnlyRoutes is { Count: 0 }) return;
             int Examined = 0;
             var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
-            var Faulty = State.Copy.EdgeRoutes.Where(Route => Before.Any(Finding =>
+            var Faulty = State.Copy.EdgeRoutes.Where(Route => (OnlyRoutes == null || OnlyRoutes.Contains(Route)) && Before.Any(Finding =>
                 Finding.Subject == Route.EdgeId && Finding.Rule is "4.11" or "5.8")).ToArray();
             if (Faulty.Length == 0) return;
             // A route search depends on allocated terminals and obstacles, not
@@ -486,11 +490,26 @@ public static partial class DiagramGridLayout
             return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
         }
 
+        /// <summary>Runs the existing settled route families only on the candidate dependency set.</summary>
+        /// <param name="State">Applied cell candidate.</param>
+        /// <param name="Bounds">Complete current obstacles.</param>
+        /// <param name="Affected">Only routes allowed to change during this private trial.</param>
+        internal static void RefineCellRouteCandidate(GridLayoutState State,
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds, IReadOnlySet<FlowchartLayoutEdgeRoute> Affected)
+        {
+            FlowchartPortSideRouteRepair.Apply(State.Copy, State.Contract, IncludeTerminalCandidates: true, OnlyRoutes: Affected);
+            RepairFinalFacingSides(State, Bounds, Affected);
+            StraightenFinalAlignedRoutes(State, Affected);
+            FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Affected);
+            StraightenFinalAlignedRoutes(State, Affected);
+            RepairFinalFacingSides(State, Bounds, Affected);
+        }
         /// <summary>Preserves the legal zero-bend option after all writers have settled the allocated ports.</summary>
         /// <param name="State">The complete final model and declared links.</param>
-        private static void StraightenFinalAlignedRoutes(GridLayoutState State)
+        /// <param name="OnlyRoutes">Affected lines, or null to offer straightening to every aligned line.</param>
+        private static void StraightenFinalAlignedRoutes(GridLayoutState State, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
         {
-            foreach (var Route in State.Copy.EdgeRoutes.Where(Route => Route.Points.Count > 2))
+            foreach (var Route in State.Copy.EdgeRoutes.Where(Route => Route.Points.Count > 2 && (OnlyRoutes == null || OnlyRoutes.Contains(Route))))
             {
                 if (FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive == true) continue;
                 var Start = Route.Points[0]; var End = Route.Points[^1];
@@ -1277,9 +1296,15 @@ public static partial class DiagramGridLayout
             return Length;
         }
 
-        private static void AllocateFinalPortSlots(DiagramContract contract, FlowchartLayoutResult layout,
+        /// <summary>Allocates symmetric slots using the entire side inventory, optionally limiting writes to affected endpoint boxes.</summary>
+        /// <param name="contract">Original memberships and shape definitions.</param>
+        /// <param name="layout">Current stored route inventory.</param>
+        /// <param name="bounds">Exact current node and frame projections.</param>
+        /// <param name="nodes">Renderer geometry-provider definitions.</param>
+        /// <param name="OnlyBoxes">Boxes whose port inventory can change, or null for all boxes.</param>
+        internal static void AllocateFinalPortSlots(DiagramContract contract, FlowchartLayoutResult layout,
             IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> bounds,
-            Dictionary<string, NodeContract> nodes)
+            Dictionary<string, NodeContract> nodes, IReadOnlySet<string>? OnlyBoxes = null)
         {
             HashSet<string> frameIds = contract.Groups.Select(group => group.Id)
                 .ToHashSet(StringComparer.Ordinal);
@@ -1301,6 +1326,7 @@ public static partial class DiagramGridLayout
 
             foreach (List<PortEnd> ends in groups.Values)
             {
+                if (OnlyBoxes != null && !OnlyBoxes.Contains(ends[0].Box.Id)) continue;
                 if (!ends[0].Box.IsFrame
                     && nodes.TryGetValue(ends[0].Box.Id, out NodeContract? node)
                     && FlowchartDagrePresentation.IsDiamondShape(node.Shape))

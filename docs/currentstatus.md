@@ -2,6 +2,27 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Recover complete candidates during incremental scoring — 18 October 2026
+
+Large cell candidates reroute their endpoint/obstacle/title-band/slot dependency
+set and reuse unaffected route and crossing-pair costs. Full completion confirms
+the winner; already examined assignments can use exact reference recovery when
+the scoped shortlist fails. Small coupled inventories retain their complete
+joint search under the existing twelve-line limit. This avoids the seven lost
+moves in earlier prototypes without admitting a seventeenth candidate. Hard
+path/diagonal/slot findings must be zero before accepting a completed candidate;
+F58 recovers the existing legal alternative instead of retaining its old fault.
+
+Profiled audit 90.35 s / A142 11.5310 s; unprofiled 64.27 s / A142 9.50791 s.
+Exclusive routing falls 94.6291 -> 45.5790 s; frame search 4.0497 s, scoring
+2.0663 s, hints 0.8827 s. The 45-second audit target remains open. Cells off
+39.74 s / A142 13.6054 s with all 673 original summary rows byte-identical.
+Cells on emits all 673 summaries, every hard gate zero, retained quality totals
+unchanged. Every original-81 bend count matches, total1332; the worse-fifty are
+unchanged before joint fan/chain candidates. See cell-incremental-recovery.md.
+Production cells and spans OFF, rules, weights, limits and hints unchanged.
+No DOCX included; nothing pushed.
+
 ## Review cell-induced 4.2, 4.11 and 5.8 increases — 18 October 2026
 
 The thirteen affected scenarios (ten 4.2, four 4.11, three 5.8, overlapping)
