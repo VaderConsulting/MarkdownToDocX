@@ -2,6 +2,50 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Verify rejected completed candidates and measure the original 81 — 18 October 2026
+
+The first finished-scoring stack replay names A58 and A138; the full earlier
+census also names EIP84. All hit the same empty-trial-path Length exception,
+fixed in 2db6901. Finished-layout scoring is already present there. New tests
+in 48f6d6a now force rejection on each original source and compare authoritative
+regions, both gap maps, allocated ports, route points, mutable frame edges,
+node/frame bounds, painted/cached guides and diagnostics exactly.
+
+Two additional snapshot gaps were reproduced and fixed separately:
+12c33c2 restores mutable painted guide points/kinds; 60b5fb1 restores the
+renderer cache contract, geometry key, original family and mutable values.
+311 focused tests and 60 cell/source regressions pass.
+
+All original 81 scenarios were rerun in both modes. Against actual cells-off
+output, 13 have fewer bends, 18 equal and 50 more: 31/81 are no worse.
+Total bends for the fixed set: off 1143, on 1332. The old Before column was a
+previous cells-on capture and must not be described as cells-off. All 50 still
+worse spend sixteen candidates. Forty-five accept an improvement but remain
+above off; five accept none. The remaining historical groups are 24 shared-fan,
+12 main-chain, 10 fan-in, and one each chord/junction/nested-group/partner-rank.
+These are not declared unavoidable. Every case and changed link is recorded
+in cell-finished-score-81-bends.csv and cell-finished-score-link-differences.csv.
+
+Both full audits emit 673 summaries; cells-off rows are ordinally identical
+to the original baseline, cells-on rows to the preceding checkpoint and the
+profiled rerun. Every legality, grid, slot, hint-accounting and cleanup gate
+is zero. Totals remain off/on 4.2 44/52, 5.9 1694/1234, 3.1 4/2, 4.1 0/0,
+4.11 3/5, 5.8 0/3, shared 2089/346. Existing quality findings remain.
+
+Unprofiled off audit 37.75 s / A142 11.3095 s; on 115.54 s / A142 48.4578 s.
+Profiled on 127.34 s / A142 52.9946 s. Reconstructed nested completion timings
+show 3921 private completed candidates costing 79.60 s, including nine A142
+candidates costing 37.50 s. Repeated facing-side/terminal repair dominates.
+Snapshot capture/restore totals only 0.0436 s. The final-diagnostics marker
+includes nested candidate completion and is not pure diagnostic time.
+
+The requested 45 s threshold is exceeded: stopped at profiling/reporting,
+without subsequent layout optimization. Full gates, per-case causes and
+inclusive timings are in cell-finished-score-review.md and the profile CSV.
+The sixteen-candidate limit, rules, weights, hints, production cells OFF and
+independent spans OFF remain unchanged. F32/EIP261 remains parked. No DOCX
+files included and nothing pushed.
+
 ## Audit authoritative cell regions — 18 October 2026
 
 Title width and multiline band height are already included before frame fitting

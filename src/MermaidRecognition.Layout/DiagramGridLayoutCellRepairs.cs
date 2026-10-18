@@ -346,6 +346,7 @@ public static partial class DiagramGridLayout
             /// <param name="State">The complete current candidate.</param>
             internal CellGeometrySnapshot(GridLayoutState State)
             {
+                var Clock = LayoutStageTimingObserver == null ? null : System.Diagnostics.Stopwatch.StartNew();
                 Cells = FlowchartCellRepair.Capture(State.Placed);
                 Frames = State.Frames.Select(Frame => (Frame, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom)).ToArray();
                 NodeBounds = State.Copy.NodeBounds.ToArray(); ClusterBounds = State.Copy.ClusterBounds.ToArray();
@@ -364,12 +365,14 @@ public static partial class DiagramGridLayout
                 RoutingHints = State.Contract.Edges.Select(Edge => Edge.RoutingHint).OfType<RoutingHintContract>()
                     .Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason)).ToArray();
                 HintedRoutes = new(State.HintedRoutes);
+                if (Clock != null) LayoutStageTimingObserver?.Invoke("cell-candidate/snapshot", Clock.Elapsed.TotalMilliseconds);
             }
 
             /// <summary>Restores authoritative cells first, then exact cached frames, route slots, normals and hint accounting.</summary>
             /// <param name="State">The same owning diagram.</param>
             internal void Restore(GridLayoutState State)
             {
+                var Clock = LayoutStageTimingObserver == null ? null : System.Diagnostics.Stopwatch.StartNew();
                 FlowchartCellRepair.Restore(State.Placed, Cells);
                 State.Frames.Clear();
                 foreach (var Item in Frames)
@@ -410,6 +413,7 @@ public static partial class DiagramGridLayout
                 foreach (var Item in RoutingHints) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
                 State.HintedRoutes.Clear();
                 foreach (var Item in HintedRoutes) State.HintedRoutes.Add(Item.Key, Item.Value);
+                if (Clock != null) LayoutStageTimingObserver?.Invoke("cell-candidate/restore", Clock.Elapsed.TotalMilliseconds);
             }
 
             /// <summary>Counts complete changed routes for the existing repair-chain budget.</summary>
