@@ -8,27 +8,54 @@ namespace MermaidRecognition.Layout;
 /// <summary>Constructs an obstacle-avoiding route from exact allocated outline ports and their renderer-owned outward normals.</summary>
 internal static class FlowchartAllocatedPortFallback
 {
+    /// <summary>Immutable obstacle inventory valid only while one candidate's bounds and declared membership stay fixed.</summary>
+    /// <param name="Bodies">Ordered node bodies, excluding group frames.</param>
+    /// <param name="Obstacles">Bodies plus title bands, before endpoint-specific filtering.</param>
+    /// <param name="Bands">Reserved title strips from this exact candidate.</param>
+    internal sealed record PreparedGeometry(IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bodies,
+        IReadOnlyList<FlowchartLayoutNodeBounds> Obstacles, IReadOnlyList<FlowchartFrameTitleBandHelper.Band> Bands);
+
+    /// <summary>Prepares fixed candidate geometry; callers discard it before another assignment or rollback.</summary>
+    /// <param name="Contract">Current declared frames and titles.</param>
+    /// <param name="Bounds">Immutable node/frame values in route-search order.</param>
+    /// <returns>Private ordered obstacles and title bands; no live cache is changed.</returns>
+    internal static PreparedGeometry Prepare(DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+    {
+        var Bands = FlowchartFrameTitleBandHelper.Build(Contract, Bounds).ToArray();
+        var Groups = Contract.Groups.Select(Group => Group.Id).ToHashSet(StringComparer.Ordinal);
+        var Bodies = Bounds.Where(Pair => !Groups.Contains(Pair.Key))
+            .ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
+        // Preserve AddRoutingObstacles order, including replacement of a band
+        // already present in the input. No mutable inventory escapes this trial.
+        var Obstacles = FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds, Bands);
+        foreach (string Group in Groups) Obstacles.Remove(Group);
+        return new(Bodies, Obstacles.Values.ToArray(), Bands);
+    }
+
     /// <summary>Searches between normal stubs; cell routes extend empty bounding-box corner stubs before visibility search.</summary>
     /// <param name="Contract">Declared membership and protected frame titles.</param>
     /// <param name="Bounds">Current complete endpoint and obstacle geometry.</param>
     /// <param name="Nodes">Declared endpoint shapes.</param>
     /// <param name="Route">Allocated endpoints, sides and normals; never modified here.</param>
     /// <param name="ExtendEnvelope">Whether authoritative cell routing needs an outward stub at the enclosing box boundary.</param>
+    /// <param name="Prepared">Optional geometry scoped to this unchanged candidate.</param>
     /// <returns>An unpublished candidate, or an empty list when the fixed ports cannot be connected.</returns>
     internal static List<(double X, double Y)> Build(DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, IReadOnlyDictionary<string, NodeContract> Nodes,
-        FlowchartLayoutEdgeRoute Route, bool ExtendEnvelope)
+        FlowchartLayoutEdgeRoute Route, bool ExtendEnvelope, PreparedGeometry? Prepared = null)
     {
         if (Route.Points.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out var Source)
             || !Bounds.TryGetValue(Route.TargetId, out var Target)) return [];
         var Saved = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        var WithBands = FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds);
-        foreach (var Group in Contract.Groups) WithBands.Remove(Group.Id);
+        var WithBands = Prepared == null ? FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds) : null;
+        if (WithBands != null) foreach (var Group in Contract.Groups) WithBands.Remove(Group.Id);
         Nodes.TryGetValue(Route.SourceId, out var SourceNode);
         Nodes.TryGetValue(Route.TargetId, out var TargetNode);
         // Preserve the established diamond fallback policy. All candidates are
         // independently checked against their actual endpoint bodies before use.
-        var Obstacles = WithBands.Values.Where(Box =>
+        IEnumerable<FlowchartLayoutNodeBounds> Inventory = Prepared != null ? Prepared.Obstacles : WithBands!.Values;
+        var Obstacles = Inventory.Where(Box =>
             !(Box.NodeId == Route.SourceId && FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode?.Shape))
             && !(Box.NodeId == Route.TargetId && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape))).ToArray();
         double Stub = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
@@ -53,15 +80,16 @@ internal static class FlowchartAllocatedPortFallback
     /// <param name="Bounds">Actual current renderer bodies.</param>
     /// <param name="Route">Allocated link supplying endpoint identities and normals.</param>
     /// <param name="Path">Complete unpublished candidate.</param>
+    /// <param name="Prepared">Optional obstacle geometry scoped to this unchanged candidate and discarded before rollback.</param>
     /// <returns>Whether terminals retain their normals, interior runs are orthogonal, and no body or title band is entered illegally.</returns>
     internal static bool IsLegal(DiagramContract Contract, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
-        FlowchartLayoutEdgeRoute Route, IReadOnlyList<(double X, double Y)> Path)
+        FlowchartLayoutEdgeRoute Route, IReadOnlyList<(double X, double Y)> Path, PreparedGeometry? Prepared = null)
     {
         if (Path.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out var Source)
             || !Bounds.TryGetValue(Route.TargetId, out var Target)) return false;
         if (!AlongNormal(Path[0], Path[1], Route.ExitNormalX, Route.ExitNormalY)
             || !AlongNormal(Path[^1], Path[^2], Route.EntryNormalX, Route.EntryNormalY)) return false;
-        var Bodies = Bounds.Where(Pair => !Contract.Groups.Any(Group => Group.Id == Pair.Key))
+        var Bodies = Prepared?.Bodies ?? Bounds.Where(Pair => !Contract.Groups.Any(Group => Group.Id == Pair.Key))
             .ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
         for (int Index = 1; Index < Path.Count; Index++)
         {
@@ -73,7 +101,7 @@ internal static class FlowchartAllocatedPortFallback
                 || Index > 1 && Bodies.ContainsKey(Route.SourceId) && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Source)
                 || Index < Path.Count - 1 && Bodies.ContainsKey(Route.TargetId) && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Target)) return false;
         }
-        return !FlowchartFrameTitleBandHelper.RouteEntersAny(Path, FlowchartFrameTitleBandHelper.Build(Contract, Bounds), Route.SourceId, Route.TargetId, Contract);
+        return !FlowchartFrameTitleBandHelper.RouteEntersAny(Path, Prepared?.Bands ?? FlowchartFrameTitleBandHelper.Build(Contract, Bounds), Route.SourceId, Route.TargetId, Contract);
     }
 
     /// <summary>Tests the outward ray in model units; missing normal metadata retains the caller's legacy terminal policy.</summary>

@@ -7,6 +7,29 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartCellCostTiming
 {
     [ThreadStatic] private static Scope? Current;
+    [ThreadStatic] private static string? RoutingPhase;
+
+    /// <summary>Attributes a routing call to its enclosing trial, confirmation or recovery, defaulting to initial completion.</summary>
+    /// <returns>An optional inclusive/exclusive routing timer, with no disabled-profile allocation.</returns>
+    internal static IDisposable? BeginRouting() => DiagramGridLayout.LayoutStageTimingObserver == null
+        ? null : Begin("routing/" + (RoutingPhase ?? "initial-completion"));
+
+    /// <summary>Names a nested routing purpose without changing the algorithm or its candidate budget.</summary>
+    /// <param name="Name">Candidate trials, confirmation or reference recovery.</param>
+    /// <returns>A scope restoring the previous purpose, or null when profiling is disabled.</returns>
+    internal static IDisposable? ForRoutingPhase(string Name) =>
+        DiagramGridLayout.LayoutStageTimingObserver == null ? null : new RoutingPhaseScope(Name);
+
+    /// <summary>Restores the parent's attribution even when routing rejects or throws.</summary>
+    private sealed class RoutingPhaseScope : IDisposable
+    {
+        private readonly string? Previous = RoutingPhase;
+        /// <summary>Sets attribution for the current synchronous candidate.</summary>
+        /// <param name="Name">Purpose inherited by nested routing calls.</param>
+        internal RoutingPhaseScope(string Name) => RoutingPhase = Name;
+        /// <summary>Restores the exact preceding attribution.</summary>
+        public void Dispose() => RoutingPhase = Previous;
+    }
 
     /// <summary>Starts optional inclusive and exclusive timing; disabled profiling allocates no scope or stopwatch.</summary>
     /// <param name="Name">Existing algorithm category, independent of scenario identity.</param>

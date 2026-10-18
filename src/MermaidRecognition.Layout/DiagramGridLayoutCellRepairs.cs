@@ -398,6 +398,8 @@ public static partial class DiagramGridLayout
                     if (CountUnrelatedFrameOverlaps(State.Contract, State.Frames) > BeforeFrameOverlaps) continue;
                     WriteBack(State.Copy, State.Placed, State.Frames);
                     HashSet<FlowchartLayoutEdgeRoute>? Affected;
+                    using var RoutingPhase = FlowchartCellCostTiming.ForRoutingPhase(
+                        ReferenceCompletion ? "recovery" : "candidate-trials");
                     if (ReferenceCompletion || WholeRouteSet)
                     {
                         CompleteReferenceCellCandidate(State);
@@ -446,7 +448,8 @@ public static partial class DiagramGridLayout
             State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = true;
             try
             {
-                ModelRouteCompletionStage.Apply(State);
+                using (FlowchartCellCostTiming.ForRoutingPhase("confirmation"))
+                    ModelRouteCompletionStage.Apply(State);
 
                 var Confirmed = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
                 var ConfirmedFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
@@ -513,7 +516,7 @@ public static partial class DiagramGridLayout
         /// <param name="State">Applied private candidate; the caller owns exact rollback.</param>
         private static void CompleteReferenceCellCandidate(GridLayoutState State)
         {
-            using var Timing = FlowchartCellCostTiming.Begin("routing");
+            using var Timing = FlowchartCellCostTiming.BeginRouting();
             AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
             DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction);
             RefreshHintedRoutes(State);

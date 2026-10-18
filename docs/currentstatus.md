@@ -2,6 +2,35 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Profile routing phases and reuse fixed trial geometry — 18 October 2026
+
+Production activation is committed as 597bde3. Production cells remain ON;
+independent text spans remain OFF. Split the optional route-completion profiler
+into initial completion, candidate trials, confirmation and recovery. Reuse one
+fixed candidate's prepared bodies and title bands only within its affected-route
+loop, discarding the object before another assignment or rollback. No new global
+cache or reduced check/candidate coverage is retained.
+
+A broad validated cache was rejected: output was identical but its per-hit input
+scans made A142 slower. The scoped trial preserves all 668 completed model/guide/
+diagnostic/hint/bend signatures and all 673 summary rows. Every legality, grid,
+slot, hint-accounting and cleanup gate stays zero. Known quality totals remain
+4.2=52, 5.9=1231, 3.1=2, 4.1=0, 4.11=5, 5.8=3 and shared tracks=343.
+
+Normal retained audit 55.61 s / A142 9.040527 s; a fresh per-route reference in
+the same session takes 60.82 s / 12.560525 s. Earlier activation took 51.07 s,
+so session variation is material; the 45-second target remains open. Final
+profiled audit 80.32 s / A142 13.3924 s. Exclusive routing seconds: initial
+6.7407, candidate trials 24.7120, confirmation 1.2259, recovery 6.9997.
+See production-cell-routing-profile.md and its CSV for the experiments.
+
+All 335 focused tests and 90 retained source regressions pass. Cells explicitly
+off: 42.86 s, all 673 original summary rows byte-identical and all hard gates zero.
+Rules, weights, sixteen-candidate limit, hint semantics and open mode are unchanged.
+The regenerated enterprise.docx (151.26 s) and flow.docx (51.30 s) remain in the
+repository root, uncommitted; route geometry has not changed since regeneration.
+The parked F32/EIP261 fault and existing quality/side/shared-track work stay open.
+
 ## Enable production cell regions — 18 October 2026
 
 Production cells are now ON for closed layouts. Independent text spans remain

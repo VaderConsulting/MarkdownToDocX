@@ -18,7 +18,7 @@ public static partial class DiagramGridLayout
 
         public static void Apply(GridLayoutState State)
         {
-            using var CostTiming = FlowchartCellCostTiming.Begin("routing");
+            using var CostTiming = FlowchartCellCostTiming.BeginRouting();
             System.Diagnostics.Stopwatch? Profile = LayoutStageTimingObserver == null
                 ? null : System.Diagnostics.Stopwatch.StartNew();
             void Mark(string Name)

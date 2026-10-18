@@ -53,7 +53,13 @@ public sealed class CellProductionParityTests
     internal static string Snapshot(DiagramContract Contract, FlowchartLayoutResult Layout) => JsonSerializer.Serialize(new
     {
         Layout.NodeBounds, Layout.ClusterBounds, Layout.EdgeRoutes,
+        Guides = Layout.ResolvedEdgeGuides?.Select(Guide => new
+        {
+            Guide.Edge.Id, Guide.Edge.SourceId, Guide.Edge.TargetId, Guide.RouteKind,
+            Points = Guide.Points.Select(Point => new[] { Point.X, Point.Y })
+        }),
         Findings = FlowchartRouteRuleChecker.Check(Contract, Layout),
+        Diagnostics = Layout.RenderContext.LayoutStageViolations,
         Hints = Contract.Nodes.Select(Node => Node.PlacementHint).Concat(Contract.Groups.Select(Group => Group.PlacementHint)),
         RouteHints = Contract.Edges.Select(Edge => Edge.RoutingHint)
     });

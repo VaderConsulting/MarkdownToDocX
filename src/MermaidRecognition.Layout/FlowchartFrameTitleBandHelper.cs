@@ -140,11 +140,16 @@ internal static class FlowchartFrameTitleBandHelper
             && SegmentEnters(band, x1, y1, x2, y2);
     }
 
+    /// <summary>Copies the current obstacle inventory and appends exact title-band rectangles in deterministic order.</summary>
+    /// <param name="contract">Declared frame titles and render configuration.</param>
+    /// <param name="bounds">Current immutable node/frame bounds.</param>
+    /// <param name="preparedBands">Optional bands prepared within the same unchanged candidate.</param>
+    /// <returns>A private obstacle dictionary; the caller may remove endpoint or frame entries without affecting the input.</returns>
     internal static Dictionary<string, FlowchartLayoutNodeBounds> AddRoutingObstacles(DiagramContract contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> bounds)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> bounds, IReadOnlyList<Band>? preparedBands = null)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> result = new(bounds, StringComparer.Ordinal);
-        foreach (Band band in Build(contract, bounds))
+        foreach (Band band in preparedBands ?? Build(contract, bounds))
         {
             string id = ObstacleId(band.GroupId);
             result[id] = new FlowchartLayoutNodeBounds

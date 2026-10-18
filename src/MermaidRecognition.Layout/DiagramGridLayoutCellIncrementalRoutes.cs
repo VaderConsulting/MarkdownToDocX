@@ -15,7 +15,7 @@ public static partial class DiagramGridLayout
         /// <returns>The complete affected route set, or null when it exceeds the existing line limit or cannot be routed legally.</returns>
         private static HashSet<FlowchartLayoutEdgeRoute>? CompleteAffectedCellRoutes(GridLayoutState State, CellGeometrySnapshot Original)
         {
-            using var CostTiming = FlowchartCellCostTiming.Begin("routing");
+            using var CostTiming = FlowchartCellCostTiming.BeginRouting();
             var Bounds = State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
             var ChangedBoxes = Original.ChangedBoxes(State);
             var Affected = Original.RoutesAffectedBy(State, ChangedBoxes);
@@ -32,13 +32,17 @@ public static partial class DiagramGridLayout
             ModelRouteCompletionStage.AllocateFinalPortSlots(State.Contract, State.Copy, Bounds, State.Nodes, PortBoxes);
             Affected.UnionWith(Original.ChangedTerminalRoutes());
             if (Affected.Count > FlowchartLayoutRules.RepairChainLines) return null;
+            // Bounds and titles are fixed until this trial returns. Reuse their
+            // prepared geometry across its route checks, never across rollback.
+            FlowchartAllocatedPortFallback.PreparedGeometry? Prepared = null;
             foreach (var Route in Affected)
             {
-                if (FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route, Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())) continue;
+                Prepared ??= FlowchartAllocatedPortFallback.Prepare(State.Contract, Bounds);
+                if (FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route, Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Prepared)) continue;
                 if (FindContractEdge(State.Contract, Route)?.RoutingHint is { IsActive: true, Travel: not null }) return null;
-                var Path = FlowchartAllocatedPortFallback.Build(State.Contract, Bounds, State.Nodes, Route, true);
+                var Path = FlowchartAllocatedPortFallback.Build(State.Contract, Bounds, State.Nodes, Route, true, Prepared);
                 Route.Points.Clear(); foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
-                if (!FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route, Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())) return null;
+                if (!FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route, Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Prepared)) return null;
             }
             if (!Original.UnchangedOutside(Affected)) return null;
             // Publish a candidate guide view, preserving every untouched path. Full
