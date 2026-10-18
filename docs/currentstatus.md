@@ -2,6 +2,29 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Audit authoritative cell regions — 18 October 2026
+
+Title width and multiline band height are already included before frame fitting
+in f8596f3, including nested and empty frames. The scored port-side retry is
+only an alternative; late direct cell-frame enlargement remains blocked.
+
+The cell grid audit now independently validates exclusive integer rectangles,
+positive contiguous spans, configured gap minima and finite grown gaps, and
+forward-derived node/frame bounds. The old lattice gate remains unchanged with
+cells off and is removed from cell-bound fault attribution. Explicit old/new
+comparison finds no newly flagged catalogue scenarios in 662 bound cases.
+
+309 focused tests and 57 cell regressions pass. Both full audits emit 673 rows;
+cells-off rows are ordinally identical to the original baseline, cells-on rows
+to 42f7629. Every legality, grid, slot, hint-accounting and cleanup gate is zero.
+Cells-on audit 103.39 s / A142 38.4686 s; cells-off 40.56 s / A142 11.7005 s.
+Quality totals remain off/on: 4.2 44/52, 5.9 1694/1234, 3.1 4/2,
+4.1 0/0, 4.11 3/5, 5.8 0/3, shared pairs 2089/346. Known quality findings
+and five unmeasured cases remain. See `cell-grid-audit.md` for every gate.
+Production cells and independent spans remain OFF. Rules, weights, limits,
+hints and production geometry are unchanged; F32/EIP261's refinement stays parked.
+No DOCX files included and nothing pushed.
+
 ## Produce legal A112 routes before final recovery — 18 October 2026
 
 The old cells-on readiness audit's two illegal paths were both in A112:

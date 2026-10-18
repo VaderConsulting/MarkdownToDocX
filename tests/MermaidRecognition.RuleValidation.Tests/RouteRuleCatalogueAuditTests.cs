@@ -246,12 +246,17 @@ public sealed class RouteRuleCatalogueAuditTests
             double originX = origin?.CenterX ?? 0, originY = origin?.CenterY ?? 0;
             Dictionary<string, string> finalGridFaults = CellNodes != null
                 ? CellGridAudit.Faults(contract, layout, CellNodes) : GridFaults(layout, originX, originY, step);
+            if (CellNodes != null)
+            {
+                var LegacyFaults = GridFaults(layout, originX, originY, step);
+                TestContext.Out.WriteLine($"CELL_GRID_COMPARE|{scenario.Id}|newOnly={string.Join(",", finalGridFaults.Keys.Except(LegacyFaults.Keys))}|legacy={LegacyFaults.Count}|cells={finalGridFaults.Count}");
+            }
             offGridNodes = finalGridFaults.Count(pair => pair.Value == "node");
             offGridFrameEdges = finalGridFaults.Count - offGridNodes;
             gridFaults = finalGridFaults.Count;
             Dictionary<string, string> lastBadStage = [];
             HashSet<string> previous = [];
-            foreach ((string stage, FlowchartLayoutResult snapshot) in snapshots)
+            foreach ((string stage, FlowchartLayoutResult snapshot) in CellNodes == null ? snapshots : [])
             {
                 HashSet<string> current = GridFaults(snapshot, originX, originY, step).Keys.ToHashSet(StringComparer.Ordinal);
                 foreach (string key in current)
@@ -259,7 +264,7 @@ public sealed class RouteRuleCatalogueAuditTests
                 previous = current;
             }
             gridCauses = finalGridFaults.Select(pair =>
-                    $"{scenario.Id}|{pair.Value}|{lastBadStage.GetValueOrDefault(pair.Key, "unobserved")}")
+                    $"{scenario.Id}|{pair.Value}|{lastBadStage.GetValueOrDefault(pair.Key, CellNodes == null ? "unobserved" : "final-cell-regions")}")
                 .ToArray();
         }
         int missingRoutes = findings.Count(finding => finding.Rule == "3.1"
@@ -689,7 +694,13 @@ public sealed class RouteRuleCatalogueAuditTests
         }
     }
 
-    private static Dictionary<string, string> GridFaults(FlowchartLayoutResult layout, double originX, double originY, double step)
+    /// <summary>Retains the legacy centre and frame-edge lattice audit for layouts without authoritative cell regions.</summary>
+    /// <param name="layout">Output to inspect.</param>
+    /// <param name="originX">Legacy horizontal lattice origin.</param>
+    /// <param name="originY">Legacy vertical lattice origin.</param>
+    /// <param name="step">Existing drawing-grid step.</param>
+    /// <returns>Off-lattice node centres and frame edges.</returns>
+    internal static Dictionary<string, string> GridFaults(FlowchartLayoutResult layout, double originX, double originY, double step)
     {
         Dictionary<string, string> faults = new(StringComparer.Ordinal);
         foreach (FlowchartLayoutNodeBounds box in layout.NodeBounds)

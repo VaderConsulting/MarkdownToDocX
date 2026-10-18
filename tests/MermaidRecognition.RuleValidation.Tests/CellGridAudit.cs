@@ -16,20 +16,53 @@ internal static class CellGridAudit
     {
         var Result = new Dictionary<string, string>(StringComparer.Ordinal);
         var State = FlowchartCellRepair.Capture(Nodes);
-        bool Exclusive = Nodes[0].CellNode!.Grid.TryPrepare(State.Regions, [], out _);
+        var Configuration = State.Owner.Configuration;
+        bool GapsLegal = Configuration.ColumnGap >= FlowchartLayoutRules.BaseColumnGap
+            && Configuration.RowGap >= FlowchartLayoutRules.BaseRowGap
+            && State.ColumnGaps.Values.All(Gap => double.IsFinite(Gap) && Gap >= Configuration.ColumnGap)
+            && State.RowGaps.Values.All(Gap => double.IsFinite(Gap) && Gap >= Configuration.RowGap);
+        // Audit ownership independently of the production assignment validator.
+        var Shared = new HashSet<string>(StringComparer.Ordinal);
+        var Regions = State.Regions.ToArray();
+        for (int First = 0; First < Regions.Length; First++)
+        for (int Second = First + 1; Second < Regions.Length; Second++)
+        {
+            var A = Regions[First].Value; var B = Regions[Second].Value;
+            if (A.StartRow < (long)B.StartRow + B.RowSpan && B.StartRow < (long)A.StartRow + A.RowSpan
+                && A.StartColumn < (long)B.StartColumn + B.ColumnSpan && B.StartColumn < (long)A.StartColumn + A.ColumnSpan)
+            { Shared.Add(Regions[First].Key); Shared.Add(Regions[Second].Key); }
+        }
+        foreach (var Extra in Layout.NodeBounds.Where(Box => !State.Regions.ContainsKey(Box.NodeId)))
+            Result["node:" + Extra.NodeId] = "node";
+        foreach (var Extra in State.Regions.Keys.Where(Id => !Nodes.Any(Node => Node.Id == Id)))
+            Result["node:" + Extra] = "node";
         foreach (var Node in Nodes)
         {
-            var Region = State.Regions[Node.Id];
+            if (!State.Regions.TryGetValue(Node.Id, out var Region))
+            {
+                Result["node:" + Node.Id] = "node";
+                continue;
+            }
             var Expected = Node.CellNode!.Bounds(Region, Node.GeometryProvider, State);
             var Actual = Layout.NodeBounds.FirstOrDefault(Box => Box.NodeId == Node.Id);
-            if (!Exclusive || Region.RowSpan <= 0 || Region.ColumnSpan <= 0 || Actual == null
+            // Integer rectangles cannot represent fractional or disconnected occupancy.
+            if (!GapsLegal || Shared.Contains(Node.Id) || !ReferenceEquals(Node.CellNode!.Grid, State.Owner)
+                || Region.RowSpan <= 0 || Region.ColumnSpan <= 0
+                || (long)Region.StartRow + Region.RowSpan != Region.EndRow
+                || (long)Region.StartColumn + Region.ColumnSpan != Region.EndColumn
+                || Layout.NodeBounds.Count(Box => Box.NodeId == Node.Id) != 1 || Actual == null
                 || !Same(Expected.CenterX, Actual.CenterX) || !Same(Expected.CenterY, Actual.CenterY)
                 || !Same(Expected.Width, Actual.Width) || !Same(Expected.Height, Actual.Height))
                 Result["node:" + Node.Id] = "node";
         }
-        foreach (var Frame in DiagramGridLayout.ProjectCellFrames(Contract, Nodes.ToList(), State))
+        var Frames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes.ToList(), State).ToArray();
+        foreach (var Extra in Layout.ClusterBounds.Where(Box => !Frames.Any(Frame => Frame.Id == Box.NodeId)))
+            Result[$"frame:{Extra.NodeId}:unexpected"] = "frame-edge";
+        foreach (var Frame in Frames)
         {
             var Actual = Layout.ClusterBounds.FirstOrDefault(Box => Box.NodeId == Frame.Id);
+            if (Layout.ClusterBounds.Count(Box => Box.NodeId == Frame.Id) != 1)
+                Result[$"frame:{Frame.Id}:ownership"] = "frame-edge";
             if (Actual == null || !Same(Frame.Left, Actual.CenterX - Actual.Width / 2)) Result[$"frame:{Frame.Id}:left"] = "frame-edge";
             if (Actual == null || !Same(Frame.Right, Actual.CenterX + Actual.Width / 2)) Result[$"frame:{Frame.Id}:right"] = "frame-edge";
             if (Actual == null || !Same(Math.Min(Frame.Top, Frame.Bottom), Actual.CenterY - Actual.Height / 2)) Result[$"frame:{Frame.Id}:bottom"] = "frame-edge";
