@@ -42,6 +42,38 @@ public sealed class FlowchartCellMoveSearchTests
         });
     }
 
+    /// <summary>A rejected completed route option restores the renderer cache together with its authoritative regions and routes.</summary>
+    [Test]
+    public void RejectedCandidateRestoresGuideCacheAndDiagnostics()
+    {
+        var Fixture = CreateState(true);
+        var Context = Fixture.Layout.RenderContext;
+        Context.CachedRouteContract = Fixture.Contract;
+        Context.CachedRouteGeometry = "original-geometry";
+        var Guides = new List<FlowchartResolvedGuide>(); Context.CachedRouteGuides = Guides;
+        Context.LayoutStageTrace.Add("original-trace");
+        var Before = Fixture.Grid.Capture(); string Geometry = GeometryOf(Fixture.Layout);
+        bool CacheChanged = false;
+        DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) =>
+        {
+            CacheChanged = Context.CachedRouteGeometry != "original-geometry";
+            Context.LayoutStageTrace.Add("discarded-trace");
+            throw new InvalidOperationException("reject-cached-candidate");
+        };
+        try { Assert.Throws<TargetInvocationException>(() => Search(Fixture.State)); }
+        finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
+        Assert.Multiple(() =>
+        {
+            Assert.That(CacheChanged, Is.True, "The real completion path must exercise the cached trial geometry.");
+            Assert.That(Fixture.Grid.Capture(), Is.SameAs(Before));
+            Assert.That(GeometryOf(Fixture.Layout), Is.EqualTo(Geometry));
+            Assert.That(Context.CachedRouteContract, Is.SameAs(Fixture.Contract));
+            Assert.That(Context.CachedRouteGeometry, Is.EqualTo("original-geometry"));
+            Assert.That(Context.CachedRouteGuides, Is.SameAs(Guides));
+            Assert.That(Context.LayoutStageTrace, Is.EqualTo(new[] { "original-trace" }));
+        });
+    }
+
     /// <summary>Both terminal clearances form one assignment; a locked later obstacle cannot leave the earlier obstacle moved.</summary>
     /// <param name="PinnedLaterObstacle">Whether the enter-side obstacle prevents the complete repair.</param>
     [TestCase(false)]

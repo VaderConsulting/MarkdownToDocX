@@ -328,6 +328,14 @@ public static partial class DiagramGridLayout
             private readonly List<FlowchartResolvedGuide>? Guides;
             /// <summary>Immutable guide contents prevent in-place edits from corrupting the saved painter state.</summary>
             private readonly (FlowchartResolvedGuide Guide, (double X, double Y)[] Points, FlowchartEdgeRouteKind Kind)[] GuideValues;
+            /// <summary>Renderer lookup state must identify the same option as the restored model, including a previously empty cache.</summary>
+            private readonly DiagramContract? CachedContract;
+            /// <summary>Exact obstacle signature associated with the saved renderer lookup.</summary>
+            private readonly string? CachedGeometry;
+            /// <summary>Original cached family, restored alongside its key rather than retaining a rejected trial family.</summary>
+            private readonly List<FlowchartResolvedGuide>? CachedGuides;
+            /// <summary>Immutable contents of mutable cached guide objects.</summary>
+            private readonly (FlowchartResolvedGuide Guide, (double X, double Y)[] Points, FlowchartEdgeRouteKind Kind)[] CachedGuideValues;
             /// <summary>Diagnostics for rejected trial geometry must restore with the geometry itself.</summary>
             private readonly string[] Trace;
             private readonly (PlacementHintContract Hint, bool Active, string? Reason)[] PlacementHints;
@@ -346,6 +354,10 @@ public static partial class DiagramGridLayout
                 Violations = State.Copy.RenderContext.LayoutStageViolations.ToArray();
                 Guides = State.Copy.ResolvedEdgeGuides;
                 GuideValues = Guides?.Select(Guide => (Guide, Guide.Points.ToArray(), Guide.RouteKind)).ToArray() ?? [];
+                CachedContract = State.Copy.RenderContext.CachedRouteContract;
+                CachedGeometry = State.Copy.RenderContext.CachedRouteGeometry;
+                CachedGuides = State.Copy.RenderContext.CachedRouteGuides;
+                CachedGuideValues = CachedGuides?.Select(Guide => (Guide, Guide.Points.ToArray(), Guide.RouteKind)).ToArray() ?? [];
                 Trace = State.Copy.RenderContext.LayoutStageTrace.ToArray();
                 PlacementHints = State.Contract.Nodes.Select(Node => Node.PlacementHint).Concat(State.Contract.Groups.Select(Group => Group.PlacementHint))
                     .OfType<PlacementHintContract>().Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason)).ToArray();
@@ -384,6 +396,15 @@ public static partial class DiagramGridLayout
                 }
                 Guides?.Clear(); Guides?.AddRange(GuideValues.Select(Item => Item.Guide));
                 State.Copy.ResolvedEdgeGuides = Guides;
+                foreach (var Item in CachedGuideValues)
+                {
+                    Item.Guide.Points.Clear(); Item.Guide.Points.AddRange(Item.Points);
+                    Item.Guide.RouteKind = Item.Kind;
+                }
+                CachedGuides?.Clear(); CachedGuides?.AddRange(CachedGuideValues.Select(Item => Item.Guide));
+                State.Copy.RenderContext.CachedRouteContract = CachedContract;
+                State.Copy.RenderContext.CachedRouteGeometry = CachedGeometry;
+                State.Copy.RenderContext.CachedRouteGuides = CachedGuides;
                 State.Copy.RenderContext.LayoutStageTrace.Clear(); State.Copy.RenderContext.LayoutStageTrace.AddRange(Trace);
                 foreach (var Item in PlacementHints) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
                 foreach (var Item in RoutingHints) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
