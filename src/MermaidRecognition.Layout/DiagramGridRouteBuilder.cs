@@ -20,7 +20,8 @@ public static class DiagramGridRouteBuilder
     /// <summary>Existing arrowhead-length terminal allowance used by the route builder.</summary>
     internal const double ARROWHEAD_LENGTH_PX = 10;
 
-    private const double COLLINEAR_EPSILON_PX = 0.75;
+    /// <summary>Existing model-space tolerance for terminal collinearity; shared with allocated-normal candidate validation.</summary>
+    internal const double COLLINEAR_EPSILON_PX = 0.75;
 
     private const double HOOK_DOT_PRODUCT_THRESHOLD = -0.15;
 
@@ -239,6 +240,7 @@ public static class DiagramGridRouteBuilder
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
+        bool CellBound = Placed.Any(Node => Node.CellNode != null);
         string Geometry = string.Join(";", BoundsById.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
             .Select(Pair => FormattableString.Invariant($"{Pair.Key}:{Pair.Value.CenterX:R},{Pair.Value.CenterY:R},{Pair.Value.Width:R},{Pair.Value.Height:R}")));
         if (!Copy.RenderContext.GridRouteCache.TryGetValue((Contract, Geometry), out var RouteCache))
@@ -305,6 +307,9 @@ public static class DiagramGridRouteBuilder
             }
 
             string CacheKey = FormattableString.Invariant($"{Route.EdgeId}:{Route.SourceId}:{Route.TargetId}:{SourceShape}:{TargetShape}:{Direction}:{Route.ExitSide}:{Route.EntrySide}:{StartX:R},{StartY:R},{EndX:R},{EndY:R}:{Route.ExitNormalX:R},{Route.ExitNormalY:R},{Route.EntryNormalX:R},{Route.EntryNormalY:R}");
+            bool HasSlopedNormal = CellBound && (Math.Abs(Route.ExitNormalX) > 1e-9 && Math.Abs(Route.ExitNormalY) > 1e-9
+                || Math.Abs(Route.EntryNormalX) > 1e-9 && Math.Abs(Route.EntryNormalY) > 1e-9);
+            string? ExactNormalKey = HasSlopedNormal ? CacheKey + "|exact-allocated-normal" : null;
             if (!RouteCache.TryGetValue(CacheKey, out List<(double X, double Y)>? Path))
             {
             FlowchartRenderContext.ReportOperationCount("automatic-route-cache-misses", 1);
@@ -327,21 +332,36 @@ public static class DiagramGridRouteBuilder
                 Horizontal,
                 ExitNormal: (Route.ExitNormalX, Route.ExitNormalY),
                 EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
+            // A normal on a curved outline can leave its visual box only after
+            // the standard stub. Offer that legal visibility route here, before
+            // publishing or caching a corridor through a neighbouring node.
+            if (HasSlopedNormal && !FlowchartAllocatedPortFallback.IsLegal(Contract, BoundsById, Route, Path))
+            {
+                var Candidate = FlowchartAllocatedPortFallback.Build(Contract, BoundsById, Nodes, Route, ExtendEnvelope: true);
+                if (FlowchartAllocatedPortFallback.IsLegal(Contract, BoundsById, Route, Candidate))
+                {
+                    Path = Candidate;
+                    RouteCache[ExactNormalKey!] = Path;
+                }
+            }
             RouteCache[CacheKey] = Path;
             }
             else FlowchartRenderContext.ReportOperationCount("automatic-route-cache-hits", 1);
 
+            bool PreserveExactPath = ExactNormalKey != null && RouteCache.ContainsKey(ExactNormalKey);
             Route.Points.Clear();
             for (int index = 0; index < Path.Count; index++)
             {
                 (double PointX, double PointY) = Path[index];
                 // Preserve the allocator's exact k/(n+1) slot at both ends.
-                // Only interior track coordinates are quantised to whole pixels.
+                // Retain a validated normal fallback as one exact polyline:
+                // rounding only its stub could rotate the terminal or a body run.
+                // Other interior track coordinates keep the existing quantisation.
                 bool endpoint = index == 0 || index == Path.Count - 1;
                 Route.Points.Add(new FlowchartLayoutPoint
                 {
-                    X = endpoint ? PointX : Math.Round(PointX),
-                    Y = endpoint ? PointY : Math.Round(PointY)
+                    X = endpoint || PreserveExactPath ? PointX : Math.Round(PointX),
+                    Y = endpoint || PreserveExactPath ? PointY : Math.Round(PointY)
                 });
             }
         }

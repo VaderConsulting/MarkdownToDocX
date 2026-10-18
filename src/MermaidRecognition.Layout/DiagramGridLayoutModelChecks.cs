@@ -547,63 +547,9 @@ public static partial class DiagramGridLayout
         /// <param name="Route">The allocated terminals, sides and exact outline normals to preserve.</param>
         /// <returns>A complete candidate, or an empty path when no normal-preserving route exists; callers must check legality before accepting it.</returns>
         private static List<(double X, double Y)> BuildAllocatedNormalFallback(GridLayoutState State,
-            Dictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartLayoutEdgeRoute Route)
-        {
-            if (!Bounds.TryGetValue(Route.SourceId, out var Source) || !Bounds.TryGetValue(Route.TargetId, out var Target)) return [];
-            var Saved = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-            var WithBands = FlowchartFrameTitleBandHelper.AddRoutingObstacles(State.Contract, Bounds);
-            foreach (var Group in State.Contract.Groups) WithBands.Remove(Group.Id);
-            State.Nodes.TryGetValue(Route.SourceId, out var SourceNode);
-            State.Nodes.TryGetValue(Route.TargetId, out var TargetNode);
-            // A diamond's empty bounding-box corners are traversable. Its
-            // actual outline is checked after routing; rectangular endpoint
-            // bodies remain obstacles to prevent a return through the node.
-            var Obstacles = WithBands.Values.Where(Box =>
-                !(Box.NodeId == Route.SourceId && FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode?.Shape))
-                && !(Box.NodeId == Route.TargetId && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape))).ToArray();
-            // Legality takes precedence even when a hint's required geometry
-            // is impossible. This search keeps both allocated outline points.
-            // Start outside the allocated normal, rather than asking the
-            // fallback to infer a side from a corner or a frame rectangle.
-            // Keep endpoint bodies in the obstacle set: omitting them lets
-            // the middle of a fallback double back through its own node.
-            double Stub = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
-            var SourceStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[0].X, Saved[0].Y,
-                Source, SourceNode?.Shape, Route.ExitSide, Stub, Route.ExitNormalX, Route.ExitNormalY);
-            var TargetStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[^1].X, Saved[^1].Y,
-                Target, TargetNode?.Shape, Route.EntrySide, Stub, Route.EntryNormalX, Route.EntryNormalY);
-            if (State.Placed.Any(Node => Node.CellNode != null))
-            {
-                SourceStub = ExtendCellFallbackStub(Source, Saved[0], SourceStub);
-                TargetStub = ExtendCellFallbackStub(Target, Saved[^1], TargetStub);
-            }
-            if (!FlowchartPaddedVisibilityRouter.TryRoute(SourceStub.X, SourceStub.Y,
-                    TargetStub.X, TargetStub.Y, Obstacles, null, null, out var Body,
-                    PortStubPx: 0, ObstaclePaddingPx: 0)) return [];
-            return DiagramGridRouteBuilder.SimplifyCollinear(
-                new List<(double X, double Y)> { Saved[0] }.Concat(Body).Append(Saved[^1]).ToList());
-        }
-
-        /// <summary>Extends an outward normal to the endpoint's enclosing box when the visibility router cannot start in an empty box corner.</summary>
-        /// <param name="Box">Renderer-owned endpoint geometry in routing coordinates.</param>
-        /// <param name="Port">Allocated point on the actual connection boundary.</param>
-        /// <param name="Stub">Existing outward normal endpoint.</param>
-        /// <returns>A normal-preserving candidate outside the enclosing rectangle; provided obstacle geometry can veto it and the caller must validate the complete route.</returns>
-        private static (double X, double Y) ExtendCellFallbackStub(FlowchartLayoutNodeBounds Box,
-            (double X, double Y) Port, (double X, double Y) Stub)
-        {
-            double Left = Box.CenterX - Box.Width / 2, Right = Box.CenterX + Box.Width / 2;
-            double Low = Box.CenterY - Box.Height / 2, High = Box.CenterY + Box.Height / 2;
-            if (Stub.X <= Left || Stub.X >= Right || Stub.Y <= Low || Stub.Y >= High) return Stub;
-            double Dx = Stub.X - Port.X, Dy = Stub.Y - Port.Y;
-            double AlongX = Dx == 0 ? double.PositiveInfinity : ((Dx < 0 ? Left : Right) - Port.X) / Dx;
-            double AlongY = Dy == 0 ? double.PositiveInfinity : ((Dy < 0 ? Low : High) - Port.Y) / Dy;
-            double Scale = Math.Min(AlongX, AlongY);
-            if (!double.IsFinite(Scale) || Scale <= 1) return Stub;
-            var End = (X: Port.X + Scale * Dx, Y: Port.Y + Scale * Dy);
-            return Box.Geometry?.ObstacleGeometry.IntersectsSegmentInterior(Port.X - Box.CenterX, Box.CenterY - Port.Y,
-                End.X - Box.CenterX, Box.CenterY - End.Y) == true ? Stub : End;
-        }
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartLayoutEdgeRoute Route) =>
+            FlowchartAllocatedPortFallback.Build(State.Contract, Bounds, State.Nodes, Route,
+                ExtendEnvelope: State.Placed.Any(Node => Node.CellNode != null));
 
         /// <summary>Separates final shared runs and grows an undersized unhinted channel before retrying its tracks.</summary>
         /// <param name="State">The final placed model and immutable hint constraints.</param>

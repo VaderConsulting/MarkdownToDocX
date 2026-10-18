@@ -2,6 +2,38 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Produce legal A112 routes before final recovery — 18 October 2026
+
+The old cells-on readiness audit's two illegal paths were both in A112:
+`split1 -> checkPolicy` crossed `checkReceipts`, and `route -> managerOk`
+crossed `financeOk`. Direct producer regressions and writer tracing reproduce
+both at automatic route reconstruction, including the first final-model rebuild.
+The existing later node-interior recovery cleared them, but was too late to
+establish that the producer itself was correct. These are circle-normal/visual
+box visibility faults, not late frame resizing or the parked F32/EIP261 pattern.
+
+Automatic cell reconstruction now offers the legal allocated-normal fallback
+before publishing/caching its corridor. It extends an outward normal to a safe
+enclosing-box exit, validates actual bodies/title bands and orthogonal interior
+runs in the engine, and preserves exact candidate coordinates across cold/warm
+caches. The old final fallback shares that implementation as a defensive backstop.
+The checker is unchanged. Both direct A112 constructor tests fail before this
+change and pass after it, without running final recovery. Current F32/EIP261
+legality and slots also pass; their 4.2 refinement stays parked.
+
+309 focused and 44 cell/source regressions pass. Both full audits emit all 673
+summaries with every legality, grid, exact-slot, hint-accounting and cleanup gate
+zero. Cells-on summary rows are unchanged from f8596f3; cells-off rows are
+byte-identical to the original baseline. Exact cells-off geometry and ordered
+diagnostics: changed=0, missing=0 in all 673 cases (35.225 s).
+Cells-on audit 109.11 s, A142 45.9994 s; cells-off 38.44 s, A142 12.3808 s.
+Quality totals and known findings are unchanged: on 4.2=52, 5.9=1234, 3.1=2,
+4.1=0, 4.11=5, 5.8=3, shared=346; off 44/1694/4/0/3/0/2089 respectively.
+The prior separate frame/title fix is f8596f3. The sixteen-candidate limit,
+rules.yaml, weights, hints, production cells OFF and independent spans OFF are
+unchanged. Details and the full gate table are in `cell-route-production-legality.md`.
+No DOCX files included; nothing pushed. Speed/quality readiness remains open.
+
 ## Reserve measured frame titles before fitting — 18 October 2026
 
 The initial builder already included measured title width and multiline height.
