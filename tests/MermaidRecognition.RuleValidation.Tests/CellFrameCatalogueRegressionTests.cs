@@ -2,16 +2,16 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
-/// <summary>Keeps the nine reviewed frame-fit failures on the experimental cell pipeline without enabling production cells.</summary>
+/// <summary>Keeps the ten reviewed frame-fit failures on the experimental cell pipeline without enabling production cells.</summary>
 [TestFixture]
 [NonParallelizable]
 public sealed class CellFrameCatalogueRegressionTests
 {
     /// <summary>Selects the unchanged reviewed catalogue sources, without adding engine exceptions for their identities.</summary>
-    /// <returns>Nine named regressions with original hints and memberships.</returns>
+    /// <returns>Ten named regressions with original hints and memberships.</returns>
     public static IEnumerable<TestCaseData> Cases()
     {
-        HashSet<string> Reviewed = ["F42", "F141", "A162", "A165", "A167", "A169", "EIP78", "EIP266", "EIP271"];
+        HashSet<string> Reviewed = ["F42", "F141", "A162", "A164", "A165", "A167", "A169", "EIP78", "EIP266", "EIP271"];
         foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
             var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;

@@ -22,8 +22,6 @@ public static partial class DiagramGridLayout
         List<GridFrame> Frames, string? MovingOnly, int RequiredGap, string? ConcernedFrame,
         string? ConcernedNode, FlowchartRenderContext.RepairSearchBudget Budget)
     {
-        bool Measurement = false;
-        int CandidateLimit = FlowchartLayoutRules.RepairCandidateMoves;
         var SearchClock = System.Diagnostics.Stopwatch.StartNew();
         int FirstLegal = 0;
         var Original = FlowchartCellRepair.Capture(Placed);
@@ -31,7 +29,7 @@ public static partial class DiagramGridLayout
         GroupFrameFitPassObserver?.Invoke("CELL_FRAME_SEARCH_INPUT|" + System.Text.Json.JsonSerializer.Serialize(new
         { Conflicts = Initial, Frames = Frames.Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }) }));
         if (Initial.Count == 0 || Budget.AcceptedMoves >= FlowchartLayoutRules.RepairChainDepth
-            || Budget.CandidateMoves >= CandidateLimit) return false;
+            || Budget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) return false;
         if (!Initial.Any(Conflict => (ConcernedFrame == null || Conflict.First == ConcernedFrame || Conflict.Second == ConcernedFrame)
             && (ConcernedNode == null || Conflict.Key == "node|" + ConcernedFrame + "|" + ConcernedNode))) return false;
         var Bases = new List<(FlowchartCellRepair.Assignment Plan, List<CellFrameConflict> Faults, double Score)>();
@@ -46,89 +44,103 @@ public static partial class DiagramGridLayout
         // Gap-only assignments and translations are alternatives, not a repair
         // priority. Search the most nearly legal bases first, comparing every
         // complete result by the same score. No trial changes live ownership.
-        foreach (var Base in Bases.OrderBy(Item => Item.Faults.Count).ThenBy(Item => Item.Score).ToArray())
+        for (int Depth = 0; Depth < FlowchartLayoutRules.RepairChainDepth
+            && Budget.CandidateMoves < FlowchartLayoutRules.RepairCandidateMoves; Depth++)
         {
-            var UnitChoices = Base.Faults.SelectMany(Fault => new[] { Fault.First, Fault.Second })
-                .Distinct(StringComparer.Ordinal).Where(Id => MovingOnly == null || Id == MovingOnly)
-                .Select(Id => (Id, Nodes: CellHintDependentUnit(Contract, Placed, Id))).ToList();
-            if (MovingOnly == null && Base.Faults.Any(Fault => EnvelopeOf(Fault.First, Base.Plan.After.Regions) == null))
+            var Level = Bases.OrderBy(Item => Item.Faults.Count).ThenBy(Item => Item.Score).ToArray();
+            Bases.Clear();
+            // Reserve the remaining named budget across the remaining chain
+            // levels. A rejected partial assignment stays private; only a
+            // fully legal complete chain can become the published winner.
+            int LevelLimit = Budget.CandidateMoves + Math.Max(1,
+                (FlowchartLayoutRules.RepairCandidateMoves - Budget.CandidateMoves)
+                / (FlowchartLayoutRules.RepairChainDepth - Depth));
+            foreach (var Base in Level)
             {
-                // Empty frames remain derived frame obstacles. Moving a whole
-                // connected component offers a single atomic alternative to
-                // repeatedly pushing its foreign nodes into one another.
-                var Unseen = Placed.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-                while (Unseen.Count != 0)
+                if (Base.Faults.Count == 0 || Budget.CandidateMoves >= LevelLimit) continue;
+                var UnitChoices = Base.Faults.SelectMany(Fault => new[] { Fault.First, Fault.Second })
+                    .Distinct(StringComparer.Ordinal).Where(Id => MovingOnly == null || Id == MovingOnly)
+                    .Select(Id => (Id, Nodes: CellHintDependentUnit(Contract, Placed, Id))).ToList();
+                if (MovingOnly == null && Base.Faults.Any(Fault => EnvelopeOf(Fault.First, Base.Plan.After.Regions) == null))
                 {
-                    var Members = new HashSet<string>(StringComparer.Ordinal); var Pending = new Queue<string>();
-                    Pending.Enqueue(Unseen.First());
-                    while (Pending.TryDequeue(out string? Id))
+                    // Empty frames remain derived frame obstacles. Moving a whole
+                    // connected component offers a single atomic alternative to
+                    // repeatedly pushing its foreign nodes into one another.
+                    var Unseen = Placed.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+                    while (Unseen.Count != 0)
                     {
-                        if (!Unseen.Remove(Id)) continue; Members.Add(Id);
-                        foreach (var Edge in Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
-                        { if (Edge.SourceId == Id && Unseen.Contains(Edge.TargetId)) Pending.Enqueue(Edge.TargetId);
-                          if (Edge.TargetId == Id && Unseen.Contains(Edge.SourceId)) Pending.Enqueue(Edge.SourceId); }
-                    }
-                    if (Members.Count > 1) UnitChoices.Add((string.Join("|", Members.Order(StringComparer.Ordinal)), Placed.Where(Node => Members.Contains(Node.Id)).ToArray()));
-                }
-            }
-            var Units = UnitChoices
-                .Where(Unit => Unit.Nodes.Length != 0 && !Unit.Nodes.Any(Node => Node.PlacementHintLocked && Node.CellHintValidator == null))
-                .Where(Unit => Unit.Nodes.All(Node => Node.CellHintValidator != null)
-                    || !HasExternalCellHintDependent(Contract, Unit.Id, Unit.Nodes)
-                        && !Unit.Nodes.Any(Node => RouteRepairStage.HasHintedContainingGroup(Contract, Node.Id)))
-                .OrderBy(Unit => Unit.Nodes.Length).ThenBy(Unit => Unit.Id, StringComparer.Ordinal).ToArray();
-            var Proposals = new List<(Dictionary<string, FlowchartCellRegion> Regions, double Score)>();
-            foreach (var Unit in Units)
-            {
-                var MemberRegions = Unit.Nodes.Select(Node => Base.Plan.After.Regions[Node.Id]).ToArray();
-                var Envelope = new FlowchartCellRegion(MemberRegions.Min(Region => Region.StartRow), MemberRegions.Min(Region => Region.StartColumn),
-                    MemberRegions.Max(Region => Region.EndRow) - MemberRegions.Min(Region => Region.StartRow),
-                    MemberRegions.Max(Region => Region.EndColumn) - MemberRegions.Min(Region => Region.StartColumn));
-                var Deltas = new HashSet<(int Rows, int Columns)> { (-1, 0), (1, 0), (0, -1), (0, 1) };
-                foreach (var Fault in Base.Faults.Where(Fault => Fault.First == Unit.Id || Fault.Second == Unit.Id
-                    || Unit.Nodes.Any(Node => Node.Id == Fault.First || Node.Id == Fault.Second)))
-                {
-                    var Other = EnvelopeOf(Fault.First == Unit.Id || Unit.Nodes.Any(Node => Node.Id == Fault.First)
-                        ? Fault.Second : Fault.First, Base.Plan.After.Regions);
-                    if (Other == null)
-                    {
-                        // Empty frames have no member reservation. Enumerate
-                        // whole-cell distances using the candidate limit, never
-                        // chain depth as a spatial-distance limit.
-                        for (int Distance = 1; Distance <= FlowchartLayoutRules.RepairCandidateMoves; Distance++)
-                        { Deltas.Add((-Distance, 0)); Deltas.Add((Distance, 0)); Deltas.Add((0, -Distance)); Deltas.Add((0, Distance)); }
-                    }
-                    else
-                    {
-                        foreach (int Margin in new[] { 0, 1 })
+                        var Members = new HashSet<string>(StringComparer.Ordinal); var Pending = new Queue<string>();
+                        Pending.Enqueue(Unseen.First());
+                        while (Pending.TryDequeue(out string? Id))
                         {
-                            Deltas.Add((checked(Other.StartRow - Envelope.EndRow - Margin), 0));
-                            Deltas.Add((checked(Other.EndRow - Envelope.StartRow + Margin), 0));
-                            Deltas.Add((0, checked(Other.StartColumn - Envelope.EndColumn - Margin)));
-                            Deltas.Add((0, checked(Other.EndColumn - Envelope.StartColumn + Margin)));
+                            if (!Unseen.Remove(Id)) continue; Members.Add(Id);
+                            foreach (var Edge in Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
+                            { if (Edge.SourceId == Id && Unseen.Contains(Edge.TargetId)) Pending.Enqueue(Edge.TargetId);
+                              if (Edge.TargetId == Id && Unseen.Contains(Edge.SourceId)) Pending.Enqueue(Edge.SourceId); }
+                        }
+                        if (Members.Count > 1) UnitChoices.Add((string.Join("|", Members.Order(StringComparer.Ordinal)), Placed.Where(Node => Members.Contains(Node.Id)).ToArray()));
+                    }
+                }
+                var Units = UnitChoices
+                    .Where(Unit => Unit.Nodes.Length != 0 && !Unit.Nodes.Any(Node => Node.PlacementHintLocked && Node.CellHintValidator == null))
+                    .Where(Unit => Unit.Nodes.All(Node => Node.CellHintValidator != null)
+                        || !HasExternalCellHintDependent(Contract, Unit.Id, Unit.Nodes)
+                            && !Unit.Nodes.Any(Node => RouteRepairStage.HasHintedContainingGroup(Contract, Node.Id)))
+                    .OrderBy(Unit => Unit.Nodes.Length).ThenBy(Unit => Unit.Id, StringComparer.Ordinal).ToArray();
+                var Proposals = new List<(FlowchartCellRepair.Assignment Plan, int Faults, double Score)>();
+                foreach (var Unit in Units)
+                {
+                    var MemberRegions = Unit.Nodes.Select(Node => Base.Plan.After.Regions[Node.Id]).ToArray();
+                    var Envelope = new FlowchartCellRegion(MemberRegions.Min(Region => Region.StartRow), MemberRegions.Min(Region => Region.StartColumn),
+                        MemberRegions.Max(Region => Region.EndRow) - MemberRegions.Min(Region => Region.StartRow),
+                        MemberRegions.Max(Region => Region.EndColumn) - MemberRegions.Min(Region => Region.StartColumn));
+                    var Deltas = new HashSet<(int Rows, int Columns)> { (-1, 0), (1, 0), (0, -1), (0, 1) };
+                    foreach (var Fault in Base.Faults.Where(Fault => Fault.First == Unit.Id || Fault.Second == Unit.Id
+                        || Unit.Nodes.Any(Node => Node.Id == Fault.First || Node.Id == Fault.Second)))
+                    {
+                        var Other = EnvelopeOf(Fault.First == Unit.Id || Unit.Nodes.Any(Node => Node.Id == Fault.First)
+                            ? Fault.Second : Fault.First, Base.Plan.After.Regions);
+                        if (Other == null)
+                        {
+                            // Empty frames have no member reservation. Enumerate
+                            // whole-cell distances using the candidate limit, never
+                            // chain depth as a spatial-distance limit.
+                            for (int Distance = 1; Distance <= FlowchartLayoutRules.RepairCandidateMoves; Distance++)
+                            { Deltas.Add((-Distance, 0)); Deltas.Add((Distance, 0)); Deltas.Add((0, -Distance)); Deltas.Add((0, Distance)); }
+                        }
+                        else
+                        {
+                            foreach (int Margin in new[] { 0, 1 })
+                            {
+                                Deltas.Add((checked(Other.StartRow - Envelope.EndRow - Margin), 0));
+                                Deltas.Add((checked(Other.EndRow - Envelope.StartRow + Margin), 0));
+                                Deltas.Add((0, checked(Other.StartColumn - Envelope.EndColumn - Margin)));
+                                Deltas.Add((0, checked(Other.EndColumn - Envelope.StartColumn + Margin)));
+                            }
                         }
                     }
-                }
-                foreach (var Delta in Deltas.Where(Delta => Delta != (0, 0)))
-                {
-                    var Regions = new Dictionary<string, FlowchartCellRegion>(Base.Plan.After.Regions, StringComparer.Ordinal);
-                    foreach (var Node in Unit.Nodes)
+                    foreach (var Delta in Deltas.Where(Delta => Delta != (0, 0)))
                     {
-                        var Region = Regions[Node.Id];
-                        Regions[Node.Id] = new(checked(Region.StartRow + Delta.Rows), checked(Region.StartColumn + Delta.Columns), Region.RowSpan, Region.ColumnSpan);
+                        var Regions = new Dictionary<string, FlowchartCellRegion>(Base.Plan.After.Regions, StringComparer.Ordinal);
+                        foreach (var Node in Unit.Nodes)
+                        {
+                            var Region = Regions[Node.Id];
+                            Regions[Node.Id] = new(checked(Region.StartRow + Delta.Rows), checked(Region.StartColumn + Delta.Columns), Region.RowSpan, Region.ColumnSpan);
+                        }
+                        var Plan = MovingOnly == null ? Grow(Regions, GrowthOf(Base.Plan.After), true, true)
+                            : FlowchartCellRepair.PlanAssignment(Placed, Regions, GrowthOf(Base.Plan.After), AllowHintedRegionRepair: true);
+                        if (Plan != null) Proposals.Add((Plan, FaultsOf(Plan.After).Count,
+                            FlowchartCellCandidateScore.Measure(Placed, Plan.After).Score));
                     }
-                    var Plan = FlowchartCellRepair.PlanAssignment(Placed, Regions, GrowthOf(Base.Plan.After), AllowHintedRegionRepair: true);
-                    if (Plan != null) Proposals.Add((Regions, FlowchartCellCandidateScore.Measure(Placed, Plan.After).Score));
                 }
-            }
-            foreach (var Proposal in Proposals.OrderBy(Item => Item.Score))
-            {
-                if (Budget.CandidateMoves >= CandidateLimit) break;
-                Offer(MovingOnly == null ? Grow(Proposal.Regions, GrowthOf(Base.Plan.After), true, true)
-                    : FlowchartCellRepair.PlanAssignment(Placed, Proposal.Regions, GrowthOf(Base.Plan.After), AllowHintedRegionRepair: true), false);
+                foreach (var Proposal in Proposals.OrderBy(Item => Item.Faults).ThenBy(Item => Item.Score))
+                {
+                    if (Budget.CandidateMoves >= LevelLimit) break;
+                    Offer(Proposal.Plan, true);
+                }
             }
         }
-        GroupFrameFitPassObserver?.Invoke($"CELL_FRAME_SEARCH_RESULT|measurement={Measurement}|candidates={Budget.CandidateMoves}|firstLegal={FirstLegal}|milliseconds={SearchClock.Elapsed.TotalMilliseconds:R}");
+        GroupFrameFitPassObserver?.Invoke($"CELL_FRAME_SEARCH_RESULT|candidates={Budget.CandidateMoves}|firstLegal={FirstLegal}|milliseconds={SearchClock.Elapsed.TotalMilliseconds:R}");
         if (Best == null || !Best.TryApply()) return false;
         ReplaceCellFrames(Contract, Placed, Frames);
         Budget.AcceptedMoves++;
@@ -151,7 +163,7 @@ public static partial class DiagramGridLayout
         /// <param name="KeepBase">Whether translations may be generated from this gap alternative.</param>
         void Offer(FlowchartCellRepair.Assignment? Plan, bool KeepBase)
         {
-            if (Plan == null || ReferenceEquals(Plan.After, Original) || Budget.CandidateMoves >= CandidateLimit) return;
+            if (Plan == null || ReferenceEquals(Plan.After, Original) || Budget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) return;
             if (Placed[0].CellNode!.UsesRoutingCoordinates)
             {
                 var Moved = Plan.Nodes.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
@@ -164,6 +176,18 @@ public static partial class DiagramGridLayout
             if (!Seen.Add(Key)) return;
             Budget.CandidateMoves++;
             var Faults = FaultsOf(Plan.After);
+            // Optional review evidence includes the entire unpublished option,
+            // not just a conflict count that can conceal a missing combination.
+            if (GroupFrameFitPassObserver != null)
+                GroupFrameFitPassObserver("CELL_FRAME_CANDIDATE_DETAIL|" + System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    Candidate = Budget.CandidateMoves, Faults,
+                    Moves = Plan.After.Regions.Where(Pair => Pair.Value != Original.Regions[Pair.Key]).Select(Pair => new
+                    { Id = Pair.Key, OldRow = Original.Regions[Pair.Key].StartRow, OldColumn = Original.Regions[Pair.Key].StartColumn,
+                        NewRow = Pair.Value.StartRow, NewColumn = Pair.Value.StartColumn }),
+                    Rows = FlowchartCellRepair.GrownGapsSince(Original, Plan.After, false),
+                    Columns = FlowchartCellRepair.GrownGapsSince(Original, Plan.After, true)
+                }));
             if (Faults.Count == 0 && FirstLegal == 0) FirstLegal = Budget.CandidateMoves;
             var Layout = new FlowchartLayoutResult();
             foreach (var Node in Placed) Layout.NodeBoundsMutable.Add(Node.CellNode!.Bounds(Plan.After.Regions[Node.Id], Node.GeometryProvider, Plan.After));
