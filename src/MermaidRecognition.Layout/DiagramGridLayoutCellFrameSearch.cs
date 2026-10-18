@@ -22,12 +22,16 @@ public static partial class DiagramGridLayout
         List<GridFrame> Frames, string? MovingOnly, int RequiredGap, string? ConcernedFrame,
         string? ConcernedNode, FlowchartRenderContext.RepairSearchBudget Budget)
     {
+        bool Measurement = false;
+        int CandidateLimit = FlowchartLayoutRules.RepairCandidateMoves;
+        var SearchClock = System.Diagnostics.Stopwatch.StartNew();
+        int FirstLegal = 0;
         var Original = FlowchartCellRepair.Capture(Placed);
         var Initial = CellFrameConflicts(Contract, Placed, Frames, RequiredGap);
         GroupFrameFitPassObserver?.Invoke("CELL_FRAME_SEARCH_INPUT|" + System.Text.Json.JsonSerializer.Serialize(new
         { Conflicts = Initial, Frames = Frames.Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }) }));
         if (Initial.Count == 0 || Budget.AcceptedMoves >= FlowchartLayoutRules.RepairChainDepth
-            || Budget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) return false;
+            || Budget.CandidateMoves >= CandidateLimit) return false;
         if (!Initial.Any(Conflict => (ConcernedFrame == null || Conflict.First == ConcernedFrame || Conflict.Second == ConcernedFrame)
             && (ConcernedNode == null || Conflict.Key == "node|" + ConcernedFrame + "|" + ConcernedNode))) return false;
         var Bases = new List<(FlowchartCellRepair.Assignment Plan, List<CellFrameConflict> Faults, double Score)>();
@@ -46,7 +50,7 @@ public static partial class DiagramGridLayout
         {
             var UnitChoices = Base.Faults.SelectMany(Fault => new[] { Fault.First, Fault.Second })
                 .Distinct(StringComparer.Ordinal).Where(Id => MovingOnly == null || Id == MovingOnly)
-                .Select(Id => (Id, Nodes: Placed.Where(Node => Node.Id == Id || IsInsideGroup(Contract, Node.Id, Id)).ToArray())).ToList();
+                .Select(Id => (Id, Nodes: CellHintDependentUnit(Contract, Placed, Id))).ToList();
             if (MovingOnly == null && Base.Faults.Any(Fault => EnvelopeOf(Fault.First, Base.Plan.After.Regions) == null))
             {
                 // Empty frames remain derived frame obstacles. Moving a whole
@@ -119,11 +123,12 @@ public static partial class DiagramGridLayout
             }
             foreach (var Proposal in Proposals.OrderBy(Item => Item.Score))
             {
-                if (Budget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                if (Budget.CandidateMoves >= CandidateLimit) break;
                 Offer(MovingOnly == null ? Grow(Proposal.Regions, GrowthOf(Base.Plan.After), true, true)
                     : FlowchartCellRepair.PlanAssignment(Placed, Proposal.Regions, GrowthOf(Base.Plan.After), AllowHintedRegionRepair: true), false);
             }
         }
+        GroupFrameFitPassObserver?.Invoke($"CELL_FRAME_SEARCH_RESULT|measurement={Measurement}|candidates={Budget.CandidateMoves}|firstLegal={FirstLegal}|milliseconds={SearchClock.Elapsed.TotalMilliseconds:R}");
         if (Best == null || !Best.TryApply()) return false;
         ReplaceCellFrames(Contract, Placed, Frames);
         Budget.AcceptedMoves++;
@@ -146,7 +151,7 @@ public static partial class DiagramGridLayout
         /// <param name="KeepBase">Whether translations may be generated from this gap alternative.</param>
         void Offer(FlowchartCellRepair.Assignment? Plan, bool KeepBase)
         {
-            if (Plan == null || ReferenceEquals(Plan.After, Original) || Budget.CandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) return;
+            if (Plan == null || ReferenceEquals(Plan.After, Original) || Budget.CandidateMoves >= CandidateLimit) return;
             if (Placed[0].CellNode!.UsesRoutingCoordinates)
             {
                 var Moved = Plan.Nodes.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
@@ -159,6 +164,7 @@ public static partial class DiagramGridLayout
             if (!Seen.Add(Key)) return;
             Budget.CandidateMoves++;
             var Faults = FaultsOf(Plan.After);
+            if (Faults.Count == 0 && FirstLegal == 0) FirstLegal = Budget.CandidateMoves;
             var Layout = new FlowchartLayoutResult();
             foreach (var Node in Placed) Layout.NodeBoundsMutable.Add(Node.CellNode!.Bounds(Plan.After.Regions[Node.Id], Node.GeometryProvider, Plan.After));
             foreach (var Frame in ProjectCellFrames(Contract, Placed, Plan.After)) Layout.ClusterBoundsMutable.Add(new()
