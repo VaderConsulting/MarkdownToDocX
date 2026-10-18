@@ -2,6 +2,33 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Review cell-induced 4.2, 4.11 and 5.8 increases — 18 October 2026
+
+The thirteen affected scenarios (ten 4.2, four 4.11, three 5.8, overlapping)
+are listed exhaustively in cell-quality-increase-review.md. All 24 current 4.2
+findings in those ten cases have a concrete rejected straight replacement:
+sixteen cross nodes, eight violate allocated terminal normals. These explain
+current legal detours, not global placement optimality. Restoring pixel nudges
+or forced centring would hide findings rather than satisfy the cell rules.
+
+The remaining side increases are F136, A63, EIP236 and A165. Built candidate
+traces show new shared tracks, 4.2 or 4.9 findings, or incomplete routing, so the
+current bounded search retains the prior option. A165's wider legal frame also
+changes the expected facing direction without changing its bottom/top sides.
+These remain open candidate-quality cases, not proven unavoidable conflicts.
+No premature-scoring or remaining unconditional centring cause was identified.
+A trial straightening inside side-candidate evaluation changed none of the
+thirteen counts and was removed. No functional engine change is retained.
+
+Fresh audit: cells on 120.35 s / A142 49.9605 s, all 673 rows identical to the
+pre-review capture; cells off 44.98 s / A142 13.5332 s, all 673 rows byte-identical
+to the original baseline. Every legality/grid/slot/hint-accounting gate remains
+zero. Quality totals unchanged: 4.2=52, 4.11=5, 5.8=3, 5.9=1234, shared=346.
+The new review regression asserts final cell projections and hints and exact
+restoration of each test-only substituted route. Rules, weights, limits,
+production cells OFF, independent spans OFF and parked F32/EIP261 unchanged.
+No DOCX included; nothing pushed.
+
 ## Split hint costs from nested route searches; reject the second scoring trial — 18 October 2026
 
 The original-hint correction is already committed separately as 531ab82. New

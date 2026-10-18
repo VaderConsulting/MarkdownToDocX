@@ -44,3 +44,25 @@ Results are recorded after the complete cells-on and cells-off audits below. Pro
 309 focused tests and 57 cell regressions pass (13 new grid cases in addition to the original 44 selection). Full cells-on audit: 103.39 s, A142 38.4686 s. Full cells-off audit: 40.56 s, A142 11.7005 s. Both emit 673 summaries. Cells-off rows match the original saved baseline ordinally; cells-on rows match 42f7629 ordinally. Of 662 cell-bound scenarios, zero have a new-only grid fault; six open-mode scenarios remain unbound and five native skips/empty cases remain unmeasured. No scenario list is needed because it is empty. The tests demonstrate the stronger check on intentionally invalid fixtures rather than introducing artificial catalogue faults.
 
 The audit exits nonzero for the unchanged quality/shared-track findings and unmeasured cases in the table; the legality, grid and slot gates are zero. Production geometry is untouched: this checkpoint changes only test/audit code and documentation. No DOCX files are committed and nothing is pushed.
+
+## Follow-up: 4.2, 4.11 and 5.8 increases after the bend review
+
+See [cell-quality-increase-review.md](cell-quality-increase-review.md) for every
+increased scenario/rule pair, direct-candidate rejection evidence and the
+remaining side-search limitations. Ten scenarios increase 4.2, four increase
+4.11 and three increase 5.8 (thirteen distinct scenarios). All 24 current 4.2
+findings in the ten scenarios reject the direct route for a concrete legality
+reason: sixteen node obstructions and eight incompatible terminal directions.
+These explain the current detours, not global placement optimality.
+
+No remaining premature-scoring or unconditional centring cause was identified.
+A trial completing aligned straightening inside cell side candidates changed
+none of the thirteen results and was removed. The side cases remain bounded
+candidate-quality work, not established unavoidable rule conflicts. No checker,
+limit, weight, hint or production switch was changed.
+
+Fresh follow-up audits: cells on 120.35 s (A142 49.9605 s), cells off 44.98 s
+(A142 13.5332 s); all 673 rows match their respective retained captures,
+including the original cells-off baseline. Every hard gate stays zero. The
+review retains no functional engine change: 4.2=52, 4.11=5, 5.8=3 remain open
+as described in the linked report.
