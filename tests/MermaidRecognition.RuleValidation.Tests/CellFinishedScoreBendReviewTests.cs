@@ -28,6 +28,92 @@ public sealed class CellFinishedScoreBendReviewTests
         "F61"
     ];
 
+    /// <summary>Frozen finished-route bend counts measured at checkpoint 3d73b88.</summary>
+    private static readonly IReadOnlyDictionary<string, int> CheckpointBends = new Dictionary<string, int>
+    {
+        ["A100"] = 12,
+        ["A103"] = 8,
+        ["A107"] = 14,
+        ["A11"] = 2,
+        ["A110"] = 180,
+        ["A112"] = 37,
+        ["A114"] = 143,
+        ["A116"] = 78,
+        ["A117"] = 138,
+        ["A125"] = 4,
+        ["A132"] = 7,
+        ["A134"] = 4,
+        ["A136"] = 5,
+        ["A141"] = 12,
+        ["A142"] = 322,
+        ["A150"] = 2,
+        ["A151"] = 2,
+        ["A16"] = 2,
+        ["A161"] = 26,
+        ["A17"] = 2,
+        ["A170"] = 2,
+        ["A171"] = 4,
+        ["A172"] = 2,
+        ["A173"] = 6,
+        ["A174"] = 2,
+        ["A18"] = 20,
+        ["A20"] = 3,
+        ["A21"] = 4,
+        ["A22"] = 7,
+        ["A26"] = 9,
+        ["A28"] = 5,
+        ["A29"] = 10,
+        ["A30"] = 2,
+        ["A31"] = 8,
+        ["A37"] = 6,
+        ["A38"] = 5,
+        ["A40"] = 4,
+        ["A41"] = 2,
+        ["A42"] = 4,
+        ["A46"] = 16,
+        ["A47"] = 8,
+        ["A48"] = 12,
+        ["A50"] = 2,
+        ["A72"] = 9,
+        ["A79"] = 2,
+        ["A82"] = 2,
+        ["A98"] = 4,
+        ["EIP131"] = 2,
+        ["EIP141"] = 4,
+        ["EIP142"] = 6,
+        ["EIP146"] = 2,
+        ["EIP162"] = 8,
+        ["EIP189"] = 2,
+        ["EIP194"] = 3,
+        ["EIP211"] = 2,
+        ["EIP215"] = 12,
+        ["EIP225"] = 8,
+        ["EIP231"] = 2,
+        ["EIP240"] = 8,
+        ["EIP241"] = 2,
+        ["EIP245"] = 8,
+        ["EIP246"] = 12,
+        ["EIP261"] = 4,
+        ["EIP280"] = 8,
+        ["EIP285"] = 2,
+        ["EIP295"] = 2,
+        ["EIP315"] = 8,
+        ["EIP342"] = 2,
+        ["EIP36"] = 5,
+        ["EIP46"] = 8,
+        ["EIP63"] = 8,
+        ["EIP73"] = 2,
+        ["EIP77"] = 2,
+        ["EIP83"] = 2,
+        ["EIP99"] = 2,
+        ["F120"] = 3,
+        ["F136"] = 14,
+        ["F137"] = 6,
+        ["F30"] = 3,
+        ["F59"] = 6,
+        ["F61"] = 4,
+    };
+
     /// <summary>Uses original sources in stable catalogue order.</summary>
     /// <returns>The unchanged 81 reviewed declarations.</returns>
     public static IEnumerable<TestCaseData> Cases()
@@ -54,6 +140,12 @@ public sealed class CellFinishedScoreBendReviewTests
         {
             Completed = true;
             int OnBends = On.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
+            Assert.That(OnBends, Is.LessThanOrEqualTo(CheckpointBends[Scenario.Id]),
+                "Joint candidates must preserve every original-81 bend result at checkpoint 3d73b88.");
+            Assert.That(FlowchartRouteRuleChecker.Check(OnContract, On)
+                .Where(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7"), Is.Empty);
+            Assert.That(On.RenderContext.MoveBeforeDetourBudget.CandidateMoves,
+                Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
             TestContext.Out.WriteLine($"CELL_FINISHED_BENDS|{Scenario.Id}|off={OffBends}|on={OnBends}|delta={OnBends - OffBends}|candidates={On.RenderContext.MoveBeforeDetourBudget.CandidateMoves}|accepted={On.RenderContext.MoveBeforeDetourBudget.AcceptedMoves}");
             foreach (var Route in On.EdgeRoutes)
             {

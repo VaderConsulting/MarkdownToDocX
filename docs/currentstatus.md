@@ -2,6 +2,24 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Retain joint candidates against 3d73b88 — 18 October 2026
+
+Joint candidates remain committed as edc9ba3; 3d73b88 stays unchanged.
+The original-81 replay now has frozen checkpoint bend ceilings and slot/path
+assertions: 81 pass, 47 improve, 34 stay equal, total 1332 -> 1118.
+The 13 source side/straightness review cases also pass. No engine changes
+in this follow-up. The full retained unprofiled audit remains 49.71 s with
+A142 9.56872 s, all 673 summaries and zero hard gates; cells off remains
+byte-identical. The about-45-second target is still open by 4.71 seconds.
+
+See cell-joint-checkpoint-verdict.md for every changed scenario, root/fan and
+chain eligibility versus actual winners, all fourteen remaining bend reviews,
+and F136/A63/EIP236/A165 side-search conflicts. Extra bends in unresolved
+cases are not proved unavoidable. Next proposed speed step: attribute routing
+completion costs, then reuse immutable prepared geometry with exact invalidation
+and unchanged route output. No checks, candidate coverage or limits are cut.
+Rules, weights, sixteen-candidate bound and production flags are unchanged.
+
 ## Add joint fan/chain candidates without changing limits — 18 October 2026
 
 Incremental scoring is committed separately as 3d73b88. The joint placement
