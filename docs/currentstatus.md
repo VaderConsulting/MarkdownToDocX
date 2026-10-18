@@ -2,6 +2,44 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Cell readiness and hint-dependent frame search — 18 October 2026
+
+A164 and A165 now complete frame fitting within the unchanged 16-candidate
+limit. Checkpoint `00528f7` moves complete direct/transitive hint-dependent
+sets, carries private partial assignments through the existing chain depth,
+and publishes only a complete legal winner. A164 examines 16 candidates
+(first legal 12), A165 examines 7 (first legal 4). Final measured frame-search
+times are 64.205 ms and 138.514 ms; all 254 catalogue invocations total 1.896 s.
+No separate or larger frame-fit limit is proposed; no rules/weights changed.
+
+The cells-on census passes all 673 cases, with 662 completed bound scenarios,
+3,806 bound nodes, zero writer catches and all 662 logical hint checks true.
+Six open-mode cases remain unbound with exact parity; five known native
+skips/empty cases remain. 305 focused and 30 cell regression tests pass.
+The full Layout suite has the same 216 failing test names as untouched
+49f9da9, with 1,082 passes versus 1,073 before the nine added tests. The broader
+route selection retains its two known F153/large-fan shared-track failures
+(64 passes of 66); it is not all green.
+
+The completed cells-on audit emits 673 summaries with zero grid, exact slot,
+hint-accounting, title-band, unrelated-frame, missing/no-legal/illegal-path and
+cleanup gates. Totals: 4.2=51, 5.9=1244, 3.1=4, 4.1=0, 4.11=3, 5.8=3,
+shared-track pairs=345. Audit 93.42 s; A142 36.3332 s. Final-model candidate
+scoring adds experimental runtime; frame fitting is only 1.896 s of the census.
+Cells-off remains byte-identical for all 673 ordered summaries and exact
+geometry plus ordered diagnostics (changed=0, missing=0). Serial audit 48.82 s;
+A142 15.9000 s. All previous zero gates remain zero, with quality totals
+unchanged: 4.2=44, 5.9=1694, 3.1=4, 4.1=0, 4.11=3, 5.8=0, shared=2089.
+
+Production cells and independent text spans remain OFF. Production readiness
+is not established: the original 81 bend increases are not fully diagnosed
+(78 remain above the old baseline; 14 other cases are now above), despite
+common-case total bends improving from 3,211 to 3,183. Final-route scoring,
+late legal fallback, and empty-frame projection fixes are in checkpoint b599a71, described separately
+in `cell-frame-readiness-review.md`, with all gate totals and measurements.
+Historical attribution is not proof that extra bends are required for legality.
+F32/EIP261 remains parked. No DOCX files are included; nothing pushed.
+
 ## Latest cell placement policy review — 18 October 2026
 
 Reviewed every converted placement path after the terminal-child correction.
