@@ -42,7 +42,13 @@ public sealed class CellGuardCatalogueProbeTests
     /// <summary>Runs the real bound pipeline; regression callers require completion rather than accepting a diagnostic first catch.</summary>
     /// <param name="Scenario">Unchanged catalogue source.</param>
     /// <param name="RequireCompletion">Whether a pre-binding skip or blocked writer must fail the regression.</param>
-    internal static void RunBoundCatalogue(RouteRuleCatalogueAuditTests.Scenario Scenario, bool RequireCompletion)
+    /// <param name="ObserveCompleted">Optional audit consumer of the actual parsed contract and completed bound model.</param>
+    /// <param name="ObserveBoundNodes">Optional audit consumer of authoritative ownership, never inferred from output pixels.</param>
+    /// <param name="PrepareBeforeRouting">Optional test-only atomic placement fixture after automatic placement has finished.</param>
+    internal static void RunBoundCatalogue(RouteRuleCatalogueAuditTests.Scenario Scenario, bool RequireCompletion,
+        Action<DiagramContract, FlowchartLayoutResult>? ObserveCompleted = null,
+        Action<IReadOnlyList<DiagramGridLayout.GridNode>>? ObserveBoundNodes = null,
+        Action<List<DiagramGridLayout.GridNode>>? PrepareBeforeRouting = null)
     {
         var Clock = Stopwatch.StartNew();
         var Contract = Scenario.Enterprise
@@ -51,14 +57,23 @@ public sealed class CellGuardCatalogueProbeTests
         var Context = new FlowchartRenderContext();
         FlowchartLayoutResult? Layout = null;
         string Mode = "on", Status = "native-layout-failed", Stage = "native-placement";
+        var PreviousFrameObserver = DiagramGridLayout.GroupFrameFitPassObserver;
         if (Environment.GetEnvironmentVariable("CELL_FRAME_TRACE") == "1")
             DiagramGridLayout.GroupFrameFitPassObserver = Message => TestContext.Out.WriteLine($"CELL_FRAME_TRACE|{Scenario.Id}|{Message}");
+        else if (Environment.GetEnvironmentVariable("CELL_FRAME_COUNTS") == "1")
+            DiagramGridLayout.GroupFrameFitPassObserver = Message =>
+            {
+                PreviousFrameObserver?.Invoke(Message);
+                if (Message.StartsWith("CELL_FRAME_SEARCH_RESULT|", StringComparison.Ordinal))
+                    TestContext.Out.WriteLine($"CELL_FRAME_COUNTS|{Scenario.Id}|{Message}");
+            };
         try
         {
             if (Contract.LayoutMode == DiagramLayoutMode.Open)
             {
                 Mode = "open-exempt";
                 Status = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out Layout!) ? "completed" : "native-layout-failed";
+                if (Status == "completed") ObserveCompleted?.Invoke(Contract, Layout!);
                 return;
             }
             if (Contract.Nodes.Count == 0 || !NativeRenderCapabilities.CanRender(Contract))
@@ -87,7 +102,15 @@ public sealed class CellGuardCatalogueProbeTests
             {
                 Stage = Next;
                 Context.ActiveLayoutStage = Next;
+                if (Next == "RouteCoordinateStage") PrepareBeforeRouting?.Invoke(Nodes);
                 InvokeStage(Next, State);
+                if (Environment.GetEnvironmentVariable("CELL_FRAME_STAGE_TRACE") == "1")
+                    TestContext.Out.WriteLine($"CELL_FRAME_STATE|{Scenario.Id}|{Next}|" + System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Frames = ((List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(State)!)
+                            .Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }),
+                        Copy = Layout.ClusterBounds.Select(Frame => new { Frame.NodeId, Frame.CenterX, Frame.CenterY, Frame.Width, Frame.Height })
+                    }));
             }
             if (Environment.GetEnvironmentVariable("CELL_CENSUS_METRICS") == "1")
             {
@@ -99,6 +122,18 @@ public sealed class CellGuardCatalogueProbeTests
                 }
                 TestContext.Out.WriteLine($"CELL_CENSUS_METRICS|{Scenario.Id}|routes={Layout.EdgeRoutes.Count}|bends={Bends}");
             }
+            TestContext.Out.WriteLine($"CELL_HINT_MATCH|{Scenario.Id}|matches={FlowchartPlacementHints.CellHintsMatch(Contract, Nodes, Nodes[0].CellNode!.Grid.Capture().Regions)}");
+            if (Environment.GetEnvironmentVariable("CELL_ROUTE_GEOMETRY_TRACE") == "1")
+                TestContext.Out.WriteLine($"CELL_ROUTE_GEOMETRY|{Scenario.Id}|" + System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    Bounds = Layout.NodeBounds.Select(Box => new { Box.NodeId, Box.CenterX, Box.CenterY, Box.Width, Box.Height }),
+                    Shapes = Contract.Nodes.Select(Node => new { Node.Id, Node.Shape }),
+                    Routes = Layout.EdgeRoutes.Select(Route => new { Route.EdgeId, Route.SourceId, Route.TargetId,
+                        Route.ExitSide, Route.EntrySide, Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY,
+                        Points = Route.Points.Select(Point => new { Point.X, Point.Y }) })
+                }));
+            ObserveCompleted?.Invoke(Contract, Layout);
+            ObserveBoundNodes?.Invoke(Nodes);
         }
         catch (TargetInvocationException Failure) when (Failure.InnerException?.Data["CellPixelWriteDiagnostic"] is FlowchartLayoutQualityFailure Diagnostic)
         {
@@ -111,11 +146,12 @@ public sealed class CellGuardCatalogueProbeTests
             Status = "other-failure";
             Exception Cause = Failure is TargetInvocationException Wrapped ? Wrapped.InnerException! : Failure;
             TestContext.Out.WriteLine($"CELL_GUARD_PROBE_FAILURE|{Scenario.Id}|stage={Stage}|{Cause.GetType().Name}|{Cause.Message}");
+            if (Environment.GetEnvironmentVariable("CELL_DIAGNOSTIC_STACK") == "1") TestContext.Out.WriteLine(Cause.ToString());
             Assert.Fail("The diagnostic probe failed before a guard result: " + Cause.Message);
         }
         finally
         {
-            DiagramGridLayout.GroupFrameFitPassObserver = null;
+            DiagramGridLayout.GroupFrameFitPassObserver = PreviousFrameObserver;
             Context.ActiveLayoutStage = null;
             CellGuardCatalogueReporting.Write(Scenario.Id, Mode, Layout, Status);
             TestContext.Out.WriteLine($"CELL_GUARD_PROBE_TIME|{Scenario.Id}|milliseconds={Clock.Elapsed.TotalMilliseconds:0.000}|stage={Stage}");

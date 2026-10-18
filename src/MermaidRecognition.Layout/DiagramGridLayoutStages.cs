@@ -35,6 +35,8 @@ public static partial class DiagramGridLayout
         public FlowchartCellWriteCoverage CellWriteCoverage { get; } = new();
         public bool IsReady { get; }
         public bool SkipRootGroupRepacking { get; set; }
+        /// <summary>Allows cell placement scoring only after final port allocation, route completion and legality repair have settled.</summary>
+        public bool CellFinalRoutingReady { get; set; }
         public FlowchartDirection Direction { get; set; }
         public bool Horizontal { get; set; }
         public bool Open { get; set; }

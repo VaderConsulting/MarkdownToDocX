@@ -245,6 +245,8 @@ public static partial class DiagramGridLayout
             AllocateFinalPortSlots(State.Contract, Layout, Bounds, Nodes);
             RebuildRoutesFromFinalPorts(State);
             RepairRoutesThroughFrameTitleBands(State, Bounds, includeHinted: true);
+            if (State.Placed.Any(Node => Node.CellNode != null))
+                TryBestPortSidesForUnroutedRoutes(State, Bounds, Nodes);
             ReallocatePortsAfterFrameGrowth(State, Bounds);
             AllocateFinalPortSlots(State.Contract, Layout, Bounds, Nodes);
             HashSet<string> seenFrameStates = new(StringComparer.Ordinal);
@@ -298,9 +300,20 @@ public static partial class DiagramGridLayout
             ProfileCall("settled-facing-assignment", () => RepairFinalFacingSides(State, Bounds));
             ProfileCall("settled-side-placement", () => SearchJointNodeOrder(State, Bounds, IncludeSideFaults: true));
             ProfileCall("settled-crossing-placement", () => SearchJointNodeOrder(State, Bounds, IncludeCrossings: true));
+            if (State.Placed.Any(Node => Node.CellNode != null))
+                ProfileCall("cell-final-node-legality", () => RepairNodeInteriorRoutes(State, Bounds));
             // Keep route searches out of the diagnostics timer: ProfileCall
             // records nested timings without advancing the enclosing Mark.
             Mark("final-route-searches");
+            if (State.Placed.Any(Node => Node.CellNode != null) && !Layout.RenderContext.IsEvaluatingCellRouteCandidate)
+            {
+                State.CellFinalRoutingReady = true;
+                if (RouteRepairStage.ApplyFinalMoveBeforeDetour(State))
+                {
+                    Bounds.Clear();
+                    foreach (var Box in Layout.NodeBounds.Concat(Layout.ClusterBounds)) Bounds[Box.NodeId] = Box;
+                }
+            }
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.
@@ -559,11 +572,37 @@ public static partial class DiagramGridLayout
                 Source, SourceNode?.Shape, Route.ExitSide, Stub, Route.ExitNormalX, Route.ExitNormalY);
             var TargetStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[^1].X, Saved[^1].Y,
                 Target, TargetNode?.Shape, Route.EntrySide, Stub, Route.EntryNormalX, Route.EntryNormalY);
+            if (State.Placed.Any(Node => Node.CellNode != null))
+            {
+                SourceStub = ExtendCellFallbackStub(Source, Saved[0], SourceStub);
+                TargetStub = ExtendCellFallbackStub(Target, Saved[^1], TargetStub);
+            }
             if (!FlowchartPaddedVisibilityRouter.TryRoute(SourceStub.X, SourceStub.Y,
                     TargetStub.X, TargetStub.Y, Obstacles, null, null, out var Body,
                     PortStubPx: 0, ObstaclePaddingPx: 0)) return [];
             return DiagramGridRouteBuilder.SimplifyCollinear(
                 new List<(double X, double Y)> { Saved[0] }.Concat(Body).Append(Saved[^1]).ToList());
+        }
+
+        /// <summary>Extends an outward normal to the endpoint's enclosing box when the visibility router cannot start in an empty box corner.</summary>
+        /// <param name="Box">Renderer-owned endpoint geometry in routing coordinates.</param>
+        /// <param name="Port">Allocated point on the actual connection boundary.</param>
+        /// <param name="Stub">Existing outward normal endpoint.</param>
+        /// <returns>A normal-preserving candidate outside the enclosing rectangle; provided obstacle geometry can veto it and the caller must validate the complete route.</returns>
+        private static (double X, double Y) ExtendCellFallbackStub(FlowchartLayoutNodeBounds Box,
+            (double X, double Y) Port, (double X, double Y) Stub)
+        {
+            double Left = Box.CenterX - Box.Width / 2, Right = Box.CenterX + Box.Width / 2;
+            double Low = Box.CenterY - Box.Height / 2, High = Box.CenterY + Box.Height / 2;
+            if (Stub.X <= Left || Stub.X >= Right || Stub.Y <= Low || Stub.Y >= High) return Stub;
+            double Dx = Stub.X - Port.X, Dy = Stub.Y - Port.Y;
+            double AlongX = Dx == 0 ? double.PositiveInfinity : ((Dx < 0 ? Left : Right) - Port.X) / Dx;
+            double AlongY = Dy == 0 ? double.PositiveInfinity : ((Dy < 0 ? Low : High) - Port.Y) / Dy;
+            double Scale = Math.Min(AlongX, AlongY);
+            if (!double.IsFinite(Scale) || Scale <= 1) return Stub;
+            var End = (X: Port.X + Scale * Dx, Y: Port.Y + Scale * Dy);
+            return Box.Geometry?.ObstacleGeometry.IntersectsSegmentInterior(Port.X - Box.CenterX, Box.CenterY - Port.Y,
+                End.X - Box.CenterX, Box.CenterY - End.Y) == true ? Stub : End;
         }
 
         /// <summary>Separates final shared runs and grows an undersized unhinted channel before retrying its tracks.</summary>
@@ -1126,6 +1165,8 @@ public static partial class DiagramGridLayout
                 FlowchartLayoutScore.Result initial = FlowchartLayoutScore.Measure(
                     State.Contract, State.Copy, IncludeArrangementCheck: false);
                 bool HasActiveSideHint = edge?.RoutingHint?.IsActive == true;
+                double OriginalTrackLength = State.Placed.Any(Node => Node.CellNode != null)
+                    ? CellSharedTrackLength(State.Copy) : 0;
                 List<FlowchartRouteRuleChecker.Finding> initialFindings =
                     FlowchartRouteRuleChecker.Check(State.Contract, State.Copy).ToList();
                 initialFindings.Add(new FlowchartRouteRuleChecker.Finding("NoLegalRoute", edgeId, "unrouted"));
@@ -1153,12 +1194,20 @@ public static partial class DiagramGridLayout
                     FlowchartRoutingHints.Apply(State.Copy, State.Contract, Bounds, Nodes, State.Direction,
                         RepairAutomaticRoutesEnabled: false, ReportUnroutedRoutes: true,
                         ClearUnroutedRoutes: false);
+                    if (State.Placed.Any(Node => Node.CellNode != null))
+                    {
+                        RepairNodeInteriorRoutes(State, Bounds);
+                        FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed);
+                    }
                     bool recovered = !State.Copy.RenderContext.LayoutStageViolations.Any(item =>
                         item.Kind == "NoLegalRoute" && item.InvolvedIds.Contains(edgeId))
                         && route.Points.Count >= 2
                         && !FlowchartRouteRuleChecker.Check(State.Contract, State.Copy).Any(item =>
                             item.Rule == "3.1" && item.Subject == edgeId)
-                        && !HasTitleBandRoute(State, Bounds)
+                        && (State.Placed.Any(Node => Node.CellNode != null)
+                            ? !FlowchartFrameTitleBandHelper.RouteEntersAny(route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                                FlowchartFrameTitleBandHelper.Build(State.Contract, Bounds), route.SourceId, route.TargetId, State.Contract)
+                            : !HasTitleBandRoute(State, Bounds))
                         && !HasIllegalRouteGeometry(State.Contract, State.Copy, edgeId);
                     FlowchartLayoutScore.Result score = FlowchartLayoutScore.Measure(
                         State.Contract, State.Copy, IncludeArrangementCheck: false);
@@ -1166,16 +1215,30 @@ public static partial class DiagramGridLayout
                     if (!recovered) continue;
                     List<FlowchartRouteRuleChecker.Finding> candidateFindings =
                         FlowchartRouteRuleChecker.Check(State.Contract, State.Copy).ToList();
+                    bool CurrentRouteWasMissing = originalViolations.Any(item =>
+                        item.Kind == "NoLegalRoute" && item.InvolvedIds.Contains(edgeId));
+                    bool CellLegalityRepair = CurrentRouteWasMissing && State.Placed.Any(Node => Node.CellNode != null);
+                    bool TracksNotWorse = !CellLegalityRepair || candidateFindings.Count(Finding => Finding.Rule == "5.1")
+                        <= initialFindings.Count(Finding => Finding.Rule == "5.1")
+                        && CellSharedTrackLength(State.Copy) <= OriginalTrackLength + 0.001;
                     bool NewDisallowedFinding = candidateFindings.Any(candidate =>
                         !initialFindings.Any(previous => previous.Rule == candidate.Rule
                             && previous.Subject == candidate.Subject)
+                        && !(CellLegalityRepair && candidate.Rule is "5.9" or "5.8")
+                        && !(CellLegalityRepair && TracksNotWorse && candidate.Rule == "5.1")
                         && (!HasActiveSideHint || candidate.Rule != "5.9"));
-                    bool CurrentRouteWasMissing = originalViolations.Any(item =>
-                        item.Kind == "NoLegalRoute" && item.InvolvedIds.Contains(edgeId));
+                    // An illegal option cannot beat a legal one on quality
+                    // cost. Compare legal recoveries with one another while
+                    // rejecting new legality/slot faults and any increase in
+                    // shared-track pair count or shared length.
+                    if (CellLegalityRepair)
+                        RouteRepairCandidateObserver?.Invoke("cell-side-legality",
+                            $"{edgeId}:{exit}/{entry};hints={initial.HintsHonoured}->{score.HintsHonoured};overlaps={initial.Overlaps}->{score.Overlaps};tracks={initialFindings.Count(Finding => Finding.Rule == "5.1")}->{candidateFindings.Count(Finding => Finding.Rule == "5.1")};newDisallowed={NewDisallowedFinding};newRules={string.Join(",", candidateFindings.Where(Finding => !initialFindings.Any(Previous => Previous.Rule == Finding.Rule && Previous.Subject == Finding.Subject)).Select(Finding => Finding.Rule + ":" + Finding.Subject))}",
+                            score.OptimizationScore, !NewDisallowedFinding && score.HintsHonoured >= initial.HintsHonoured && score.Overlaps <= initial.Overlaps);
                     if (score.HintsHonoured < initial.HintsHonoured || score.Overlaps > initial.Overlaps
                         || NewDisallowedFinding
-                        || !HasActiveSideHint && score.OptimizationScore >= initial.OptimizationScore - 0.001
-                        || HasActiveSideHint && !CurrentRouteWasMissing
+                        || !CellLegalityRepair && !HasActiveSideHint && score.OptimizationScore >= initial.OptimizationScore - 0.001
+                        || !CellLegalityRepair && HasActiveSideHint && !CurrentRouteWasMissing
                             && score.OptimizationScore >= initial.OptimizationScore - 0.001) continue;
                     if (best == null || score.OptimizationScore < best.Value.Score)
                         best = (score.OptimizationScore, SaveRoutes(State.Copy),
@@ -1249,6 +1312,19 @@ public static partial class DiagramGridLayout
                     .Where(item => !prior.Contains(item.Rule + "|" + item.Subject))
                     .Select(item => item.Rule + ":" + item.Subject).Distinct().Take(8));
             }
+        }
+
+        /// <summary>Measures complete shared segment length so legality recovery cannot trade old shared pairs for more overlap.</summary>
+        /// <param name="Layout">Complete candidate route assignment.</param>
+        /// <returns>Sum of positive-length intersections between distinct declared routes.</returns>
+        private static double CellSharedTrackLength(FlowchartLayoutResult Layout)
+        {
+            var Paths = Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
+            double Length = 0;
+            for (int First = 0; First < Paths.Length; First++)
+            for (int Second = First + 1; Second < Paths.Length; Second++)
+                Length += FlowchartBranchRouteOrder.Intersections(Paths[First], Paths[Second]).Overlap;
+            return Length;
         }
 
         private static void AllocateFinalPortSlots(DiagramContract contract, FlowchartLayoutResult layout,
@@ -1547,6 +1623,17 @@ public static partial class DiagramGridLayout
             }
         }
 
+        /// <summary>Records a cell-frame routing failure for legal-side search instead of mutating derived frame pixels.</summary>
+        /// <param name="State">Complete model and retained legal cell ownership.</param>
+        /// <param name="Route">Declared link that still intersects a title band.</param>
+        private static void ReportCellTitleRouteFailure(GridLayoutState State, FlowchartLayoutEdgeRoute Route)
+        {
+            if (!State.Copy.RenderContext.LayoutStageViolations.Any(Failure => Failure.Kind == "NoLegalRoute"
+                && Failure.InvolvedIds.Contains(Route.EdgeId)))
+                State.Copy.RenderContext.LayoutStageViolations.Add(new("NoLegalRoute",
+                    "No legal path at the allocated sides avoids the reserved frame title band.", [Route.EdgeId], null));
+        }
+
         private static void RepairRoutesThroughFrameTitleBands(GridLayoutState State,
             Dictionary<string, FlowchartLayoutNodeBounds> Bounds, bool includeHinted = false)
         {
@@ -1625,6 +1712,11 @@ public static partial class DiagramGridLayout
                         // the resulting rendered frame geometry. The old path is kept
                         // only once its title-band intersection has been removed by
                         // that explicit geometry change.
+                        if (State.Placed.Any(Node => Node.CellNode != null))
+                        {
+                            ReportCellTitleRouteFailure(State, Route);
+                            continue;
+                        }
                         while (FlowchartFrameTitleBandHelper.RouteEntersAny(Existing, Bands,
                             Route.SourceId, Route.TargetId, State.Contract))
                         {
@@ -1678,6 +1770,11 @@ public static partial class DiagramGridLayout
                     .Where(Item => Item.Item2.Length > 0)
                     .ToList();
                 if (conflicts.Count == 0) break;
+                if (State.Placed.Any(Node => Node.CellNode != null))
+                {
+                    foreach (var Conflict in conflicts) ReportCellTitleRouteFailure(State, Conflict.Route);
+                    break;
+                }
                 bool changed = false;
                 foreach ((FlowchartLayoutEdgeRoute route, string[] groups) in conflicts)
                 foreach (string groupId in groups)

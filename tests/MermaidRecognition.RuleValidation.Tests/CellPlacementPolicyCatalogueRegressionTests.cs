@@ -11,7 +11,7 @@ public sealed class CellPlacementPolicyCatalogueRegressionTests
     /// <returns>Unmodified catalogue sources for both partner track failures and the outside connector writer.</returns>
     public static IEnumerable<TestCaseData> Cases()
     {
-        HashSet<string> Reviewed = ["F136", "A110", "A111", "A173"];
+        HashSet<string> Reviewed = ["F136", "A110", "A111", "A173", "A58", "A138", "EIP84"];
         foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
             var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;

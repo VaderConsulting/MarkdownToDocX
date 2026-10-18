@@ -21,6 +21,8 @@ public sealed class FlowchartRenderContext
     internal string? ActiveLayoutStage { get; set; }
     /// <summary>Optional cell-backed leaf candidates spent across grouped and external placement in this diagram.</summary>
     internal int CellLeafCandidateMoves { get; set; }
+    /// <summary>Suppresses recursive cell placement while a complete final route model is being scored as a private candidate.</summary>
+    internal bool IsEvaluatingCellRouteCandidate { get; set; }
     private static readonly AsyncLocal<FlowchartRenderContext?> Ambient = new();
 
     internal sealed class RepairSearchBudget

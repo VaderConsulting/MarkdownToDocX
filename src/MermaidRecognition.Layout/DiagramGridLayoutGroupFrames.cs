@@ -945,6 +945,12 @@ public static partial class DiagramGridLayout
     /// <param name="Frames">Receives the fitted frames in the same upward Y coordinates.</param>
     private static void BuildFramesYUp(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            Frames.Clear();
+            Frames.AddRange(ProjectCellFrames(Contract, Placed, FlowchartCellRepair.Capture(Placed)));
+            return;
+        }
         var Mirrored = Placed.Select(Node => new GridNode { Id = Node.Id, Shape = Node.Shape,
             GeometryProvider = Node.GeometryProvider,
             GroupId = Node.GroupId, X = Node.X, Y = -Node.Y, OldX = Node.OldX, OldY = -Node.OldY,
@@ -1334,6 +1340,7 @@ public static partial class DiagramGridLayout
 
     private static void FlipToYUp(List<GridNode> Placed, List<GridFrame> Frames, FlowchartLayoutResult Copy)
     {
+        bool CellBound = Placed.Any(Node => Node.CellNode != null);
         double MaxY = 0.0;
         foreach (GridNode Node in Placed)
         {
@@ -1349,6 +1356,10 @@ public static partial class DiagramGridLayout
         {
             foreach (FlowchartLayoutPoint Point in Route.Points)
             {
+                // Native group-edge placeholders can carry NaN coordinates.
+                // They are rebuilt from allocated ports; they cannot define
+                // the reflection origin of finite authoritative cell regions.
+                if (CellBound && !double.IsFinite(Point.Y)) continue;
                 MaxY = Math.Max(MaxY, Point.Y);
             }
         }

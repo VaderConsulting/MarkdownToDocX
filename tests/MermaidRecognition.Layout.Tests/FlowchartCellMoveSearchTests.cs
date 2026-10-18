@@ -247,6 +247,9 @@ public sealed class FlowchartCellMoveSearchTests
             [Contract, Layout, Placed, Frames, NodeDefinitions, FlowchartDirection.TopToBottom, new HashSet<string>()]);
         DiagramGridRouteBuilder.RebuildAllRoutes(Layout, (List<DiagramGridLayout.GridNode>)Placed, NodeDefinitions,
             Contract, Frames, FlowchartDirection.TopToBottom);
+        // These fixtures invoke the final-model search directly, after allocating
+        // ports and rebuilding routes, rather than running its earlier stages.
+        StateType.GetProperty("CellFinalRoutingReady")!.SetValue(State, true);
         return (State, Nodes, Contract, Grid, Layout);
     }
 

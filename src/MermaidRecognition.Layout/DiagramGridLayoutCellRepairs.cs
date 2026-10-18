@@ -215,6 +215,10 @@ public static partial class DiagramGridLayout
             IEnumerable<CellRepairOption> Options, int CandidateLimit, int MoveLimit, HashSet<string> Attempted,
             Func<double>? Shortfall = null, bool PreserveBends = false)
         {
+            // Provisional route construction is not the option that reaches
+            // the painter. Defer cell quality moves until that final model is
+            // available, and never recursively place while scoring a trial.
+            if (!State.CellFinalRoutingReady || State.Copy.RenderContext.IsEvaluatingCellRouteCandidate) return (0, 0);
             CandidateLimit = Math.Min(CandidateLimit,
                 FlowchartLayoutRules.RepairCandidateMoves - State.MoveBudget.CandidateMoves);
             MoveLimit = Math.Min(MoveLimit,
@@ -264,6 +268,22 @@ public static partial class DiagramGridLayout
                     AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
                     DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction);
                     RefreshHintedRoutes(State);
+                    bool PreviousEvaluation = State.Copy.RenderContext.IsEvaluatingCellRouteCandidate;
+                    var PreviousCandidateObserver = RouteRepairCandidateObserver;
+                    var PreviousOptionObserver = RouteRepairOptionObserver;
+                    State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = true;
+                    // Nested route options belong to an unpublished trial.
+                    // Reporting them as actual wins also makes a non-profiled
+                    // catalogue pay for thousands of discarded trace strings.
+                    RouteRepairCandidateObserver = null;
+                    RouteRepairOptionObserver = null;
+                    try { ModelRouteCompletionStage.Apply(State); }
+                    finally
+                    {
+                        State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation;
+                        RouteRepairCandidateObserver = PreviousCandidateObserver;
+                        RouteRepairOptionObserver = PreviousOptionObserver;
+                    }
                     var AfterFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                     var After = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
                     double Remaining = Shortfall?.Invoke() ?? 0;
@@ -304,6 +324,10 @@ public static partial class DiagramGridLayout
             private readonly (FlowchartLayoutEdgeRoute Route, (double X, double Y)[] Points, string Exit, string Entry,
                 double ExitX, double ExitY, double EntryX, double EntryY)[] Routes;
             private readonly FlowchartLayoutQualityFailure[] Violations;
+            /// <summary>Painted guides must restore with rejected final-model candidates, not remain attached to a trial route.</summary>
+            private readonly List<FlowchartResolvedGuide>? Guides;
+            /// <summary>Diagnostics for rejected trial geometry must restore with the geometry itself.</summary>
+            private readonly string[] Trace;
             private readonly (PlacementHintContract Hint, bool Active, string? Reason)[] PlacementHints;
             private readonly (RoutingHintContract Hint, bool Active, string? Reason)[] RoutingHints;
             private readonly Dictionary<FlowchartLayoutEdgeRoute, GridLayoutState.HintedRoute> HintedRoutes;
@@ -318,6 +342,8 @@ public static partial class DiagramGridLayout
                 Routes = State.Copy.EdgeRoutes.Select(Route => (Route, Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                     Route.ExitSide, Route.EntrySide, Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY)).ToArray();
                 Violations = State.Copy.RenderContext.LayoutStageViolations.ToArray();
+                Guides = State.Copy.ResolvedEdgeGuides?.ToList();
+                Trace = State.Copy.RenderContext.LayoutStageTrace.ToArray();
                 PlacementHints = State.Contract.Nodes.Select(Node => Node.PlacementHint).Concat(State.Contract.Groups.Select(Group => Group.PlacementHint))
                     .OfType<PlacementHintContract>().Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason)).ToArray();
                 RoutingHints = State.Contract.Edges.Select(Edge => Edge.RoutingHint).OfType<RoutingHintContract>()
@@ -348,6 +374,8 @@ public static partial class DiagramGridLayout
                     Item.Route.EntryNormalX = Item.EntryX; Item.Route.EntryNormalY = Item.EntryY;
                 }
                 State.Copy.RenderContext.LayoutStageViolations.Clear(); State.Copy.RenderContext.LayoutStageViolations.AddRange(Violations);
+                State.Copy.ResolvedEdgeGuides = Guides?.ToList();
+                State.Copy.RenderContext.LayoutStageTrace.Clear(); State.Copy.RenderContext.LayoutStageTrace.AddRange(Trace);
                 foreach (var Item in PlacementHints) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
                 foreach (var Item in RoutingHints) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
                 State.HintedRoutes.Clear();

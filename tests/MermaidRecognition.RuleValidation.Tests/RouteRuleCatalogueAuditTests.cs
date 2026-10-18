@@ -116,12 +116,31 @@ public sealed class RouteRuleCatalogueAuditTests
         DiagramGridLayout.FrameOverlapStageObserver = scenario.Id == "A169"
             ? (stage, count) => frameOverlapStages.Add((stage, count)) : null;
         DiagramGridLayout.OrthogonalRouteCleanupObserver = edgeId => orthogonalCleanupRoutes.Add(edgeId);
-        FlowchartLayoutResult layout;
+        FlowchartLayoutResult layout = null!;
+        IReadOnlyList<DiagramGridLayout.GridNode>? CellNodes = null;
         Stopwatch layoutClock = Stopwatch.StartNew();
         try
         {
-            bool layoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(contract, out layout!);
-            CellGuardCatalogueReporting.Write(scenario.Id, "off", layout, layoutSucceeded ? "completed" : "native-layout-failed");
+            bool CellsOn = Environment.GetEnvironmentVariable("ROUTE_AUDIT_CELLS_ON") == "1";
+            bool layoutSucceeded;
+            if (CellsOn)
+            {
+                layoutSucceeded = false;
+                try
+                {
+                    CellGuardCatalogueProbeTests.RunBoundCatalogue(scenario, false, (actualContract, actualLayout) =>
+                    { contract = actualContract; layout = actualLayout; layoutSucceeded = true; }, actualNodes => CellNodes = actualNodes);
+                }
+                catch (AssertionException Failure)
+                {
+                    TestContext.Out.WriteLine($"CELL_AUDIT_LAYOUT_FAILURE|{scenario.Id}|{Failure.Message}");
+                }
+            }
+            else
+            {
+                layoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(contract, out layout!);
+                CellGuardCatalogueReporting.Write(scenario.Id, "off", layout, layoutSucceeded ? "completed" : "native-layout-failed");
+            }
             if (!layoutSucceeded)
             {
                 string failedCategory = scenario.Enterprise ? "enterprise"
@@ -225,7 +244,8 @@ public sealed class RouteRuleCatalogueAuditTests
             double step = DiagramGridMetrics.GRID_UNIT_PX;
             FlowchartLayoutNodeBounds? origin = layout.NodeBounds.FirstOrDefault();
             double originX = origin?.CenterX ?? 0, originY = origin?.CenterY ?? 0;
-            Dictionary<string, string> finalGridFaults = GridFaults(layout, originX, originY, step);
+            Dictionary<string, string> finalGridFaults = CellNodes != null
+                ? CellGridAudit.Faults(contract, layout, CellNodes) : GridFaults(layout, originX, originY, step);
             offGridNodes = finalGridFaults.Count(pair => pair.Value == "node");
             offGridFrameEdges = finalGridFaults.Count - offGridNodes;
             gridFaults = finalGridFaults.Count;
@@ -685,7 +705,11 @@ public sealed class RouteRuleCatalogueAuditTests
         return faults;
     }
 
-    private static IEnumerable<string> UnrelatedFrameOverlaps(DiagramContract contract,
+    /// <summary>Reports overlapping unrelated output frames, excluding declared ancestor containment.</summary>
+    /// <param name="contract">Declared group ancestry.</param>
+    /// <param name="layout">Final output geometry.</param>
+    /// <returns>Every unrelated positive-area overlap above the existing audit tolerance.</returns>
+    internal static IEnumerable<string> UnrelatedFrameOverlaps(DiagramContract contract,
         FlowchartLayoutResult layout)
     {
         Dictionary<string, GroupContract> groups = contract.Groups.ToDictionary(group => group.Id,
@@ -724,7 +748,11 @@ public sealed class RouteRuleCatalogueAuditTests
     private readonly record struct AuditPort(string NodeId, string Side, string PeerId,
         FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool IsSource, string Shape);
 
-    private static HashSet<string> OffSlotPortFaults(DiagramContract contract, FlowchartLayoutResult layout)
+    /// <summary>Checks final route terminals against the jointly allocated symmetric outline slots.</summary>
+    /// <param name="contract">Declared endpoints and renderer geometry.</param>
+    /// <param name="layout">Final allocated route model.</param>
+    /// <returns>Exact slot mismatches under the existing allocation audit.</returns>
+    internal static HashSet<string> OffSlotPortFaults(DiagramContract contract, FlowchartLayoutResult layout)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> boxes = layout.NodeBounds.Concat(layout.ClusterBounds)
             .GroupBy(box => box.NodeId, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);

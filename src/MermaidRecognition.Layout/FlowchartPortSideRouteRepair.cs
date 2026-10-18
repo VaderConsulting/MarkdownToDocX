@@ -345,7 +345,10 @@ internal static class FlowchartPortSideRouteRepair
             && (Hint.Enter == null || Candidate.Entry == DiagramGridLayout.HintSide(Hint.Enter.Value));
     }
 
-    private static double Length(IReadOnlyList<FlowchartLayoutPoint> Points) => Enumerable.Range(1, Points.Count - 1)
+    /// <summary>Measures stored segments, including an empty or one-point unresolved trial route.</summary>
+    /// <param name="Points">Candidate polyline that may not yet have two allocated endpoints.</param>
+    /// <returns>Total Manhattan segment length, or zero when no segment exists.</returns>
+    private static double Length(IReadOnlyList<FlowchartLayoutPoint> Points) => Enumerable.Range(1, Math.Max(0, Points.Count - 1))
         .Sum(Index => Distance(Points[Index - 1], Points[Index]));
 
     private static string CandidateKey(Candidate Candidate) => Candidate.Exit + "|" + Candidate.Entry + "|"

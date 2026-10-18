@@ -20,7 +20,7 @@ public static partial class DiagramGridLayout
         var Views = new List<GridNode>();
         foreach (var Node in Placed)
         {
-            var Box = Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State);
+            var Box = Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State, PageCoordinates: true);
             // These are disposable frame-builder views derived forward from
             // cells. They never own reservations and are never copied back.
             Views.Add(new GridNode { Id = Node.Id, GroupId = Node.GroupId, IsDiamond = Node.IsDiamond,
@@ -28,8 +28,16 @@ public static partial class DiagramGridLayout
                 X = Box.CenterX, Y = Box.CenterY, Width = checked((int)Box.Width), Height = checked((int)Box.Height) });
         }
         var Frames = new List<GridFrame>();
-        if (Placed[0].CellNode!.UsesRoutingCoordinates) BuildFramesYUp(Contract, Views, Frames);
-        else BuildFrames(Contract, Views, Frames);
+        BuildFrames(Contract, Views, Frames);
+        // Empty groups have no member centre from which to infer an origin.
+        // Build every frame in the page convention, then apply the exact same
+        // explicit reflection as its nodes, including empty hinted chains.
+        if (Placed[0].CellNode!.RoutingOrigin is { } Flip)
+            foreach (var Frame in Frames)
+            {
+                Frame.Top = checked((int)(Flip - Frame.Top));
+                Frame.Bottom = checked((int)(Flip - Frame.Bottom));
+            }
         return Frames;
     }
 

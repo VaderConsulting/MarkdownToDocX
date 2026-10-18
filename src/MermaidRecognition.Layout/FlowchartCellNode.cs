@@ -40,6 +40,8 @@ internal sealed class FlowchartCellNode
     private double? RoutingFlip { get; set; }
     /// <summary>Identifies the existing view boundary so frame fitting uses the same axis as its members.</summary>
     internal bool UsesRoutingCoordinates => RoutingFlip.HasValue;
+    /// <summary>Explicit shared reflection origin retained at the coordinate boundary, never recovered from drawing positions.</summary>
+    internal double? RoutingOrigin => RoutingFlip;
 
     /// <summary>Projects the same unchanged region into the existing routing coordinate frame.</summary>
     /// <param name="Flip">Diagram-wide reflection origin computed by the established coordinate adapter.</param>
@@ -73,8 +75,10 @@ internal sealed class FlowchartCellNode
     /// <param name="Target">Explicit target rectangle; it is not inferred from drawing coordinates.</param>
     /// <param name="Provider">Optional renderer-owned local geometry.</param>
     /// <param name="State">Optional prepared ownership and gaps, projected without live mutation.</param>
+    /// <param name="PageCoordinates">Whether a frame builder needs the original page-down projection before applying the shared reflection once.</param>
     /// <returns>Candidate drawing bounds in the existing coordinate view.</returns>
-    internal FlowchartLayoutNodeBounds Bounds(FlowchartCellRegion Target, INodeGeometryProvider? Provider = null, FlowchartLogicalGrid.Snapshot? State = null)
+    internal FlowchartLayoutNodeBounds Bounds(FlowchartCellRegion Target, INodeGeometryProvider? Provider = null, FlowchartLogicalGrid.Snapshot? State = null,
+        bool PageCoordinates = false)
     {
         var Origin = Grid.Origin(Target, State); var Size = Grid.Measure(Target, State);
         double PageCentre = Origin.Y + Size.Height / 2;
@@ -83,7 +87,7 @@ internal sealed class FlowchartCellNode
         return new()
         {
             NodeId = NodeId, CenterX = Origin.X + Size.Width / 2,
-            CenterY = RoutingFlip is { } Flip ? Flip - PageCentre : PageCentre,
+            CenterY = !PageCoordinates && RoutingFlip is { } Flip ? Flip - PageCentre : PageCentre,
             Width = W, Height = H, Geometry = Provider?.Create(W, H)
         };
     }
