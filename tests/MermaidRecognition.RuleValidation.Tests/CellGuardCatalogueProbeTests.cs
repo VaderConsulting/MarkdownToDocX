@@ -45,10 +45,12 @@ public sealed class CellGuardCatalogueProbeTests
     /// <param name="ObserveCompleted">Optional audit consumer of the actual parsed contract and completed bound model.</param>
     /// <param name="ObserveBoundNodes">Optional audit consumer of authoritative ownership, never inferred from output pixels.</param>
     /// <param name="PrepareBeforeRouting">Optional test-only atomic placement fixture after automatic placement has finished.</param>
+    /// <param name="ObserveCompletedState">Optional regression callback for exercising rejection against the completed real engine state.</param>
     internal static void RunBoundCatalogue(RouteRuleCatalogueAuditTests.Scenario Scenario, bool RequireCompletion,
         Action<DiagramContract, FlowchartLayoutResult>? ObserveCompleted = null,
         Action<IReadOnlyList<DiagramGridLayout.GridNode>>? ObserveBoundNodes = null,
-        Action<List<DiagramGridLayout.GridNode>>? PrepareBeforeRouting = null)
+        Action<List<DiagramGridLayout.GridNode>>? PrepareBeforeRouting = null,
+        Action<object>? ObserveCompletedState = null)
     {
         var Clock = Stopwatch.StartNew();
         var Contract = Scenario.Enterprise
@@ -134,6 +136,7 @@ public sealed class CellGuardCatalogueProbeTests
                 }));
             ObserveCompleted?.Invoke(Contract, Layout);
             ObserveBoundNodes?.Invoke(Nodes);
+            ObserveCompletedState?.Invoke(State);
         }
         catch (TargetInvocationException Failure) when (Failure.InnerException?.Data["CellPixelWriteDiagnostic"] is FlowchartLayoutQualityFailure Diagnostic)
         {
