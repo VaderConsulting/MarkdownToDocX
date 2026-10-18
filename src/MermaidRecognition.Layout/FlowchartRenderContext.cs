@@ -13,6 +13,10 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartRenderContext
 {
+    /// <summary>AppContext compatibility switch used by hosts that explicitly retain the legacy pixel layout.</summary>
+    public const string CellRegionsSwitch = "MermaidRecognition.Layout.UseCellRegions";
+    /// <summary>Uses authoritative whole-cell regions for closed diagrams. Defaults to enabled; open mode remains unbound.</summary>
+    public bool UseCellRegions { get; init; } = !AppContext.TryGetSwitch(CellRegionsSwitch, out bool Enabled) || Enabled;
     /// <summary>Persistent diagnostics for rejected direct writes, retained through candidate rollback and SVG painting.</summary>
     internal List<FlowchartLayoutQualityFailure> RejectedCellPixelWritesMutable { get; } = [];
     /// <summary>Rejected cell-derived geometry writes, naming the repair path and node without crashing a Release conversion.</summary>

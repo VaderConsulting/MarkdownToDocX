@@ -173,7 +173,7 @@ public sealed class CellGuardCatalogueProbeTests
             + System.Text.Json.JsonSerializer.Serialize(Contract.Diagnostics.Select(Diagnostic => new
                 { Diagnostic.Code, Diagnostic.Severity, Diagnostic.Message })));
 
-    /// <summary>Builds a provisional common-span test seed from logical ranks/columns, never from final pixel positions or inferred midpoints.</summary>
+    /// <summary>Binds the shared production common-span seed from logical ranks/columns, never from final pixel positions or inferred midpoints.</summary>
     /// <param name="StateType">Existing engine state type used by the stage fixture.</param>
     /// <param name="State">Prepared native rank/column data and measured common text box.</param>
     /// <param name="Nodes">All nodes to bind before placement and repairs.</param>
@@ -181,17 +181,10 @@ public sealed class CellGuardCatalogueProbeTests
     private static void BindDeclaredSeed(Type StateType, object State, List<DiagramGridLayout.GridNode> Nodes,
         FlowchartRenderContext Context)
     {
-        var Config = FlowchartLogicalGridConfiguration.FromRules();
         int Width = (int)StateType.GetProperty("BoxWidth")!.GetValue(State)!;
         int Height = (int)StateType.GetProperty("BoxHeight")!.GetValue(State)!;
-        int Columns = Math.Max(1, (int)Math.Ceiling((Width + Config.ColumnGap) / (Config.CellWidth + Config.ColumnGap)));
-        int Rows = Math.Max(1, (int)Math.Ceiling((Height + Config.RowGap) / (Config.CellHeight + Config.RowGap)));
         bool Horizontal = (bool)StateType.GetProperty("Horizontal")!.GetValue(State)!;
-        int ColumnPitch = Math.Max(Rows, Columns);
-        var Grid = FlowchartCellInitialPlacement.Create(Config, Nodes.Select(Node => new FlowchartCellPlacementSeed(
-            Node.Id, Node.Rank, Node.Column, Node.IsDiamond ? 2 * ColumnPitch : Rows,
-            Node.IsDiamond ? ColumnPitch : Columns)).ToArray(), Horizontal);
-        foreach (var Node in Nodes) Node.BindCells(Grid, Context);
+        FlowchartCellInitialPlacement.Bind(Nodes, Width, Height, Horizontal, Context);
     }
 
     /// <summary>Calls the real private pipeline stage, preserving the original exception and caller path for the census.</summary>

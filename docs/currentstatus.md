@@ -2,6 +2,27 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Enable production cell regions — 18 October 2026
+
+Production cells are now ON for closed layouts. Independent text spans remain
+OFF, and open mode remains unbound. The explicit per-render compatibility mode
+and AppContext switch keep the legacy pipeline available. Existing pixel-mode
+fixtures choose that mode; all 673 public production/reference parity tests pass.
+No route geometry or findings differ from the last audited cells-on model.
+
+Full production audit 51.07 s / A142 9.803666 s, all 673 summary rows identical
+to the retained cells-on run and every legality/grid/slot/hint/cleanup gate zero.
+Cells explicitly off: 39.34 s / A142 12.9082 s, all 673 original summaries
+byte-identical. All 328 focused tests pass. See production-cell-activation.md.
+The 45-second speed target and previously recorded quality/search gaps remain
+open. Rules, weights and sixteen-candidate limit are unchanged.
+
+Regenerated enterprise.docx in 151.26 s and flow.docx in 51.30 s using the Release
+WinForms converter and -in/-out arguments. Neither DOCX is committed. Flow has
+no render-failure placeholders; enterprise has the eighteen intentionally invalid
+examples also present in the previous document. Next: split routing completion
+costs, then test immutable-geometry reuse against exact output signatures.
+
 ## Retain joint candidates against 3d73b88 — 18 October 2026
 
 Joint candidates remain committed as edc9ba3; 3d73b88 stays unchanged.

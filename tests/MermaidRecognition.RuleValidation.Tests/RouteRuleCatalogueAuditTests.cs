@@ -138,8 +138,14 @@ public sealed class RouteRuleCatalogueAuditTests
             }
             else
             {
-                layoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(contract, out layout!);
-                CellGuardCatalogueReporting.Write(scenario.Id, "off", layout, layoutSucceeded ? "completed" : "native-layout-failed");
+                var Context = new FlowchartRenderContext
+                {
+                    UseCellRegions = Environment.GetEnvironmentVariable("ROUTE_AUDIT_CELLS_ON") == "production"
+                };
+                layoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(contract, Context, out layout!);
+                CellNodes = layout!.CellNodes;
+                CellGuardCatalogueReporting.Write(scenario.Id, Context.UseCellRegions ? "on" : "off", layout,
+                    layoutSucceeded ? "completed" : "native-layout-failed");
             }
             if (!layoutSucceeded)
             {
@@ -149,6 +155,12 @@ public sealed class RouteRuleCatalogueAuditTests
                 TestContext.Out.WriteLine($"ROUTE_AUDIT|{failedCategory}|{scenario.Id}|status=layout-failed|offSlotPorts=NA|offGridNodes=NA|offGridFrameEdges=NA|titleBand=NA|missing=NA|cleanupCorrections=NA");
                 Assert.Fail("Cannot measure layout invariants because layout failed: " + scenario.Id);
                 return;
+            }
+            if (Environment.GetEnvironmentVariable("ROUTE_AUDIT_GEOMETRY") == "1")
+            {
+                string Signature = CellProductionParityTests.Snapshot(contract, layout);
+                string Hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Signature)));
+                TestContext.Out.WriteLine($"ROUTE_AUDIT_GEOMETRY|{scenario.Id}|{Hash}|bends={layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points))}");
             }
         }
         finally

@@ -12,9 +12,28 @@ namespace MermaidRecognition.Layout;
 /// <param name="ColumnSpan">Measured positive column span, including mandatory geometry.</param>
 internal sealed record FlowchartCellPlacementSeed(string Id, int Rank, int Column, int RowSpan, int ColumnSpan);
 
-/// <summary>Starts initial placement from declared rank/column inputs; the production pixel pipeline does not call it yet.</summary>
+/// <summary>Starts initial placement from declared rank/column inputs with fixed diagram cells and measured common spans.</summary>
 internal static class FlowchartCellInitialPlacement
 {
+    /// <summary>Binds the measured common-span model before hints and automatic placement, without enabling independent text spans.</summary>
+    /// <param name="Nodes">Prepared logical ranks and columns, before any repair runs.</param>
+    /// <param name="Width">Measured common rectangular width.</param>
+    /// <param name="Height">Measured common rectangular height.</param>
+    /// <param name="Horizontal">Whether ranks advance across columns.</param>
+    /// <param name="Context">Owning render context and rejected-write diagnostic sink.</param>
+    internal static void Bind(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, int Width, int Height,
+        bool Horizontal, FlowchartRenderContext Context)
+    {
+        var Config = FlowchartLogicalGridConfiguration.FromRules();
+        int Columns = Math.Max(1, (int)Math.Ceiling((Width + Config.ColumnGap) / (Config.CellWidth + Config.ColumnGap)));
+        int Rows = Math.Max(1, (int)Math.Ceiling((Height + Config.RowGap) / (Config.CellHeight + Config.RowGap)));
+        int ColumnPitch = Math.Max(Rows, Columns);
+        var Grid = Create(Config, Nodes.Select(Node => new FlowchartCellPlacementSeed(
+            Node.Id, Node.Rank, Node.Column, Node.IsDiamond ? 2 * ColumnPitch : Rows,
+            Node.IsDiamond ? ColumnPitch : Columns)).ToArray(), Horizontal);
+        foreach (var Node in Nodes) Node.BindCells(Grid, Context);
+    }
+
     /// <summary>Assigns all existing cell-bound nodes from their current logical ranks and columns in one repair transaction.</summary>
     /// <param name="Nodes">Whole diagram; fixed hints retain their declared reservations.</param>
     /// <param name="Horizontal">Whether ranks advance along columns.</param>

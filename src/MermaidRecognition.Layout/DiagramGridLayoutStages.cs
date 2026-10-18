@@ -120,6 +120,12 @@ public static partial class DiagramGridLayout
                     Node.Y = Math.Round(Node.Y / DiagramGridMetrics.GRID_UNIT_PX)
                         * DiagramGridMetrics.GRID_UNIT_PX;
                 }
+                if (State.Copy.RenderContext.UseCellRegions)
+                {
+                    FlowchartCellInitialPlacement.Bind(State.Placed, State.BoxWidth, State.BoxHeight,
+                        State.Horizontal, State.Copy.RenderContext);
+                    State.Copy.CellNodes = State.Placed;
+                }
             }
         }
     }
