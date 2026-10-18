@@ -7,12 +7,13 @@ namespace MermaidRecognition.RuleValidation.Tests;
 [TestFixture, NonParallelizable]
 public sealed class CellIncrementalRecoveryTests
 {
-    /// <summary>Selects all previously lost reference wins plus the published-slot regression.</summary>
+    /// <summary>Selects lost reference wins, joint hub improvements, preserved diamond routes and the published-slot regression.</summary>
     /// <returns>Original sources and their retained bend ceilings; a null ceiling selects slot-only coverage.</returns>
     public static IEnumerable<TestCaseData> Cases()
     {
         Dictionary<string, int?> Ceilings = new() { ["F58"] = null, ["F59"] = 6, ["F61"] = 4,
-            ["A18"] = 20, ["A107"] = 14, ["A141"] = 12, ["EIP215"] = 12, ["EIP246"] = 12 };
+            ["A18"] = 20, ["A107"] = 14, ["A141"] = 12, ["EIP215"] = 4, ["EIP246"] = 0,
+            ["F30"] = 3, ["F120"] = 3, ["EIP342"] = 2, ["A103"] = 0, ["A136"] = 0, ["A161"] = 0 };
         foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
             var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;

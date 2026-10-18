@@ -484,7 +484,7 @@ public static partial class DiagramGridLayout
         /// <param name="From">The endpoint owning the port.</param>
         /// <param name="To">Its peer endpoint.</param>
         /// <returns>The side facing the peer centre.</returns>
-        private static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
+        internal static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
         {
             double Dx = To.CenterX - From.CenterX, Dy = To.CenterY - From.CenterY;
             return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";

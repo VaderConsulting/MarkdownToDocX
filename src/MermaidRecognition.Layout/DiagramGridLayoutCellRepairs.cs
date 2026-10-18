@@ -33,6 +33,108 @@ public static partial class DiagramGridLayout
             var Units = State.Copy.EdgeRoutes.Where(Route => Route.Points.Count < 2
                     || FlowchartLayoutScore.CountCorners(Route.Points) > 0)
                 .SelectMany(Route => new[] { Route.SourceId, Route.TargetId }).Distinct(StringComparer.Ordinal).ToArray();
+            using var Existing = ExistingCellMoveOptions(State, Units).GetEnumerator();
+            using var Joint = CellJointRouteAssignments(State.Contract, State.Placed, State.Horizontal,
+                Units.ToHashSet(StringComparer.Ordinal)).GetEnumerator();
+            var Deferred = new List<CellRepairOption>();
+            CellRepairOption? CurrentJoint = null;
+            bool MoreExisting = true, MoreJoint = true;
+            while (MoreExisting || MoreJoint)
+            {
+                if (MoreExisting = Existing.MoveNext()) yield return Existing.Current;
+                if (MoreJoint = NextUsefulJoint()) yield return CurrentJoint!;
+            }
+            foreach (var Option in Deferred) yield return Option;
+
+            bool NextUsefulJoint()
+            {
+                while (Joint.MoveNext())
+                {
+                    var Option = new CellRepairOption("joint|" + Joint.Current.Key, Joint.Current.Subject, Joint.Current.Assignment);
+                    if (CanStraightenAllocatedCellRoute(State, Option.Assignment)) { CurrentJoint = Option; return true; }
+                    Deferred.Add(Option);
+                }
+                return false;
+            }
+        }
+
+        /// <summary>Orders joint options by a concrete straight-line opportunity without deriving or changing any region from pixels.</summary>
+        /// <param name="State">Original allocated terminals and complete obstacle geometry.</param>
+        /// <param name="Assignment">Unapplied whole-cell target state.</param>
+        /// <returns>Whether every changed interface can stay straight and at least one existing bend can be removed.</returns>
+        private static bool CanStraightenAllocatedCellRoute(GridLayoutState State, FlowchartCellRepair.Assignment Assignment)
+        {
+            // Promote a complete interface, not one attractive connector while
+            // another previously straight line becomes bent. Other proposals
+            // remain available later; this never accepts an estimated score.
+            var Before = State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+            var After = new Dictionary<string, FlowchartLayoutNodeBounds>(Before, StringComparer.Ordinal);
+            foreach (var Node in Assignment.Nodes)
+            {
+                if (HasHintedContainingGroup(State.Contract, Node.Id) || !string.IsNullOrEmpty(Node.GroupId)) return false;
+                After[Node.Id] = Node.CellNode!.Bounds(Assignment.After.Regions[Node.Id], Node.GeometryProvider, Assignment.After);
+            }
+            bool Gain = false;
+            foreach (var Route in State.Copy.EdgeRoutes)
+            {
+                if (Route.Points.Count < 2 || !Before.TryGetValue(Route.SourceId, out var OldSource)
+                    || !Before.TryGetValue(Route.TargetId, out var OldTarget)) return false;
+                var NewSource = After[Route.SourceId]; var NewTarget = After[Route.TargetId];
+                if (NewSource.Width != OldSource.Width || NewSource.Height != OldSource.Height
+                    || NewTarget.Width != OldTarget.Width || NewTarget.Height != OldTarget.Height) return false;
+                var SourceDelta = (X: NewSource.CenterX - OldSource.CenterX, Y: NewSource.CenterY - OldSource.CenterY);
+                var TargetDelta = (X: NewTarget.CenterX - OldTarget.CenterX, Y: NewTarget.CenterY - OldTarget.CenterY);
+                if (SourceDelta == TargetDelta) continue;
+                var Start = (X: Route.Points[0].X + SourceDelta.X, Y: Route.Points[0].Y + SourceDelta.Y);
+                var End = (X: Route.Points[^1].X + TargetDelta.X, Y: Route.Points[^1].Y + TargetDelta.Y);
+                var Candidate = new FlowchartLayoutEdgeRoute { EdgeId = Route.EdgeId, SourceId = Route.SourceId, TargetId = Route.TargetId,
+                    ExitSide = Route.ExitSide, EntrySide = Route.EntrySide, ExitNormalX = Route.ExitNormalX, ExitNormalY = Route.ExitNormalY,
+                    EntryNormalX = Route.EntryNormalX, EntryNormalY = Route.EntryNormalY };
+                Candidate.Points.Add(new() { X = Start.X, Y = Start.Y }); Candidate.Points.Add(new() { X = End.X, Y = End.Y });
+                bool Straight = (Math.Abs(Start.X - End.X) <= 0.001 || Math.Abs(Start.Y - End.Y) <= 0.001)
+                    && FlowchartAllocatedPortFallback.IsLegal(State.Contract, After, Candidate, new[] { Start, End });
+                if (!Straight)
+                {
+                    string Exit = ModelRouteCompletionStage.Facing(NewSource, NewTarget);
+                    string Entry = ModelRouteCompletionStage.Facing(NewTarget, NewSource);
+                    var Hint = FindContractEdge(State.Contract, Route)?.RoutingHint;
+                    if (Hint?.IsActive == true && (Hint.Travel.HasValue
+                        || Hint.Leave.HasValue && HintSide(Hint.Leave.Value) != Exit
+                        || Hint.Enter.HasValue && HintSide(Hint.Enter.Value) != Entry)) return false;
+                    if (ProposedSideCount(Route.SourceId, Exit) != 1 || ProposedSideCount(Route.TargetId, Entry) != 1) return false;
+                    var SourceGeometry = State.Nodes.GetValueOrDefault(Route.SourceId)?.GeometryProvider?.Create(NewSource.Width, NewSource.Height)
+                        ?? NodeGeometry.Rectangle(NewSource.Width, NewSource.Height);
+                    var TargetGeometry = State.Nodes.GetValueOrDefault(Route.TargetId)?.GeometryProvider?.Create(NewTarget.Width, NewTarget.Height)
+                        ?? NodeGeometry.Rectangle(NewTarget.Width, NewTarget.Height);
+                    if (!SourceGeometry.ConnectionBoundary.TryPort(Exit, 0.5, out var SourcePort)
+                        || !TargetGeometry.ConnectionBoundary.TryPort(Entry, 0.5, out var TargetPort)) return false;
+                    Start = (NewSource.CenterX + SourcePort.X, NewSource.CenterY - SourcePort.Y);
+                    End = (NewTarget.CenterX + TargetPort.X, NewTarget.CenterY - TargetPort.Y);
+                    if (Math.Abs(Start.X - End.X) > 0.001 && Math.Abs(Start.Y - End.Y) > 0.001) return false;
+                    Candidate.ExitSide = Exit; Candidate.EntrySide = Entry;
+                    Candidate.ExitNormalX = SourcePort.NormalX; Candidate.ExitNormalY = -SourcePort.NormalY;
+                    Candidate.EntryNormalX = TargetPort.NormalX; Candidate.EntryNormalY = -TargetPort.NormalY;
+                    Candidate.Points.Clear(); Candidate.Points.Add(new() { X = Start.X, Y = Start.Y }); Candidate.Points.Add(new() { X = End.X, Y = End.Y });
+                    if (!FlowchartAllocatedPortFallback.IsLegal(State.Contract, After, Candidate, new[] { Start, End })) return false;
+                }
+                Gain |= FlowchartLayoutScore.CountCorners(Route.Points) > 0;
+            }
+            return Gain;
+
+            // A spread fan frees centre slots by moving neighbours to other
+            // sides. Compare the proposed inventory, not its superseded slots.
+            int ProposedSideCount(string Node, string Side) => State.Copy.EdgeRoutes.Sum(Route =>
+                (Route.SourceId == Node && After.ContainsKey(Route.TargetId)
+                    && ModelRouteCompletionStage.Facing(After[Node], After[Route.TargetId]) == Side ? 1 : 0)
+                + (Route.TargetId == Node && After.ContainsKey(Route.SourceId)
+                    && ModelRouteCompletionStage.Facing(After[Node], After[Route.SourceId]) == Side ? 1 : 0));
+        }
+        /// <summary>Retains the existing endpoint, tail, terminal and branch translations alongside joint alternatives.</summary>
+        /// <param name="State">Restored source model.</param>
+        /// <param name="Units">Endpoints nominated by actual bent or missing routes.</param>
+        /// <returns>Previously available complete assignments in their original order.</returns>
+        private static IEnumerable<CellRepairOption> ExistingCellMoveOptions(GridLayoutState State, IEnumerable<string> Units)
+        {
             foreach (var Candidate in FlowchartJunctionBranchCompaction.CellCandidates(State.Contract, State.Placed, State.Horizontal)
                 .Concat(FlowchartTerminalRowPlacement.CellCandidates(State.Contract, State.Placed, State.Horizontal))
                 .Concat(CellRouteMoveCandidates(State.Contract, State.Placed, State.Horizontal, Units)))
@@ -259,6 +361,7 @@ public static partial class DiagramGridLayout
             HashSet<FlowchartLayoutEdgeRoute>? BestAffected = null;
             int Examined = 0;
             string? Winner = null;
+            string? WinnerKey = null;
             var ExaminedOptions = new List<CellRepairOption>();
             var CellState = FlowchartCellRepair.Capture(State.Placed);
             string Signature = System.Text.Json.JsonSerializer.Serialize(new
@@ -280,10 +383,13 @@ public static partial class DiagramGridLayout
                 var Ids = Participants.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
                 if (State.Copy.EdgeRoutes.Count(Route => Ids.Contains(Route.SourceId) || Ids.Contains(Route.TargetId))
                     > FlowchartLayoutRules.RepairChainLines) continue;
-                if (!ReferenceCompletion && !Attempted.Add("cells|" + Signature + "|" + Option.Key)) continue;
+                if (!ReferenceCompletion && !Attempted.Add("cells|" + Signature + "|" + CellAssignmentIdentity(Option.Assignment))) continue;
                 Examined++;
                 if (NeedsHardRepair) ExaminedOptions.Add(Option);
                 if (!ReferenceCompletion) State.MoveBudget.CandidateMoves++;
+                if (!ReferenceCompletion && FlowchartRenderContext.OperationCountObserver != null)
+                    FlowchartRenderContext.ReportOperationCount("cell-candidate/" + (Option.Key.StartsWith("joint|", StringComparison.Ordinal)
+                        ? Option.Key.Split('|')[1] : "existing"), 1);
                 try
                 {
                     if (!Option.Assignment.TryApply()) continue;
@@ -323,6 +429,7 @@ public static partial class DiagramGridLayout
                     Best = new(State);
                     BestAffected = Affected;
                     Winner = Option.Subject;
+                    WinnerKey = Option.Key;
                 }
                 finally { Original.Restore(State); }
             }
@@ -331,6 +438,7 @@ public static partial class DiagramGridLayout
             if (ReferenceCompletion || WholeRouteSet)
             {
                 State.MoveBudget.AcceptedMoves++;
+                ReportAcceptedCellKind(WinnerKey);
                 RouteRepairOptionObserver?.Invoke("cell-move", Winner ?? string.Empty);
                 return (1, Examined);
             }
@@ -364,6 +472,7 @@ public static partial class DiagramGridLayout
             catch { Original.Restore(State); throw; }
             finally { State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation; }
             State.MoveBudget.AcceptedMoves++;
+            ReportAcceptedCellKind(WinnerKey);
             RouteRepairOptionObserver?.Invoke("cell-move", Winner ?? string.Empty);
             return (1, Examined);
 
@@ -375,6 +484,30 @@ public static partial class DiagramGridLayout
                 : SearchCellAssignmentsCore(State, ExaminedOptions, ExaminedOptions.Count, MoveLimit, Attempted,
                     Shortfall, PreserveBends, true);
         }
+
+        /// <summary>Reports the selected family only when a diagnostic counter consumer is present.</summary>
+        /// <param name="Key">Winning immutable option key.</param>
+        private static void ReportAcceptedCellKind(string? Key)
+        {
+            if (FlowchartRenderContext.OperationCountObserver == null || Key == null) return;
+            FlowchartRenderContext.ReportOperationCount("cell-winner/" + (Key.StartsWith("joint|", StringComparison.Ordinal)
+                ? Key.Split('|')[1] : "existing"), 1);
+        }
+
+        /// <summary>Identifies actual complete target changes so equivalent proposals cannot consume the budget twice.</summary>
+        /// <param name="Assignment">Validated immutable source and target states.</param>
+        /// <returns>Exact ordered region/span and gap deltas, independent of the generating family.</returns>
+        private static string CellAssignmentIdentity(FlowchartCellRepair.Assignment Assignment) =>
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Regions = Assignment.After.Regions.Where(Pair => !Assignment.Before.Regions.TryGetValue(Pair.Key, out var Old) || Old != Pair.Value)
+                    .OrderBy(Pair => Pair.Key, StringComparer.Ordinal).Select(Pair => new
+                    {
+                        Pair.Key, Pair.Value.StartRow, Pair.Value.StartColumn, Pair.Value.RowSpan, Pair.Value.ColumnSpan
+                    }),
+                Columns = Assignment.After.ColumnGaps.OrderBy(Pair => Pair.Key),
+                Rows = Assignment.After.RowGaps.OrderBy(Pair => Pair.Key)
+            });
 
         /// <summary>Completes one previously examined assignment with the original routing sequence for safe recovery.</summary>
         /// <param name="State">Applied private candidate; the caller owns exact rollback.</param>

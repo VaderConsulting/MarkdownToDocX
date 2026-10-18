@@ -2,6 +2,44 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Add joint fan/chain candidates without changing limits — 18 October 2026
+
+Incremental scoring is committed separately as 3d73b88. The joint placement
+follow-up builds complete incoming/outgoing side assignments, whole-fan moves,
+whole-chain moves including unnominated prefixes, start-cell chain/arm options
+and compatible fully hinted chains. Every target is planned atomically, closed
+over hint dependents and scored after port assignment and route completion.
+No centre pass, pixel copyback, arbitrary search limit or checker change is added.
+Equivalent complete targets consume one candidate identity. Early copies of the
+existing hint/12-line eligibility checks remove wasted planning without removing
+an examinable option. The distinct-candidate limit remains sixteen.
+
+Original worse-fifty: 31 improve, 30 now match/beat actual cells off, twenty
+remain worse; total bends 785 -> 606. Shared-fan cohort 18/24 match/beat off
+(bends 159 -> 23), main-chain 6/12 (262 -> 245), fan-in 5/10 (61 -> 39), other
+1/4 (303 -> 299). EIP246 improves 12 -> 0. A161 improves 26 -> 0 while every
+one of its seven original leave-North hints remains honoured. The remaining
+cases are listed in cell-joint-candidate-review.md and its per-case CSV;
+they are not all established unavoidable bends or rule conflicts.
+
+Final full cells-on audit: 49.71 s / A142 9.56872 s, all 673 summaries, every
+legality/grid/slot/hint-accounting gate zero. Full profiled audit 67.07 s /
+A142 10.2250 s. Exclusive routing 94.6291 -> 29.4736 s; scoring 3.4496 s,
+frame search 3.1797 s, hints 0.6286 s, diagnostics 0.0562 s. Full-audit target 45 s
+remains open by 4.71 s; A142 is under 15 s. F151 1.769871 s, F152 1.558331 s.
+Cells off 36.63 s / A142 11.2999 s; all 673 original summary rows byte-identical.
+
+326 focused tests,90 cell/source regressions and the fifty-case review pass.
+The original81 replay has no regressions against retained cell bends;61/81 now
+match/beat off, total1332 -> 1118 (off 1143). Quality totals:4.2=52,5.9=1231,
+3.1=2,4.1=0,4.11=5,5.8=3,shared=343. Known shared-track cases in F148,A147,
+the large fans and the F153 layout-quality work remain open. Five native skips
+remain unmeasured and known quality findings still make the audit exit nonzero.
+
+Production cells and independent text spans remain OFF. Rules.yaml, weights,
+all existing limits, original hints and open mode are unchanged. F32/EIP261's
+parked routing refinement stays recorded. No DOCX included; nothing pushed.
+
 ## Recover complete candidates during incremental scoring — 18 October 2026
 
 Large cell candidates reroute their endpoint/obstacle/title-band/slot dependency

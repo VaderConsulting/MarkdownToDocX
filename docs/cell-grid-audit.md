@@ -66,3 +66,11 @@ Fresh follow-up audits: cells on 120.35 s (A142 49.9605 s), cells off 44.98 s
 including the original cells-off baseline. Every hard gate stays zero. The
 review retains no functional engine change: 4.2=52, 4.11=5, 5.8=3 remain open
 as described in the linked report.
+
+The joint fan/chain follow-up retains zero for every grid, legality and slot
+gate in both modes. All 673 cells-off rows remain byte-identical. Latest cells-on
+quality counters are 4.2=52, 5.9=1231, 3.1=2, 4.1=0, 4.11=5, 5.8=3 and
+shared-track pairs=343. See [cell-joint-candidate-review.md](cell-joint-candidate-review.md)
+for the measured 49.71 s audit / A142 9.56872 s, 326 focused tests, 90 cell
+regressions and all per-case bend results. Production cells and text spans
+remain disabled.

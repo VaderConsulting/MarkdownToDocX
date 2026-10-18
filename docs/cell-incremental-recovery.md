@@ -81,3 +81,11 @@ work: 24 shared-fan cases, 12 main-chain cases and fourteen other cases.
 Production cells and independent spans remain off. Rules, weights, original
 hints and the parked F32/EIP261 refinement are unchanged. No DOCX is staged and
 nothing is pushed.
+
+## Joint placement follow-up
+
+The next checkpoint adds complete fan/chain assignments and fully hinted chain
+placement. See [cell-joint-candidate-review.md](cell-joint-candidate-review.md)
+for the final 49.71 s audit / A142 9.56872 s, all gates, profile and the original
+fifty-case comparison. Thirty of those fifty now match or beat cells off;
+production cells, independent spans, rules, weights and limits remain unchanged.

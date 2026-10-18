@@ -178,7 +178,7 @@ internal static class FlowchartCellRepair
     /// <param name="Rows">Whole-row delta.</param>
     /// <param name="Columns">Whole-column delta.</param>
     /// <returns>The complete contiguous target reservation.</returns>
-    private static FlowchartCellRegion Translate(FlowchartCellRegion Region, int Rows, int Columns) =>
+    internal static FlowchartCellRegion Translate(FlowchartCellRegion Region, int Rows, int Columns) =>
         new(checked(Region.StartRow + Rows), checked(Region.StartColumn + Columns), Region.RowSpan, Region.ColumnSpan);
 
     /// <summary>A validated complete repair; preparing it has no side effects and applying it publishes one immutable state.</summary>
