@@ -2,6 +2,48 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Reject scoped cell scoring after its speed and regression check — 18 October 2026
+
+Frame-fit fixes already have separate checkpoints: A165 6d55987, A164 210d917,
+and original group hint anchors 531ab82. Final-layout scoring is separately
+implemented in 2db6901; no duplicate frame-fit commit or history rewrite was made.
+
+The incremental prototype cached unchanged line/pair costs, reallocated affected
+port inventories and rerouted affected corridors, keeping other paths exact.
+Only its selected winner ran full completion for confirmation. Its reference
+score tests and all 313 experimental focused tests passed, but acceptance failed:
+the full cells-on audit took 43.55 s / A142 15.2505 s; eight original-81 cases
+worsened (F59, A31, A38, A107, A141, A161, EIP215, EIP246), one improved and
+72 matched. Total bends rose 1332 -> 1346. F58 also had one off-slot port/group
+(Persist's left cylinder port, 0.338 instead of 1/3). Shared pairs rose 346 -> 348
+and 5.9 1234 -> 1244. No legality failure was introduced, but slot gates failed.
+
+The prototype and its two tests were entirely reverted. No incremental scoring
+change was committed; only this rejection report and measured CSV are retained.
+Do not repeat the same simplified affected-route builder as a complete fix.
+Its provisional choices failed to preserve the old successful final-layout moves;
+full confirmation alone did not recover the previous candidate selection.
+The detailed F58 drift mechanism is unresolved and was not worked around.
+
+Restored verification: 311 focused and 60 cell/source regressions pass. The full
+cells-on audit emits all 673 rows identical to the prior checkpoint, with every
+legality, grid and exact-slot gate zero; 118.50 s / A142 50.1762 s. Cells-off emits
+673 byte-identical original baseline rows, every zero gate retained; 39.41 s /
+A142 12.0582 s. The retained original-81 result remains 31 no worse than cells off
+(13 fewer, 18 equal), with 50 still worse. The trial's eight increases are gone.
+
+The existing profile attributes 79.60 s to 3921 private full route completions,
+including 37.50 s in nine A142 candidates. Repeated side/terminal searches dominate;
+snapshot capture/restore costs only 0.0436 s, and the final-diagnostics marker
+includes nested searches. See cell-incremental-score-rejected.md and its 81-row CSV.
+The budget's AcceptedMoves includes earlier frame/placement work; the prior report's
+45/5 split cannot alone prove which final cell-route candidates were accepted.
+
+Stopped after the failed keep condition; no further optimization attempted.
+Rules, weights, sixteen-candidate limit, hints, production cells OFF, independent
+spans OFF and F32/EIP261's parked status are unchanged. No DOCX files included;
+nothing pushed.
+
 ## Verify rejected completed candidates and measure the original 81 — 18 October 2026
 
 The first finished-scoring stack replay names A58 and A138; the full earlier
