@@ -13,6 +13,35 @@ public sealed class FlowchartCellMoveSearchTests
 {
     private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
 
+    /// <summary>A rejected trial cannot mutate a painted guide retained by the saved layout, including its kind.</summary>
+    [Test]
+    public void RejectedCandidateRestoresMutableGuideContents()
+    {
+        var Fixture = CreateState(true);
+        var Route = Fixture.Layout.EdgeRoutes[0];
+        var Guide = new FlowchartResolvedGuide(Fixture.Contract.Edges[0],
+            Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), FlowchartEdgeRouteKind.Grid);
+        Fixture.Layout.ResolvedEdgeGuides = [Guide];
+        var Points = Guide.Points.ToArray();
+        var Before = Fixture.Grid.Capture();
+        string Geometry = GeometryOf(Fixture.Layout);
+        DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) =>
+        {
+            Guide.Points.Clear(); Guide.Points.Add((1, 2)); Guide.RouteKind = FlowchartEdgeRouteKind.Unknown;
+            throw new InvalidOperationException("reject-mutated-guide");
+        };
+        try { Assert.Throws<TargetInvocationException>(() => Search(Fixture.State)); }
+        finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
+        Assert.Multiple(() =>
+        {
+            Assert.That(Fixture.Grid.Capture(), Is.SameAs(Before));
+            Assert.That(GeometryOf(Fixture.Layout), Is.EqualTo(Geometry));
+            Assert.That(Guide.Points, Is.EqualTo(Points));
+            Assert.That(Guide.RouteKind, Is.EqualTo(FlowchartEdgeRouteKind.Grid));
+            Assert.That(Fixture.Layout.ResolvedEdgeGuides!.Single(), Is.SameAs(Guide));
+        });
+    }
+
     /// <summary>Both terminal clearances form one assignment; a locked later obstacle cannot leave the earlier obstacle moved.</summary>
     /// <param name="PinnedLaterObstacle">Whether the enter-side obstacle prevents the complete repair.</param>
     [TestCase(false)]
