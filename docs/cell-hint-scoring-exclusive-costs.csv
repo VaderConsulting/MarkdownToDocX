@@ -1,0 +1,6 @@
+"Phase","BeforeCalls","BeforeSeconds","TrialCalls","TrialSeconds","A142BeforeSeconds","A142TrialSeconds"
+"cell-cost/exclusive/routing","8510","94.6291","4776","26.7401","43.03","4.576"
+"cell-cost/exclusive/frame-search","254","3.8677","254","3.6147","2.1545","2.0391"
+"cell-cost/exclusive/final-layout-scoring","1068","2.0412","1068","1.7022","0.4289","0.1621"
+"cell-cost/exclusive/hint-checks","49170","0.698","49170","0.0997","0.0017","0.0001"
+"cell-cost/exclusive/final-diagnostics","4589","0.2574","855","0.0329","0.2029","0.0195"

@@ -22,6 +22,7 @@ public static partial class DiagramGridLayout
         List<GridFrame> Frames, string? MovingOnly, int RequiredGap, string? ConcernedFrame,
         string? ConcernedNode, FlowchartRenderContext.RepairSearchBudget Budget)
     {
+        using var CostTiming = FlowchartCellCostTiming.Begin("frame-search");
         var SearchClock = System.Diagnostics.Stopwatch.StartNew();
         int FirstLegal = 0;
         var Original = FlowchartCellRepair.Capture(Placed);

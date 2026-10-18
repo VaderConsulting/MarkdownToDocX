@@ -16,6 +16,7 @@ internal static partial class FlowchartPlacementHints
     internal static bool CellHintsMatch(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
     {
+        using var CostTiming = FlowchartCellCostTiming.Begin("hint-checks");
         var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         var Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
         var Items = Contract.Nodes.Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))

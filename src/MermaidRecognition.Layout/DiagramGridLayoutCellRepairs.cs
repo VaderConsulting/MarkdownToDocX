@@ -224,6 +224,7 @@ public static partial class DiagramGridLayout
             MoveLimit = Math.Min(MoveLimit,
                 FlowchartLayoutRules.RepairChainDepth - State.MoveBudget.AcceptedMoves);
             if (CandidateLimit <= 0 || MoveLimit <= 0) return (0, 0);
+            using var CostTiming = FlowchartCellCostTiming.Begin("final-layout-scoring");
             var Original = new CellGeometrySnapshot(State);
             var Before = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
             var BeforeFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
@@ -265,9 +266,12 @@ public static partial class DiagramGridLayout
                     BuildFramesYUp(State.Contract, State.Placed, State.Frames);
                     if (CountUnrelatedFrameOverlaps(State.Contract, State.Frames) > BeforeFrameOverlaps) continue;
                     WriteBack(State.Copy, State.Placed, State.Frames);
-                    AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
-                    DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction);
-                    RefreshHintedRoutes(State);
+                    using (FlowchartCellCostTiming.Begin("routing"))
+                    {
+                        AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
+                        DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes, State.Contract, State.Frames, State.Direction);
+                        RefreshHintedRoutes(State);
+                    }
                     bool PreviousEvaluation = State.Copy.RenderContext.IsEvaluatingCellRouteCandidate;
                     var PreviousCandidateObserver = RouteRepairCandidateObserver;
                     var PreviousOptionObserver = RouteRepairOptionObserver;

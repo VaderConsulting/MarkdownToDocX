@@ -18,6 +18,7 @@ public static partial class DiagramGridLayout
 
         public static void Apply(GridLayoutState State)
         {
+            using var CostTiming = FlowchartCellCostTiming.Begin("routing");
             System.Diagnostics.Stopwatch? Profile = LayoutStageTimingObserver == null
                 ? null : System.Diagnostics.Stopwatch.StartNew();
             void Mark(string Name)
@@ -326,11 +327,14 @@ public static partial class DiagramGridLayout
                 return new FlowchartResolvedGuide(Edge, Points,
                     Points.Count == 2 ? FlowchartEdgeRouteKind.Straight : FlowchartEdgeRouteKind.Grid);
             }).OfType<FlowchartResolvedGuide>().ToList();
-            CollectFrameTitleBandDiagnostics(State.Contract, Layout, Bounds,
-                Layout.RenderContext.LayoutStageViolations);
-            CollectGridAndAlignedPortDiagnostics(State.Contract, Layout, Bounds,
-                Layout.RenderContext.LayoutStageViolations);
-            ClearResolvedHintDiagnostics(State.Contract, Layout, Bounds);
+            using (FlowchartCellCostTiming.Begin("final-diagnostics"))
+            {
+                CollectFrameTitleBandDiagnostics(State.Contract, Layout, Bounds,
+                    Layout.RenderContext.LayoutStageViolations);
+                CollectGridAndAlignedPortDiagnostics(State.Contract, Layout, Bounds,
+                    Layout.RenderContext.LayoutStageViolations);
+                ClearResolvedHintDiagnostics(State.Contract, Layout, Bounds);
+            }
             Mark("final-diagnostics");
         }
 

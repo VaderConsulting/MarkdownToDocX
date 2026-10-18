@@ -2,6 +2,51 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Split hint costs from nested route searches; reject the second scoring trial — 18 October 2026
+
+The original-hint correction is already committed separately as 531ab82. New
+optional nested profiler scopes distinguish exclusive frame, hint, scoring,
+routing and diagnostic work without changing the engine when profiling is off.
+Full before profile: 127.27 s / A142 49.6515 s, all 673 summaries and every
+legality/grid/slot/hint-accounting gate zero. Top three exclusive costs are
+routing completion 94.6291 s, frame search 3.8677 s and scoring outside routing
+2.0412 s. Hint checks cost 0.6980 s across 49170 calls; A142 only 0.0017 s.
+The inclusive final-scoring timer is 91.06 s because it includes route work.
+
+A dependency-keyed hint cache matched full checks across owner/peer/push changes,
+hint edits, rejected states and rollback. It reduced validation to 0.0997 s while
+retaining 49170 calls. A scoped routing trial retained the existing terminal,
+facing-side, straightening and track families instead of the earlier simplified
+builder, cached unchanged line/pair costs, and fully confirmed its proposed winner.
+
+The first revised unprofiled run reached 43.08 s / A142 7.38143 s, but five bend
+cases worsened and F58 had an off-slot port/group. A correction pass using segment
+and title-band dependencies and a final slot seal still failed: profiled 54.08 s /
+A142 10.6593 s; 74 original-81 cases equal, seven worse, none better, 1332 -> 1343
+bends. Worse: F59, F61, A18, A107, A141, EIP215, EIP246. Its exclusive routing cost
+was 26.7401 s, frame search 3.6147 s, scoring 1.7022 s and hints 0.0997 s.
+
+F58's exact cause is legacy centre-ray projection in ProjectToOutline: requested
+slot Y=680 becomes 680.9467455621302 and rounds to 681. Persist has no geometry
+provider. Repeating the allocator cannot correct the along-side drift. A pinned
+fixture reproduces it. No checker was weakened and no shape-specific router
+exception was added. A correct dependency closure and legacy slot projection
+remain unresolved; neither is hidden by a changed limit or baseline.
+
+Stopped and reverted all functional trial code, including hint caching and its
+experimental tests. Only general profiler instrumentation and evidence are kept.
+Restored verification: 311 focused and 60 cell/source regressions pass; cells-on
+117.80 s / A142 50.2319 s, 673 rows identical to the retained checkpoint, all
+legality/grid/slot/hint-accounting gates zero. Cells-off 40.43 s / A142 11.7259 s,
+673 rows byte-identical to the original baseline. Logical hint mismatches zero.
+Retained original-81 results remain 31 no worse than cells off (13 fewer, 18 equal),
+50 worse. No speed improvement is claimed for retained code.
+
+See cell-hint-scoring-cost-review.md, its exclusive-cost CSV and 81-case trial
+CSV for the full before/after breakdown and gates. Rules, weights, sixteen-candidate
+limit, hints, production cells OFF and independent spans OFF are unchanged.
+F32/EIP261 remains parked. No DOCX files included; nothing pushed.
+
 ## Reject scoped cell scoring after its speed and regression check — 18 October 2026
 
 Frame-fit fixes already have separate checkpoints: A165 6d55987, A164 210d917,
