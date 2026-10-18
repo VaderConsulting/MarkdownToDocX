@@ -114,7 +114,8 @@ internal static partial class FlowchartPlacementHints
             }
             var Previous = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
             foreach (var Change in Changes) Targets[Change.Key] = Change.Value;
-            if (Accepted.Any(Prior => !CellHintMatches(Prior, Nodes, ById, Groups, Targets)))
+            if (Accepted.Any(Prior => !CellHintMatches(Prior, Nodes, ById, Groups, Targets))
+                && !TryRetainCellGroupAnchors(Contract, Nodes, ById, Groups, Targets, Accepted, Item))
             {
                 Targets = Previous;
                 Rejections.Add((Item.Hint, "placement conflicts with an earlier explicit hint"));

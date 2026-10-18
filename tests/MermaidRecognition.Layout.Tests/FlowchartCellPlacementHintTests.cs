@@ -6,6 +6,35 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellPlacementHintTests
 {
+    /// <summary>A member moving off the group's old minimum must translate the complete group back to its anchor, preserving both hints atomically.</summary>
+    [Test]
+    public void MemberHintCanChangeTheEnvelopeWithoutLosingTheGroupAnchor()
+    {
+        var Contract = new DiagramContract();
+        Contract.NodesMutable.AddRange([new() { Id = "anchor" }, new() { Id = "A", ParentGroupId = "G" },
+            new() { Id = "B", ParentGroupId = "G", PlacementHint = new() { Kind = PlacementHintKind.RightOf, PeerId = "A", SourceLine = 2 } }]);
+        var Group = new GroupContract { Id = "G", PlacementHint = new() { Kind = PlacementHintKind.Below, PeerId = "anchor", SourceLine = 1 } };
+        Group.ChildNodeIdsMutable.AddRange(["A", "B"]); Contract.GroupsMutable.Add(Group);
+        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        var Nodes = new List<DiagramGridLayout.GridNode>();
+        foreach (var (Id, Row, Column) in new[] { ("anchor", 0, 0), ("A", 1, 4), ("B", 1, 0) })
+        {
+            Assert.That(Grid.TryPlace(Id, new(Row, Column, 1, 1)), Is.True);
+            var Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = Id == "anchor" ? null : "G" };
+            Node.BindCells(Grid); Nodes.Add(Node);
+        }
+        var Before = Grid.Capture();
+        Assert.That(FlowchartPlacementHints.Apply(Contract, Nodes), Is.True);
+        Assert.That(Group.PlacementHint!.IsActive, Is.True);
+        Assert.That(Contract.Nodes[2].PlacementHint!.IsActive, Is.True);
+        Assert.That(FlowchartPlacementHints.CellHintsMatch(Contract, Nodes, Grid.Capture().Regions), Is.True);
+        Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(0));
+        Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(1));
+        Assert.That(Grid.RegionOf("anchor"), Is.SameAs(Before.Regions["anchor"]));
+        Grid.Restore(Before);
+        Assert.That(Grid.Capture(), Is.SameAs(Before));
+    }
+
     /// <summary>A nested hinted group moves every member together while preserving spans and exact internal row/column offsets.</summary>
     [Test]
     public void NestedGroupPlanMovesEveryMemberTogether()
