@@ -2,11 +2,53 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
-## Cell readiness and hint-dependent frame search — 18 October 2026
+## A164 candidate diagnosis and original-hint correction — 18 October 2026
+
+Reproduced all 97 historical single-set frame candidates. Every one retained
+at least one overlap among bwmGrp, dsmGrp and collabGrp; no identical conflict
+was present in all 97. The closest two retained bwmGrp/collabGrp, bwmGrp/createWs
+and collabGrp/configure. The bounded joint search combines independently
+nominated whole sets, including their external dependents, and reaches a legal
+complete old-layout assignment at candidate 12. A165's closure-only checkpoint
+is now separate (`6d55987`), before the A164 chain checkpoint (`210d917`). The
+previous combined history is retained on backup branch
+`checkpoint/cell-frame-combined-a31638e`; nothing was pushed.
+
+**Correction:** the old active-only census did not prove that every original
+hint survived. Source comparison found that cell hint placement had already
+deactivated A164's `retire right-of define` and eight A165 member hints. These
+were compatible constraints rejected because a member move changed an earlier
+group envelope's starting row/column. Checkpoint `531ab82` completes the A165 hint fix by translating the
+whole group and its hint-dependent closure back to its declared anchor within
+the same private ownership transaction. Every original placement/routing hint
+value and active state now matches a fresh source contract in both regressions;
+no hint is dropped. This is not a rule incompatibility.
+
+With the original hints retained, A164 examines six candidates, first legal two
+(288.361 ms frame search); A165 examines seven, first legal three (1,032.288 ms).
+All 254 active catalogue frame searches examine 1,523 candidates in 3.679 s;
+maximum count seven, unchanged limit sixteen. Census: all 673 pass, zero writer
+catches, 662 bound scenarios / 3,806 nodes; six open-mode cases remain unbound,
+five native skips/empty cases unchanged. Total census 102.714 s. Only A164,
+A165 and A168 change bend totals against the reduced-hint run (127->125,
+51->56, 37->38), due to preserving compatible group/member constraints.
+
+306 focused tests and 32 source/cell regression tests pass. Both original-source
+regressions also require HintsHonoured == HintsTotal in the final model. All 673
+cells-off summaries remain byte-identical; audit 39.42 s, A142 12.2841 s, every
+previous zero gate still zero. Full cells-on audit:
+673 summaries, 114.61 s, A142 48.9862 s. All legality, grid, exact-slot and hint
+accounting gates zero. Quality: 4.2=52, 5.9=1234, 3.1=2, 4.1=0, 4.11=5,
+5.8=3, shared tracks=346. Speed and quality remain open; no readiness claim.
+The 16-candidate limit, rules, weights, production cells OFF, independent spans
+OFF and parked F32/EIP261 work remain unchanged. Details and all candidate
+residuals are in `a164-frame-fit-diagnosis.md` and its linked CSV evidence.
+
+## Earlier reduced-hint readiness measurement — 18 October 2026
 
 A164 and A165 now complete frame fitting within the unchanged 16-candidate
-limit. Checkpoint `00528f7` moves complete direct/transitive hint-dependent
-sets, carries private partial assignments through the existing chain depth,
+limit. Checkpoint `6d55987` moves complete direct/transitive hint-dependent
+sets for A165. Checkpoint `210d917` carries private partial assignments through the existing chain depth,
 and publishes only a complete legal winner. A164 examines 16 candidates
 (first legal 12), A165 examines 7 (first legal 4). Final measured frame-search
 times are 64.205 ms and 138.514 ms; all 254 catalogue invocations total 1.896 s.
@@ -35,7 +77,7 @@ Production cells and independent text spans remain OFF. Production readiness
 is not established: the original 81 bend increases are not fully diagnosed
 (78 remain above the old baseline; 14 other cases are now above), despite
 common-case total bends improving from 3,211 to 3,183. Final-route scoring,
-late legal fallback, and empty-frame projection fixes are in checkpoint b599a71, described separately
+late legal fallback, and empty-frame projection fixes are in checkpoint 2db6901, described separately
 in `cell-frame-readiness-review.md`, with all gate totals and measurements.
 Historical attribution is not proof that extra bends are required for legality.
 F32/EIP261 remains parked. No DOCX files are included; nothing pushed.

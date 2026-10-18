@@ -1,12 +1,14 @@
 # Hint-dependent frame fitting — 18 October 2026
 
+These are the earlier reduced-hint measurements. The source-hint check found pre-existing deactivations that the active-only census missed. See [the corrected A164 diagnosis](a164-frame-fit-diagnosis.md) for the original-hint result and current costs.
+
 Production cells and independent text spans remain disabled. No rule, limit, score weight or baseline was changed. The F32/EIP261 routing refinement remains parked.
 
 ## Frame-fit fix
 
-Checkpoint `00528f7` builds a moving group or node's complete active placement-hint dependent closure, including group membership and transitive references. All target regions and gap changes are prepared together and checked before atomic application. Rejected assignments restore exact ownership and gaps.
+Checkpoint `6d55987` builds a moving group or node's complete active placement-hint dependent closure, including group membership and transitive references. All target regions and gap changes are prepared together and checked before atomic application. Rejected assignments restore exact ownership and gaps.
 
-Closure alone fixed A165 but not A164. A164 needed complete multi-step alternatives: the search now carries private partial assignments through the existing three-level chain depth and reserves the remaining named candidate budget across those levels. Partial assignments are never published. Complete legal options compete with the unchanged placement score.
+The separate A165 checkpoint passes before the A164 change is applied. Closure alone fixed A165 but not A164. A164 checkpoint `210d917` adds complete multi-step alternatives: the search now carries private partial assignments through the existing three-level chain depth and reserves the remaining named candidate budget across those levels. Partial assignments are never published. Complete legal options compete with the unchanged placement score.
 
 | Scenario | Examined candidates | First legal candidate | Frame search | Whole census scenario |
 | --- | ---: | ---: | ---: | ---: |
@@ -19,7 +21,7 @@ Across the catalogue, 254 frame-search invocations examined 1,533 candidates in 
 
 A temporary closure-only measurement, removed from production code, enumerated its finite pool: A164 examined 97 candidates in 2.067 seconds without a legal result; A165 examined 409 in 6.976 seconds and first found legality at candidate 10. This demonstrates missing joint alternatives rather than evidence for a larger limit. **No separate frame-fit limit or increase is proposed now.** Any future parameter change still requires approval and belongs in rules.yaml with regenerated rulebook.
 
-## Other readiness checkpoint — b599a71
+## Other readiness checkpoint — 2db6901
 
 The complete cells-on audit exposed and fixed late legality issues: A112 fallback normals started inside the enclosing obstacle box; A167/A168/A169 late title-band repair grew derived frame pixels into neighbours. The cell path now repairs legal routes without growing derived frames, and validates complete fallback candidates. Empty frame projection now uses the same explicit reflection origin as its member-backed peers. Nonfinite native placeholder guides cannot poison the bound-node reflection origin.
 
