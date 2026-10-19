@@ -29,7 +29,11 @@ public static partial class DiagramGridLayout
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge)
             && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var Units = Contract.Nodes.Select(Node => Node.Id).Concat(Contract.Groups.Select(Group => Group.Id))
+        // Recognition retains a node-shaped alias when a link names a group.
+        // Dagre deliberately gives that identity only a cluster, not a placed
+        // leaf. Build leaf units from actual cell owners, then add each group
+        // envelope once. Keep ToDictionary strict for real ownership defects.
+        var Units = Placed.Select(Node => Node.Id).Concat(Contract.Groups.Select(Group => Group.Id))
             .ToDictionary(Id => Id, Id => Placed.Where(Node => Node.Id == Id || IsInsideGroup(Contract, Node.Id, Id)).ToArray(), StringComparer.Ordinal);
         var Incoming = Edges.GroupBy(Edge => Edge.TargetId).ToDictionary(Group => Group.Key,
             Group => Group.Select(Edge => Edge.SourceId).Distinct(StringComparer.Ordinal).ToArray(), StringComparer.Ordinal);

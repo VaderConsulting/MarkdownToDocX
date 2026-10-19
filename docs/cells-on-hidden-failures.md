@@ -56,6 +56,8 @@ Scenarios: F17, TB and BT variants. Observed cause: incoming and outgoing diamon
 
 ## Duplicate placed-node identities in joint move search
 
+Resolution update, 19 October 2026: group 1 is fixed. All 23 original cells-on cases now pass their unchanged assertions. Leaf-unit identities come from actual placed cell owners; recognition aliases remain metadata, and physical duplicate/shared ownership still fails. See [repair progress](cells-on-hidden-repair-progress.md). The original observations below remain as historical evidence.
+
 Observed cause: dictionary construction throws on duplicate `inner` or `appNode` identities. For the titled-group reproduction, the stack reaches `CellJointRouteAssignments` at line 32, then the final move-before-detour completion. Later title, containment, connector or diagnostic assertions do not execute. Likely engine area: the uniqueness and ownership of placed nodes/group endpoint projections entering [joint cell route candidates](../src/MermaidRecognition.Layout/DiagramGridLayoutCellJointRouteCandidates.cs#L32), with group endpoint synthesis in `DiagramGridLayoutGroupFrames.cs`. These 23 cases may share one producer fault; individual downstream assertions are not yet diagnosed.
 
 - **`ConnectorToTitledGroup_KeepsTitleClearance("A longer nested service boundary")`** — inline FlowchartRenderedSvgQualityGateTests fixture (parameters in case name). [Test source](../tests/MermaidRecognition.Layout.Tests/FlowchartRenderedSvgQualityGateTests.cs#L258). Observed: `System.ArgumentException : An item with the same key has already been added. Key: inner ParamName: <null>`
