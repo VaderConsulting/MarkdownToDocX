@@ -280,6 +280,11 @@ public static partial class DiagramGridLayout
             }
             bool TerminalGapsGrew = false;
             MeasureLayoutStage("group-fit/terminal-gaps", () => TerminalGapsGrew = GrowTerminalSameRankLabelGaps(Contract, Placed, Horizontal));
+            // Terminal captions need room along either axis. Reserve the
+            // measured flow-axis run through the same atomic cell/gap planner
+            // before fitting frames, rather than clipping the painted label.
+            if (Placed.Any(Node => Node.CellNode != null))
+                MeasureLayoutStage("group-fit/flow-label-gaps", () => TerminalGapsGrew |= GrowCellTerminalSameRankLabelGaps(Contract, Placed, !Horizontal));
             if (TerminalGapsGrew)
             {
                 RecordMemberChange("same-rank label gap growth");
