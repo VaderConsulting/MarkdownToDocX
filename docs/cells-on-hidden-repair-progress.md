@@ -199,3 +199,22 @@ The final cells-on replay selects all original hidden cases plus sibling control
 | 5 sizing/gaps/wrap | 0 | 12 | Gap trial reverted |
 
 The retained product is **2999 bends / 2095 geometric crossings**, A104 **38/0**, A105 **28/0**, same-fan zero. Last full production audit: **673 summaries, 50.62 s; A142 9.725288 s**. All hard-gate counters are zero and no per-scenario finding increases were introduced. Existing quality totals remain 4.2 52, 5.9 1190, 3.1 2, 4.1 0, 4.11 5, 5.8 3, shared pairs 337. The normal suite retains exactly its known 216 failure identities. Five native-ineligible cases remain explicitly unmeasured with summary rows. No rules, candidate limits, hint activation, independent-text-span setting or DOCX files changed in this follow-up.
+
+## Exact port-run approval and rejected terminal-track trial (19 October 2026)
+
+Supersedes the preceding normal-suite count after the newly approved test updates.
+The approved rule text is committed as `e52b049`; the approved logical-cell and
+rounding tests are committed separately as `c65c9d4`. The normal suite now has
+1,120 passes and 211 failures: six old rounding expectations leave the set, and
+the already-known cells-on TD wrap fault becomes visible in its cell-owned fixture.
+LR remains a live wrap failure. No assertions were weakened to hide either fault.
+
+The new exact-terminal/grid-middle trial passed all 13 focused tests with cells on
+but added one crossing in A110 and two in A117, together with three shared-track
+findings. The two production audits emitted all 673 summaries with hard gates at
+zero, in 52.20 s / 51.62 s; A142 took 10.0363849 s / 9.8607350 s. The trial was
+archived and reverted, leaving the engine at 2,999 bends / 2,095 crossings.
+No group-2 rerun or group-4/5 work followed the failed acceptance check.
+
+See [the exact port-run report](exact-port-run-review.md) for the three colliding
+terminal pairs, the gap-capacity limitation and the archived patch.
