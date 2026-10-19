@@ -649,6 +649,11 @@ public static partial class DiagramGridLayout
             private readonly (RoutingHintContract Hint, bool Active, string? Reason)[] RoutingHints;
             private readonly Dictionary<FlowchartLayoutEdgeRoute, GridLayoutState.HintedRoute> HintedRoutes;
 
+            /// <summary>Ensures confirmation did not deactivate or replace the status of any original hint.</summary>
+            /// <returns>Whether every saved node, group and routing hint retains its exact original status.</returns>
+            internal bool HintsUnchanged() => PlacementHints.All(Item => Item.Hint.IsActive == Item.Active && Item.Hint.UnhonouredReason == Item.Reason)
+                && RoutingHints.All(Item => Item.Hint.IsActive == Item.Active && Item.Hint.UnhonouredReason == Item.Reason);
+
             /// <summary>Captures cell ownership directly; drawing bounds are retained only as derived cached views.</summary>
             /// <param name="State">The complete current candidate.</param>
             internal CellGeometrySnapshot(GridLayoutState State)

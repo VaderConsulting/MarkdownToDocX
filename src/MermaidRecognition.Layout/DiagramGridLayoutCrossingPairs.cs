@@ -39,7 +39,7 @@ public static partial class DiagramGridLayout
             double BeforeLength = RouteLength(Layout);
             int Examined = 0;
             var Queues = Pairs.Select(Pair => (Pair.Key, Pair.First, Pair.Second,
-                Options: Options(Pair.First, Pair.Second).GetEnumerator())).ToList();
+                Options: CrossingPairOptions(State, Bounds, () => Original, Pair.First, Pair.Second).GetEnumerator())).ToList();
             try
             {
                 // Round-robin complete options rather than exhausting every
@@ -108,6 +108,21 @@ public static partial class DiagramGridLayout
             }
             finally { foreach (var Queue in Queues) Queue.Options.Dispose(); }
 
+        }
+
+        /// <summary>Shares the existing joint track, slot and side candidate factories with the final repair pass.</summary>
+        /// <param name="State">Live candidate layout.</param>
+        /// <param name="Bounds">Current obstacles.</param>
+        /// <param name="Snapshot">Incumbent rollback state, refreshed after acceptance.</param>
+        /// <param name="First">First crossing line.</param>
+        /// <param name="Second">Second crossing line.</param>
+        /// <returns>Unapplied route options; the caller owns scoring, limits and rollback.</returns>
+        private static IEnumerable<(string Kind, Func<bool> Build)> CrossingPairOptions(GridLayoutState State,
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds, Func<CellGeometrySnapshot> Snapshot,
+            FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second)
+        {
+            var Layout = State.Copy;
+            return Options(First, Second);
             // <summary>Interleaves track, slot and side options within the same named complete-candidate budget.</summary>
             // <param name="First">First declared link.</param>
             // <param name="Second">Second declared link.</param>
@@ -213,7 +228,7 @@ public static partial class DiagramGridLayout
                         string Owner = Source ? Route.SourceId : Route.TargetId;
                         ModelRouteCompletionStage.AllocateFinalPortSlots(State.Contract, Layout, Bounds, State.Nodes,
                             new HashSet<string>(StringComparer.Ordinal) { Owner });
-                        var Affected = Original.ChangedTerminalRoutes().ToHashSet(); Affected.Add(Route);
+                        var Affected = Snapshot().ChangedTerminalRoutes().ToHashSet(); Affected.Add(Route);
                         if (Affected.Count > FlowchartLayoutRules.RepairChainLines)
                         {
                             CrossingPairCandidateObserver?.Invoke(First.EdgeId + " x " + Second.EdgeId,

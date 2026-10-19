@@ -71,6 +71,9 @@ public sealed class RouteRuleCatalogueAuditTests
             : [];
         List<(string Stage, FlowchartLayoutResult Layout)> snapshots = [];
         List<(string Stage, double Ms)> stageTimes = [];
+        Dictionary<string, double> compactFinalRepairCosts = new(StringComparer.Ordinal);
+        List<FinalRepairAuditCapture.Decision> finalRepairDecisions = [];
+        DiagramGridLayout.FinalRepairObserver = (Key, Reason, ExtraLength) => finalRepairDecisions.Add(new(Key, Reason, ExtraLength));
         int moveBeforeDetourMoves = 0, moveBeforeDetourCandidates = 0;
         int routeRepairChainRuns = 0, routeRepairChainDepthTotal = 0, routeRepairChainMaxDepth = 0,
             routeRepairChainMaxLines = 0;
@@ -88,7 +91,13 @@ public sealed class RouteRuleCatalogueAuditTests
         };
         bool profileStages = string.Equals(Environment.GetEnvironmentVariable("ROUTE_AUDIT_PROFILE"), "1", StringComparison.Ordinal);
         DiagramGridLayout.LayoutStageTimingObserver = profileStages
-            ? (stage, ms) => stageTimes.Add((stage, ms)) : null;
+            ? (stage, ms) => stageTimes.Add((stage, ms))
+            : Environment.GetEnvironmentVariable("FINAL_REPAIR_PROFILE") == "1"
+                ? (stage, ms) =>
+                {
+                    if (ms >= 0 && (stage.StartsWith("cell-cost/exclusive/", StringComparison.Ordinal) || stage == "final-complete-layout-repair"))
+                        compactFinalRepairCosts[stage] = compactFinalRepairCosts.GetValueOrDefault(stage) + ms;
+                } : null;
         DiagramGridLayout.GroupFrameFitPassObserver = message => { fitPasses++; frameEvents.Add(message); };
         DiagramGridLayout.GroupFrameCandidateObserver = scenario.Id == "A165"
             ? message => frameEvents.Add(message) : null;
@@ -166,6 +175,9 @@ public sealed class RouteRuleCatalogueAuditTests
         finally
         {
             layoutClock.Stop();
+            FinalRepairAuditCapture.Record(scenario.Id, contract, layout, layoutClock.Elapsed.TotalSeconds, finalRepairDecisions,
+                stageTimes.Concat(compactFinalRepairCosts.Select(Pair => (Stage: Pair.Key, Ms: Pair.Value))).ToArray());
+            DiagramGridLayout.FinalRepairObserver = null;
             // The older AUDIT_TIME line is below assertions and omits failed
             // scenarios such as A142. Always preserve their measured stages too.
             if (profileStages) TestContext.Out.WriteLine($"CELL_AUDIT_PROFILE|{scenario.Id}|layoutMs={layoutClock.Elapsed.TotalMilliseconds:0.000}|"

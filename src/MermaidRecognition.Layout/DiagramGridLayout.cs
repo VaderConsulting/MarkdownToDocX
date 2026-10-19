@@ -103,6 +103,7 @@ public static partial class DiagramGridLayout
         Run("coupled-route-repair", RouteRepairStage.Apply);
         Run("model-route-completion-and-rule-checks", ModelRouteCompletionStage.Apply);
         Run("final-legality-validation-section-10", LegalityValidationStage.Apply);
+        Run("final-complete-layout-repair", RouteRepairStage.ApplyFinalCompleteRepair);
         return State.Copy;
 
         void Run(string Name, Action<GridLayoutState> Stage)
