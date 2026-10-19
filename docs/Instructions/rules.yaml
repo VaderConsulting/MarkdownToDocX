@@ -455,6 +455,11 @@ parameters:
     unit: "points per grid step of added route length"
     source: "Rule 5.10; prices additional line length when comparing repair options"
     used_by: ["5.10"]
+  - id: "score_route_length_per_grid_step"
+    value: 1
+    unit: "points per grid step before bounded normalization"
+    source: "Approved routing length tie-break; remains below one bend"
+    used_by: ["2.13","4.8","5.9","5.10"]
   - id: "score_repair_moved_line"
     value: 10
     unit: "points per rerouted line"
@@ -474,6 +479,11 @@ parameters:
     value: 12
     unit: "changed lines per chain"
     source: "Rule 5.10; bounds reroute work per chain (catalogue winning maximum: 11 lines)"
+    used_by: ["5.10"]
+  - id: "repair_chain_lines_fan_hub"
+    value: "fan_line_count"
+    unit: "changed lines in one complete fan-hub candidate"
+    source: "Rule 5.10; the number of declared lines in the fan, evaluated per candidate so a hub move can reroute its whole fan atomically"
     used_by: ["5.10"]
   - id: "repair_extra_length_px"
     value: 61
@@ -941,7 +951,7 @@ rules:
     stage: "P8"
     status: "active"
     pointer: ""
-    params: ["target_aspect_width","target_aspect_height","score_shape_points","score_shape_step","score_empty_points_low","score_empty_threshold","score_empty_points_high","score_crossing","score_bend","score_disconnected_end","score_hint_node_group","score_hint_line"]
+    params: ["target_aspect_width","target_aspect_height","score_shape_points","score_shape_step","score_empty_points_low","score_empty_threshold","score_empty_points_high","score_crossing","score_bend","score_disconnected_end","score_hint_node_group","score_hint_line","score_route_length_per_grid_step"]
     refs: ["2.21"]
     outranks: []
     yields: []
@@ -950,7 +960,7 @@ rules:
     order: 57
     blank_before: 1
     text: |-
-      Layout score. Score each **legal, routing-fault-free (unless hinted)** candidate of the same diagram: shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per honoured node/group hint and -15 per honoured line hint (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node's region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span.
+      Layout score. Score each **legal, routing-fault-free (unless hinted)** candidate of the same diagram: shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per honoured node/group hint and -15 per honoured line hint (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node's region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length divided by the base routing grid unit, w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Hints and all legality and routing-fault admission checks remain higher priority. The existing added-length and moved-line repair terms and limits under 5.10 remain separate and unchanged.
   - id: "2.14"
     title: "Keep the best"
     title_in_text: true
@@ -1498,15 +1508,15 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["2.10","3.2","4.7"]
+    refs: ["2.10","3.2","4.7","5.8"]
     outranks: []
-    yields: ["2.10","2.21"]
+    yields: ["2.10","2.21","5.8"]
     pictures: ["pictures/markup-merge-into-end.png","pictures/markup-merge-into-end-detail.png","pictures/markup-merge-finish.png"]
     hint_overridable: true
     order: 89
     blank_before: 1
     text: |-
-      Convergence. Allocate all target ports jointly (3.2, 4.7). A source directly above a target uses a straight top entry **only if its allocated source and target ports align**. An offset source uses the fewest-corner legal entry: top when reachable without a prohibited gap traverse, otherwise the side facing the source. Reserve the top-centre port for a legal straight convergence; distribute offset arrivals across the remaining free sides and slots. A converging line never runs along the gap immediately above the target or uses an S-jog into its top unless a legal line hint explicitly allows that routing fault. Within a 2.10 block, follow 2.10 instead.
+      Convergence. Allocate all target ports jointly (3.2, 4.7). A source directly above a target uses a straight top entry **only if its allocated source and target ports align**. An offset source uses the fewest-corner legal entry: top when reachable without a prohibited gap traverse, otherwise the side facing the source. Reserve the top-centre port for a legal straight convergence; distribute offset arrivals across the remaining free sides and slots. A converging line never runs along the gap immediately above the target or uses an S-jog into its top unless a legal line hint explicitly allows that routing fault. Within a 2.10 block, follow 2.10 instead. For fan lines covered by 5.8, defer to the hub-side and nesting choices permitted by 5.8.
   - id: "5.1"
     title: "One line per track"
     title_in_text: false
@@ -1641,7 +1651,7 @@ rules:
     stage: "X1"
     status: "active"
     pointer: ""
-    params: ["score_bend","score_repair_length_per_grid_step","score_repair_moved_line","repair_candidate_moves","repair_chain_depth","repair_chain_lines","repair_extra_length_px","repair_extra_bends"]
+    params: ["score_bend","score_repair_length_per_grid_step","score_repair_moved_line","repair_candidate_moves","repair_chain_depth","repair_chain_lines","repair_chain_lines_fan_hub","repair_extra_length_px","repair_extra_bends"]
     refs: ["1.2","1.7","2.13","2.21","4.2","5.7","5.8","5.9","1.3"]
     outranks: ["4.2","5.8","5.9"]
     yields: ["2.21"]
@@ -1650,7 +1660,7 @@ rules:
     order: 98
     blank_before: 1
     text: |-
-      Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, add no legality or routing fault, and lower the score. Route options obey named limits for candidate moves, chain depth, lines per chain, added length and added bends; those values protect the 10 second per-diagram target and are set from catalogue measurements. If no move qualifies, route around it as normal. Report when a named limit prevents further candidates from being examined. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same candidate limits.
+      Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, add no legality or routing fault, and lower the score. For an atomic candidate that moves a fan hub and reroutes every declared line in that fan together, repair_chain_lines_fan_hub is the number of lines in that fan. Moving the hub necessarily changes every fan terminal, so the complete fan must be scored and restored as one assignment rather than truncated at the ordinary twelve-line bound. Every other candidate still uses repair_chain_lines (12). This exception permits no unrelated changed lines and does not raise the candidate-move, chain-depth, added-length or added-bend limits. Route options obey named limits for candidate moves, chain depth, lines per chain, added length and added bends; those values protect the 10 second per-diagram target and are set from catalogue measurements. If no move qualifies, route around it as normal. Report when a named limit prevents further candidates from being examined. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same candidate limits.
   - id: "5.8"
     title: "Fans between columns"
     title_in_text: true
@@ -1668,7 +1678,7 @@ rules:
     order: 99
     blank_before: 1
     text: |-
-      Fans between columns. When lines fan out from one source to targets that lie wholly beyond its left or right side, or fan in to one target from such sources, each line leaves the side of the source that faces the target and enters the side of the target that faces the source, at spread ports (rules 3.2 and 3.3). Each line has its own track in the gap between the columns, and the tracks are nested as rule 5.2 sets so that the lines do not cross each other. A fan line never leaves the source's far side, top or bottom to go round the source, never enters at a box corner, and never shares a track with another fan line, unless a line hint (rule 2.21) names the side. Fans to the next rank use the bottom and top sides (rules 2.10 and 5.2). Insert space for the tracks as rule 1.7 sets (see pictures/markup-fan-out-bad.png, which shows what is forbidden).
+      Fans between columns. When lines fan out from one source to targets that lie wholly beyond its left or right side, or fan in to one target from such sources, each line leaves the side of the source that faces the target and enters the side of the target that faces the source, at spread ports (rules 3.2 and 3.3). Each line has its own track in the gap between the columns, and the tracks are nested as rule 5.2 sets so that the lines do not cross each other. When a fan's lines cannot all nest on the hub's facing side without crossing, lines to leaves beyond the hub's top edge may use its top side and lines to leaves beyond its bottom edge may use its bottom side. Each side group is nested as rule 5.2 sets, so no two lines of the fan cross. This applies to fan-in and fan-out and takes precedence over 4.11 for these fan lines. The far side, box corners and shared tracks remain forbidden. A line hint (rule 2.21) may name the side within hard legality. Fans to the next rank use the bottom and top sides (rules 2.10 and 5.2). Insert space for the tracks as rule 1.7 sets (see pictures/markup-fan-out-bad.png, which shows what is forbidden).
   - id: "5.9"
     title: "Avoidable crossings"
     title_in_text: false

@@ -9,6 +9,8 @@ namespace MermaidRecognition.Layout;
 /// <summary>Reads layout score parameters from the embedded canonical rules.yaml.</summary>
 internal static class FlowchartLayoutRules
 {
+    /// <summary>Approved candidate-derived expressions; all other parameters remain numeric constants.</summary>
+    private static readonly Dictionary<string, string> _expressions = new(StringComparer.Ordinal);
     private static readonly IReadOnlyDictionary<string, double> _parameters = LoadParameters();
 
     internal static double BendScore => Get("score_bend");
@@ -38,9 +40,23 @@ internal static class FlowchartLayoutRules
     internal static int RepairCandidateMoves => checked((int)Get("repair_candidate_moves"));
     internal static int RepairChainDepth => checked((int)Get("repair_chain_depth"));
     internal static int RepairChainLines => checked((int)Get("repair_chain_lines"));
+    /// <summary>Evaluates the approved complete-fan limit without changing the ordinary twelve-line bound.</summary>
+    /// <param name="FanLineCount">Number of declared lines in the complete fan being moved atomically.</param>
+    /// <returns>The exact fan inventory size, never a fixed replacement for the ordinary limit.</returns>
+    /// <exception cref="InvalidDataException">The canonical expression is absent or unsupported.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The supplied inventory is not a fan.</exception>
+    internal static int RepairChainLinesFanHub(int FanLineCount)
+    {
+        if (!_expressions.TryGetValue("repair_chain_lines_fan_hub", out string? Expression) || Expression != "fan_line_count")
+            throw new InvalidDataException("rules.yaml must define repair_chain_lines_fan_hub as fan_line_count.");
+        if (FanLineCount < 3) throw new ArgumentOutOfRangeException(nameof(FanLineCount));
+        return FanLineCount;
+    }
     internal static double RepairExtraLength => Get("repair_extra_length_px");
     internal static int RepairExtraBends => checked((int)Get("repair_extra_bends"));
     internal static double RepairLengthWeight => Get("score_repair_length_per_grid_step");
+    /// <summary>Approved routing-length weight before the once-per-layout bounded normalization.</summary>
+    internal static double RouteLengthWeight => Get("score_route_length_per_grid_step");
     internal static double RepairMovedLineWeight => Get("score_repair_moved_line");
 
     private static double Get(string Id) => _parameters.TryGetValue(Id, out double Value)
@@ -66,6 +82,13 @@ internal static class FlowchartLayoutRules
             }
             if (CurrentId == null || !Trimmed.StartsWith("value:", StringComparison.Ordinal)) continue;
             string Text = Trimmed[6..].Trim();
+            if (CurrentId == "repair_chain_lines_fan_hub" && Text == "\"fan_line_count\"")
+            {
+                if (!_expressions.TryAdd(CurrentId, "fan_line_count"))
+                    throw new InvalidDataException("rules.yaml contains duplicate parameter '" + CurrentId + "'.");
+                CurrentId = null;
+                continue;
+            }
             if (!double.TryParse(Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double Value))
                 throw new InvalidDataException("Invalid numeric value for rules.yaml parameter '" + CurrentId + "'.");
             if (!Values.TryAdd(CurrentId, Value))

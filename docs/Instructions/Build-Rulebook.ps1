@@ -89,6 +89,11 @@ function Test-Rules($doc, [string]$rulebookPath) {
   foreach ($d in $dups) { $errors.Add("Rule $($d.Name) appears $($d.Count) times") }
   $known = @{}; foreach ($x in $ruleIds) { $known[$x] = 1 }; foreach ($e in $doc.entries) { $known[$e.id] = 1 }; $known['legality'] = 1
   $paramIds = @{}; foreach ($p in $doc.parameters) { $paramIds[$p.id] = 1 }
+  foreach ($p in $doc.parameters) {
+    if ($p.id -eq 'repair_chain_lines_fan_hub') {
+      if ($p.value -cne 'fan_line_count') { $errors.Add('repair_chain_lines_fan_hub must evaluate to fan_line_count') }
+    } elseif ($p.value -is [string]) { $errors.Add("Parameter $($p.id): expected a numeric value") }
+  }
   $stageIds = @{}; foreach ($s in $doc.precedence) { $stageIds[$s.id] = 1 }
   $orders = @{}
   foreach ($r in $doc.rules) {
