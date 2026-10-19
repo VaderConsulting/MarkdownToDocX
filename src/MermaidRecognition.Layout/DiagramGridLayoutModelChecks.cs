@@ -323,6 +323,8 @@ public static partial class DiagramGridLayout
                 FlowchartRenderContext.ReportOperationCount("star-nesting/kept", FanResult.Kept);
                 FlowchartRenderContext.ReportOperationCount("star-nesting/rejected", FanResult.Rejected);
                 ProfileCall("terminal-track-repair", () => RouteRepairStage.RepairTerminalPortTracks(State, Bounds));
+                if (!Layout.RenderContext.IsEvaluatingCellRouteCandidate)
+                    ProfileCall("joint-crossing-pair-assignments", () => RouteRepairStage.RepairCrossingPairAssignments(State, Bounds));
             }
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals

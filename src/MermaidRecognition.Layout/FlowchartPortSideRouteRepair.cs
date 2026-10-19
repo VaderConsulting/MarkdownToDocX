@@ -562,7 +562,13 @@ internal static class FlowchartPortSideRouteRepair
     private static double Distance(FlowchartLayoutPoint A, FlowchartLayoutPoint B) =>
         Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y);
 
-    private static bool HasLabelRoom(IReadOnlyList<FlowchartLayoutPoint> Points,
+    /// <summary>Checks that the measured caption and its clearances fit on a candidate's straight run.</summary>
+    /// <param name="Points">Complete candidate route.</param>
+    /// <param name="Edge">Declared caption, or an unlabelled relationship.</param>
+    /// <param name="Contract">Canonical rendering options for the diagram.</param>
+    /// <param name="OrthogonalRunsOnly">Whether slanted terminal normals are excluded from label placement.</param>
+    /// <returns>Whether an eligible straight run holds the complete measured label and corner clearance.</returns>
+    internal static bool HasLabelRoom(IReadOnlyList<FlowchartLayoutPoint> Points,
         EdgeContract? Edge, DiagramContract Contract, bool OrthogonalRunsOnly = false)
     {
         if (string.IsNullOrWhiteSpace(Edge?.Label)) return true;
