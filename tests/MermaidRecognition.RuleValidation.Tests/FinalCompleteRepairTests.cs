@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
-/// <summary>Checks final-only whole-layout repair decisions, including exact rollback and the A115 side reassignment.</summary>
+/// <summary>Checks final-only whole-layout repair decisions, including exact rollback and the accepted A115 region move.</summary>
 [TestFixture, NonParallelizable]
 public sealed class FinalCompleteRepairTests
 {
@@ -31,9 +31,9 @@ public sealed class FinalCompleteRepairTests
         }
         finally { DiagramGridLayout.FinalRepairObserver = null; }
     }
-    /// <summary>Requires the previously demonstrated joint side alternative in the actual final production model.</summary>
+    /// <summary>Protects the accepted whole-cell A115 move and its completed production routes.</summary>
     [Test]
-    public void A115_FinalSideAssignment_RemovesTheCrossingWithExactRollback()
+    public void A115_FinalRegionMove_RemovesTheCrossingWithExactRollback()
     {
         var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A115");
