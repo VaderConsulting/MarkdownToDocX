@@ -30,6 +30,11 @@ public static class FlowchartRouteRuleChecker
 
         List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> matched = [];
         HashSet<FlowchartLayoutEdgeRoute> used = [];
+        Dictionary<(string Hub, bool Outgoing), bool> nestedFanSides = [];
+        // Unbound Dagre/preparation models have no authoritative cell ports.
+        // Relaxing their side policy changes placement before a complete fan
+        // candidate exists. The legacy pixel path retains its previous policy.
+        bool hasCellAuthority = layout.CellNodes is { Count: > 0 } && layout.CellNodes.All(node => node.CellNode != null);
         foreach (EdgeContract edge in edges)
         {
             FlowchartLayoutEdgeRoute? route = FindRoute(edge, layout.EdgeRoutes, used);
@@ -44,7 +49,8 @@ public static class FlowchartRouteRuleChecker
             CheckTerminal(edge, route, false, boxes, nodes, findings);
             CheckOrthogonal(edge, route, nodes, boxes, findings);
             CheckAlignedStraight(edge, route, findings);
-            if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings);
+            if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
+                hasCellAuthority);
             CheckFrameRun(edge, route, contract, boxes, findings);
             CheckObstacles(edge, route, contract, layout, boxes, nodes, findings);
         }
@@ -472,8 +478,19 @@ public static class FlowchartRouteRuleChecker
         return portGroup is "diamond-++" or "diamond---" ? horizontal / total : vertical / total;
     }
 
+    /// <summary>Checks terminal side policy, admitting grid fan overflow only after authoritative cell ownership exists.</summary>
+    /// <param name="edge">Declared visible link without a back-edge exemption.</param>
+    /// <param name="route">Finished allocated terminal and path.</param>
+    /// <param name="contract">Unchanged links, groups and hints.</param>
+    /// <param name="boxes">Current output node and frame bounds.</param>
+    /// <param name="findings">Destination for side and frame-terminal findings.</param>
+    /// <param name="routes">Complete route inventory for validating fan nesting.</param>
+    /// <param name="nestedFanSides">Per-check cache of complete fan intersection results.</param>
+    /// <param name="hasCellAuthority">Whether the logical-grid fan rule can use authoritative regions; unbound placement retains its existing side policy.</param>
     private static void CheckSideChoice(EdgeContract edge, FlowchartLayoutEdgeRoute route, DiagramContract contract,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes, List<Finding> findings)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes, List<Finding> findings,
+        IReadOnlyList<FlowchartLayoutEdgeRoute> routes, Dictionary<(string Hub, bool Outgoing), bool> nestedFanSides,
+        bool hasCellAuthority)
     {
         if (edge.RoutingHint != null) return;
         if (!boxes.TryGetValue(edge.SourceId, out FlowchartLayoutNodeBounds? source)
@@ -483,13 +500,13 @@ public static class FlowchartRouteRuleChecker
         if (fanOut > 1)
         {
             string expected = FacingSide(source, target);
-            if (route.ExitSide != expected)
+            if (route.ExitSide != expected && !(hasCellAuthority && PermittedFanSide(source, target, route.ExitSide, true, contract, routes, nestedFanSides)))
                 findings.Add(new Finding("5.8", EdgeName(edge), $"fan line leaves {route.ExitSide}, not the facing {expected} side"));
         }
         if (fanIn > 1)
         {
             string expected = FacingSide(target, source);
-            if (route.EntrySide != expected)
+            if (route.EntrySide != expected && !(hasCellAuthority && PermittedFanSide(target, source, route.EntrySide, false, contract, routes, nestedFanSides)))
                 findings.Add(new Finding("4.11", EdgeName(edge), $"converging line enters {route.EntrySide}, not the facing {expected} side"));
         }
         if (contract.Groups.Any(group => group.Id == edge.SourceId || group.Id == edge.TargetId))
@@ -503,8 +520,57 @@ public static class FlowchartRouteRuleChecker
                     findings.Add(new Finding("4.9", EdgeName(edge), "frame connection has a zero-length or non-square terminal run"));
             }
         }
+
     }
 
+    // 5.8 is the specific fan exception to 4.11. A vertical overflow
+    // terminal is not a blanket side-choice waiver: the leaf must be
+    // beyond that edge and the complete declared fan must be nested.
+    /// <summary>Checks the 5.8 vertical overflow exception against a complete, nonintersecting fan.</summary>
+    /// <param name="hub">Common endpoint, in the routing stage's upward-positive coordinates.</param>
+    /// <param name="leaf">Opposite endpoint, wholly beyond the selected vertical edge.</param>
+    /// <param name="side">Actual allocated hub side.</param>
+    /// <param name="outgoing">Whether the hub is the source rather than the target.</param>
+    /// <param name="contract">Unchanged declarations defining the complete star.</param>
+    /// <param name="routes">Finished route inventory, including every fan branch.</param>
+    /// <param name="nestedFanSides">Per-check cache of complete-fan intersection results.</param>
+    /// <returns>Whether the complete fan qualifies; other port, corner and legality checks remain active.</returns>
+    private static bool PermittedFanSide(FlowchartLayoutNodeBounds hub, FlowchartLayoutNodeBounds leaf, string side, bool outgoing,
+        DiagramContract contract, IReadOnlyList<FlowchartLayoutEdgeRoute> routes,
+        Dictionary<(string Hub, bool Outgoing), bool> nestedFanSides)
+    {
+        bool beyond = side == "top" && leaf.CenterY - leaf.Height / 2 >= hub.CenterY + hub.Height / 2 - Tolerance
+            || side == "bottom" && leaf.CenterY + leaf.Height / 2 <= hub.CenterY - hub.Height / 2 + Tolerance;
+        if (!beyond) return false;
+        var key = (hub.NodeId, outgoing);
+        if (!nestedFanSides.TryGetValue(key, out bool nested))
+        {
+            var links = contract.Edges.Where(item => item.Stroke != "invisible"
+                && (outgoing ? item.SourceId : item.TargetId) == hub.NodeId).ToArray();
+            var fan = new List<FlowchartLayoutEdgeRoute>();
+            var matched = new HashSet<FlowchartLayoutEdgeRoute>();
+            // Parallel links to one peer are a convergence/bundle, not
+            // distinct leaves of the star governed by this exception.
+            nested = links.Length >= 3 && links.Select(link => outgoing ? link.TargetId : link.SourceId)
+                .Distinct(StringComparer.Ordinal).Count() == links.Length;
+            foreach (var link in links)
+            {
+                var path = FindRoute(link, routes, matched);
+                if (path == null || path.Points.Count < 2) { nested = false; break; }
+                matched.Add(path); fan.Add(path);
+            }
+            for (int a = 0; nested && a < fan.Count; a++)
+            for (int b = a + 1; nested && b < fan.Count; b++)
+            {
+                var pair = FlowchartBranchRouteOrder.Intersections(
+                    fan[a].Points.Select(point => (point.X, point.Y)).ToArray(),
+                    fan[b].Points.Select(point => (point.X, point.Y)).ToArray());
+                nested = pair.Crossings == 0 && pair.Overlap == 0;
+            }
+            nestedFanSides[key] = nested;
+        }
+        return nested;
+    }
     private static string FacingSide(FlowchartLayoutNodeBounds from, FlowchartLayoutNodeBounds to)
     {
         double dx = to.CenterX - from.CenterX, dy = to.CenterY - from.CenterY;

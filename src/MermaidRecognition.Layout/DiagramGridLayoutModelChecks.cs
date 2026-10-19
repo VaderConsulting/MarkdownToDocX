@@ -315,6 +315,12 @@ public static partial class DiagramGridLayout
                     foreach (var Box in Layout.NodeBounds.Concat(Layout.ClusterBounds)) Bounds[Box.NodeId] = Box;
                 }
             }
+            if (State.Placed.Any(Node => Node.CellNode != null))
+            {
+                var FanResult = FlowchartStarFanNesting.Apply(State.Contract, Layout);
+                FlowchartRenderContext.ReportOperationCount("star-nesting/kept", FanResult.Kept);
+                FlowchartRenderContext.ReportOperationCount("star-nesting/rejected", FanResult.Rejected);
+            }
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.

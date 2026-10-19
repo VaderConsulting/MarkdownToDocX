@@ -162,7 +162,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                 LabelX,
                 LabelY));
         }
-        EnterpriseRelationshipLabelLayout.Place(Routed, Nodes);
+        EnterpriseRelationshipLabelLayout.Place(Routed, Nodes, Context.Layout.RenderContext.UseCellRegions);
         return Routed;
     }
 
