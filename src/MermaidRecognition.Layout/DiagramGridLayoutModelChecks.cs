@@ -1768,6 +1768,20 @@ public static partial class DiagramGridLayout
                         // that explicit geometry change.
                         if (State.Placed.Any(Node => Node.CellNode != null))
                         {
+                            // A compound frame is not a solid node obstacle.
+                            // Reuse the allocated-normal visibility search, which
+                            // carries node bodies and title strips separately,
+                            // before declaring that a fixed frame has no route.
+                            var Allocated = Edge?.RoutingHint is { IsActive: true, Travel: not null }
+                                ? [] : BuildAllocatedNormalFallback(State, Bounds, Route);
+                            if (FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route, Allocated))
+                            {
+                                Route.Points.Clear();
+                                foreach (var Point in Allocated) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                                State.Copy.RenderContext.LayoutStageViolations.RemoveAll(Failure => Failure.Kind == "NoLegalRoute"
+                                    && Failure.InvolvedIds.Contains(Route.EdgeId));
+                                continue;
+                            }
                             ReportCellTitleRouteFailure(State, Route);
                             continue;
                         }
