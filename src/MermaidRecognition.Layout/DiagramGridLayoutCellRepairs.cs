@@ -179,6 +179,21 @@ public static partial class DiagramGridLayout
             FlowchartLayoutRules.RepairChainDepth - State.MoveBudget.AcceptedMoves, State.MoveBudget.AttemptedMoves,
             () => CellGapShortfalls(State).Sum(Gap => Gap.Missing)).Moved > 0;
 
+        /// <summary>Offers the atomic external-gap fallback after fixed-port track and joint-slot options.</summary>
+        /// <param name="State">Final cell model, before quality-only placement spends the remaining candidate budget.</param>
+        /// <param name="Bounds">Current complete geometry, refreshed after accepted growth.</param>
+        internal static void RepairCellTerminalSpacing(GridLayoutState State, Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        {
+            RepairTerminalPortTracks(State, Bounds);
+            if (!FlowchartTerminalTrackRepair.Conflicts(State.Copy).Any()) return;
+            var Result = SearchCellAssignments(State, GapCellOptions(State), FlowchartLayoutRules.RepairCandidateMoves,
+                FlowchartLayoutRules.RepairChainDepth - State.MoveBudget.AcceptedMoves, State.MoveBudget.AttemptedMoves,
+                () => CellGapShortfalls(State).Sum(Gap => Gap.Missing), PreserveBends: true);
+            if (Result.Moved == 0) return;
+            foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
+            FlowchartTerminalTrackRepair.Observer?.Invoke("gap", "accepted", Result.Moved.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
         /// <summary>One genuine shared gap with missing terminal or track room measured on its allocated geometry.</summary>
         /// <param name="Horizontal">True for column gaps, false for row gaps.</param>
         /// <param name="After">Cell index preceding the gap.</param>
@@ -191,6 +206,28 @@ public static partial class DiagramGridLayout
         private static IEnumerable<CellGap> CellGapShortfalls(GridLayoutState State)
         {
             var Nodes = State.Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+            // Off-centre terminals can compete for the same real corridor even
+            // though neither endpoint qualifies for the older centre-port rule.
+            foreach (var Pair in FlowchartTerminalTrackRepair.Conflicts(State.Copy))
+            {
+                var A = Pair.First; var B = Pair.Second;
+                if (A.Owner == B.Owner || !Nodes.TryGetValue(A.Owner, out var First)
+                    || !Nodes.TryGetValue(B.Owner, out var Second)) continue;
+                var S = First.CellNode?.Region; var T = Second.CellNode?.Region;
+                if (S == null || T == null) continue;
+                bool Horizontal = A.Horizontal;
+                int End = Horizontal ? S.EndColumn : S.EndRow;
+                int Start = Horizontal ? T.StartColumn : T.StartRow;
+                int ReverseEnd = Horizontal ? T.EndColumn : T.EndRow;
+                int ReverseStart = Horizontal ? S.StartColumn : S.StartRow;
+                int After = End <= Start ? End - 1 : ReverseEnd <= ReverseStart ? ReverseEnd - 1 : int.MinValue;
+                if (After == int.MinValue || State.Placed.Any(Node =>
+                    (Horizontal ? Node.CellNode!.Region.StartColumn : Node.CellNode!.Region.StartRow) <= After
+                    && After < (Horizontal ? Node.CellNode!.Region.EndColumn : Node.CellNode!.Region.EndRow) - 1)) continue;
+                double Required = 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
+                double Available = Math.Abs(A.Port - B.Port);
+                if (Available < Required) yield return new(Horizontal, After, Required - Available);
+            }
             var Links = State.Copy.EdgeRoutes.Where(Route => Route.Points.Count > 2
                 && FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive != true).ToArray();
             var Back = FlowchartBackEdgeHelper.FindBackEdges(State.Contract);
@@ -223,6 +260,52 @@ public static partial class DiagramGridLayout
                 double Required = 3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridRouteBuilder.ARROWHEAD_LENGTH_PX;
                 if (Available < Required) yield return new(Horizontal, After, Required - Available);
             }
+        }
+
+        /// <summary>Tries legal joint slot allocation only after bend-track shortening has been exhausted.</summary>
+        /// <param name="State">Complete candidate; its ownership and caches are restored on rejection.</param>
+        /// <param name="Bounds">Current immutable endpoint geometry.</param>
+        /// <param name="OnlyRoutes">Routes allowed to change in an incremental candidate.</param>
+        internal static void RepairTerminalPortTracks(GridLayoutState State,
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
+        {
+            FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds, OnlyRoutes);
+            var Pairs = FlowchartTerminalTrackRepair.Conflicts(State.Copy).ToArray();
+            if (Pairs.Length == 0 || State.Placed.All(Node => Node.CellNode == null)) return;
+            var Owners = Pairs.SelectMany(Pair => new[] { Pair.First.Owner, Pair.Second.Owner }).ToHashSet(StringComparer.Ordinal);
+            var Saved = new CellGeometrySnapshot(State);
+            var BeforeFindings = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
+            int BeforeBends = RouteBends(State.Copy);
+            int BeforeCrossings = TerminalCrossings(State.Copy);
+            bool Accepted = false;
+            try
+            {
+                ModelRouteCompletionStage.AllocateFinalPortSlots(State.Contract, State.Copy, Bounds, State.Nodes, Owners);
+                var Affected = Saved.ChangedTerminalRoutes().ToHashSet();
+                if (Affected.Count == 0 || Affected.Count > FlowchartLayoutRules.RepairChainLines
+                    || OnlyRoutes != null && Affected.Any(Route => !OnlyRoutes.Contains(Route))) return;
+                DiagramGridRouteBuilder.RebuildAllRoutes(State.Copy, State.Placed, State.Nodes,
+                    State.Contract, State.Frames, State.Direction, Affected);
+                FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds, Affected);
+                Accepted = FlowchartTerminalTrackRepair.Conflicts(State.Copy).Count() < Pairs.Length
+                    && RouteBends(State.Copy) <= BeforeBends && TerminalCrossings(State.Copy) <= BeforeCrossings
+                    && NoNewFindings(BeforeFindings, FlowchartRouteRuleChecker.Check(State.Contract, State.Copy));
+                if (Accepted) foreach (var Pair in Pairs)
+                    FlowchartTerminalTrackRepair.Observer?.Invoke("slots", Pair.First.Route.EdgeId, Pair.Second.Route.EdgeId);
+            }
+            finally { if (!Accepted) Saved.Restore(State); }
+        }
+
+        /// <summary>Counts crossings on exactly the completed route geometry being scored.</summary>
+        /// <param name="Layout">Private completed candidate.</param>
+        /// <returns>Geometric crossings, including routes with common graph endpoints.</returns>
+        private static int TerminalCrossings(FlowchartLayoutResult Layout)
+        {
+            var Paths = Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
+            int Count = 0;
+            for (int I = 0; I < Paths.Length; I++) for (int J = I + 1; J < Paths.Length; J++)
+                Count += FlowchartBranchRouteOrder.Intersections(Paths[I], Paths[J]).Crossings;
+            return Count;
         }
 
         /// <summary>Checks the renderer's connection-edge centre, including a body inset, rather than the visual box centre.</summary>
@@ -378,11 +461,14 @@ public static partial class DiagramGridLayout
                 if (Examined >= CandidateLimit) break;
                 var Participants = Option.Assignment.Nodes;
                 if (Participants.Count == 0 || Participants.Any(Node => Node.PlacementHintLocked
-                    || HasHintedContainingGroup(State.Contract, Node.Id))) continue;
+                    || HasHintedContainingGroup(State.Contract, Node.Id)))
+                { if (Option.Key.StartsWith("gap|", StringComparison.Ordinal)) FlowchartTerminalTrackRepair.Observer?.Invoke("gap-rejected", Option.Key, "hint/empty"); continue; }
                 if (HasExternalCellHintDependent(State.Contract, Option.Subject, Participants.ToArray())) continue;
                 var Ids = Participants.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
                 if (State.Copy.EdgeRoutes.Count(Route => Ids.Contains(Route.SourceId) || Ids.Contains(Route.TargetId))
-                    > FlowchartLayoutRules.RepairChainLines) continue;
+                    > FlowchartLayoutRules.RepairChainLines)
+                { if (Option.Key.StartsWith("gap|", StringComparison.Ordinal)) FlowchartTerminalTrackRepair.Observer?.Invoke("gap-rejected", Option.Key,
+                    "lines=" + State.Copy.EdgeRoutes.Count(Route => Ids.Contains(Route.SourceId) || Ids.Contains(Route.TargetId))); continue; }
                 if (!ReferenceCompletion && !Attempted.Add("cells|" + Signature + "|" + CellAssignmentIdentity(Option.Assignment))) continue;
                 Examined++;
                 if (NeedsHardRepair) ExaminedOptions.Add(Option);
@@ -492,6 +578,8 @@ public static partial class DiagramGridLayout
         /// <param name="Key">Winning immutable option key.</param>
         private static void ReportAcceptedCellKind(string? Key)
         {
+            if (Key?.StartsWith("gap|", StringComparison.Ordinal) == true)
+                FlowchartTerminalTrackRepair.Observer?.Invoke("gap-winner", Key, "accepted");
             if (FlowchartRenderContext.OperationCountObserver == null || Key == null) return;
             FlowchartRenderContext.ReportOperationCount("cell-winner/" + (Key.StartsWith("joint|", StringComparison.Ordinal)
                 ? Key.Split('|')[1] : "existing"), 1);

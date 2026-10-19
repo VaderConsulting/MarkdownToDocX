@@ -295,6 +295,7 @@ public static partial class DiagramGridLayout
             ProfileCall("facing-side-assignment", () => RepairFinalFacingSides(State, Bounds));
             ProfileCall("aligned-straight-candidates", () => StraightenFinalAlignedRoutes(State));
             ProfileCall("joint-channel-search", () => SearchJointChannels(State, Bounds));
+            ProfileCall("terminal-track-repair", () => RouteRepairStage.RepairTerminalPortTracks(State, Bounds));
             ProfileCall("distinct-track-seal", () => SealDistinctTracks(State, Bounds));
             ProfileCall("nonincreasing-track-search", () => FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed));
             ProfileCall("post-track-straight-candidates", () => StraightenFinalAlignedRoutes(State));
@@ -309,6 +310,7 @@ public static partial class DiagramGridLayout
             if (State.Placed.Any(Node => Node.CellNode != null) && !Layout.RenderContext.IsEvaluatingCellRouteCandidate)
             {
                 State.CellFinalRoutingReady = true;
+                RouteRepairStage.RepairCellTerminalSpacing(State, Bounds);
                 if (RouteRepairStage.ApplyFinalMoveBeforeDetour(State))
                 {
                     Bounds.Clear();
@@ -320,6 +322,7 @@ public static partial class DiagramGridLayout
                 var FanResult = FlowchartStarFanNesting.Apply(State.Contract, Layout);
                 FlowchartRenderContext.ReportOperationCount("star-nesting/kept", FanResult.Kept);
                 FlowchartRenderContext.ReportOperationCount("star-nesting/rejected", FanResult.Rejected);
+                ProfileCall("terminal-track-repair", () => RouteRepairStage.RepairTerminalPortTracks(State, Bounds));
             }
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
@@ -514,6 +517,7 @@ public static partial class DiagramGridLayout
             FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Affected);
             StraightenFinalAlignedRoutes(State, Affected);
             RepairFinalFacingSides(State, Bounds, Affected);
+            RouteRepairStage.RepairTerminalPortTracks(State, Bounds, Affected);
         }
         /// <summary>Preserves the legal zero-bend option after all writers have settled the allocated ports.</summary>
         /// <param name="State">The complete final model and declared links.</param>

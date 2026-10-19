@@ -370,6 +370,41 @@ public sealed class FlowchartCellMoveSearchTests
         .GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!.GetMethod("MoveBeforeDetour", StaticPrivate)!
         .Invoke(null, [State, FlowchartLayoutRules.RepairCandidateMoves, 1, new HashSet<string>()])!;
 
+    /// <summary>A rejected real gap candidate restores ownership, gaps, ports, routes and nonempty frames together.</summary>
+    [Test]
+    public void RejectedTerminalGapCandidateRestoresEveryGeometryLayerExactly()
+    {
+        var Fixture = CreateState(false, "flowchart LR\nsubgraph G[Group]\nA[Input] --> B[Work]\nend\nB --> C[Output]",
+            new() { ["A"] = new(0, 0, 1, 1), ["B"] = new(0, 1, 1, 1), ["C"] = new(0, 3, 1, 1) });
+        var Before = Fixture.Grid.Capture();
+        string Geometry = GeometryOf(Fixture.Layout);
+        Assert.That(Fixture.Layout.ClusterBounds, Is.Not.Empty);
+        var Assignment = FlowchartCellRepair.PlanAssignment(Fixture.Nodes, new Dictionary<string, FlowchartCellRegion>(),
+            [new(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX)]);
+        Assert.That(Assignment, Is.Not.Null);
+        var Stage = typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!;
+        var OptionType = Stage.GetNestedType("CellRepairOption", BindingFlags.NonPublic)!;
+        var Option = Activator.CreateInstance(OptionType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null, ["gap|True|0", "gap 0", Assignment!], null)!;
+        var Options = Array.CreateInstance(OptionType, 1); Options.SetValue(Option, 0);
+        bool SawGrowth = false;
+        DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) =>
+        {
+            SawGrowth = Fixture.Grid.Capture().ColumnGaps[0] > Fixture.Grid.Configuration.ColumnGap;
+            throw new InvalidOperationException("reject-grown-terminal-gap");
+        };
+        try
+        {
+            Assert.Throws<TargetInvocationException>(() => Stage.GetMethod("SearchCellAssignments", StaticPrivate)!
+                .Invoke(null, [Fixture.State, Options, FlowchartLayoutRules.RepairCandidateMoves,
+                    FlowchartLayoutRules.RepairChainDepth, new HashSet<string>(), null, true]));
+        }
+        finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
+        Assert.That(SawGrowth, Is.True);
+        Assert.That(Fixture.Grid.Capture(), Is.SameAs(Before));
+        Assert.That(GeometryOf(Fixture.Layout), Is.EqualTo(Geometry));
+    }
+
     /// <summary>Captures every route point, side and normal together with derived node and frame bounds.</summary>
     /// <param name="Layout">The current cached drawing geometry.</param>
     /// <returns>An exact structural snapshot for the rollback comparison.</returns>
