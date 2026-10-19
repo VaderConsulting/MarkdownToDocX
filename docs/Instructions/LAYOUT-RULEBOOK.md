@@ -178,7 +178,7 @@ A junction belongs to no layer and sits next to the elements it joins. A locatio
 
 A grouping belongs to no layer and has no position of its own. Its frame is drawn around its members wherever their bands place them. If the members are in more than one band, the frame spans those bands as one solid block, each member stays in its own band, and elements that aren't members are kept out of the frame, even if a band has to wrap.
 
-The bands follow the page. The declared flow direction applies only within a band. Within a band, passive structure goes on the left, behaviour in the middle and active structure on the right. A band may wrap onto further rows to approach the overall shape target.
+The bands follow the page. The declared flow direction applies only within a band. Within a band, passive structure goes on the left, behaviour in the middle and active structure on the right. This order applies separately inside each grouping frame's part of the band and among the band's ungrouped elements. Columns are never aligned across different frames, and keeping a frame as one solid block takes priority over the aspect order. A band may wrap onto further rows to approach the overall shape target.
 
 In the Implementation and Migration band, plateaus run from left to right in triggering order, and each gap sits between the plateaus it relates.
 
