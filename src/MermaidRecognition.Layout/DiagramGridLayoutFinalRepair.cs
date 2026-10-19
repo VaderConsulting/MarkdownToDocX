@@ -17,6 +17,10 @@ public static partial class DiagramGridLayout
     internal static Func<IReadOnlyList<GridNode>, IReadOnlyDictionary<string, FlowchartCellRegion>>? FinalRepairRegionForTests;
     /// <summary>Exposes fully rerouted diagnostic geometry before any admission guard, without retaining it.</summary>
     internal static Action<string, FlowchartLayoutResult>? FinalRepairMeasurementObserver;
+    /// <summary>Measures reference completion inputs without changing candidate order or admission.</summary>
+    internal static Action<string, string, string, bool, bool, double>? FinalRepairConfirmationObserver;
+    /// <summary>Allows equivalence tests to execute the uncached reference algorithm; production keeps reuse enabled.</summary>
+    internal static bool FinalRepairDisableReferenceReuseForTests;
 
     private static partial class RouteRepairStage
     {
@@ -42,6 +46,7 @@ public static partial class DiagramGridLayout
             var DeclaredRoutes = Layout.EdgeRoutes.Select(Route => Route.EdgeId).OrderBy(Id => Id, StringComparer.Ordinal).ToArray();
             double BeforeLength = RouteLength(Layout);
             int Examined = 0, Accepted = 0;
+            var BaseCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
             var Queues = new[] { PairOptions().GetEnumerator(), RegionOptions().GetEnumerator() }.ToList();
             try
             {
@@ -63,8 +68,21 @@ public static partial class DiagramGridLayout
                         // Every line is rerouted, including lines remote from
                         // the repair. The subsequent assignment replay fixes the
                         // candidate's proposed tracks/slots on those fresh routes.
-                        using (FlowchartCellCostTiming.ForRoutingPhase("final-confirmation"))
-                            CompleteReferenceCellCandidate(State);
+                        bool CacheBase = Option.ReplayAfterRouting && !FinalRepairDisableReferenceReuseForTests;
+                        string? GeometryKey = FinalRepairConfirmationObserver == null && !CacheBase ? null : FinalReferenceIdentity(State, false);
+                        string? InputKey = FinalRepairConfirmationObserver == null ? null : FinalReferenceIdentity(State, true);
+                        var ConfirmationClock = FinalRepairConfirmationObserver == null ? null : System.Diagnostics.Stopwatch.StartNew();
+                        CellGeometrySnapshot? Completed = null;
+                        bool Reused = CacheBase && BaseCompletions.TryGetValue(GeometryKey!, out Completed);
+                        if (Reused) Completed!.Restore(State);
+                        else
+                        {
+                            using (FlowchartCellCostTiming.ForRoutingPhase("final-confirmation"))
+                                CompleteReferenceCellCandidate(State);
+                            if (CacheBase) BaseCompletions[GeometryKey!] = new CellGeometrySnapshot(State);
+                        }
+                        if (ConfirmationClock != null) FinalRepairConfirmationObserver?.Invoke(Option.Key, GeometryKey!, InputKey!,
+                            Option.ReplayAfterRouting, Reused, ConfirmationClock.Elapsed.TotalMilliseconds);
                         Bounds = BuildPlacedBounds(State.Placed, State.Frames);
                         if (Option.ReplayAfterRouting && !Option.Build()) { Reason = "replay"; continue; }
                         FinalRepairMeasurementObserver?.Invoke(Option.Key, Layout);
@@ -180,6 +198,33 @@ public static partial class DiagramGridLayout
                         return true;
                     }, false);
             }
+        }
+
+        /// <summary>Identifies exact ordered placement inputs, optionally including the incoming route assignment.</summary>
+        /// <param name="State">Private candidate before reference completion.</param>
+        /// <param name="IncludeRoutes">Whether route points, sides and normals belong to the signature.</param>
+        /// <returns>A deterministic digest scoped to this diagram and final pass.</returns>
+        private static string FinalReferenceIdentity(GridLayoutState State, bool IncludeRoutes)
+        {
+            var Cells = FlowchartCellRepair.Capture(State.Placed);
+            string Value = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Cells.Regions, Cells.ColumnGaps, Cells.RowGaps,
+                Nodes = State.Placed.Select(Node => new { Node.Id, Node.X, Node.Y, Node.Width, Node.Height }),
+                Frames = State.Frames.Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }),
+                State.Copy.NodeBounds, State.Copy.ClusterBounds,
+                Hints = State.Contract.Nodes.Select(Node => Node.PlacementHint).Concat(State.Contract.Groups.Select(Group => Group.PlacementHint))
+                    .OfType<PlacementHintContract>().Select(Hint => new { Hint.IsActive, Hint.UnhonouredReason }),
+                RouteHints = State.Contract.Edges.Select(Edge => Edge.RoutingHint).OfType<RoutingHintContract>()
+                    .Select(Hint => new { Hint.IsActive, Hint.UnhonouredReason }),
+                Routes = IncludeRoutes ? State.Copy.EdgeRoutes.Select(Route => new
+                {
+                    Route.EdgeId, Route.SourceId, Route.TargetId, Route.ExitSide, Route.EntrySide,
+                    Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY,
+                    Points = Route.Points.Select(Point => new { Point.X, Point.Y })
+                }).ToArray() : null
+            });
+            return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Value)));
         }
 
         /// <summary>Measures all finished lines, including crossings remote from the candidate's dependency closure.</summary>

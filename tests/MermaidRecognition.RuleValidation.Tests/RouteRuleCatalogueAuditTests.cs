@@ -73,6 +73,9 @@ public sealed class RouteRuleCatalogueAuditTests
         List<(string Stage, double Ms)> stageTimes = [];
         Dictionary<string, double> compactFinalRepairCosts = new(StringComparer.Ordinal);
         List<FinalRepairAuditCapture.Decision> finalRepairDecisions = [];
+        List<FinalRepairAuditCapture.Confirmation> finalConfirmations = [];
+        DiagramGridLayout.FinalRepairConfirmationObserver = Environment.GetEnvironmentVariable("FINAL_REPAIR_CONFIRMATIONS") == "1"
+            ? (Key, Geometry, Input, Base, Reused, Ms) => finalConfirmations.Add(new(Key, Geometry, Input, Base, Reused, Ms)) : null;
         DiagramGridLayout.FinalRepairObserver = (Key, Reason, ExtraLength) => finalRepairDecisions.Add(new(Key, Reason, ExtraLength));
         int moveBeforeDetourMoves = 0, moveBeforeDetourCandidates = 0;
         int routeRepairChainRuns = 0, routeRepairChainDepthTotal = 0, routeRepairChainMaxDepth = 0,
@@ -176,7 +179,8 @@ public sealed class RouteRuleCatalogueAuditTests
         {
             layoutClock.Stop();
             FinalRepairAuditCapture.Record(scenario.Id, contract, layout, layoutClock.Elapsed.TotalSeconds, finalRepairDecisions,
-                stageTimes.Concat(compactFinalRepairCosts.Select(Pair => (Stage: Pair.Key, Ms: Pair.Value))).ToArray());
+                stageTimes.Concat(compactFinalRepairCosts.Select(Pair => (Stage: Pair.Key, Ms: Pair.Value))).ToArray(), finalConfirmations);
+            DiagramGridLayout.FinalRepairConfirmationObserver = null;
             DiagramGridLayout.FinalRepairObserver = null;
             // The older AUDIT_TIME line is below assertions and omits failed
             // scenarios such as A142. Always preserve their measured stages too.

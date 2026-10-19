@@ -11,6 +11,38 @@ namespace MermaidRecognition.RuleValidation.Tests;
 [TestFixture, NonParallelizable]
 public sealed class FinalCompleteRepairTests
 {
+    /// <summary>Requires cached reference routes to preserve the complete model and original acceptance order.</summary>
+    /// <param name="Id">Catalogue case with ports, frame repair or an accepted region move.</param>
+    [TestCase("A115"), TestCase("F60"), TestCase("A104")]
+    public void ReferenceReuse_PreservesExactLayoutAndAcceptedOrder(string Id)
+    {
+        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+            (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
+        (string Model, string[] Accepted) Run(bool DisableReuse)
+        {
+            var Contract = Scenario.Enterprise
+                ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
+                : MermaidRecognizer.Parse(Scenario.Source);
+            var Accepted = new List<string>();
+            DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = DisableReuse;
+            DiagramGridLayout.FinalRepairObserver = (Key, Reason, Length) => { if (Reason == "accepted") Accepted.Add(Key); };
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+            return (CellProductionParityTests.Snapshot(Contract, Layout), Accepted.ToArray());
+        }
+        try
+        {
+            var Reference = Run(true);
+            var Cached = Run(false);
+            Assert.That(Cached.Model, Is.EqualTo(Reference.Model));
+            Assert.That(Cached.Accepted, Is.EqualTo(Reference.Accepted));
+        }
+        finally
+        {
+            DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = false;
+            DiagramGridLayout.FinalRepairObserver = null;
+        }
+    }
+
     /// <summary>Rejects the complete F60 candidate whose rebuilt group envelopes overlap after routing.</summary>
     [Test]
     public void F60_CompletedFrameOverlap_IsRejected()
