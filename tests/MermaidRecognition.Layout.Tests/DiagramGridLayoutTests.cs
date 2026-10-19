@@ -92,14 +92,11 @@ public sealed class DiagramGridLayoutTests
             Check --> Done[Done]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        FlowchartLayoutNodeBounds Check = Find(Layout, "Check");
-        FlowchartLayoutNodeBounds Start = Find(Layout, "Start");
-
-        Assert.That(Start.Width, Is.EqualTo(DiagramGridMetrics.NODE_WIDTH_PX));
-        Assert.That(Start.Height, Is.EqualTo(DiagramGridMetrics.NODE_HEIGHT_PX));
-        Assert.That(Check.Width, Is.EqualTo(DiagramGridMetrics.NODE_WIDTH_PX));
-        Assert.That(Check.Height, Is.EqualTo(DiagramGridMetrics.NODE_HEIGHT_PX * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR));
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartCellRegion Check = Layout.CellNodes!.Single(Node => Node.Id == "Check").CellNode!.Region;
+        Assert.That(Check.ColumnSpan, Is.EqualTo(1));
+        Assert.That(Check.RowSpan, Is.EqualTo(2));
     }
 
     [Test]

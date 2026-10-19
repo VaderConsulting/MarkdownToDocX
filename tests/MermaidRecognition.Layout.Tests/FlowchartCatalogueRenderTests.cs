@@ -909,14 +909,9 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int CurvedPathCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
-        int StraightLineCount = SvgStraightConnectorReader.Read(Svg).Count;
-
-        Assert.That(StraightLineCount, Is.EqualTo(1), "Centre Worker 2→Aggregate should be a straight vertical line");
-        Assert.That(CurvedPathCount, Is.GreaterThanOrEqualTo(2),
-            "Offset fan-in edges should use smooth curves, not orthogonal elbow paths");
+        foreach (string Worker in new[] { "W1", "W2", "W3" })
+            OrthogonalRouteTestHelper.AssertEveryBendRounded(
+                OrthogonalRouteTestHelper.ExtractEdgePath(Svg, Worker, "Agg"));
     }
 
     [Test]
@@ -2900,7 +2895,9 @@ public sealed class FlowchartCatalogueRenderTests
             A["- Item 1<br/>- Item 2<br/>- Item 3"] --> B[Next]
             """);
 
-        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
+        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Layout);
         double NodeCentreX = ExtractRectangleCentreXFromSvg(Svg, 0);
         double NodeWidth = ExtractRectangleWidthFromSvg(Svg, 0);
         double NodeHeight = ExtractRectangleHeightFromSvg(Svg, 0);
@@ -2915,7 +2912,9 @@ public sealed class FlowchartCatalogueRenderTests
         double BlockMidpointX = BlockStartX + (BlockWidthPx / 2.0);
 
         Assert.That(BlockMidpointX, Is.EqualTo(NodeCentreX).Within(1.5));
-        Assert.That(NodeWidth, Is.EqualTo(NodeHeight).Within(1.0));
+        FlowchartCellNode Cell = Layout.CellNodes!.Single(Node => Node.Id == "A").CellNode!;
+        Assert.That(NodeWidth, Is.EqualTo(Cell.Grid.Measure(Cell.Region).Width).Within(0.01));
+        Assert.That(NodeHeight, Is.EqualTo(Cell.Grid.Measure(Cell.Region).Height).Within(0.01));
     }
 
     [Test]
@@ -2926,12 +2925,19 @@ public sealed class FlowchartCatalogueRenderTests
             A["<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>"] --> B[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds TableNode = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         double AspectRatio = TableNode.Width / TableNode.Height;
         Assert.That(AspectRatio, Is.InRange(0.55, 1.75));
-        Assert.That(TableNode.Width, Is.LessThan(140.0));
+        Assert.That(Layout.CellNodes!.Single(Node => Node.Id == "A").CellNode!.Region.ColumnSpan, Is.EqualTo(1));
+        Assert.That(TableNode.Width, Is.EqualTo(150));
+        FlowchartLabelDimensions Text = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            Contract.Nodes.Single(Node => Node.Id == "A").Label!,
+            FlowchartRenderOptions.FromContract(Contract), 16);
+        Assert.That(Text.Width, Is.LessThanOrEqualTo(TableNode.Width));
+        Assert.That(Text.Height, Is.LessThanOrEqualTo(TableNode.Height));
     }
 
     [Test]
