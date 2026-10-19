@@ -543,7 +543,7 @@ public static partial class DiagramGridLayout
                 FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
             FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
                 IncludeArrangementCheck: false);
-            double BeforeRepairScore = Before.OptimizationScore;
+            var BeforeRepairScore = Before.Cost;
             double BestRouteLength = RouteLength(State.Copy);
             int repairChainDepth = 0;
             while (repairChainDepth < FlowchartLayoutRules.RepairChainDepth)
@@ -593,7 +593,7 @@ public static partial class DiagramGridLayout
                 FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(State.Contract, State.Copy,
                     IncludeArrangementCheck: false);
                 int changedLines = ChangedRouteCount(State.Copy, BestRoutes);
-                double repairScore = After.OptimizationScore
+                var repairScore = After.Cost
                     + (((RouteLength(State.Copy) - BestRouteLength) / DiagramGridMetrics.GRID_UNIT_PX)
                         * FlowchartLayoutRules.RepairLengthWeight)
                     + (changedLines * FlowchartLayoutRules.RepairMovedLineWeight);
@@ -787,12 +787,12 @@ public static partial class DiagramGridLayout
                             bool routeRestored = !state.Copy.RenderContext.LayoutStageViolations.Any(item =>
                                 item.Kind == "NoLegalRoute" && item.InvolvedIds.Contains(edgeId))
                                 && state.Copy.EdgeRoutes.FirstOrDefault(item => item.EdgeId == edgeId)?.Points.Count >= 2;
-                            diagnostics.Add($"NoLegalRoute:{edgeId}:group={groupId}:delta=({dx:0},{dy:0}):restored={routeRestored}:overlap={after.Overlaps}:hints={before.HintsHonoured}->{after.HintsHonoured}:score={before.OptimizationScore:0.##}->{after.OptimizationScore:0.##}:newFindings={!NoNewFindings(beforeFindings, afterFindings)}:title={CountTitleBandRoutes(state)}");
+                            diagnostics.Add($"NoLegalRoute:{edgeId}:group={groupId}:delta=({dx:0},{dy:0}):restored={routeRestored}:overlap={after.Overlaps}:hints={before.HintsHonoured}->{after.HintsHonoured}:score={before.Cost:0.##}->{after.Cost:0.##}:newFindings={!NoNewFindings(beforeFindings, afterFindings)}:title={CountTitleBandRoutes(state)}");
                             accepted = routeRestored && !HasNodeOverlap(state.Placed)
                                 && frameOverlaps == 0
                                 && after.HintsHonoured >= before.HintsHonoured
                                 && after.Overlaps <= before.Overlaps
-                                && after.OptimizationScore < before.OptimizationScore - 0.001
+                                && after.Cost < before.Cost - 0.001
                                 && NoNewFindings(beforeFindings, afterFindings)
                                 && CountTitleBandRoutes(state) == 0;
                             if (accepted)
@@ -958,7 +958,7 @@ public static partial class DiagramGridLayout
                 foreach (FlowchartRouteRuleChecker.Finding finding in initialFindings
                              .DistinctBy(item => item.Rule + "|" + item.Subject, StringComparer.Ordinal))
                     RouteRepairCandidateObserver?.Invoke("hump", finding.Rule + ":" + finding.Subject,
-                        initialScore.OptimizationScore, false);
+                        initialScore.Cost, false);
                 Dictionary<string, (double X, double Y)> oldPositions = State.Placed.ToDictionary(node => node.Id,
                     node => (node.X, node.Y), StringComparer.Ordinal);
                 Dictionary<GridFrame, (int Left, int Right, int Top, int Bottom)> oldFrames = State.Frames
@@ -974,7 +974,7 @@ public static partial class DiagramGridLayout
                 (FlowchartLayoutEdgeRoute Route, (double X, double Y)[] Points, string ExitSide,
                     string EntrySide, double ExitNormalX, double ExitNormalY, double EntryNormalX,
                     double EntryNormalY)[]? bestRoutes = null;
-                double bestScore = initialScore.OptimizationScore;
+                var bestScore = initialScore.Cost;
                 double bestExtraLength = 0;
                 int bestExtraBends = 0;
                 int bestChangedLines = 0;
@@ -1065,7 +1065,7 @@ public static partial class DiagramGridLayout
                             double candidateExtraLength = RouteLength(State.Copy) - RouteLength(oldRoutes);
                             int candidateExtraBends = RouteBends(State.Copy) - RouteBends(oldRoutes);
                             int candidateChangedLines = ChangedRouteCount(State.Copy, oldRoutes);
-                            double repairScore = candidateScore.OptimizationScore
+                            var repairScore = candidateScore.Cost
                                 + ((candidateExtraLength / DiagramGridMetrics.GRID_UNIT_PX)
                                     * FlowchartLayoutRules.RepairLengthWeight)
                                 + (candidateChangedLines * FlowchartLayoutRules.RepairMovedLineWeight);
@@ -1328,7 +1328,7 @@ public static partial class DiagramGridLayout
             double extraLength = RouteLength(State.Copy) - RouteLength(oldRoutes);
             int extraBends = RouteBends(State.Copy) - RouteBends(oldRoutes);
             int changedLines = ChangedRouteCount(State.Copy, oldRoutes);
-            double repairScore = after.OptimizationScore
+            var repairScore = after.Cost
                 + ((extraLength / DiagramGridMetrics.GRID_UNIT_PX) * FlowchartLayoutRules.RepairLengthWeight)
                 + (changedLines * FlowchartLayoutRules.RepairMovedLineWeight);
             bool targetFaultRemoved = targetRule == "TitleBandRoute"
@@ -1339,7 +1339,7 @@ public static partial class DiagramGridLayout
                         && !afterFindings.Any(finding => finding.Rule == "3.1" && finding.Subject == routeSubject)
                 : !afterFindings.Any(finding => finding.Rule == targetRule && finding.Subject == routeSubject);
             if (targetFaultRemoved && after.Overlaps == 0 && after.Crossings <= before.Crossings
-                && repairScore < before.OptimizationScore - 0.001
+                && repairScore < before.Cost - 0.001
                 && newTitleBandRoutes <= oldTitleBandRoutes
                 && NoNewFindings(beforeFindings, afterFindings)) return true;
             Restore();

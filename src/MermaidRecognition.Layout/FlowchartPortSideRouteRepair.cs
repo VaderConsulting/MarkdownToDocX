@@ -147,7 +147,7 @@ internal static class FlowchartPortSideRouteRepair
             Candidate? Best = null;
             int BestFaults = BeforeFaults;
             double? BestScore = Before.Score;
-            double BestOptimizationScore = Before.OptimizationScore;
+            var BestOptimizationScore = Before.Cost;
             double BestLength = OriginalLength;
             List<(double X, double Y)> OriginalPath = Tuples(Route.Points);
             int OriginalCorners = Corners(Route.Points);
@@ -207,23 +207,27 @@ internal static class FlowchartPortSideRouteRepair
                     ScoreContext.MeasureCandidateSummary(Route, CandidateInteractions);
                 int Faults = Measured.RejectingFaults;
                 bool ScoreImproves = Measured.Score.HasValue && Before.Score.HasValue
-                    && Measured.Score.Value < Before.Score.Value - 0.001;
+                    && Measured.Cost < Before.Cost - 0.001;
                 bool CrossingImproves = Measured.Crossings < BeforeCrossings;
-                bool ScoreTiesButShorter = ScoresTie(Measured.Score, Before.Score)
+                bool ScoreTiesButShorter = Measured.Cost.Bends == Before.Cost.Bends
+                    && Measured.Cost.CrossingCost == Before.Cost.CrossingCost
+                    && Math.Abs(Measured.Cost - Before.Cost) <= 0.001
                     && Candidate.Length < OriginalLength - 0.001;
                 bool ImprovesBaseline = IsRejected
                     ? Measured.Overlaps == 0 && (Faults < BeforeFaults
-                        || Measured.OptimizationScore < Before.OptimizationScore - 0.001)
+                        || Measured.Cost < Before.Cost - 0.001)
                     : Before.Score.HasValue
                         ? ScoreImproves || ScoreTiesButShorter || CrossingImproves
                         : Measured.Score.HasValue || Faults < BeforeFaults || CrossingImproves;
                 bool BetterThanBest = Best == null
                     || IsRejected && (Faults < BestFaults
-                        || Faults == BestFaults && (Measured.OptimizationScore < BestOptimizationScore - 0.001
-                            || Math.Abs(Measured.OptimizationScore - BestOptimizationScore) <= 0.001
+                        || Faults == BestFaults && (Measured.Cost < BestOptimizationScore - 0.001
+                            || Math.Abs(Measured.Cost - BestOptimizationScore) <= 0.001
                                 && Candidate.Length < BestLength - 0.001))
-                    || !IsRejected && Measured.Score.HasValue && (!BestScore.HasValue || IsStrictlyLower(Measured.Score, BestScore))
-                    || !IsRejected && ScoresTie(Measured.Score, BestScore) && (Candidate.Length < BestLength - 0.001
+                    || !IsRejected && Measured.Score.HasValue && (!BestScore.HasValue || Measured.Cost < BestOptimizationScore - 0.001)
+                    || !IsRejected && Measured.Cost.Bends == BestOptimizationScore.Bends
+                        && Measured.Cost.CrossingCost == BestOptimizationScore.CrossingCost
+                        && Math.Abs(Measured.Cost - BestOptimizationScore) <= 0.001 && (Candidate.Length < BestLength - 0.001
                         || Math.Abs(Candidate.Length - BestLength) <= 0.001
                             && string.CompareOrdinal(CandidateKey(Candidate), CandidateKey(Best)) < 0)
                     || !Measured.Score.HasValue && !BestScore.HasValue && !IsRejected && Faults < BestFaults;
@@ -248,7 +252,7 @@ internal static class FlowchartPortSideRouteRepair
                     Best = Candidate;
                     BestFaults = Faults;
                     BestScore = Measured.Score;
-                    BestOptimizationScore = Measured.OptimizationScore;
+                    BestOptimizationScore = Measured.Cost;
                     BestLength = Candidate.Length;
                 }
                 Restore(Route, Original, OriginalExit, OriginalEntry);
@@ -280,8 +284,9 @@ internal static class FlowchartPortSideRouteRepair
         double FinalOptimizationScore = Final.Crossings * FlowchartLayoutRules.CrossingScore
             + Final.Bends * FlowchartLayoutRules.BendScore;
         bool Keep = Initial.Score.HasValue && Final.Score.HasValue
-            ? Final.Score.Value < Initial.Score.Value - 0.001
-                || ScoresTie(Final.Score, Initial.Score)
+            ? Final.Cost < Initial.Cost - 0.001
+                || Final.Cost.Bends == Initial.Cost.Bends && Final.Cost.CrossingCost == Initial.Cost.CrossingCost
+                    && Math.Abs(Final.Cost - Initial.Cost) <= 0.001
                     && Final.Crossings <= Initial.Crossings && Final.Overlaps <= Initial.Overlaps
                     && FinalLength < InitialLength - 0.001
                 || Final.Crossings < Initial.Crossings && Final.Overlaps <= Initial.Overlaps
@@ -329,13 +334,6 @@ internal static class FlowchartPortSideRouteRepair
         double AfterOverlap = After.Sum(Other => FlowchartBranchRouteOrder.Intersections(Candidate, Paths[Other]).Overlap);
         return AfterOverlap < BeforeOverlap - 0.001;
     }
-
-    private static bool IsStrictlyLower(double? Candidate, double? Current) => Candidate.HasValue
-        ? !Current.HasValue || Candidate.Value < Current.Value - 0.001
-        : false;
-
-    private static bool ScoresTie(double? Candidate, double? Current) => Candidate.HasValue && Current.HasValue
-        && Math.Abs(Candidate.Value - Current.Value) <= 0.001;
 
     private static bool CanRerouteUnderHint(FlowchartLayoutEdgeRoute Route, DiagramContract Contract)
     {

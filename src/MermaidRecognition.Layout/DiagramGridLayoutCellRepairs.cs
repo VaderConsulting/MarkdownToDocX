@@ -437,7 +437,7 @@ public static partial class DiagramGridLayout
             int BeforeFrameOverlaps = CountUnrelatedFrameOverlaps(State.Contract, State.Frames);
             double BeforeLength = RouteLength(State.Copy);
             int BeforeBends = RouteBends(State.Copy);
-            double BestScore = Before.OptimizationScore;
+            var BestScore = Before.Cost;
             double BestShortfall = Shortfall?.Invoke() ?? 0;
             double InitialShortfall = BestShortfall;
             CellGeometrySnapshot? Best = null;
@@ -501,7 +501,7 @@ public static partial class DiagramGridLayout
                     double ExtraLength = RouteLength(State.Copy) - BeforeLength;
                     int ExtraBends = RouteBends(State.Copy) - BeforeBends;
                     int ChangedLines = Original.ChangedLines();
-                    double Cost = After.OptimizationScore + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
+                    var Cost = After.Cost + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
                         + ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight;
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
@@ -542,7 +542,7 @@ public static partial class DiagramGridLayout
                 double ExtraLength = RouteLength(State.Copy) - BeforeLength;
                 int ExtraBends = RouteBends(State.Copy) - BeforeBends;
                 int ChangedLines = Original.ChangedLines();
-                double Cost = Confirmed.OptimizationScore + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
+                var Cost = Confirmed.Cost + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
                     + ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight;
                 if (!Original.UnchangedOutside(BestAffected!) || Confirmed.Overlaps > Before.Overlaps || Confirmed.HintsHonoured < Before.HintsHonoured
                     || !NoNewFindings(BeforeFindings, ConfirmedFindings)
@@ -551,7 +551,7 @@ public static partial class DiagramGridLayout
                     || ExtraBends > FlowchartLayoutRules.RepairExtraBends || PreserveBends && ExtraBends > 0
                     || ChangedLines > FlowchartLayoutRules.RepairChainLines
                     || (Shortfall?.Invoke() ?? 0) > InitialShortfall
-                    || (Shortfall?.Invoke() ?? 0) == InitialShortfall && Cost >= Before.OptimizationScore - 0.001)
+                    || (Shortfall?.Invoke() ?? 0) == InitialShortfall && Cost >= Before.Cost - 0.001)
                 {
                     Original.Restore(State);
                     State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation;

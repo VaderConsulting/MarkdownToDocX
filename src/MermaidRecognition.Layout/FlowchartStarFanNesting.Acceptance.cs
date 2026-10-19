@@ -19,7 +19,7 @@ internal static partial class FlowchartStarFanNesting
         var Before = Measure(Layout.EdgeRoutes);
         var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout).GroupBy(Finding => (Finding.Rule, Finding.Subject))
             .ToDictionary(Group => Group.Key, Group => Group.Count());
-        double OldScore = FlowchartLayoutScore.Measure(Contract, Layout, false).OptimizationScore;
+        var OldScore = FlowchartLayoutScore.Measure(Contract, Layout, false).Cost;
         var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         var Saved = Proposed.Keys.ToDictionary(Route => Route, Clone);
         bool Keep = false;
@@ -32,7 +32,7 @@ internal static partial class FlowchartStarFanNesting
                 Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))) return false;
             if (FlowchartRouteRuleChecker.Check(Contract, Layout).GroupBy(Finding => (Finding.Rule, Finding.Subject))
                 .Any(Group => Group.Count() > Findings.GetValueOrDefault(Group.Key))) return false;
-            if (FlowchartLayoutScore.Measure(Contract, Layout, false).OptimizationScore >= OldScore) return false;
+            if (FlowchartLayoutScore.Measure(Contract, Layout, false).Cost >= OldScore) return false;
             Keep = true; return true;
         }
         finally { if (!Keep) foreach (var Pair in Saved) Copy(Pair.Value, Pair.Key); }

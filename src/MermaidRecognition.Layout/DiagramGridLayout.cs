@@ -240,7 +240,7 @@ public static partial class DiagramGridLayout
         FlowchartTwoCornerRouteShortener.Apply(Layout, Contract, Bounds, IncludeTwoCornerRoutes: true);
         FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(Contract, Layout);
         bool Keep = Before.Score.HasValue
-            ? After.Score.HasValue && After.Score.Value < Before.Score.Value - 0.001
+            ? After.Score.HasValue && After.Cost < Before.Cost - 0.001
             : After.Overlaps <= Before.Overlaps && After.Crossings <= Before.Crossings;
         if (Keep) return;
         foreach (var Saved in Snapshot)

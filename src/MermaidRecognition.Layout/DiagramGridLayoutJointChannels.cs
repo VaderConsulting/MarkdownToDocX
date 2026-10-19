@@ -106,7 +106,7 @@ public static partial class DiagramGridLayout
                     Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Route.ExitSide, Route.EntrySide)).ToArray();
                 var Normals = Routes.Select(Route => (Route, Route.ExitNormalX, Route.ExitNormalY,
                     Route.EntryNormalX, Route.EntryNormalY)).ToArray();
-                double BestScore = double.PositiveInfinity;
+                var BestScore = FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
                 JointChannelPath[]? Best = null;
                 int Examined = 0;
                 foreach (bool ReverseSources in new[] { false, true })
@@ -165,9 +165,9 @@ public static partial class DiagramGridLayout
                         $"lines={Routes.Length};horizontal={Horizontal};gap={Gap};bent={Bent.Length};illegal={Findings.Count(Finding => Finding.Rule == "10")};shared={Findings.Count(Finding => Finding.Rule == "5.1")}", 0, Legal);
                     if (!Legal) continue;
                     var Score = FlowchartLayoutScore.Measure(State.Contract, Layout, IncludeArrangementCheck: false);
-                    if (Score.OptimizationScore < BestScore)
+                    if (Score.Cost < BestScore)
                     {
-                        BestScore = Score.OptimizationScore;
+                        BestScore = Score.Cost;
                         Best = Candidate;
                     }
                 }
@@ -255,7 +255,7 @@ public static partial class DiagramGridLayout
         var BestBounds = OriginalBounds;
         var BestPaths = OriginalPaths;
         var BestNormals = OriginalNormals;
-        double BestScore = FlowchartLayoutScore.Measure(State.Contract, Layout, IncludeArrangementCheck: false).OptimizationScore;
+        var BestScore = FlowchartLayoutScore.Measure(State.Contract, Layout, IncludeArrangementCheck: false).Cost;
         int BestSideFaults = IncludeSideFaults ? Before.Count(Finding => Finding.Rule is "4.11" or "5.8") : 0;
         int Examined = 0;
         // Offer straightening moves against the settled ports before spending
@@ -418,9 +418,9 @@ public static partial class DiagramGridLayout
             var Score = FlowchartLayoutScore.Measure(State.Contract, Layout, IncludeArrangementCheck: false);
             int SideFaults = IncludeSideFaults ? Findings.Count(Finding => Finding.Rule is "4.11" or "5.8") : 0;
             if (Score.Overlaps != 0 || SideFaults > BestSideFaults
-                || SideFaults == BestSideFaults && Score.OptimizationScore >= BestScore) return;
+                || SideFaults == BestSideFaults && Score.Cost >= BestScore) return;
             BestSideFaults = SideFaults;
-            BestScore = Score.OptimizationScore;
+            BestScore = Score.Cost;
             BestBounds = Layout.NodeBounds.ToArray();
             BestPaths = Layout.EdgeRoutes.Select(Route => new JointChannelPath(Route,
                 Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Route.ExitSide, Route.EntrySide)).ToArray();

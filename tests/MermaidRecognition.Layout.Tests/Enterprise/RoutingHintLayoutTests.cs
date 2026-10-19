@@ -123,6 +123,11 @@ public sealed class RoutingHintLayoutTests
         double WithoutHints = FlowchartLayoutScore.Calculate(
             Metrics.Width, Metrics.Height, Metrics.Crossings, Metrics.ForcedMinimum, Metrics.EmptyShare)
             + Metrics.Bends * FlowchartLayoutScore.BEND_PENALTY;
+        double Length = Layout.EdgeRoutes.Sum(Route => Route.Points.Zip(Route.Points.Skip(1)).Sum(Pair =>
+            Math.Sqrt(Math.Pow(Pair.First.X - Pair.Second.X, 2) + Math.Pow(Pair.First.Y - Pair.Second.Y, 2))))
+            / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight;
+        double Bound = Math.Min(FlowchartLayoutRules.BendScore, FlowchartLayoutRules.CrossingScore);
+        WithoutHints += Length / (1 + Length / Bound);
         Assert.Multiple(() =>
         {
             Assert.That(Metrics.HintsHonoured, Is.EqualTo(2));

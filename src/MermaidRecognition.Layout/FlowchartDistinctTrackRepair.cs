@@ -31,7 +31,7 @@ internal static class FlowchartDistinctTrackRepair
             var Before = Measure(Route, Others, Paths);
             if (Before.Shared == 0) continue;
             var Best = Before;
-            double BestCompleteCost = double.PositiveInfinity;
+            var BestCompleteCost = FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
             (double X, double Y)[]? BestPoints = null;
             int Examined = 0;
             var Runs = Enumerable.Range(1, Original.Length - 3).Where(Index => Paths.Any(Path =>
@@ -50,10 +50,10 @@ internal static class FlowchartDistinctTrackRepair
                     var Candidate = Measure(Route, Others, Paths);
                     bool CompletesSeparation = Candidate.Shared == 0 && GlobalShared == Before.Shared;
                     if (Candidate.Shared > Before.Shared || Candidate.Crossings > Before.Crossings && !CompletesSeparation) continue;
-                    double CompleteCost = CompletesSeparation
-                        ? FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false).OptimizationScore
+                    var CompleteCost = CompletesSeparation
+                        ? FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false).Cost
                             + RouteLength(Route) / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
-                        : double.PositiveInfinity;
+                        : FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
                     // Shared tracks are a legality failure. Once all are gone,
                     // compare complete candidates with the existing whole-layout
                     // score and repair-length weight, including any added crossing.

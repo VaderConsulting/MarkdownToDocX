@@ -475,13 +475,13 @@ public static partial class DiagramGridLayout
                 bool Keep = Complete
                     // The routing-fault precedence is part of legality before
                     // numeric crossing/bend cost; no score weight is changed.
-                    && (After.Count(Finding => Finding.Rule is "4.11" or "5.8"), AfterScore.OptimizationScore)
-                        .CompareTo((Before.Count(Finding => Finding.Rule is "4.11" or "5.8"), BeforeScore.OptimizationScore)) < 0
+                    && (After.Count(Finding => Finding.Rule is "4.11" or "5.8"), AfterScore.Cost)
+                        .CompareTo((Before.Count(Finding => Finding.Rule is "4.11" or "5.8"), BeforeScore.Cost)) < 0
                     && new[] { "10", "3.1", "4.1", "3.2/4.7", "3.3/5.2", "4.2", "4.9", "4.11", "5.8", "5.1" }.All(Rule =>
                         After.Count(Finding => Finding.Rule == Rule) <= Before.Count(Finding => Finding.Rule == Rule));
                 RouteRepairCandidateObserver?.Invoke("facing-assignment",
                     $"lines={Affected.Length};complete={Complete};sides={Before.Count(Finding => Finding.Rule is "4.11" or "5.8")}->{After.Count(Finding => Finding.Rule is "4.11" or "5.8")};new={string.Join(",", After.GroupBy(Finding => Finding.Rule).Where(Group => Group.Count() > Before.Count(Finding => Finding.Rule == Group.Key)).Select(Group => Group.Key + ":" + Group.Count()))}",
-                    AfterScore.OptimizationScore, Keep);
+                    AfterScore.Cost, Keep);
                 if (Keep) { Before = After; BeforeScore = AfterScore; continue; }
                 foreach (var Item in Saved)
                 {
@@ -1156,7 +1156,7 @@ public static partial class DiagramGridLayout
                 initialFindings.Add(new FlowchartRouteRuleChecker.Finding("NoLegalRoute", edgeId, "unrouted"));
                 var original = SaveRoutes(State.Copy);
                 FlowchartLayoutQualityFailure[] originalViolations = State.Copy.RenderContext.LayoutStageViolations.ToArray();
-                (double Score, object Routes, FlowchartLayoutQualityFailure[] Violations)? best = null;
+                (FlowchartLayoutScore.ComparisonCost Score, object Routes, FlowchartLayoutQualityFailure[] Violations)? best = null;
                 List<string> attempts = [];
 
                 string[] exits = edge?.RoutingHint is { IsActive: true, Leave: not null } hint
@@ -1195,7 +1195,7 @@ public static partial class DiagramGridLayout
                         && !HasIllegalRouteGeometry(State.Contract, State.Copy, edgeId);
                     FlowchartLayoutScore.Result score = FlowchartLayoutScore.Measure(
                         State.Contract, State.Copy, IncludeArrangementCheck: false);
-                    attempts.Add($"{exit}/{entry}:recovered={recovered}:score={score.OptimizationScore:0.##}:newFindings={candidateFindingsSummary(State.Contract, State.Copy, initialFindings)}");
+                    attempts.Add($"{exit}/{entry}:recovered={recovered}:score={score.Cost:0.##}:newFindings={candidateFindingsSummary(State.Contract, State.Copy, initialFindings)}");
                     if (!recovered) continue;
                     List<FlowchartRouteRuleChecker.Finding> candidateFindings =
                         FlowchartRouteRuleChecker.Check(State.Contract, State.Copy).ToList();
@@ -1218,14 +1218,14 @@ public static partial class DiagramGridLayout
                     if (CellLegalityRepair)
                         RouteRepairCandidateObserver?.Invoke("cell-side-legality",
                             $"{edgeId}:{exit}/{entry};hints={initial.HintsHonoured}->{score.HintsHonoured};overlaps={initial.Overlaps}->{score.Overlaps};tracks={initialFindings.Count(Finding => Finding.Rule == "5.1")}->{candidateFindings.Count(Finding => Finding.Rule == "5.1")};newDisallowed={NewDisallowedFinding};newRules={string.Join(",", candidateFindings.Where(Finding => !initialFindings.Any(Previous => Previous.Rule == Finding.Rule && Previous.Subject == Finding.Subject)).Select(Finding => Finding.Rule + ":" + Finding.Subject))}",
-                            score.OptimizationScore, !NewDisallowedFinding && score.HintsHonoured >= initial.HintsHonoured && score.Overlaps <= initial.Overlaps);
+                            score.Cost, !NewDisallowedFinding && score.HintsHonoured >= initial.HintsHonoured && score.Overlaps <= initial.Overlaps);
                     if (score.HintsHonoured < initial.HintsHonoured || score.Overlaps > initial.Overlaps
                         || NewDisallowedFinding
-                        || !CellLegalityRepair && !HasActiveSideHint && score.OptimizationScore >= initial.OptimizationScore - 0.001
+                        || !CellLegalityRepair && !HasActiveSideHint && score.Cost >= initial.Cost - 0.001
                         || !CellLegalityRepair && HasActiveSideHint && !CurrentRouteWasMissing
-                            && score.OptimizationScore >= initial.OptimizationScore - 0.001) continue;
-                    if (best == null || score.OptimizationScore < best.Value.Score)
-                        best = (score.OptimizationScore, SaveRoutes(State.Copy),
+                            && score.Cost >= initial.Cost - 0.001) continue;
+                    if (best == null || score.Cost < best.Value.Score)
+                        best = (score.Cost, SaveRoutes(State.Copy),
                             State.Copy.RenderContext.LayoutStageViolations.ToArray());
                 }
 
