@@ -9,7 +9,7 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace MermaidRecognition.Layout.Enterprise;
 
 /// <summary>
-/// Builds a native notation legend for every in-scope ArchiMate 3.2 element type
+/// Builds a native notation legend for every in-scope Enterprise element type
 /// and relationship line style. Geometry comes from <see cref="EnterpriseNotationSvg"/>.
 /// </summary>
 public static class EnterpriseNotationLegendRenderer
@@ -163,7 +163,7 @@ public static class EnterpriseNotationLegendRenderer
         Body.Append("<text x=\"")
             .Append(EnterpriseSvgFormat.Number(Width / 2.0))
             .Append("\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"bold\">")
-            .Append("Enterprise notation legend (ArchiMate 3.2, native renderer)")
+            .Append("Enterprise notation legend (native renderer)")
             .Append("</text>");
 
         foreach (LegendSection Section in Sections)

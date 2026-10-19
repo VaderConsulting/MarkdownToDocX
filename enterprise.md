@@ -1,8 +1,7 @@
-# Enterprise (ArchiMate® notation) regression catalogue
+# Enterprise regression catalogue
 
-Progressive Mermaid **enterprise** diagram scenarios for Markdown → DOCX conversion. The `enterprise` diagram kind draws enterprise architecture models in the ArchiMate 3.x notation. Each level increases complexity; scenarios within a level are ordered from simplest to hardest.
+Progressive Mermaid **enterprise** diagram scenarios for Markdown → DOCX conversion. The `enterprise` diagram kind draws enterprise architecture models in the native Enterprise notation. Each level increases complexity; scenarios within a level are ordered from simplest to hardest.
 
-> ArchiMate is a registered trademark of The Open Group in the United States and other countries. The scenarios use generic, invented business content and do not reproduce any figure from the specification.
 
 ## How to use
 
@@ -26,7 +25,7 @@ Line numbers are relative to the diagram block: line 1 is the first line inside 
 
 ### Syntax baseline
 
-All active diagrams use the `enterprise` grammar of the design study (`docs/enterprise/DESIGN-STUDY.md` §5) as implemented by the reference parser on the `enterprise-diagram` branch, with the changes recorded under [Syntax decisions](#syntax-decisions): the `enterprise` keyword, ArchiMate **3.2** rules by default and **3.1** with `version 3.1`. **Anything that is normal Mermaid syntax is accepted.** Only the ArchiMate-specific parts (element types, relationship forms, qualifiers and version rules) have their own grammar.
+All active diagrams use the `enterprise` grammar of the design study (`docs/enterprise/DESIGN-STUDY.md` §5) as implemented by the reference parser on the `enterprise-diagram` branch, with the changes recorded under [Syntax decisions](#syntax-decisions): the `enterprise` keyword, Enterprise **3.2** rules by default and **3.1** with `version 3.1`. **Anything that is normal Mermaid syntax is accepted.** Only the Enterprise-specific parts (element types, relationship forms, qualifiers and version rules) have their own grammar.
 
 ```text
 [--- YAML frontmatter (title, config) ---]       (only at the very start of the block)
@@ -204,7 +203,7 @@ enterprise
 
 ### A06 — Explicit version 3.1
 
-Selects the ArchiMate 3.1 rule set. The diagram is valid under both versions, so only the selected rule table changes.
+Selects the version 3.1 relationship rule set. The diagram is valid under both versions, so only the selected rule table changes.
 
 - **Recognition:** `Header.Enterprise`, `Directive.Version.3_1`
 - **Rendering:** `Render.Element.Box`, `Render.Relationship.Serving`
@@ -2430,7 +2429,7 @@ enterprise
 
 ### A103 — Header alias and letter case
 
-The header may be `enterprise` or `enterprise-beta` (the Mermaid convention for a new diagram type), in any letter case. Directive keywords, element type names and relationship names are also case-insensitive, and the specification's CamelCase type names are accepted. Identifiers stay case-sensitive. `archimate` is not accepted as a header.
+The header may be `enterprise` or `enterprise-beta` (the Mermaid convention for a new diagram type), in any letter case. Directive keywords, element type names and relationship names are also case-insensitive, and the specification's CamelCase type names are accepted. Identifiers stay case-sensitive. No other diagram header is accepted.
 
 - **Recognition:** `Header.Enterprise.Alias`, `Header.Enterprise.Case`, `Directive.Case`, `Element.Type.Case`, `Relationship.Case`
 - **Rendering:** `Render.Element.Box`, `Layout.Direction.LR`
@@ -3443,7 +3442,7 @@ enterprise
 
 ## Level 19 — Mermaid conventions
 
-Everything that is normal Mermaid syntax is accepted by the enterprise kind. This level covers the Mermaid forms that are not tied to ArchiMate: frontmatter, `%%{init}%%` directives, accessibility statements, the five direction values, one-line diagrams, the `:::` shorthand, quoting and escape forms, markdown strings, redeclaration and the full `linkStyle` statement. The last two scenarios expect diagnostics.
+Everything that is normal Mermaid syntax is accepted by the enterprise kind. This level covers the Mermaid forms that are not tied to Enterprise: frontmatter, `%%{init}%%` directives, accessibility statements, the five direction values, one-line diagrams, the `:::` shorthand, quoting and escape forms, markdown strings, redeclaration and the full `linkStyle` statement. The last two scenarios expect diagnostics.
 
 ### A118 — Frontmatter with a title and configuration
 
@@ -3962,7 +3961,7 @@ enterprise
 ```
 ### A142 — Grid stress test: application landscape (nodes first, relationships later)
 
-This is a **stress test of the grid system**. It redraws a large ArchiMate application landscape: one shared grid has to hold 21 groups and 13 locations (several nested three deep) with 166 elements, and 180 relationships, most of them crossing between groups. All groups, locations and elements are declared first (most with a quoted name, one as a bare id), and every relationship is written afterwards. Only elements that could be read reliably from the source picture are included; some names are approximations.
+This is a **stress test of the grid system**. It redraws a large Enterprise application landscape: one shared grid has to hold 21 groups and 13 locations (several nested three deep) with 166 elements, and 180 relationships, most of them crossing between groups. All groups, locations and elements are declared first (most with a quoted name, one as a bare id), and every relationship is written afterwards. Only elements that could be read reliably from the source picture are included; some names are approximations.
 
 - **Recognition:** `Group.Declaration`, `Group.In.Group`, `Element.Composite.Location`, `Nesting.In.Group`, `Nesting.In.Element`, `Element.Application.Component`, `Element.Application.Service`, `Element.Application.DataObject`, `Element.Technology.Device`, `Relationship.Flow`, `Relationship.Triggering`, `Relationship.Serving`, `Relationship.Label`
 - **Rendering:** `Layout.Grid.Shared`, `Layout.Compound.Nested`, `Layout.Stress.CrossGroup`, `Routing.Orthogonal`, `Render.Group.DashedTab`
@@ -5255,7 +5254,7 @@ The design study and the reference implementation on the `enterprise-diagram` br
 
 | Topic | Design study | Reference implementation | Catalogue follows |
 | --- | --- | --- | --- |
-| Keyword | Original text: `archimate` (alias `archimate-beta`); the implementation note switches to `enterprise`, but §4 and §12 still say `archimate` | `enterprise`, also `enterprise-beta`, in any letter case | Implementation, plus a Mermaid-style direction after the keyword (14, 24) |
+| Keyword | Use the `enterprise` diagram keyword and its `enterprise-beta` alias | `enterprise`, also `enterprise-beta`, in any letter case | Implementation, plus a Mermaid-style direction after the keyword (14, 24) |
 | Default version | Original text: 3.1; implementation note: 3.2 | 3.2 | Both: 3.2, with 3.1 selectable (22) |
 | Element types | 22 Application and Technology types | 61 types: adds Business, Strategy, Motivation, Physical, Implementation and Migration, `grouping`, `location` and `junction`, plus the aliases `group`, `and-junction`, `or-junction`, `junction-and`, `junction-or` and hyphen-free spellings | Implementation (1) |
 | Junctions | Not supported (open question) | Element types; may carry a label, drawn beside the junction | Implementation (2) |
@@ -5284,15 +5283,15 @@ The design study and the reference implementation on the `enterprise-diagram` br
 
 ## Syntax decisions
 
-The catalogue was written with 22 open syntax questions. They were first decided with these principles, in order: (a) do not contradict what the reference parser already does unless it is clearly wrong; (b) follow an existing Mermaid convention where there is one; (c) keep the grammar small and unambiguous; (d) ArchiMate 3.2 by default, 3.1 selectable. Dave then ruled that **anything that is normal Mermaid syntax must be accepted**, which overrides (a) and (c) wherever they would reject a Mermaid form. Every decision was re-checked against that rule; rows 23 to 30 cover Mermaid forms that the original questions did not mention. The ArchiMate-specific grammar (element types, relationship forms, qualifiers and version rules) keeps its own decisions. When a decision changes, update the scenarios in its last column and the counts at the top.
+The catalogue was written with 22 open syntax questions. They were first decided with these principles, in order: (a) do not contradict what the reference parser already does unless it is clearly wrong; (b) follow an existing Mermaid convention where there is one; (c) keep the grammar small and unambiguous; (d) relationship rules version 3.2 by default, 3.1 selectable. Dave then ruled that **anything that is normal Mermaid syntax must be accepted**, which overrides (a) and (c) wherever they would reject a Mermaid form. Every decision was re-checked against that rule; rows 23 to 30 cover Mermaid forms that the original questions did not mention. The Enterprise-specific grammar (element types, relationship forms, qualifiers and version rules) keeps its own decisions. When a decision changes, update the scenarios in its last column and the counts at the top.
 
 | # | Question | Status | Decision | Reason | Scenarios affected |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Element type names outside Application and Technology; hyphen-free and CamelCase spellings | Unchanged | The 61 kebab-case names of the reference implementation are the canonical names. Hyphen-free spellings and the specification's CamelCase names are accepted too, in any letter case. | This is what the parser does, and the design study already accepts CamelCase. ArchiMate-specific. | A11–A36, A98, A103 |
+| 1 | Element type names outside Application and Technology; hyphen-free and CamelCase spellings | Unchanged | The 61 kebab-case names of the reference implementation are the canonical names. Hyphen-free spellings and the specification's CamelCase names are accepted too, in any letter case. | This is what the parser does, and the design study already accepts CamelCase. Enterprise-specific. | A11–A36, A98, A103 |
 | 2 | Junction spellings, meaning of a bare `junction`, junction labels | Unchanged | Write `and-junction` or `or-junction`. A bare `junction` is an and-junction, and `junction-and`, `junction-or` and the hyphen-free forms stay as accepted aliases. A junction may have a label, drawn in small text beside the circle. | Parser and renderer behaviour; the specification's default junction is an and-junction. | A35, A36, A47, A48, A73, A107, A112 |
 | 3 | Is `group` visual only or a Grouping element? May a group sit in an element? | Unchanged | `group` is shorthand for a Grouping element and can take part in relationships. `in` may name a group or any element; a group placed in an element follows the normal nesting-warning rule. | Parser behaviour; `in` for containment also matches Mermaid's architecture diagrams. | A32, A33, A56, A58, A61, A62, A73, A93, A111, A114, A127 |
-| 4 | Influence strength values and drawing | Unchanged | The qualifier is `+`, `-`, `++`, `--` or a signed whole number such as `3`, `-2` or `+1`. Decimals and words are errors. The qualifier is drawn as text beside the line. | Parser behaviour. ArchiMate-specific. | A27, A29, A41, A42, A46, A68, A74, A81, A91, A116 |
-| 5 | Other undirected or two-way relationship forms | Unchanged | None. Only association has an undirected form (the default) and a directed form, `association(directed)`. | The specification has no other undirected relationship. ArchiMate-specific. | A45, A74, A91 |
+| 4 | Influence strength values and drawing | Unchanged | The qualifier is `+`, `-`, `++`, `--` or a signed whole number such as `3`, `-2` or `+1`. Decimals and words are errors. The qualifier is drawn as text beside the line. | Parser behaviour. Enterprise-specific. | A27, A29, A41, A42, A46, A68, A74, A81, A91, A116 |
+| 5 | Other undirected or two-way relationship forms | Unchanged | None. Only association has an undirected form (the default) and a directed form, `association(directed)`. | The specification has no other undirected relationship. Enterprise-specific. | A45, A74, A91 |
 | 6 | Explicit line breaks in labels | Revised | `<br>`, `<br/>` and `<br />` (any letter case) and `\n` break element, group and relationship labels. A literal backslash and `n` is written `\\n`. The title stays on one line. | Mermaid uses both: `<br>` in labels and `\n` in several diagram types. | A56, A125 |
 | 7 | Double quotes and `%%` inside labels | Revised | `\"` (and `\'`, `\\`) work as in the parser, alongside Mermaid entity codes such as `#quot;`, `#name;` and `#123;`. A backslash before any other character stays as typed, so `C:\data` keeps its backslash. `%%` inside a quoted label is text. | Keeps the parser's escapes and adds Mermaid's. Keeping other backslashes fixes the parser silently dropping them from paths, and `%%` in a label must not be cut off. | A57, A125, A51 |
 | 8 | Does `""` mean no text or the id? | Unchanged | No text; the box is still drawn at its minimum size. Leaving the label out uses the id. | Parser behaviour. | A02, A53 |
@@ -5301,15 +5300,15 @@ The catalogue was written with 22 open syntax questions. They were first decided
 | 11 | Semicolons as statement separators | Revised | Accepted. `;` ends a statement and may separate several statements on one line, including the header. A `;` inside a label, and in `title`, `accTitle` or `accDescr` text, is text. | Mermaid flowchart convention (`graph TD; A-->B`). | A101, A123, A51, A120 |
 | 12 | Quoted identifiers and the identifier character set | Revised | Ids may use any letters (including non-Latin), digits, `_`, `.` and `-`, may start with a digit, must not start with `.` or `-`, and are case-sensitive. Quoted identifiers are still errors. | Matches Mermaid flowchart node ids, which also cannot be quoted. | A100, A102 |
 | 13 | Ids that equal a keyword | Revised | `title`, `version`, `direction`, `group`, `in`, `classDef`, `class`, `style`, `linkStyle`, `accTitle` and `accDescr` are reserved in any letter case and cannot be ids. Words that only start with one, such as `titleBar` or `inbox`, are fine, and element type names are not reserved. `notation` is no longer reserved. | Mermaid also reserves its statement keywords (for example `class` and `style` in flowcharts); in the parser a relationship starting with `title` is silently read as a title. | A90, A100 |
-| 14 | Header aliases and letter case | Unchanged | The header is `enterprise` or `enterprise-beta`, in any letter case, optionally followed by a direction (row 24). Directive keywords, element types and relationship names are case-insensitive; ids are case-sensitive. `archimate` and `archimate-beta` are not accepted. | Parser behaviour; `-beta` is the Mermaid convention for a new diagram type. | A103, A121, A123 |
+| 14 | Header aliases and letter case | Unchanged | The header is `enterprise` or `enterprise-beta`, in any letter case, optionally followed by a direction (row 24). Directive keywords, element types and relationship names are case-insensitive; ids are case-sensitive. Other diagram headers are not accepted. | Parser behaviour; `-beta` is the Mermaid convention for a new diagram type. | A103, A121, A123 |
 | 15 | Trailing comments | Revised | Accepted. `%%` starts a comment on its own line or after any statement, including the header, and the comment runs to the end of the line. Inside a quoted label `%%` is text. In `title`, `accTitle` and `accDescr` text, `%%` starts a comment, as in Mermaid. | Mermaid and the parser both accept trailing comments; the parser's one fault, cutting labels at `%%`, is fixed. | A96, A57, A94, A95 |
 | 16 | Forward references | Unchanged | Allowed. Relationship, `in`, `class`, `style` and `:::` references are resolved after the whole block is read. | Parser behaviour; declaration order does not matter in Mermaid flowcharts either. | A99 |
 | 17 | Repeated `title`, `version` or `direction` | Unchanged | The last one wins and applies to the whole diagram, with no diagnostic. A `title` statement replaces a frontmatter title. | Parser behaviour; Mermaid also keeps the last value. | A09, A118, A120, A122 |
-| 18 | Relationships on relationships | Unchanged | Not supported; relationships have no ids. A junction covers the common case of joining relationships. | ArchiMate-specific and rarely needed in document diagrams. Mermaid's edge ids (`e1@-->`) belong to flowchart arrows, which this kind does not use. | none |
+| 18 | Relationships on relationships | Unchanged | Not supported; relationships have no ids. A junction covers the common case of joining relationships. | Enterprise-specific and rarely needed in document diagrams. Mermaid's edge ids (`e1@-->`) belong to flowchart arrows, which this kind does not use. | none |
 | 19 | Marking derived relationships | Unchanged | No special syntax. A derived relationship is an ordinary relationship; use its label, a `linkStyle` or a class if it needs to stand out. | The notation has no separate symbol for derivation. | A70, A71, A72 |
 | 20 | Identical parallel relationships and self-relationships | Unchanged | Both are kept and drawn: parallel relationships separately, and a self-relationship as a loop when the rules table allows that type from the element type to itself. | Parser behaviour; Mermaid also draws repeated links. | A107, A108 |
 | 21 | Rendering an empty diagram | Unchanged | Valid. It renders a small blank canvas, with the title if one is given, not an error placeholder. | Parser and renderer behaviour. | A01 |
-| 22 | `version` values | Unchanged | Only `3.1` and `3.2`, default `3.2`. Any other value, such as `3` or `4.0`, is an error. ArchiMate 4 is out of scope for this catalogue. | Principle (d) and parser behaviour. ArchiMate-specific. | A05, A06, A09, A84–A88, A92 |
+| 22 | `version` values | Unchanged | Only `3.1` and `3.2`, default `3.2`. Any other value, such as `3` or `4.0`, is an error. Enterprise 4 is out of scope for this catalogue. | Principle (d) and parser behaviour. Enterprise-specific. | A05, A06, A09, A84–A88, A92 |
 | 23 | `direction` values | New | `TB`, `TD`, `BT`, `LR` and `RL`, in any letter case; `TD` is the same as `TB`. Anything else is an error. | Mermaid's direction values. | A07, A08, A92, A122, A123 |
 | 24 | Direction on the header line | New | `enterprise LR` (or any other direction value) is the same as `enterprise` followed by `direction LR`. | Mermaid convention (`flowchart LR`). | A121, A123 |
 | 25 | Accessibility statements | New | `accTitle: text`, `accDescr: text` and `accDescr { … }` over several lines are accepted. They become the SVG's accessible title and description and the DOCX image's alternative text, and are not drawn. | Mermaid convention, available in every diagram type. | A120 |
@@ -5317,13 +5316,13 @@ The catalogue was written with 22 open syntax questions. They were first decided
 | 27 | `%%{init}%%` directives | New | Accepted anywhere in the block, on one line or spread over several, and read as configuration. They never cause a diagnostic. | Mermaid convention. | A119 |
 | 28 | Single-quoted labels | New | A label may use single quotes; inside them `"` is ordinary text and `\'` gives an apostrophe. | Mermaid's newer grammars accept both quote styles. | A125 |
 | 29 | Markdown strings | New | A label written `` "`…`" `` is a Mermaid markdown string: `**bold**` and `*italic*` are drawn, text wraps automatically, and the string may continue over several source lines, where a source line break is a label line break. Diagnostics use the line where the statement starts. | Mermaid convention for node, edge and subgraph labels. | A126 |
-| 30 | Declaring an id twice | New | A second declaration with the same element type is the same element: a given label or container replaces the earlier one. A second declaration with a different element type is an error. | Mermaid treats a repeated node id as the same node. An ArchiMate element can only have one type. | A90, A127 |
+| 30 | Declaring an id twice | New | A second declaration with the same element type is the same element: a given label or container replaces the earlier one. A second declaration with a different element type is an error. | Mermaid treats a repeated node id as the same node. An Enterprise element can only have one type. | A90, A127 |
 
 ### Remaining differences from Mermaid
 
-These are the places where the enterprise kind still does not accept something that Mermaid accepts somewhere. Each one follows from the ArchiMate-specific grammar or from elements needing a type.
+These are the places where the enterprise kind still does not accept something that Mermaid accepts somewhere. Each one follows from the Enterprise-specific grammar or from elements needing a type.
 
-- Elements and relationships use the ArchiMate statement forms, not flowchart node shapes (`A[label]`, `A(label)`, `A@{ shape: … }`) or flowchart arrows (`-->`, `-.->`, `==>`, `A & B --> C`). The relationship arrow needs a space on each side.
+- Elements and relationships use the Enterprise statement forms, not flowchart node shapes (`A[label]`, `A(label)`, `A@{ shape: … }`) or flowchart arrows (`-->`, `-.->`, `==>`, `A & B --> C`). The relationship arrow needs a space on each side.
 - Flowchart edge ids (`A e1@--> B`) and `@{ … }` metadata are not accepted, so a relationship cannot be named in `class` or `style`; use `linkStyle`.
 - `subgraph … end` blocks are not accepted; containment uses `group` and `in`, as in Mermaid's architecture diagrams.
 - `click`, `callback` and link (`href`) statements are not accepted.
@@ -5572,7 +5571,7 @@ A placement-hints recreation test of a real systems scope picture: a key, a grou
 
 - **Recognition:** `Application.Component`, `Business.Process`, `Note`, `Group`, `Connection.Plain`
 - **Rendering:** `Layout.Hints`, `Layout.Nesting`, `Layout.LineHints`, `Layout.Notes`
-- **Expected:** valid. Every hint is honoured, dropped and reported, or ignored and reported, as rule 2.21 says. There are no overlaps, and lines are straight or rounded orthogonal. Notes: the picture is not drawn in ArchiMate, so the element types are the closest reading (systems as application components, creation processes as business processes). Label line breaks in the picture are not copied where they fall after a slash. The key colour meaning is added to each label as a suffix. The key boxes and callouts are notes; the plain connections are not relationships.
+- **Expected:** valid. Every hint is honoured, dropped and reported, or ignored and reported, as rule 2.21 says. There are no overlaps, and lines are straight or rounded orthogonal. Notes: the picture is not drawn in Enterprise, so the element types are the closest reading (systems as application components, creation processes as business processes). Label line breaks in the picture are not copied where they fall after a slash. The key colour meaning is added to each label as a suffix. The key boxes and callouts are notes; the plain connections are not relationships.
 
 ```mermaid
 enterprise TB

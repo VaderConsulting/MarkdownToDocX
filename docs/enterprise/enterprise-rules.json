@@ -1,7 +1,6 @@
 {
-  "name": "enterprise diagram relationship rules (ArchiMate 3.x, all layers and aspects)",
-  "trademark": "ArchiMate is a registered trademark of The Open Group in the United States and other countries.",
-  "provenance": "Application \u002B Technology 3.1 cells (22x22) were checked by eye against the ArchiMate 3.1 Appendix B.5 tables. Archi relationships.xml is the source of every new-layer cell (Business, Motivation, Strategy, Physical, Implementation \u0026 Migration, Grouping, Location, Junction) and of the 15 Application/Technology 3.2 deltas. Those Archi-sourced cells stay provisional \u2014 not verified against Open Group specification text. Only relationship-rule data is used; no Archi notation, figures, icons or code are used.",
+  "name": "Enterprise diagram relationship rules (all layers and aspects)",
+  "provenance": "Application \u002B Technology 3.1 cells (22x22) were checked by eye against the version 3.1 Appendix B.5 reference tables. Archi relationships.xml is the source of every new-layer cell (Business, Motivation, Strategy, Physical, Implementation \u0026 Migration, Grouping, Location, Junction) and of the 15 Application/Technology 3.2 deltas. Those Archi-sourced cells stay provisional \u2014 not verified against Open Group specification text. Only relationship-rule data is used; no Archi notation, figures, icons or code are used.",
   "letters": {
     "a": "access",
     "c": "composition",

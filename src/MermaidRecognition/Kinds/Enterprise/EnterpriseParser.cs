@@ -335,7 +335,7 @@ public static class EnterpriseParser
         {
             Diagnostics.Add(CreateError(
                 LineNumber,
-                "unknown element type \"" + TypeToken + "\" (in scope: ArchiMate 3.2 Application, Technology, Physical, Business, Motivation, Strategy, Implementation, composite and junction elements)"));
+                "unknown element type \"" + TypeToken + "\" (in scope: Enterprise 3.2 Application, Technology, Physical, Business, Motivation, Strategy, Implementation, composite and junction elements)"));
             return;
         }
 

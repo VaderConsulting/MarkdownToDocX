@@ -393,7 +393,7 @@ public sealed class FlowchartRenderedSvgQualityGateTests
     }
 
     [Test]
-    public void ArchiMateMarkers_AreNotMixedStyle()
+    public void EnterpriseMarkers_AreNotMixedStyle()
     {
         const string Svg = """
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
@@ -412,7 +412,7 @@ public sealed class FlowchartRenderedSvgQualityGateTests
               a --> b
             """;
         FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.EvaluatePicture(
-            "archimate-markers",
+            "enterprise-markers",
             Source,
             Svg);
         foreach (FlowchartLayoutQualityFailure Failure in Report.Failures)

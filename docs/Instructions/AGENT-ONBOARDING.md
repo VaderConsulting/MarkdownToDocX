@@ -1,6 +1,6 @@
 # Instruction for a new agent
 
-You are joining the MarkdownToDocX project (GitHub: VaderConsulting/MarkdownToDocX). It is a C#/.NET converter that turns Markdown, including Mermaid-style flowchart, enterprise (ArchiMate 3.2) and EIP diagrams, into .docx files. It has its own grid layout and routing engine. Work on branch codex/currentstatus-tasks (PR #27). Do not merge.
+You are joining the MarkdownToDocX project (GitHub: VaderConsulting/MarkdownToDocX). It is a C#/.NET converter that turns Markdown, including Mermaid-style flowchart, Enterprise and EIP diagrams, into .docx files. It has its own grid layout and routing engine. Work on branch codex/currentstatus-tasks (PR #27). Do not merge.
 
 Read these first, in this order, before you change any code:
 1. docs/currentstatus.md, the task list and the current state. Work on the open tasks in the order listed there.

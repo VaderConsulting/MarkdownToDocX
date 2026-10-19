@@ -15,7 +15,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// Routes enterprise relationships on the markdown2docx flowchart path
 /// (<see cref="FlowchartSugiyamaLayoutEngine"/>, <see cref="FlowchartEdgeRouteResolver"/>,
 /// <see cref="FlowchartCurvePathBuilder"/>, <see cref="FlowchartSugiyamaSvgRenderer"/>).
-/// ArchiMate markers and dash styles are the only enterprise-specific drawing.
+/// Enterprise markers and dash styles are the only enterprise-specific drawing.
 /// </summary>
 internal static class EnterpriseFlowchartEdgeRouter
 {
@@ -149,7 +149,7 @@ internal static class EnterpriseFlowchartEdgeRouter
 
             string? StartMarker = null;
             string? EndMarker = null;
-            if (!IsPlainConnection) ResolveArchiMateMarkers(Relationship, out StartMarker, out EndMarker);
+            if (!IsPlainConnection) ResolveEnterpriseMarkers(Relationship, out StartMarker, out EndMarker);
             Routed.Add(new EnterpriseRoutedEdge(
                 Relationship,
                 IsPlainConnection,
@@ -517,7 +517,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         return null;
     }
 
-    private static void ResolveArchiMateMarkers(
+    private static void ResolveEnterpriseMarkers(
         EnterpriseRelationship Relationship,
         out string? Start,
         out string? End)

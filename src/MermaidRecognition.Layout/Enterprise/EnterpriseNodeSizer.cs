@@ -7,7 +7,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 
 /// <summary>
 /// Measures enterprise leaf boxes so flowchart layout uses the same sizes the
-/// ArchiMate renderer draws.
+/// Enterprise renderer draws.
 /// </summary>
 internal static class EnterpriseNodeSizer
 {

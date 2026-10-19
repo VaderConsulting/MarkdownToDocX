@@ -2,7 +2,7 @@ namespace MermaidRecognition.Kinds.Enterprise;
 
 using MermaidRecognition.Contract;
 
-/// <summary>An undirected drawing line with no ArchiMate relationship meaning.</summary>
+/// <summary>An undirected drawing line with no Enterprise relationship meaning.</summary>
 public sealed class EnterprisePlainConnection
 {
     public string SourceId { get; set; } = string.Empty;

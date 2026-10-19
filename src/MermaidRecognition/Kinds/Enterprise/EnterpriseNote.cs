@@ -2,7 +2,7 @@ namespace MermaidRecognition.Kinds.Enterprise;
 
 using MermaidRecognition.Contract;
 
-/// <summary>A free-text drawing item with no ArchiMate model meaning.</summary>
+/// <summary>A free-text drawing item with no Enterprise model meaning.</summary>
 public sealed class EnterpriseNote
 {
     public string Id { get; set; } = string.Empty;
