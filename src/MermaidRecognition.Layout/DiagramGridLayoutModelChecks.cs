@@ -406,10 +406,15 @@ public static partial class DiagramGridLayout
                     if (Option.Both || Before.Any(Finding => Finding.Subject == Route.EdgeId && Finding.Rule == "4.11")) Route.EntrySide = Facing(Target, Source);
                 }
                 AllocateFinalPortSlots(State.Contract, State.Copy, Bounds, State.Nodes);
+                // Recovery can supply an empty discarded path. Compare its
+                // inventory before dereferencing terminals, and never attempt
+                // an allocated-port reroute without both endpoints present.
                 var Affected = Saved.Where(Item => Item.Route.ExitSide != Item.ExitSide || Item.Route.EntrySide != Item.EntrySide
-                    || (Item.Route.Points[0].X, Item.Route.Points[0].Y) != Item.Points[0]
-                    || (Item.Route.Points[^1].X, Item.Route.Points[^1].Y) != Item.Points[^1]).ToArray();
-                bool Complete = Affected.Length <= FlowchartLayoutRules.RepairChainLines;
+                    || Item.Route.Points.Count != Item.Points.Length
+                    || Item.Points.Length > 0 && ((Item.Route.Points[0].X, Item.Route.Points[0].Y) != Item.Points[0]
+                        || (Item.Route.Points[^1].X, Item.Route.Points[^1].Y) != Item.Points[^1])).ToArray();
+                bool Complete = Affected.Length <= FlowchartLayoutRules.RepairChainLines
+                    && Affected.All(Item => Item.Route.Points.Count >= 2);
                 if (Complete) foreach (var Item in Affected)
                 {
                     var Changed = Item.Route;
