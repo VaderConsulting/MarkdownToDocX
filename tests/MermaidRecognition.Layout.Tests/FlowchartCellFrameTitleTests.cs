@@ -52,7 +52,9 @@ public sealed class FlowchartCellFrameTitleTests
         Assert.That(FlowchartDagrePlacement.TryPlace(Contract, out var Native), Is.True);
         var StateType = typeof(DiagramGridLayout).GetNestedType("GridLayoutState", BindingFlags.NonPublic)!;
         var State = Activator.CreateInstance(StateType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            null, [Contract, Native, new FlowchartRenderContext()], null)!;
+            // The first half is explicitly the unsafe unbound control; the
+            // second binds its fresh owners and exercises the production guard.
+            null, [Contract, Native, new FlowchartRenderContext { UseCellRegions = false }], null)!;
         typeof(DiagramGridLayout).GetNestedType("GridPreparationStage", BindingFlags.NonPublic)!
             .GetMethod("Apply", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [State]);
         var Layout = (FlowchartLayoutResult)StateType.GetProperty("Copy")!.GetValue(State)!;

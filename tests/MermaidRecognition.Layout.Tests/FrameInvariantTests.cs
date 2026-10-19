@@ -89,6 +89,7 @@ public sealed class FrameInvariantTests
         var Model = Property<FlowchartLayoutResult>(State, "Copy");
         var Placed = Property<List<DiagramGridLayout.GridNode>>(State, "Placed");
         var Frames = Property<List<DiagramGridLayout.GridFrame>>(State, "Frames");
+        bool CellOwned = Placed.Any(Node => Node.CellNode != null);
         Contract.GroupsMutable.Add(CreateEmptyGroup());
         Frames.Clear();
         Invoke("BuildFramesYUp", Contract, Placed, Frames);
@@ -105,17 +106,60 @@ public sealed class FrameInvariantTests
             Route.Points.Add(new() { X = 400.125, Y = 200.375 });
             Model.EdgeRoutesMutable.Add(Route);
         }
+        if (CellOwned)
+        {
+            // The cell transaction scores completed allocated routes. Finish
+            // the fixture exactly as production does before forcing rejection.
+            var Definitions = Property<Dictionary<string, NodeContract>>(State, "Nodes");
+            var Flow = Property<MermaidRecognition.Kinds.Flowchart.FlowchartDirection>(State, "Direction");
+            Invoke("AssignPortSides", Contract, Model, Placed, Frames, Definitions, Flow, new HashSet<string>());
+            DiagramGridRouteBuilder.RebuildAllRoutes(Model, Placed, Definitions, Contract, Frames, Flow);
+            State.GetType().GetProperty("CellFinalRoutingReady")!.SetValue(State, true);
+            var Route = Model.EdgeRoutes.First(Route => Route.Points.Count >= 2);
+            var A = Route.Points[0]; var B = Route.Points[1];
+            double Length = Math.Sqrt(Math.Pow(B.X - A.X, 2) + Math.Pow(B.Y - A.Y, 2));
+            Route.Points.Insert(1, new() { X = A.X + (B.X - A.X) / Length * 0.125,
+                Y = A.Y + (B.Y - A.Y) / Length * 0.125 });
+        }
         var Bounds = Model.NodeBounds.Concat(Model.ClusterBounds).ToDictionary(Box => Box.NodeId);
         string Before = Snapshot(State);
         int Rejections = 0;
         DiagramGridLayout.RouteRepairCandidateObserver = (Kind, Subject, Cost, Accepted) =>
         {
+            if (CellOwned && Kind == "cell-move")
+            {
+                Rejections++;
+                throw new InvalidOperationException("reject-cell-frame-trial");
+            }
             if (Kind == "track-separation" && !Accepted) Rejections++;
         };
         try
         {
-            typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!
-                .GetMethod("SealDistinctTracks", HiddenStatic)!.Invoke(null, [State, Bounds]);
+            if (CellOwned)
+            {
+                // Cell track repair uses the assignment transaction rather than
+                // the retired pixel rollback. Supply one real free-cell frame
+                // growth option so the rejection branch is guaranteed to run.
+                // This is a fresh isolated search, not extra production budget
+                // after the earlier frame-fitting fixture setup.
+                var Budget = Model.RenderContext.MoveBeforeDetourBudget;
+                Budget.CandidateMoves = 0; Budget.AcceptedMoves = 0; Budget.AttemptedMoves.Clear();
+                var Regions = Placed[0].CellNode!.Grid.Capture().Regions;
+                int Delta = Regions.Values.Min(Region => Region.StartRow) - Regions["C"].EndRow - 1;
+                var Plan = FlowchartCellRepair.PlanAssignment(Placed, new Dictionary<string, FlowchartCellRegion>
+                    { ["C"] = FlowchartCellRepair.Translate(Regions["C"], Delta, 0) });
+                Assert.That(Plan, Is.Not.Null);
+                var Repair = typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!;
+                var OptionType = Repair.GetNestedType("CellRepairOption", BindingFlags.NonPublic)!;
+                var Option = Activator.CreateInstance(OptionType, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
+                    null, ["forced-frame-track-rejection", "C", Plan!], null)!;
+                var Options = Array.CreateInstance(OptionType, 1); Options.SetValue(Option, 0);
+                var Failure = Assert.Throws<TargetInvocationException>(() => Repair.GetMethod("SearchCellAssignments", HiddenStatic)!
+                    .Invoke(null, [State, Options, FlowchartLayoutRules.RepairCandidateMoves, 1, new HashSet<string>(), null, false]));
+                Assert.That(Failure!.InnerException!.Message, Is.EqualTo("reject-cell-frame-trial"));
+            }
+            else typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!
+                    .GetMethod("SealDistinctTracks", HiddenStatic)!.Invoke(null, [State, Bounds]);
         }
         finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
         Assert.That(Rejections, Is.EqualTo(1), "The rejected-candidate rollback must actually execute.");
@@ -140,7 +184,19 @@ public sealed class FrameInvariantTests
         var Frames = Property<List<DiagramGridLayout.GridFrame>>(State, "Frames");
         int OldHeight = Frames.Single(Frame => Frame.Id == "Outer").Top - Frames.Single(Frame => Frame.Id == "Outer").Bottom;
         var Member = Placed.Single(Node => Node.Id == "A");
-        Member.SetPositionFromFrameFit(Member.X, Member.Y + OldHeight + DiagramGridMetrics.GRID_UNIT_PX);
+        if (Member.CellNode is { } Owner)
+        {
+            // A and its right-of dependent B move together above the old
+            // envelope. Fit from whole-cell state, never a pixel mutation.
+            var Regions = Owner.Grid.Capture().Regions;
+            int ExtraRows = (int)Math.Ceiling((OldHeight + DiagramGridMetrics.GRID_UNIT_PX)
+                / (Owner.Grid.Configuration.CellHeight + Owner.Grid.Configuration.RowGap));
+            int Delta = Regions.Values.Min(Region => Region.StartRow) - Regions["A"].EndRow - ExtraRows;
+            var Targets = new[] { "A", "B" }.ToDictionary(Id => Id,
+                Id => FlowchartCellRepair.Translate(Regions[Id], Delta, 0));
+            Assert.That(FlowchartCellRepair.PlanAssignment(Placed, Targets, AllowHintedRegionRepair: true)!.TryApply(), Is.True);
+        }
+        else Member.SetPositionFromFrameFit(Member.X, Member.Y + OldHeight + DiagramGridMetrics.GRID_UNIT_PX);
         Contract.GroupsMutable.Add(CreateEmptyGroup());
         Frames.Clear();
         Invoke("BuildFramesYUp", Contract, Placed, Frames);
@@ -257,7 +313,13 @@ public sealed class FrameInvariantTests
     private static string Snapshot(object State)
     {
         var Model = Property<FlowchartLayoutResult>(State, "Copy");
+        var Nodes = Property<List<DiagramGridLayout.GridNode>>(State, "Placed");
+        var Cells = Nodes.Any(Node => Node.CellNode != null) ? FlowchartCellRepair.Capture(Nodes) : null;
         return System.Text.Json.JsonSerializer.Serialize(new {
+            Cells = Cells == null ? null : new {
+                Regions = Cells.Regions.OrderBy(Pair => Pair.Key, StringComparer.Ordinal).ToArray(),
+                Columns = Cells.ColumnGaps.OrderBy(Pair => Pair.Key).ToArray(),
+                Rows = Cells.RowGaps.OrderBy(Pair => Pair.Key).ToArray() },
             Frames = Property<List<DiagramGridLayout.GridFrame>>(State, "Frames").Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }),
             Bounds = Model.NodeBounds.Concat(Model.ClusterBounds),
             Routes = Model.EdgeRoutes.Select(Route => new { Route.EdgeId, Route.ExitSide, Route.EntrySide,

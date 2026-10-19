@@ -23,6 +23,8 @@ Observed exceptions and assertion failures are distinguished from inferred cause
 | Port sides, straightening and route selection | 18 |
 | **Total** | **115** |
 
+Resolution update: group 1 remains fixed; the caption increment fixes ten of the 22 painted-label cases, and all 26 setup-only cases now pass unchanged assertions. The A115 guard also fixes the recorded nested-container index case. Group 4's measured-diamond trial was reverted after bend regressions. See [repair progress](cells-on-hidden-repair-progress.md) for validation and the remaining cases.
+
 ## Cell sizing, gap growth and wrap measurements
 
 Scenarios: F10, F28, F90, custom rank spacing, decision dimensions, long labelled edges in all four directions, and long-chain wrap fixtures. Observed differences include 90-px cell-derived height versus a 60-px legacy expectation, unchanged spans after a rank-spacing/minlength change, and a 30-px label run where about 118.3 px is required. Likely engine areas: [initial cell spans](../src/MermaidRecognition.Layout/FlowchartCellInitialPlacement.cs), `FlowchartPlacementHints.cs`, cell gap growth, and `FlowchartChainWrapping.cs`. Constant pixel expectations require review against the logical-grid rules; label clearance and declared spacing behaviour remain live requirements.

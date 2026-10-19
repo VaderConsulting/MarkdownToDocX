@@ -304,7 +304,7 @@ public sealed class FlowchartCellMoveSearchTests
         AssertNoSharedCells(Fixture.Grid);
     }
 
-    /// <summary>Initialises real engine state from declared regions, bypassing only the not-yet-converted placement producer.</summary>
+    /// <summary>Initialises real engine state with fresh single-owner nodes on the fixture's declared logical grid.</summary>
     /// <param name="Offset">Whether the middle node starts in the next logical column.</param>
     /// <param name="Source">Optional group fixture source.</param>
     /// <param name="Regions">Optional explicit node reservations.</param>
@@ -323,7 +323,17 @@ public sealed class FlowchartCellMoveSearchTests
             null, [Contract, Seed, new FlowchartRenderContext()], null)!;
         typeof(DiagramGridLayout).GetNestedType("GridPreparationStage", BindingFlags.NonPublic)!
             .GetMethod("Apply", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [State]);
-        var Nodes = ((List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(State)!).ToArray();
+        var Owners = (List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(State)!;
+        // Preparation now binds its production seed. This independent unit
+        // fixture has its own declared regions/configuration, so create its
+        // owners once instead of attempting to rebind those seed owners.
+        var Nodes = Owners.Select(Node => new DiagramGridLayout.GridNode
+        {
+            Id = Node.Id, Rank = Node.Rank, Column = Node.Column,
+            GroupId = Node.GroupId, IsDiamond = Node.IsDiamond,
+            Shape = Node.Shape, GeometryProvider = Node.GeometryProvider
+        }).ToArray();
+        Owners.Clear(); Owners.AddRange(Nodes);
         var Grid = new FlowchartLogicalGrid(Configuration ?? FlowchartLogicalGridConfiguration.FromRules());
         Regions ??= new Dictionary<string, FlowchartCellRegion>
         {
@@ -336,6 +346,7 @@ public sealed class FlowchartCellMoveSearchTests
             if (RoutingCoordinates) Node.CellNode!.UseRoutingCoordinates(600);
         }
         var Layout = (FlowchartLayoutResult)StateType.GetProperty("Copy")!.GetValue(State)!;
+        Layout.CellNodes = Owners;
         Layout.UsesGridRoutes = true;
         var Placed = StateType.GetProperty("Placed")!.GetValue(State)!;
         var Frames = (List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(State)!;
