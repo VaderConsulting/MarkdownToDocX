@@ -945,7 +945,7 @@ public sealed class FlowchartCatalogueRenderTests
             "W1",
             "Agg",
             FlowchartEdgeAttachFace.Top,
-            FlowchartEdgeRouteKind.Corridor);
+            Layout.CellNodes == null ? FlowchartEdgeRouteKind.Corridor : FlowchartEdgeRouteKind.Straight);
 
         AssertEdgeSourceFace(
             Contract,
@@ -965,7 +965,7 @@ public sealed class FlowchartCatalogueRenderTests
             "W3",
             "Agg",
             FlowchartEdgeAttachFace.Top,
-            FlowchartEdgeRouteKind.Corridor);
+            Layout.CellNodes == null ? FlowchartEdgeRouteKind.Corridor : FlowchartEdgeRouteKind.Straight);
 
         foreach (string WorkerId in new[] { "W1", "W2", "W3" })
         {
