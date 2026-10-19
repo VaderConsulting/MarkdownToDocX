@@ -21,6 +21,8 @@ public static partial class DiagramGridLayout
     internal static Action<string, string, string, bool, bool, double>? FinalRepairConfirmationObserver;
     /// <summary>Allows equivalence tests to execute the uncached reference algorithm; production keeps reuse enabled.</summary>
     internal static bool FinalRepairDisableReferenceReuseForTests;
+    /// <summary>Runs the unchanged reference checks for regression comparison with fixed-frame preflight.</summary>
+    internal static bool FinalRepairDisableFixedFramePreflightForTests;
 
     private static partial class RouteRepairStage
     {
@@ -66,6 +68,12 @@ public static partial class DiagramGridLayout
                         // failures never become fully routed layout candidates.
                         if (!Option.Build()) continue;
                         Examined++;
+                        FinalRepairStateObserver?.Invoke("candidate", Layout, State.Placed);
+                        // In cell candidate mode completion cannot move these
+                        // settled envelopes. Reject their existing hard fault,
+                        // while still spending the same candidate budget slot.
+                        if (!FinalRepairDisableFixedFramePreflightForTests && HasFixedFinalFrameOverlap(State))
+                        { Reason = "frame-overlap"; continue; }
                         // Reference completion covers every line, including remote
                         // crossings. Reuse only that completed state; candidate
                         // track/port replay and every admission check still run.
@@ -202,6 +210,34 @@ public static partial class DiagramGridLayout
                         return true;
                     }, false);
             }
+        }
+
+        /// <summary>Recognises a frame overlap that reference routing cannot repair without moving fixed geometry.</summary>
+        /// <param name="State">A formed private candidate, before reference routing.</param>
+        /// <returns>True only for an existing overlap between complete, positive, exactly projected cell-bound frames.</returns>
+        private static bool HasFixedFinalFrameOverlap(GridLayoutState State)
+        {
+            var Published = State.Copy.ClusterBounds;
+            if (Published.Count < 2 || State.Placed.Any(Node => Node.CellNode == null)
+                || Published.Count != State.Frames.Count
+                || Published.Select(Box => Box.NodeId).Distinct(StringComparer.Ordinal).Count() != Published.Count
+                || State.Contract.Groups.Any(Group => !Published.Any(Box => Box.NodeId == Group.Id))) return false;
+            foreach (var Box in Published)
+            {
+                if (!double.IsFinite(Box.CenterX) || !double.IsFinite(Box.CenterY)
+                    || !double.IsFinite(Box.Width) || !double.IsFinite(Box.Height)
+                    || Box.Width <= 0 || Box.Height <= 0) return false;
+                var Frame = State.Frames.FirstOrDefault(Frame => Frame.Id == Box.NodeId);
+                if (Frame == null || Frame.Left != Box.CenterX - Box.Width / 2
+                    || Frame.Right != Box.CenterX + Box.Width / 2 || Frame.Bottom != Box.CenterY - Box.Height / 2
+                    || Frame.Top != Box.CenterY + Box.Height / 2) return false;
+            }
+            // CompleteReferenceCellCandidate sets IsEvaluatingCellRouteCandidate:
+            // SearchCellAssignmentsCore then refuses all placement/frame moves.
+            // Cell-bound title repair cannot resize frames, and positive existing
+            // group bounds bypass fallback envelope construction. Missing or stale
+            // envelopes above always fall through to full reference completion.
+            return CountUnrelatedFrameOverlaps(State.Contract, State.Frames) != 0;
         }
 
         /// <summary>Identifies exact ordered placement inputs, optionally including the incoming route assignment.</summary>

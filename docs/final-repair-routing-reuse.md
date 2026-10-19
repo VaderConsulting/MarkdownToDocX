@@ -53,3 +53,34 @@ The strict-signature normal run has 1,148 passes and exactly the same 205 failur
 No parallel worker is retained. Each `FinalOption.Build` closes over the same live `GridLayoutState`, route objects, mutable cell owner, frames and incumbent snapshot. `CompleteReferenceCellCandidate` rebuilds every route and temporarily writes the static `RouteRepairCandidateObserver` and `RouteRepairOptionObserver`. Even candidates moving different nodes therefore do not have independent write sets under the current reference API. The lazy option factories also consume the current incumbent after each accepted result. A fixed-order merge alone would not prevent cross-worker mutation or stale proposals.
 
 Safe parallel workers would require a separate deep-owned state/contract/hint/cache boundary and per-worker callback suppression, with invalidation of speculative results after an earlier acceptance. This increment does not introduce that architectural change or run shared mutable candidates concurrently. There is no separate 3c timing claim: its executable state is unchanged from 3b.
+### 3d — reject fixed frame faults before confirmation
+
+The preflight uses the existing unrelated-frame-overlap check only. It requires all placed nodes to be cell-owned, every declared group envelope to be present, all envelopes finite and positive, a unique complete frame inventory, and exact equality between public and internal frame boundaries. Under reference candidate mode all cell placement/frame-repair searches return without moving geometry; cell-bound title repair cannot enlarge an envelope; positive existing group bounds bypass fallback construction. Therefore routing cannot remove the pre-existing frame overlap. Missing, incomplete or stale envelopes still receive ordinary full confirmation. The original post-completion frame check remains in place. The candidate still consumes its original budget slot, and exact rollback still runs.
+
+Seven focused tests pass. The F60 proof regression runs full uncached confirmation with the preflight disabled and checks unchanged node/frame bounds plus the surviving overlap for both reproducing moves. The enabled test checks those options never enter confirmation. Full cached-versus-reference models and acceptance sequences, plus rejected-candidate rollback, remain checked.
+
+The full profiled audit took **135.93 s**, A142 **40.937247 s**. All 673 summaries are byte-identical, all 668 available geometry/findings hashes match, all per-scenario metrics match and the same 77 accepted keys occur in the same order across 58 scenarios. All hard gates are zero. The preflight skips 26 formed candidates across eight scenarios: F60 (3), F111 (6), F139 (1), A111 (5), A114 (5), A115 (2), A142 (1), EIP31 (3). The cache still reuses 244 completions; 2,341 actual reference completions remain. No candidate was skipped for an estimated score, length, bend or crossing count.
+
+A142's dominant `move|dmeDbms|0,132` is now rejected for its fixed frame overlap before reference routing. A142 still has 10 actual confirmations and 5 cache restorations; its final pass takes 29.255423 s. Distinct reference calls remain necessary under the current guards. Catalogue reference-completion/restoration time is 67.851813 s (base 5.047893 s, changed geometry 62.803920 s), and the entire final pass is 71.480703 s. The remaining audit time is outside that pass.
+
+The normal suite has 1,148 passes and exactly the same 205 failure identities, checked case-sensitively (zero new or removed identities). The final unprofiled audit completed under the unchanged **59-second default watchdog**, with no timeout override: **132.82 s**, A142 **43.827792 s**. It emitted all 673 summaries, with no timeout or incomplete batch. All untrimmed summary rows, all 668 available geometry/findings hashes, all metrics and all accepted sequences match the reference. The audit's same 23 pre-existing scenario assertions remain failing; no hard gate is nonzero.
+
+Final measured totals: **2,875 bends, 2,039 crossings, 320 shared-track pairs, 1,191 rule 5.9 findings and 1,582 total findings**. A104 remains 38/0, A105 28/0 and A115 96/131 bends/crossings. Both large fans retain zero same-fan crossings. The 61 px embedded cap, all rules/weights/limits and every checker are unchanged. Steps 3a and 3b are checkpoints `073e408` and `a3a5d8c` respectively. The earlier speed targets remain unmet; the remaining final pass confirms distinct candidates serially.
+
+## Reproduce and inspect
+
+All measured catalogue runs use Release production-cell mode and the existing audit. For an unprofiled capture with the normal watchdog:
+
+```powershell
+$env:ROUTE_AUDIT_CELLS_ON = 'production'
+$env:ROUTE_AUDIT_GEOMETRY = '1'
+$env:FINAL_REPAIR_CAPTURE = Join-Path (Get-Location) 'out/final-repair-capture.jsonl'
+[IO.File]::WriteAllText($env:FINAL_REPAIR_CAPTURE, '')
+# Leave ROUTE_AUDIT_PROFILE, FINAL_REPAIR_PROFILE, FINAL_REPAIR_CAP
+# and FINAL_REPAIR_CONFIRMATIONS unset.
+pwsh -NoProfile -File tests/MermaidRecognition.RuleValidation.Tests/Run-RouteRuleCatalogueAudit.ps1
+```
+
+For the detailed diagnostic trace, set `FINAL_REPAIR_PROFILE=1` and `FINAL_REPAIR_CONFIRMATIONS=1`. The slow pre-optimisation profiles additionally used an invocation-only `-BatchTimeoutSeconds ([int]::MaxValue)`; the tracked default was never edited. Observer instrumentation is off in ordinary production calls.
+
+Local evidence is retained under `out/markup-review/`: `final-reuse-profile-before`, `final-reuse-base`, `final-reuse-candidates-strict`, `final-reuse-preflight` and `final-reuse-default` each have JSONL, stdout, timing CSV and audit-log captures. The first four contain the detailed per-candidate completion trace. `final-reuse-{base,candidates-strict,preflight}-normal.trx` records each normal-suite comparison. `final-reuse-preflight-focused.trx` records the seven focused regression passes. No DOCX was regenerated and nothing was pushed.

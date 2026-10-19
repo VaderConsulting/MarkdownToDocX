@@ -28,6 +28,7 @@ public sealed class FinalCompleteRepairTests
                 : MermaidRecognizer.Parse(Scenario.Source);
             var Accepted = new List<string>();
             DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = DisableReuse;
+            DiagramGridLayout.FinalRepairDisableFixedFramePreflightForTests = DisableReuse;
             DiagramGridLayout.FinalRepairObserver = (Key, Reason, Length) => { if (Reason == "accepted") Accepted.Add(Key); };
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
             return (CellProductionParityTests.Snapshot(Contract, Layout), Accepted.ToArray());
@@ -43,6 +44,7 @@ public sealed class FinalCompleteRepairTests
         finally
         {
             DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = false;
+            DiagramGridLayout.FinalRepairDisableFixedFramePreflightForTests = false;
             DiagramGridLayout.FinalRepairObserver = null;
             DiagramGridLayout.FinalRepairConfirmationObserver = null;
         }
@@ -56,6 +58,8 @@ public sealed class FinalCompleteRepairTests
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "F60");
         var Contract = MermaidRecognizer.Parse(Scenario.Source);
         int Rejected = 0;
+        var Confirmed = new List<string>();
+        DiagramGridLayout.FinalRepairConfirmationObserver = (Key, Geometry, Input, Base, Reused, Ms) => Confirmed.Add(Key);
         DiagramGridLayout.FinalRepairObserver = (Key, Reason, Length) =>
         {
             if (Reason == "frame-overlap") { Rejected++; TestContext.Out.WriteLine($"F60_FRAME_REJECT|{Key}"); }
@@ -65,8 +69,44 @@ public sealed class FinalCompleteRepairTests
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
             Assert.That(RouteRuleCatalogueAuditTests.UnrelatedFrameOverlaps(Contract, Layout), Is.Empty);
             Assert.That(Rejected, Is.Positive, "Exercise the frame guard on the reproducing completed candidate.");
+            Assert.That(Confirmed, Does.Not.Contain("move|I1|3,0"));
+            Assert.That(Confirmed, Does.Not.Contain("move|P1|-3,0"));
         }
-        finally { DiagramGridLayout.FinalRepairObserver = null; }
+        finally { DiagramGridLayout.FinalRepairObserver = null; DiagramGridLayout.FinalRepairConfirmationObserver = null; }
+    }
+
+    /// <summary>Proves the reproducing fixed overlaps survive full reference completion with unchanged public envelopes.</summary>
+    [Test]
+    public void F60_ReferenceCompletion_LeavesFixedOverlappingFramesUnchanged()
+    {
+        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+            (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "F60");
+        var Contract = MermaidRecognizer.Parse(Scenario.Source);
+        string? CandidateFrames = null; int Checked = 0;
+        DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = true;
+        DiagramGridLayout.FinalRepairDisableFixedFramePreflightForTests = true;
+        DiagramGridLayout.FinalRepairStateObserver = (Stage, Layout, Nodes) =>
+        { if (Stage == "candidate") CandidateFrames = JsonSerializer.Serialize(new { Layout.NodeBounds, Layout.ClusterBounds }); };
+        DiagramGridLayout.FinalRepairMeasurementObserver = (Key, Layout) =>
+        {
+            if (Key is not ("move|I1|3,0" or "move|P1|-3,0")) return;
+            Assert.That(JsonSerializer.Serialize(new { Layout.NodeBounds, Layout.ClusterBounds }), Is.EqualTo(CandidateFrames));
+            Assert.That(RouteRuleCatalogueAuditTests.UnrelatedFrameOverlaps(Contract, Layout), Is.Not.Empty);
+            Checked++;
+        };
+        try
+        {
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+            Assert.That(Checked, Is.EqualTo(2));
+            Assert.That(RouteRuleCatalogueAuditTests.UnrelatedFrameOverlaps(Contract, Layout), Is.Empty);
+        }
+        finally
+        {
+            DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = false;
+            DiagramGridLayout.FinalRepairDisableFixedFramePreflightForTests = false;
+            DiagramGridLayout.FinalRepairStateObserver = null;
+            DiagramGridLayout.FinalRepairMeasurementObserver = null;
+        }
     }
     /// <summary>Protects the accepted whole-cell A115 move and its completed production routes.</summary>
     [Test]
