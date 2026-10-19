@@ -170,7 +170,21 @@ Every rule is generic: it uses structure and geometry, never labels, samples, te
 
 - (h) Direction: see rule 2.19. A node, group or line without a hint is laid out as before.
 
-2.22 Notes. A note is a free-text dog-ear box, not an ArchiMate element or semantic relationship endpoint. Notes may be grouped or top-level, are sized independently from their text; in `grid` mode each note is placed in the smallest whole-cell region that holds its visual bounds, reserves that region, and follows the clearance rules. A connected note sits beside its connected node or group on the same row in the nearest free cell unless an honoured hint moves it; an unconnected note follows 2.15. Group membership and frame containment follow 7.8. Plain note connections have no arrowhead or semantic relationship meaning (4.10); their routes follow 4.2 like every other connection, and they **do not count in the forced-crossing minimum** under 2.13. A line label is not a note.
+2.22 Notes. A note is a free-text dog-ear box, not an Enterprise element or semantic relationship endpoint. Notes may be grouped or top-level, are sized independently from their text; in `grid` mode each note is placed in the smallest whole-cell region that holds its visual bounds, reserves that region, and follows the clearance rules. A connected note sits beside its connected node or group on the same row in the nearest free cell unless an honoured hint moves it; an unconnected note follows 2.15. Group membership and frame containment follow 7.8. Plain note connections have no arrowhead or semantic relationship meaning (4.10); their routes follow 4.2 like every other connection, and they **do not count in the forced-crossing minimum** under 2.13. A line label is not a note.
+
+2.23 Enterprise layers. In enterprise diagrams whose elements come from more than one layer, place the layers as horizontal bands. From top to bottom they are Strategy, Business, Application, Technology and Physical (one band), then Implementation and Migration. Motivation elements form a column on the right of all the bands. An element's layer comes from its Enterprise type.
+
+A junction belongs to no layer and sits next to the elements it joins. A location drawn as a node belongs to no layer and sits next to the elements it relates to most. A location drawn as a container is treated like a grouping.
+
+A grouping belongs to no layer and has no position of its own. Its frame is drawn around its members wherever their bands place them. If the members are in more than one band, the frame spans those bands as one solid block, each member stays in its own band, and elements that aren't members are kept out of the frame, even if a band has to wrap.
+
+The bands follow the page. The declared flow direction applies only within a band. Within a band, passive structure goes on the left, behaviour in the middle and active structure on the right. A band may wrap onto further rows to approach the overall shape target.
+
+In the Implementation and Migration band, plateaus run from left to right in triggering order, and each gap sits between the plateaus it relates.
+
+A diagram whose elements all come from one layer has no bands.
+
+The band order, band membership, the Motivation column and the plateau order are conventions, not preferences. A hint can't put an element in another band, can't move a band above or below a band of a different layer type, can't move Motivation out of its column and can't reorder plateaus. Such a hint is ignored and reported under 2.21(g), with no hint score. A hint can still change an element's position within its own band, the order within the Technology and Physical band, how a band wraps, and where junctions, locations and frames go, as long as every member stays in its own band.
 
 ## 3. Ports and diamonds
 
