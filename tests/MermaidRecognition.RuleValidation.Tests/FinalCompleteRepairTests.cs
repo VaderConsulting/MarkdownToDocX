@@ -13,11 +13,14 @@ public sealed class FinalCompleteRepairTests
 {
     /// <summary>Requires cached reference routes to preserve the complete model and original acceptance order.</summary>
     /// <param name="Id">Catalogue case with ports, frame repair or an accepted region move.</param>
-    [TestCase("A115"), TestCase("F60"), TestCase("A104")]
+    [TestCase("A115"), TestCase("F60"), TestCase("A104"), TestCase("F152")]
     public void ReferenceReuse_PreservesExactLayoutAndAcceptedOrder(string Id)
     {
         var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
+        int CandidateHits = 0;
+        DiagramGridLayout.FinalRepairConfirmationObserver = (Key, Geometry, Input, Base, Reused, Ms) =>
+        { if (!Base && Reused) CandidateHits++; };
         (string Model, string[] Accepted) Run(bool DisableReuse)
         {
             var Contract = Scenario.Enterprise
@@ -35,11 +38,13 @@ public sealed class FinalCompleteRepairTests
             var Cached = Run(false);
             Assert.That(Cached.Model, Is.EqualTo(Reference.Model));
             Assert.That(Cached.Accepted, Is.EqualTo(Reference.Accepted));
+            if (Id == "F152") Assert.That(CandidateHits, Is.Positive, "Exercise repeated full candidate inputs, not just base-route reuse.");
         }
         finally
         {
             DiagramGridLayout.FinalRepairDisableReferenceReuseForTests = false;
             DiagramGridLayout.FinalRepairObserver = null;
+            DiagramGridLayout.FinalRepairConfirmationObserver = null;
         }
     }
 

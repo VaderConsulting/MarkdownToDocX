@@ -47,6 +47,7 @@ public static partial class DiagramGridLayout
             double BeforeLength = RouteLength(Layout);
             int Examined = 0, Accepted = 0;
             var BaseCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
+            var CandidateCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
             var Queues = new[] { PairOptions().GetEnumerator(), RegionOptions().GetEnumerator() }.ToList();
             try
             {
@@ -65,21 +66,24 @@ public static partial class DiagramGridLayout
                         // failures never become fully routed layout candidates.
                         if (!Option.Build()) continue;
                         Examined++;
-                        // Every line is rerouted, including lines remote from
-                        // the repair. The subsequent assignment replay fixes the
-                        // candidate's proposed tracks/slots on those fresh routes.
+                        // Reference completion covers every line, including remote
+                        // crossings. Reuse only that completed state; candidate
+                        // track/port replay and every admission check still run.
                         bool CacheBase = Option.ReplayAfterRouting && !FinalRepairDisableReferenceReuseForTests;
+                        bool CacheCandidate = !Option.ReplayAfterRouting && !FinalRepairDisableReferenceReuseForTests;
                         string? GeometryKey = FinalRepairConfirmationObserver == null && !CacheBase ? null : FinalReferenceIdentity(State, false);
-                        string? InputKey = FinalRepairConfirmationObserver == null ? null : FinalReferenceIdentity(State, true);
+                        string? InputKey = FinalRepairConfirmationObserver == null && !CacheCandidate ? null : FinalReferenceIdentity(State, true);
                         var ConfirmationClock = FinalRepairConfirmationObserver == null ? null : System.Diagnostics.Stopwatch.StartNew();
                         CellGeometrySnapshot? Completed = null;
-                        bool Reused = CacheBase && BaseCompletions.TryGetValue(GeometryKey!, out Completed);
+                        var Completions = CacheBase ? BaseCompletions : CandidateCompletions;
+                        string? CompletionKey = CacheBase ? GeometryKey : InputKey;
+                        bool Reused = (CacheBase || CacheCandidate) && Completions.TryGetValue(CompletionKey!, out Completed);
                         if (Reused) Completed!.Restore(State);
                         else
                         {
                             using (FlowchartCellCostTiming.ForRoutingPhase("final-confirmation"))
                                 CompleteReferenceCellCandidate(State);
-                            if (CacheBase) BaseCompletions[GeometryKey!] = new CellGeometrySnapshot(State);
+                            if (CacheBase || CacheCandidate) Completions[CompletionKey!] = new CellGeometrySnapshot(State);
                         }
                         if (ConfirmationClock != null) FinalRepairConfirmationObserver?.Invoke(Option.Key, GeometryKey!, InputKey!,
                             Option.ReplayAfterRouting, Reused, ConfirmationClock.Elapsed.TotalMilliseconds);
@@ -209,7 +213,8 @@ public static partial class DiagramGridLayout
             var Cells = FlowchartCellRepair.Capture(State.Placed);
             string Value = System.Text.Json.JsonSerializer.Serialize(new
             {
-                Cells.Regions, Cells.ColumnGaps, Cells.RowGaps,
+                Regions = Cells.Regions.Select(Pair => new { Pair.Key, Pair.Value.StartRow, Pair.Value.StartColumn,
+                    Pair.Value.RowSpan, Pair.Value.ColumnSpan }), Cells.ColumnGaps, Cells.RowGaps,
                 Nodes = State.Placed.Select(Node => new { Node.Id, Node.X, Node.Y, Node.Width, Node.Height }),
                 Frames = State.Frames.Select(Frame => new { Frame.Id, Frame.Left, Frame.Right, Frame.Top, Frame.Bottom }),
                 State.Copy.NodeBounds, State.Copy.ClusterBounds,
@@ -217,11 +222,26 @@ public static partial class DiagramGridLayout
                     .OfType<PlacementHintContract>().Select(Hint => new { Hint.IsActive, Hint.UnhonouredReason }),
                 RouteHints = State.Contract.Edges.Select(Edge => Edge.RoutingHint).OfType<RoutingHintContract>()
                     .Select(Hint => new { Hint.IsActive, Hint.UnhonouredReason }),
+                HintedRoutes = State.HintedRoutes.Select(Pair => new
+                {
+                    Pair.Key.EdgeId, Pair.Value.ExitSide, Pair.Value.EntrySide,
+                    Points = Pair.Value.Points.Select(Point => new { Point.X, Point.Y })
+                }),
                 Routes = IncludeRoutes ? State.Copy.EdgeRoutes.Select(Route => new
                 {
                     Route.EdgeId, Route.SourceId, Route.TargetId, Route.ExitSide, Route.EntrySide,
                     Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY,
                     Points = Route.Points.Select(Point => new { Point.X, Point.Y })
+                }).ToArray() : null,
+                Guides = IncludeRoutes ? State.Copy.ResolvedEdgeGuides?.Select(Guide => new
+                {
+                    Guide.Edge.Id, Guide.RouteKind, Points = Guide.Points.Select(Point => new { Point.X, Point.Y })
+                }).ToArray() : null,
+                Violations = IncludeRoutes ? State.Copy.RenderContext.LayoutStageViolations.ToArray() : null,
+                CachedGeometry = IncludeRoutes ? State.Copy.RenderContext.CachedRouteGeometry : null,
+                CachedGuides = IncludeRoutes ? State.Copy.RenderContext.CachedRouteGuides?.Select(Guide => new
+                {
+                    Guide.Edge.Id, Guide.RouteKind, Points = Guide.Points.Select(Point => new { Point.X, Point.Y })
                 }).ToArray() : null
             });
             return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Value)));

@@ -38,3 +38,18 @@ The full profiled audit took **355.77 s**, A142 **237.904 s**. All 673 summary r
 Normal suite: 1,148 passes and exactly the same 205 failing test identities (no new or removed identities). All five focused final-repair tests pass, including exact cached-versus-reference model and acceptance-order comparisons for A115, F60 and A104, plus frame-overlap and rejected-candidate rollback regressions.
 
 All 673 summaries are checked. The five native-ineligible sources have no route-geometry hash; their explicit statuses remain checked. There are 668 measurable geometry hashes, not 673 valid native geometries.
+### 3b — reuse complete candidate confirmations
+
+The candidate cache uses exact ordered regions/spans, gaps, node/frame projections, hint statuses and saved hinted paths, allocated sides/normals/points, guide contents, cached-guide geometry/contents and current diagnostics. It is scoped to the current scenario's final pass, like the base cache. A hit restores the complete reference snapshot; all guards, scoring and replay still execute in the original candidate order. Different guide or hint-restoration state cannot share a confirmation merely because the public route inputs match.
+
+The first full check (before adding saved hinted paths to the signature) took 291.32 s, A142 182.134993 s, with 45 additional candidate-cache hits, 245 total hits and 2,366 actual full reference calls. All signatures, summaries, metrics and accepted sequences matched. The normal suite retained the exact same 205 failures; all six focused tests passed, including F152 exercising repeated full candidate inputs. This timing improvement is not all attributable to caching: A142 has no additional cache hits in 3b and its expensive distinct candidate has substantial run-to-run timing variation.
+
+The retained, stricter-key full audit took **284.67 s**, A142 **178.919914 s**. All 673 summaries, all 668 available geometry/findings hashes, every scenario metric and the 77 accepted keys in the same order across 58 scenarios match `1167023`. All hard gates are zero. There are 199 base hits and 45 full candidate hits, leaving 2,367 real reference completions. One base hash that previously matched is deliberately separated by its different saved hint-restoration state. This is conservative reuse, with no prediction-based rejection.
+
+The strict-signature normal run has 1,148 passes and exactly the same 205 failure identities (zero new or removed identities). All six focused final-repair tests pass. No audit checker, rule value, search limit, acceptance order or guard changed. Step 3a is checkpoint `073e408`.
+
+### 3c — parallel confirmation eligibility
+
+No parallel worker is retained. Each `FinalOption.Build` closes over the same live `GridLayoutState`, route objects, mutable cell owner, frames and incumbent snapshot. `CompleteReferenceCellCandidate` rebuilds every route and temporarily writes the static `RouteRepairCandidateObserver` and `RouteRepairOptionObserver`. Even candidates moving different nodes therefore do not have independent write sets under the current reference API. The lazy option factories also consume the current incumbent after each accepted result. A fixed-order merge alone would not prevent cross-worker mutation or stale proposals.
+
+Safe parallel workers would require a separate deep-owned state/contract/hint/cache boundary and per-worker callback suppression, with invalidation of speculative results after an earlier acceptance. This increment does not introduce that architectural change or run shared mutable candidates concurrently. There is no separate 3c timing claim: its executable state is unchanged from 3b.
