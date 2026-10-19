@@ -112,6 +112,17 @@ internal static class FlowchartRoutingHints
             }
             if (Path.Count < 2)
             {
+                // Strict template/visibility searches use padded, extended stubs.
+                // An allocated frame port can still have a legal path in the
+                // actual free space. Offer the same exact-normal fallback used
+                // by automatic frame routing before declaring the hint impossible.
+                if (HasHint && Layout.RenderContext.UseCellRegions
+                    && Contract.Groups.Any(Group => Group.Id == Route.SourceId || Group.Id == Route.TargetId))
+                    Path = BuildAllocatedHintFallback(Contract, Bounds, Nodes, Route, Exit, Entry,
+                        StartX, StartY, EndX, EndY, Hint!);
+            }
+            if (Path.Count < 2)
+            {
                 string reason = Hint?.Travel.HasValue == true
                     ? "no legal route has the requested travel direction"
                     : "no legal route has the allocated endpoint directions";
@@ -185,6 +196,46 @@ internal static class FlowchartRoutingHints
 
         bool HintedPortMatches((double X, double Y) point, (FlowchartLayoutEdgeRoute Route, bool Source) key) =>
             !HintedPorts.TryGetValue(key, out var expected) || SamePoint(point, expected);
+    }
+
+    /// <summary>Offers an exact-port, unpadded fallback for an otherwise unreachable hinted group connector.</summary>
+    /// <param name="Contract">Declared groups and protected titles.</param>
+    /// <param name="Bounds">Current node and frame geometry.</param>
+    /// <param name="Nodes">Renderer-owned endpoint shapes.</param>
+    /// <param name="Route">Original route identity, never changed by this trial.</param>
+    /// <param name="Exit">Required source side.</param>
+    /// <param name="Entry">Required target side.</param>
+    /// <param name="StartX">Exact allocated source X coordinate.</param>
+    /// <param name="StartY">Exact allocated source Y coordinate.</param>
+    /// <param name="EndX">Exact allocated target X coordinate.</param>
+    /// <param name="EndY">Exact allocated target Y coordinate.</param>
+    /// <param name="Hint">Original active hint, including any required travel direction.</param>
+    /// <returns>A fully validated normal-preserving path, or no candidate if the hint is genuinely blocked.</returns>
+    private static List<(double X, double Y)> BuildAllocatedHintFallback(DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, IReadOnlyDictionary<string, NodeContract> Nodes,
+        FlowchartLayoutEdgeRoute Route, string Exit, string Entry, double StartX, double StartY,
+        double EndX, double EndY, RoutingHintContract Hint)
+    {
+        Nodes.TryGetValue(Route.SourceId, out var SourceNode);
+        Nodes.TryGetValue(Route.TargetId, out var TargetNode);
+        var SourceStub = DiagramGridRouteBuilder.ResolvePortStub(StartX, StartY, Bounds[Route.SourceId], SourceNode?.Shape,
+            Exit, DiagramGridRouteBuilder.CORNER_RADIUS_PX,
+            Route.ExitSide == Exit ? Route.ExitNormalX : 0, Route.ExitSide == Exit ? Route.ExitNormalY : 0);
+        var TargetStub = DiagramGridRouteBuilder.ResolvePortStub(EndX, EndY, Bounds[Route.TargetId], TargetNode?.Shape,
+            Entry, DiagramGridRouteBuilder.CORNER_RADIUS_PX,
+            Route.EntrySide == Entry ? Route.EntryNormalX : 0, Route.EntrySide == Entry ? Route.EntryNormalY : 0);
+        var Candidate = new FlowchartLayoutEdgeRoute
+        {
+            EdgeId = Route.EdgeId, SourceId = Route.SourceId, TargetId = Route.TargetId,
+            ExitSide = Exit, EntrySide = Entry,
+            ExitNormalX = SourceStub.X - StartX, ExitNormalY = SourceStub.Y - StartY,
+            EntryNormalX = TargetStub.X - EndX, EntryNormalY = TargetStub.Y - EndY
+        };
+        Candidate.Points.Add(new() { X = StartX, Y = StartY });
+        Candidate.Points.Add(new() { X = EndX, Y = EndY });
+        var Path = FlowchartAllocatedPortFallback.Build(Contract, Bounds, Nodes, Candidate, true);
+        return FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Candidate, Path)
+            && (!Hint.Travel.HasValue || DiagramGridRouteBuilder.HasTravelDirection(Path, Hint.Travel.Value)) ? Path : [];
     }
 
     private static Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> SelectHintedPorts(
