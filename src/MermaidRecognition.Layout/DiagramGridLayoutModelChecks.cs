@@ -589,7 +589,9 @@ public static partial class DiagramGridLayout
         private static List<(double X, double Y)> BuildAllocatedNormalFallback(GridLayoutState State,
             Dictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartLayoutEdgeRoute Route) =>
             FlowchartAllocatedPortFallback.Build(State.Contract, Bounds, State.Nodes, Route,
-                ExtendEnvelope: State.Placed.Any(Node => Node.CellNode != null));
+                ExtendEnvelope: State.Placed.Any(Node => Node.CellNode != null),
+                ExistingRoutes: FlowchartFallbackCorridorTracks.IsConstructionStage(State.Copy.RenderContext)
+                    ? State.Copy.EdgeRoutes : null);
 
         /// <summary>Separates final shared runs and grows an undersized unhinted channel before retrying its tracks.</summary>
         /// <param name="State">The final placed model and immutable hint constraints.</param>
@@ -1145,6 +1147,7 @@ public static partial class DiagramGridLayout
                          .Where(item => item.Kind == "NoLegalRoute" && item.InvolvedIds.Count > 0)
                          .Select(item => item.InvolvedIds[0]).Distinct(StringComparer.Ordinal).ToArray())
             {
+                using var SideSearchTiming = FlowchartCellCostTiming.Begin("unrouted-side-search/" + edgeId);
                 FlowchartLayoutEdgeRoute? route = State.Copy.EdgeRoutes.FirstOrDefault(item => item.EdgeId == edgeId);
                 EdgeContract? edge = State.Contract.Edges.FirstOrDefault(item => item.Id == edgeId);
                 if (route == null) continue;
@@ -1351,15 +1354,25 @@ public static partial class DiagramGridLayout
                     ApplySlots(ends, nodes);
                     continue;
                 }
+                bool CorridorNesting = NeedsCorridorPortNesting(ends, layout.RenderContext);
                 ends.Sort((left, right) =>
                 {
+                    if (CorridorNesting)
+                        return CompareCorridorPortEnds(left, right);
                     int hintOrder = right.IsHinted.CompareTo(left.IsHinted);
                     if (hintOrder != 0) return hintOrder;
                     bool vertical = left.Side is "left" or "right";
+                    int PeerOrder = vertical ? right.Other.CenterY.CompareTo(left.Other.CenterY)
+                        : left.Other.CenterX.CompareTo(right.Other.CenterX);
+                    if (PeerOrder == 0 && CorridorSlotIsOnFlatSide(left) && CorridorSlotIsOnFlatSide(right)
+                        && FlowchartFallbackCorridorTracks.HasReservedCapacity(layout.RenderContext))
+                        return CompareExistingCorridorSlots(left, right);
                     return vertical ? right.Other.CenterY.CompareTo(left.Other.CenterY)
                         : left.Other.CenterX.CompareTo(right.Other.CenterX);
                 });
                 ApplySlots(ends, nodes);
+                CorridorPortOrderObserver?.Invoke("final|" + layout.RenderContext.ActiveLayoutStage + "|" + ends[0].Box.Id + "|" + ends[0].Side + "|nested=" + CorridorNesting + "|"
+                    + string.Join(";", ends.Select(End => End.Route.EdgeId + ":" + (End.IsSource ? End.Route.Points[0].Y : End.Route.Points[^1].Y))));
             }
 
             void Add(BoxRef box, BoxRef other, FlowchartLayoutEdgeRoute route, bool source,

@@ -11,7 +11,7 @@ namespace MermaidRecognition.RuleValidation.Tests;
 /// <summary>Checks the reviewed diagrams against final route geometry rather than cached pictures or baseline allowances.</summary>
 [TestFixture]
 [NonParallelizable]
-public sealed class CheapestLegalLayoutRegressionTests
+public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTestFixture
 {
     /// <summary>A projected cylinder port in an open layout must preserve the fractional centre of its aligned neighbour.</summary>
     [Test]
@@ -21,7 +21,7 @@ public sealed class CheapestLegalLayoutRegressionTests
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == "F147");
         var Contract = MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
         var Route = Layout.EdgeRoutes.Single(Route =>
             Contract.Nodes.Single(Node => Node.Id == Route.TargetId).Shape == "cylinder");
         var Target = Layout.NodeBounds.Single(Box => Box.NodeId == Route.TargetId);
@@ -53,7 +53,7 @@ public sealed class CheapestLegalLayoutRegressionTests
         var Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
         var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
         Assert.Multiple(() =>
         {
@@ -72,7 +72,7 @@ public sealed class CheapestLegalLayoutRegressionTests
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == ScenarioId);
         var Contract = MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout)
             .Where(Finding => Finding.Rule is "10" or "3.1" or "4.1"), Is.Empty);
         Assert.That(Layout.EdgeRoutes.Count, Is.EqualTo(Contract.Edges.Count));
@@ -122,7 +122,7 @@ public sealed class CheapestLegalLayoutRegressionTests
         {
             if (Option == "track-separation") TestContext.Out.WriteLine($"TRACK_SEARCH|{Subject}|accepted={Clears}");
         };
-        try { Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out Layout!), Is.True); }
+        try { Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out Layout!), Is.True); }
         finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
         var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id);
         var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)

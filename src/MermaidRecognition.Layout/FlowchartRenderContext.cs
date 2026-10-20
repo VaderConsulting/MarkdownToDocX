@@ -17,6 +17,8 @@ public sealed class FlowchartRenderContext
     public const string CellRegionsSwitch = "MermaidRecognition.Layout.UseCellRegions";
     /// <summary>Uses authoritative whole-cell regions for closed diagrams. Defaults to enabled; open mode remains unbound.</summary>
     public bool UseCellRegions { get; init; } = !AppContext.TryGetSwitch(CellRegionsSwitch, out bool Enabled) || Enabled;
+    /// <summary>Test-only reference capture that keeps the pre-existing port pass but omits the new finished bend candidates.</summary>
+    internal bool DisableFinishedBendRepairsForTests { get; init; }
     /// <summary>Persistent diagnostics for rejected direct writes, retained through candidate rollback and SVG painting.</summary>
     internal List<FlowchartLayoutQualityFailure> RejectedCellPixelWritesMutable { get; } = [];
     /// <summary>Rejected cell-derived geometry writes, naming the repair path and node without crashing a Release conversion.</summary>
@@ -25,6 +27,30 @@ public sealed class FlowchartRenderContext
     internal string? ActiveLayoutStage { get; set; }
     /// <summary>Optional cell-backed leaf candidates spent across grouped and external placement in this diagram.</summary>
     internal int CellLeafCandidateMoves { get; set; }
+    /// <summary>Proven band/frame preflight rejections that consumed a named repair-candidate budget slot, grouped by pass.</summary>
+    internal Dictionary<string, int> BandPreflightDrops { get; } = new(StringComparer.Ordinal);
+    /// <summary>Measured initial band and frame-wall capacity, including the exact declared links and accepted cell corridors.</summary>
+    internal List<string> BandSpaceDiagnostics { get; } = [];
+    /// <summary>One initial band wrap under full routing evaluation; null selects the unwrapped plan.</summary>
+    internal int? EnterpriseBandWrapWidth { get; set; }
+    /// <summary>Defers new gap sizing only while the existing routed preview selects the unchanged band order and wrap.</summary>
+    internal bool DeferInitialBandCapacity { get; set; }
+    /// <summary>Whether the unchanged unwrapped preview forecasts an initial gap shortfall, requiring a capacity-aware confirmation.</summary>
+    internal bool InitialBandCapacityNeeded { get; set; }
+    /// <summary>Immutable selected cell ownership and existing gaps; final initial sizing changes gaps only.</summary>
+    internal FlowchartLogicalGrid.Snapshot? InitialBandPlacement { get; set; }
+    /// <summary>Whether this layout's initial producer atomically reserved extra corridor capacity; diagnostics never control routing.</summary>
+    internal bool HasInitialCorridorCapacity { get; set; }
+    /// <summary>Private complete-assignment reference retains ordinary routing while keeping exactly the same reserved gaps and cells.</summary>
+    internal bool SuppressReservedCorridorAssignment { get; set; }
+    /// <summary>Bends removed by rule 4.12 on the final published candidate, excluding discarded wrap trials.</summary>
+    internal int BendReassignmentRemoved { get; set; }
+    /// <summary>Measurement-only control used to capture the expanded bend baseline before new repairs; production always leaves this false.</summary>
+    internal bool DisableExpandedBendRepairsForTests { get; init; }
+    /// <summary>Finite measured wrap candidates, bounded by the existing repair-candidate count.</summary>
+    internal IReadOnlyList<int> EnterpriseBandWrapWidths { get; set; } = [];
+    /// <summary>Measurement-only replay of the previous extra-cell band padding; production remains at the normal rank gap.</summary>
+    internal bool UsePreviousEnterpriseBandPaddingForTests { get; init; }
     /// <summary>Suppresses recursive cell placement while a complete final route model is being scored as a private candidate.</summary>
     internal bool IsEvaluatingCellRouteCandidate { get; set; }
     private static readonly AsyncLocal<FlowchartRenderContext?> Ambient = new();

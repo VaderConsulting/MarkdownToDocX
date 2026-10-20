@@ -13,6 +13,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
+/// <summary>Measures production by default; ROUTE_AUDIT_CELLS_ON=off explicitly requests the cells-off compatibility audit.</summary>
 [TestFixture]
 [NonParallelizable]
 public sealed class RouteRuleCatalogueAuditTests
@@ -53,7 +54,7 @@ public sealed class RouteRuleCatalogueAuditTests
     {
         string root = FindRoot();
         foreach (Scenario scenario in ReadCatalogue(root))
-            yield return new TestCaseData(scenario).SetName("RouteRuleAudit_" + scenario.Id);
+            yield return CatalogueScenarioPolicy.Apply(new TestCaseData(scenario).SetName("RouteRuleAudit_" + scenario.Id), scenario.Id);
     }
 
     [TestCaseSource(nameof(Catalogue))]
@@ -152,7 +153,7 @@ public sealed class RouteRuleCatalogueAuditTests
             {
                 var Context = new FlowchartRenderContext
                 {
-                    UseCellRegions = Environment.GetEnvironmentVariable("ROUTE_AUDIT_CELLS_ON") == "production"
+                    UseCellRegions = Environment.GetEnvironmentVariable("ROUTE_AUDIT_CELLS_ON") != "off"
                 };
                 layoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(contract, Context, out layout!);
                 CellNodes = layout!.CellNodes;
@@ -371,6 +372,14 @@ public sealed class RouteRuleCatalogueAuditTests
         TestContext.Out.WriteLine($"ROUTE_REPAIR_CHAIN|{scenario.Id}|wins={routeRepairChainRuns}|depthTotal={routeRepairChainDepthTotal}|maxDepth={routeRepairChainMaxDepth}|maxLines={routeRepairChainMaxLines}|maxExtraLength={routeRepairChainMaxExtraLength:0.##}");
         TestContext.Out.WriteLine($"ROUTE_REPAIR_OPTIONS|{scenario.Id}|{string.Join(",", routeRepairOptionWins.GroupBy(item => item.Option, StringComparer.Ordinal).OrderBy(group => group.Key, StringComparer.Ordinal).Select(group => group.Key + "=" + group.Count()))}");
         // Assertions follow the summary so failures remain represented in catalogue totals.
+        // Stress exclusion applies to quality totals, never to port validity.
+        // Checking the same aggregate that we publish prevents a scenario such
+        // as A107 from silently passing with measured side/allocation faults.
+        if (CatalogueScenarioPolicy.StressScenarios.Contains(scenario.Id))
+            Assert.That(portFaults, Is.Zero,
+                "Every stress case must have zero measured port faults: " + string.Join("; ",
+                    findings.Where(finding => portRules.Contains(finding.Rule))
+                        .Select(finding => finding.Rule + " " + finding.Subject)));
         if (scenario.Id == "A90")
         {
             Assert.That(droppedLinks, Has.Length.EqualTo(2), "Both dropped A90 links must be explicit errors.");
@@ -404,7 +413,7 @@ public sealed class RouteRuleCatalogueAuditTests
             foreach (EnterpriseNote note in withoutHintsDocument.Notes.Values) note.PlacementHint = null;
             DiagramContract withoutHintsContract = EnterpriseFlowchartContractMapper.Build(withoutHintsDocument);
             bool withoutHintsSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(withoutHintsContract,
-                out FlowchartLayoutResult withoutHintsLayout);
+                new FlowchartRenderContext { UseCellRegions = Environment.GetEnvironmentVariable("ROUTE_AUDIT_CELLS_ON") != "off" }, out FlowchartLayoutResult withoutHintsLayout);
             Assert.That(withoutHintsSucceeded, Is.True);
             HashSet<string> crossingsWithoutHints = FlowchartRouteRuleChecker.Check(withoutHintsContract, withoutHintsLayout)
                 .Where(finding => finding.Rule == "5.9").Select(finding => finding.Subject)

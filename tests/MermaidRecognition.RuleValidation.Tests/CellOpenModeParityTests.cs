@@ -7,6 +7,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
+/// <remarks>Deliberately compares the cells-off compatibility path with cells-on state; this is not a production-only quality baseline.</remarks>
 /// <summary>Checks that experimental cell activation leaves all existing open-mode sources on the unchanged unbound path.</summary>
 [TestFixture]
 [NonParallelizable]
@@ -32,7 +33,7 @@ public sealed class CellOpenModeParityTests
         var Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Before), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out var Before), Is.True);
         string? Actual = null;
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (_, Layout) =>
         {

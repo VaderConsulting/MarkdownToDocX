@@ -35,6 +35,10 @@ public static partial class DiagramGridLayout
         public FlowchartCellWriteCoverage CellWriteCoverage { get; } = new();
         public bool IsReady { get; }
         public bool SkipRootGroupRepacking { get; set; }
+        /// <summary>Whether semantic Enterprise bands own the initial whole-cell placement.</summary>
+        public bool EnterpriseBands { get; set; }
+        /// <summary>Completes this candidate's partner placement after hints and whole-cell span growth, before fitting and routing.</summary>
+        public Action? CompleteEnterprisePartners { get; set; }
         /// <summary>Allows cell placement scoring only after final port allocation, route completion and legality repair have settled.</summary>
         public bool CellFinalRoutingReady { get; set; }
         public FlowchartDirection Direction { get; set; }
@@ -125,6 +129,16 @@ public static partial class DiagramGridLayout
                     FlowchartCellInitialPlacement.Bind(State.Placed, State.BoxWidth, State.BoxHeight,
                         State.Horizontal, State.Copy.RenderContext);
                     State.Copy.CellNodes = State.Placed;
+                    State.EnterpriseBands = Enterprise.EnterpriseBandPlacement.Apply(State.Contract, State.Placed, State.Copy.RenderContext,
+                        out var CompletePartners);
+                    State.CompleteEnterprisePartners = CompletePartners;
+                    if (State.EnterpriseBands)
+                        foreach (var PlacedNode in State.Placed)
+                        {
+                            var Region = PlacedNode.CellNode!.Region;
+                            PlacedNode.Rank = State.Horizontal ? Region.StartColumn : Region.StartRow;
+                            PlacedNode.Column = State.Horizontal ? Region.StartRow : Region.StartColumn;
+                        }
                 }
             }
         }
@@ -165,6 +179,13 @@ public static partial class DiagramGridLayout
                 finally { Context.ActiveLayoutStage = Previous; }
             }
 
+            if (State.EnterpriseBands)
+            {
+                Step("GrowCrowdedSides", () => GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight));
+                Step("GrowParallelRelationshipSides", () => GrowParallelRelationshipSides(Contract, Placed, Horizontal));
+                Step("CompleteBandPartnerPlacement", () => State.CompleteEnterprisePartners?.Invoke());
+                return;
+            }
             if (!Open)
             {
                 Step("ResolveVerticalChordBlockers", () => ResolveVerticalChordBlockers(Contract, Placed));
@@ -336,6 +357,14 @@ public static partial class DiagramGridLayout
     {
         public static void Apply(GridLayoutState State)
         {
+            if (State.EnterpriseBands && Enterprise.EnterpriseBandPlacement.ReserveSkippingBandCorridors(State.Contract, State.Placed, State.Copy.RenderContext))
+                ReplaceCellFrames(State.Contract, State.Placed, State.Frames);
+            if (State.EnterpriseBands && Enterprise.EnterpriseBandPlacement.ReserveRoutingSpace(State.Contract, State.Placed, State.Copy.RenderContext))
+            {
+                ReplaceCellFrames(State.Contract, State.Placed, State.Frames);
+                FitFrames(State.Contract, State.Placed, State.Frames, State.Horizontal, "measured layer-gap capacity", State.Copy.RenderContext);
+                CaptureHintedNodePositions(State);
+            }
             // All later route hints use page compass directions in this Y-up model:
             // North is positive Y and South is negative Y. SVG painting flips Y back to page-down.
             FlipToYUp(State.Placed, State.Frames, State.Copy);
@@ -1595,11 +1624,19 @@ public static partial class DiagramGridLayout
         // Rule ids: section 10 (final legality checks after all route decisions).
         public static void Apply(GridLayoutState State)
         {
-            DiagramGridQuality.Collect(State.Contract, State.Copy,
-                State.Copy.RenderContext.LayoutStageViolations, IncludeArrangementCheck: false);
-            foreach (var Finding in FlowchartRouteRuleChecker.Check(State.Contract, State.Copy)
+            Apply(State.Contract, State.Copy);
+        }
+
+        /// <summary>Rechecks a completed selected layout without rebuilding placement or changing a route.</summary>
+        /// <param name="Contract">Original declarations.</param>
+        /// <param name="Layout">Finished model whose diagnostic list is being refreshed.</param>
+        internal static void Apply(DiagramContract Contract, FlowchartLayoutResult Layout)
+        {
+            DiagramGridQuality.Collect(Contract, Layout,
+                Layout.RenderContext.LayoutStageViolations, IncludeArrangementCheck: false);
+            foreach (var Finding in FlowchartRouteRuleChecker.Check(Contract, Layout)
                          .Where(Finding => Finding.Rule is "10" or "5.1"))
-                State.Copy.RenderContext.LayoutStageViolations.Add(new(
+                Layout.RenderContext.LayoutStageViolations.Add(new(
                     Finding.Rule == "10" ? "RouteLegality" : "SharedTrack",
                     Finding.Description, [Finding.Subject], null));
         }

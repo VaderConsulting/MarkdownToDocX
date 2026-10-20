@@ -11,7 +11,7 @@ namespace MermaidRecognition.RuleValidation.Tests;
 /// End-to-end rule-validation tests for flow.md catalogue extraction and parsing.
 /// </summary>
 [TestFixture]
-public sealed class FlowMarkdownRuleValidationTests
+public sealed class FlowMarkdownRuleValidationTests : ProductionCatalogueTestFixture
 {
     private string _SpecDirectory = string.Empty;
 

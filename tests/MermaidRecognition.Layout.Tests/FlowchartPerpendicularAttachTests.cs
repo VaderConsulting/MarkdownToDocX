@@ -15,7 +15,7 @@ namespace MermaidRecognition.Layout.Tests;
 /// Asserts that resolved edge guide polylines meet node boundaries at right angles (project rule).
 /// </summary>
 [TestFixture]
-public sealed class FlowchartPerpendicularAttachTests
+public sealed class FlowchartPerpendicularAttachTests : ProductionCatalogueTestFixture
 {
     [Test]
     public void BasisStyle_RendersTheOrthogonalRouteWithRoundedCorners()
@@ -352,7 +352,7 @@ public sealed class FlowchartPerpendicularAttachTests
             Check -->|No| Fail[Reject]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -601,7 +601,7 @@ public sealed class FlowchartPerpendicularAttachTests
     private static void AssertAllVisibleEdgesPerpendicular(string Mermaid, string FixtureId)
     {
         DiagramContract Contract = MermaidRecognizer.Parse(Mermaid);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True, FixtureId);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True, FixtureId);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds

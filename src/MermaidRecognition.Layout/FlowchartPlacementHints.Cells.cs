@@ -115,11 +115,23 @@ internal static partial class FlowchartPlacementHints
             }
             var Previous = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
             foreach (var Change in Changes) Targets[Change.Key] = Change.Value;
+            if (Grid.RegionConvention?.Invoke(Targets) == false)
+            {
+                Targets = Previous;
+                Rejections.Add((Item.Hint, "Rule 2.23 convention: hint ignored under rule 2.21(g) because it changes a layer band or plateau order"));
+                continue;
+            }
             if (Accepted.Any(Prior => !CellHintMatches(Prior, Nodes, ById, Groups, Targets))
                 && !TryRetainCellGroupAnchors(Contract, Nodes, ById, Groups, Targets, Accepted, Item))
             {
                 Targets = Previous;
                 Rejections.Add((Item.Hint, "placement conflicts with an earlier explicit hint"));
+                continue;
+            }
+            if (Grid.RegionConvention?.Invoke(Targets) == false)
+            {
+                Targets = Previous;
+                Rejections.Add((Item.Hint, "Rule 2.23 convention: hint ignored under rule 2.21(g) because it changes a layer band or plateau order"));
                 continue;
             }
             Accepted.Add(Item);

@@ -7,7 +7,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout.Tests;
 
 [TestFixture]
-public sealed class FlowchartMarkerTangentTests
+public sealed class FlowchartMarkerTangentTests : ProductionCatalogueTestFixture
 {
     private const string F35_SOURCE = """
         flowchart TB
@@ -52,7 +52,7 @@ public sealed class FlowchartMarkerTangentTests
     public void ValidateEndpointMarkerTangent_F35_AllVisibleEdges_AlignWithRenderedPath()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F35_SOURCE);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -112,7 +112,7 @@ public sealed class FlowchartMarkerTangentTests
     public void ValidateEndpointMarkerTangent_CatalogueBatch_AlignWithRenderedPath(string FixtureId, string Mermaid)
     {
         DiagramContract Contract = MermaidRecognizer.Parse(Mermaid);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True, FixtureId);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True, FixtureId);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds

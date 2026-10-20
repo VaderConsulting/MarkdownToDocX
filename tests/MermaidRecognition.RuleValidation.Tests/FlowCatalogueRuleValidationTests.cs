@@ -9,7 +9,7 @@ namespace MermaidRecognition.RuleValidation.Tests;
 /// Pipeline regression tests for catalogue scenarios F13, F21, F25, F29, and F30.
 /// </summary>
 [TestFixture]
-public sealed class FlowCatalogueRuleValidationTests
+public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFixture
 {
     private string _SpecDirectory = string.Empty;
 

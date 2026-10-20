@@ -33,6 +33,9 @@ internal sealed class DagreBarycenter
 
 internal static partial class DagreLayoutEngine
 {
+    /// <summary>Existing Dagre ordering budget shared with the semantic-band adapter.</summary>
+    internal const int OrderSweepPatience = 4;
+
     private static void Order(DagreGraph Graph, DagreContext Context)
     {
         int Max = MaxRank(Graph);
@@ -53,7 +56,7 @@ internal static partial class DagreLayoutEngine
         double BestCrossings = double.PositiveInfinity;
         List<List<string>>? Best = null;
         int LastBest = 0;
-        for (int Iteration = 0; LastBest < 4; Iteration++, LastBest++)
+        for (int Iteration = 0; LastBest < OrderSweepPatience; Iteration++, LastBest++)
         {
             bool DownSweep = Iteration % 2 == 1;
             bool BiasRight = Iteration % 4 >= 2;

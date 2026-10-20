@@ -7,6 +7,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
+/// <remarks>Deliberately compares the cells-off compatibility path with cells-on state; this is not a production-only quality baseline.</remarks>
 /// <summary>Reviews every cell-induced straightness and facing-side increase on complete catalogue routes.</summary>
 [TestFixture, NonParallelizable]
 public sealed class CellQualityIncreaseReviewTests
@@ -31,7 +32,7 @@ public sealed class CellQualityIncreaseReviewTests
         var OffContract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(OffContract, out var OffLayout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(OffContract, new FlowchartRenderContext { UseCellRegions = false }, out var OffLayout), Is.True);
         TestContext.Out.WriteLine("CELL_QUALITY_OFF_REVIEW|" + Scenario.Id + "|" + JsonSerializer.Serialize(new
         {
             Findings = FlowchartRouteRuleChecker.Check(OffContract, OffLayout).Where(Finding => Finding.Rule is "4.2" or "4.11" or "5.8"),

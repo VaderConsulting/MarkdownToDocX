@@ -13,7 +13,7 @@ namespace MermaidRecognition.Layout.Tests;
 /// R1 native render gate: Sugiyama SVG on chain, decision fan-out, and subgraph membership fixtures.
 /// </summary>
 [TestFixture]
-public sealed class FlowchartR1RenderGateTests
+public sealed class FlowchartR1RenderGateTests : ProductionCatalogueTestFixture
 {
     [Test]
     public void RenderToSvg_Chain_Fixture_ContainsThreeNodesAndTwoEdges()
@@ -146,7 +146,7 @@ public sealed class FlowchartR1RenderGateTests
         string MmdPath = Path.Combine(FindFlowchartFixtureDirectory(), "subgraph-membership.mmd");
         DiagramContract Contract = FlowchartRecognizer.Parse(File.ReadAllText(MmdPath));
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         int ExpectedNodeCount = 0;
         foreach (NodeContract Node in Contract.Nodes)
         {
@@ -172,7 +172,7 @@ public sealed class FlowchartR1RenderGateTests
             Error --> End
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         NodeContract EndNode = Contract.Nodes.Single(Node => Node.Id == "End");
         Assert.That(EndNode.Shape, Is.EqualTo("stadium"));
         Assert.That(
@@ -215,7 +215,7 @@ public sealed class FlowchartR1RenderGateTests
             style Success fill:#d1ecf1
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -275,7 +275,7 @@ public sealed class FlowchartR1RenderGateTests
             A & B e1@--> C
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds NodeA = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "A");
         FlowchartLayoutNodeBounds NodeB = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "B");
@@ -301,7 +301,7 @@ public sealed class FlowchartR1RenderGateTests
             style Success fill:#d1ecf1
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
@@ -363,7 +363,7 @@ public sealed class FlowchartR1RenderGateTests
             style Success fill:#d1ecf1
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds

@@ -7,6 +7,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
+/// <remarks>Deliberately compares the cells-off compatibility path with cells-on state; this is not a production-only quality baseline.</remarks>
 /// <summary>Measures the original 81 bend increases against actual cells-off output without treating historical cell output as that baseline.</summary>
 [TestFixture]
 [NonParallelizable]
@@ -133,7 +134,7 @@ public sealed class CellFinishedScoreBendReviewTests
         var Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext(), out var Off), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out var Off), Is.True);
         int OffBends = Off.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
         bool Completed = false;
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (OnContract, On) =>

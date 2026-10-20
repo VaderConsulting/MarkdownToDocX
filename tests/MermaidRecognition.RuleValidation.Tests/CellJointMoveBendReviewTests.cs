@@ -7,6 +7,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
+/// <remarks>Deliberately compares the cells-off compatibility path with cells-on state; this is not a production-only quality baseline.</remarks>
 /// <summary>Measures the fixed original worse-fifty after adding joint fan and chain assignments.</summary>
 [TestFixture, NonParallelizable, Explicit("Runs both layout modes on the original fifty bend regressions.")]
 public sealed class CellJointMoveBendReviewTests
@@ -89,7 +90,7 @@ public sealed class CellJointMoveBendReviewTests
         var Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext(), out var Off), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out var Off), Is.True);
         int OffBends = Off.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
         Assert.That(OffBends, Is.EqualTo(ExpectedOff));
         var Counts = new Dictionary<string, long>(StringComparer.Ordinal);

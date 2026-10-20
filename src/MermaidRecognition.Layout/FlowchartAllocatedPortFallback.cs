@@ -40,10 +40,12 @@ internal static class FlowchartAllocatedPortFallback
     /// <param name="Route">Allocated endpoints, sides and normals; never modified here.</param>
     /// <param name="ExtendEnvelope">Whether authoritative cell routing needs an outward stub at the enclosing box boundary.</param>
     /// <param name="Prepared">Optional geometry scoped to this unchanged candidate.</param>
+    /// <param name="ExistingRoutes">Other already constructed paths, used to allocate distinct tracks inside reserved initial corridors.</param>
     /// <returns>An unpublished candidate, or an empty list when the fixed ports cannot be connected.</returns>
     internal static List<(double X, double Y)> Build(DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, IReadOnlyDictionary<string, NodeContract> Nodes,
-        FlowchartLayoutEdgeRoute Route, bool ExtendEnvelope, PreparedGeometry? Prepared = null)
+        FlowchartLayoutEdgeRoute Route, bool ExtendEnvelope, PreparedGeometry? Prepared = null,
+        IReadOnlyList<FlowchartLayoutEdgeRoute>? ExistingRoutes = null)
     {
         if (Route.Points.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out var Source)
             || !Bounds.TryGetValue(Route.TargetId, out var Target)) return [];
@@ -71,8 +73,9 @@ internal static class FlowchartAllocatedPortFallback
         if (!FlowchartPaddedVisibilityRouter.TryRoute(SourceStub.X, SourceStub.Y,
             TargetStub.X, TargetStub.Y, Obstacles, null, null, out var Body,
             PortStubPx: 0, ObstaclePaddingPx: 0)) return [];
-        return DiagramGridRouteBuilder.SimplifyCollinear(
+        var Path = DiagramGridRouteBuilder.SimplifyCollinear(
             new List<(double X, double Y)> { Saved[0] }.Concat(Body).Append(Saved[^1]).ToList());
+        return ExistingRoutes == null ? Path : FlowchartFallbackCorridorTracks.Allocate(Contract, Bounds, Route, Path, ExistingRoutes, Prepared);
     }
 
     /// <summary>Checks complete candidate geometry before publication, without depending on the final audit checker.</summary>

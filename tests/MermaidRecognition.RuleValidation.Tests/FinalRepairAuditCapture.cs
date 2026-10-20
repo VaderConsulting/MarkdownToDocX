@@ -43,11 +43,19 @@ internal static class FinalRepairAuditCapture
             Crossings += Hits.Crossings; if (Hits.Overlap > 0) Shared++;
         }
         var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        var EnterpriseScore = Id.StartsWith("A", StringComparison.Ordinal) && Layout.NodeBounds.Count > 0
+            ? FlowchartLayoutScore.Measure(Contract, Layout, false) : null;
         File.AppendAllText(Path, JsonSerializer.Serialize(new { Id, Complete = Layout.NodeBounds.Count > 0, Seconds,
             Bends = Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)), Crossings, Shared,
             FiveNine = Findings.Count(Finding => Finding.Rule == "5.9"), TotalFindings = Findings.Count,
+            PortBendsRemoved = Layout.RenderContext.BendReassignmentRemoved,
             Rules = Findings.GroupBy(Finding => Finding.Rule).ToDictionary(Group => Group.Key, Group => Group.Count()),
             Findings, Decisions, Confirmations,
+            Score = EnterpriseScore == null ? null : new { EnterpriseScore.Width, EnterpriseScore.Height, EnterpriseScore.EmptyShare, EnterpriseScore.OptimizationScore },
+            Layout.RenderContext.BandPreflightDrops, Layout.RenderContext.BandSpaceDiagnostics,
+            IgnoredLayerHints = Contract.Nodes.Select(Node => (Node.Id, Node.PlacementHint)).Concat(Contract.Groups.Select(Group => (Group.Id, Group.PlacementHint)))
+                .Where(Item => Item.PlacementHint is { IsActive: false, UnhonouredReason: not null } && Item.PlacementHint.UnhonouredReason.Contains("2.23", StringComparison.Ordinal))
+                .Select(Item => new { Item.Id, Item.PlacementHint!.SourceLine, Item.PlacementHint.UnhonouredReason }),
             Costs = Stages.Where(Item => Item.Ms >= 0 && (Item.Stage.StartsWith("cell-cost/exclusive/", StringComparison.Ordinal)
                 || Item.Stage == "final-complete-layout-repair")).GroupBy(Item => Item.Stage)
                 .ToDictionary(Group => Group.Key, Group => Group.Sum(Item => Item.Ms))

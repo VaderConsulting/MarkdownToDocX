@@ -12,7 +12,7 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
-[TestFixture]
+[TestFixture, NonParallelizable]
 public sealed class UnnecessaryBendCatalogueTests
 {
     private sealed record ScenarioResult(string Id, int Lines, bool LayoutSucceeded, IReadOnlyList<UnnecessaryBendViolation> Violations);
@@ -22,7 +22,7 @@ public sealed class UnnecessaryBendCatalogueTests
     {
         string Root = FindRepositoryRoot();
         foreach (CatalogueScenario Scenario in ReadCatalogue(Root))
-            yield return new TestCaseData(Scenario).SetName($"CatalogueScenario_{Scenario.Id}_DoesNotExceedBendBaseline");
+            yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Scenario).SetName($"CatalogueScenario_{Scenario.Id}_DoesNotExceedBendBaseline"), Scenario.Id);
     }
 
     [TestCaseSource(nameof(CatalogueScenarios))]
@@ -41,7 +41,8 @@ public sealed class UnnecessaryBendCatalogueTests
         DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(Enterprise!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        bool LayoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout);
+        bool LayoutSucceeded = FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout);
         Assert.That(LayoutSucceeded, Is.True, $"Scenario {Scenario.Id} did not lay out; it cannot count as a zero-bend scenario.");
 
         IReadOnlyList<UnnecessaryBendViolation> Violations = UnnecessaryBendChecker.Check(Scenario.Id, Contract, Layout);
@@ -156,52 +157,15 @@ public sealed class UnnecessaryBendCatalogueTests
             "The bend baseline must not include scenarios absent from the catalogues. Unknown: " + string.Join(", ", Unknown));
     }
 
-    private static IEnumerable<CatalogueScenario> ReadCatalogue(string Root)
-    {
-        foreach ((string FileName, bool Enterprise) in new[]
+    /// <summary>Uses the production audit's complete reader, including EIP colon fences.</summary>
+    /// <param name="Root">Repository root retained for existing baseline callers.</param>
+    /// <returns>All 673 declared catalogue scenarios.</returns>
+    private static IEnumerable<CatalogueScenario> ReadCatalogue(string Root) =>
+        RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
         {
-            ("flow.md", false),
-            ("enterprise.md", true),
-            ("EIP.md", false)
-        })
-        {
-            string PathValue = Path.Combine(Root, FileName);
-            if (!File.Exists(PathValue))
-            {
-                throw new FileNotFoundException("A source catalogue required for bend scoring is missing.", PathValue);
-            }
-            string Markdown = File.ReadAllText(PathValue);
-            List<MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram> Diagrams = MermaidMarkdownFenceExtractor.ExtractFlowcharts(Markdown);
-            Dictionary<string, int> Occurrences = new(StringComparer.Ordinal);
-            foreach (MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram Diagram in Diagrams)
-            {
-                string Id = Enterprise ? ResolveEnterpriseId(Markdown, Diagram) : Diagram.DiagramId;
-                if (Occurrences.TryGetValue(Id, out int Count))
-                {
-                    Count++;
-                    Occurrences[Id] = Count;
-                    Id += "." + Count.ToString(CultureInfo.InvariantCulture);
-                }
-                else
-                {
-                    Occurrences.Add(Id, 1);
-                }
-                yield return new CatalogueScenario(Id, Diagram.Source, Enterprise);
-            }
-        }
-    }
-
-    private static string ResolveEnterpriseId(
-        string Markdown,
-        MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram Diagram)
-    {
-        int FenceOrdinal = Diagram.Index + 1;
-        MatchCollection Fences = Regex.Matches(Markdown, "(?m)^```mermaid\\s*$", RegexOptions.CultureInvariant);
-        int FenceIndex = FenceOrdinal <= Fences.Count ? Fences[FenceOrdinal - 1].Index : Markdown.Length;
-        MatchCollection Headings = Regex.Matches(Markdown.Substring(0, FenceIndex), @"(?m)^###\s+(A\d+)\b", RegexOptions.CultureInvariant);
-        return Headings.Count == 0 ? "EIP" + FenceOrdinal.ToString(CultureInfo.InvariantCulture) : Headings[^1].Groups[1].Value;
-    }
-
+            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            return new CatalogueScenario(Scenario.Id, Scenario.Source, Scenario.Enterprise);
+        });
     private static Dictionary<string, HashSet<string>> ReadBaseline(string PathValue)
     {
         Dictionary<string, HashSet<string>> Result = new(StringComparer.Ordinal);

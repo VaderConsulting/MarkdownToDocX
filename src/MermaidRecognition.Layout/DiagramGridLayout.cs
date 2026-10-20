@@ -18,6 +18,8 @@ public static partial class DiagramGridLayout
     private const int STUB_PX = 15;
     internal static Action<string, int>? CrossingCountObserver { get; set; }
     internal static Action<string, FlowchartLayoutResult>? LayoutStageObserver { get; set; }
+    /// <summary>Observes the selected complete layout after discarded wrap trials, without changing publication.</summary>
+    internal static Action<DiagramContract, FlowchartLayoutResult>? PublishedLayoutObserver { get; set; }
     internal static Action<string, double>? LayoutStageTimingObserver { get; set; }
     internal static Action<string>? GroupFrameRefitObserver { get; set; }
     internal static Action<string>? GroupFrameFitPassObserver { get; set; }
@@ -73,8 +75,34 @@ public static partial class DiagramGridLayout
     public static FlowchartLayoutResult Apply(
         DiagramContract Contract,
         FlowchartLayoutResult LaidOut,
-        FlowchartRenderContext? RenderContext = null) =>
-        ApplyCore(Contract, LaidOut, RenderContext, SkipRootGroupRepacking: false);
+        FlowchartRenderContext? RenderContext = null)
+    {
+        (RenderContext ?? LaidOut.RenderContext).HasInitialCorridorCapacity = false;
+        (RenderContext ?? LaidOut.RenderContext).SuppressReservedCorridorAssignment = false;
+        var Result = ApplyWithRoutedBands(Contract, LaidOut, RenderContext);
+        var Context = Result.RenderContext;
+        if (Context.UseCellRegions && !Context.DisableExpandedBendRepairsForTests && !Context.DisableFinishedBendRepairsForTests)
+        {
+            // Wrap selection is complete. Nothing after this pass may choose
+            // another placement or reset an accepted line's allocated ports.
+            const string Stage = "finished-route-interior-and-facing";
+            Context.LayoutStageTrace.Add(Stage);
+            string? Previous = Context.ActiveLayoutStage;
+            Context.ActiveLayoutStage = Stage;
+            using var Active = FlowchartRenderContext.Activate(Context);
+            try
+            {
+                MeasureLayoutStage(Stage, () =>
+                {
+                    if (FlowchartFinishedLayoutBendRepair.ApplyRoutesOnly(Contract, Result) > 0)
+                        RouteRepairStage.PublishFinal(Contract, Result);
+                });
+            }
+            finally { Context.ActiveLayoutStage = Previous; }
+        }
+        PublishedLayoutObserver?.Invoke(Contract, Result);
+        return Result;
+    }
 
     internal static FlowchartLayoutResult ApplyForGroupReflow(DiagramContract Contract,
         FlowchartLayoutResult LaidOut, FlowchartRenderContext RenderContext) =>
@@ -104,6 +132,13 @@ public static partial class DiagramGridLayout
         Run("model-route-completion-and-rule-checks", ModelRouteCompletionStage.Apply);
         Run("final-legality-validation-section-10", LegalityValidationStage.Apply);
         Run("final-complete-layout-repair", RouteRepairStage.ApplyFinalCompleteRepair);
+        Run("bend-removing-port-reassignment-4.12", Current =>
+        {
+            Context.BendReassignmentRemoved = 0;
+            if (!Context.UseCellRegions || Context.DisableExpandedBendRepairsForTests) return;
+            Context.BendReassignmentRemoved = FlowchartBendRemovingPortRepair.Apply(Contract, Current.Copy);
+            if (Context.BendReassignmentRemoved > 0) RouteRepairStage.PublishFinal(Current);
+        });
         return State.Copy;
 
         void Run(string Name, Action<GridLayoutState> Stage)
@@ -119,6 +154,16 @@ public static partial class DiagramGridLayout
             ObserveLayoutStage(State, Name);
         }
     }
+
+    /// <summary>Reuses the established joint allocator for one node during a private rule 4.12 side trial.</summary>
+    /// <param name="Contract">Original declarations.</param>
+    /// <param name="Layout">Private candidate routes.</param>
+    /// <param name="Bounds">Fixed complete geometry.</param>
+    /// <param name="Nodes">Renderer geometry providers.</param>
+    /// <param name="Id">Only node whose side inventory can change.</param>
+    internal static void ReallocateBendRepairPorts(DiagramContract Contract, FlowchartLayoutResult Layout,
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds, Dictionary<string, NodeContract> Nodes, string Id) =>
+        ModelRouteCompletionStage.AllocateFinalPortSlots(Contract, Layout, Bounds, Nodes, new HashSet<string> { Id });
     private static void RestoreContractRouteEndpoints(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
         Dictionary<string, EdgeContract> ById = Contract.Edges

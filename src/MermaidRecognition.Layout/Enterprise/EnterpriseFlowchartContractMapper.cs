@@ -114,6 +114,7 @@ public static class EnterpriseFlowchartContractMapper
                 CreationIndex = CreationIndex,
                 RoutingHint = Relationship.RoutingHint
             };
+            Edge.MetadataMutable["enterpriseRelationshipKind"] = new RawMetadata("enterpriseRelationshipKind", Relationship.Kind.ToString());
             Contract.EdgesMutable.Add(Edge);
             CreationIndex++;
         }

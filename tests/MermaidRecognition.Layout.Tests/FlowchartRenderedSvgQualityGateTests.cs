@@ -13,7 +13,7 @@ namespace MermaidRecognition.Layout.Tests;
 /// A defect is tolerated only with a search-backed justification.
 /// </summary>
 [TestFixture]
-public sealed class FlowchartRenderedSvgQualityGateTests
+public sealed class FlowchartRenderedSvgQualityGateTests : ProductionCatalogueTestFixture
 {
     private static readonly string[] CatalogueSubgraphIds =
     [

@@ -24,6 +24,10 @@ internal static class FlowchartLayoutRules
     internal static double BaseRowGap => Get("base_rank_gap") * Get("grid_step");
     /// <summary>Initial column gap in pixels, before measured clearance growth.</summary>
     internal static double BaseColumnGap => Get("base_column_gap") * Get("grid_step");
+    /// <summary>Minimum drawn track separation from the existing track-spacing parameter, in page pixels.</summary>
+    internal static double TrackSpacing => Get("track_spacing") * Get("grid_step");
+    /// <summary>Approved fractional buffer added to forecast traffic when initial corridor gaps are sized.</summary>
+    internal static double CorridorCapacityBuffer => Get("corridor_capacity_buffer");
     internal static double CrossingScore => Get("score_crossing");
     internal static double DisconnectedEndScore => Get("score_disconnected_end");
     internal static double TargetAspectWidth => Get("target_aspect_width");

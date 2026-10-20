@@ -39,7 +39,7 @@ public sealed class CellGuardCatalogueProbeTests
     public void ProbeBoundCatalogue(RouteRuleCatalogueAuditTests.Scenario Scenario)
         => RunBoundCatalogue(Scenario, RequireCompletion: false);
 
-    /// <summary>Runs the real bound pipeline; regression callers require completion rather than accepting a diagnostic first catch.</summary>
+    /// <summary>Runs ordinary quality checks through production; explicit injection callbacks retain the separately seeded stage harness.</summary>
     /// <param name="Scenario">Unchanged catalogue source.</param>
     /// <param name="RequireCompletion">Whether a pre-binding skip or blocked writer must fail the regression.</param>
     /// <param name="ObserveCompleted">Optional audit consumer of the actual parsed contract and completed bound model.</param>
@@ -52,6 +52,22 @@ public sealed class CellGuardCatalogueProbeTests
         Action<List<DiagramGridLayout.GridNode>>? PrepareBeforeRouting = null,
         Action<object>? ObserveCompletedState = null)
     {
+        // Catalogue quality checks need the complete production pipeline, including
+        // selected wraps and final repairs. Only explicit stage-injection fixtures
+        // retain the historical reflection harness below.
+        if (RequireCompletion && PrepareBeforeRouting == null && ObserveCompletedState == null)
+        {
+            var ProductionContract = Scenario.Enterprise
+                ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
+                : MermaidRecognizer.Parse(Scenario.Source);
+            var ProductionContext = new FlowchartRenderContext { UseCellRegions = true };
+            bool Complete = FlowchartSugiyamaLayoutEngine.TryLayout(ProductionContract, ProductionContext, out var Production);
+            CellGuardCatalogueReporting.Write(Scenario.Id, "production", Production, Complete ? "completed" : "native-layout-failed");
+            Assert.That(Complete, Is.True, "A production catalogue regression must finish: " + Scenario.Id);
+            ObserveCompleted?.Invoke(ProductionContract, Production);
+            ObserveBoundNodes?.Invoke(Production.CellNodes ?? []);
+            return;
+        }
         var Clock = Stopwatch.StartNew();
         var Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)

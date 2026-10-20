@@ -12,6 +12,8 @@ namespace MermaidRecognition.Layout;
 /// <summary>Port allocation and endpoint-attachment helpers for the port stage.</summary>
 public static partial class DiagramGridLayout
 {
+    /// <summary>Observes side inventories at allocation boundaries without changing production routing.</summary>
+    internal static Action<string>? CorridorPortOrderObserver;
     /// <summary>Allocates the complete visible port inventory using the existing deterministic joint policy.</summary>
     /// <param name="Contract">Original visible links, groups and routing hints.</param>
     /// <param name="Copy">Model whose allocated terminals are updated.</param>
@@ -230,11 +232,19 @@ public static partial class DiagramGridLayout
         {
             List<PortEnd> Group = Pair.Value;
             bool Diamond = Pair.Key.EndsWith("|diamond", StringComparison.Ordinal);
+            bool CorridorNesting = NeedsCorridorPortNesting(Group, Copy.RenderContext);
             if (!Diamond) Group.Sort(delegate(PortEnd Left, PortEnd Right)
             {
+                if (CorridorNesting)
+                    return CompareCorridorPortEnds(Left, Right);
                 int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
                 if (HintOrder != 0) return HintOrder;
                 bool VerticalSide = Left.Side == "left" || Left.Side == "right";
+                int PeerOrder = VerticalSide ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
+                    : Left.Other.CenterX.CompareTo(Right.Other.CenterX);
+                if (PeerOrder == 0 && CorridorSlotIsOnFlatSide(Left) && CorridorSlotIsOnFlatSide(Right)
+                    && FlowchartFallbackCorridorTracks.HasReservedCapacity(Copy.RenderContext))
+                    return CompareExistingCorridorSlots(Left, Right);
                 if (VerticalSide)
                 {
                     return Right.Other.CenterY.CompareTo(Left.Other.CenterY);
@@ -244,12 +254,89 @@ public static partial class DiagramGridLayout
             });
 
             ApplySlots(Group, Nodes);
+            CorridorPortOrderObserver?.Invoke("initial|" + Copy.RenderContext.ActiveLayoutStage + "|" + Pair.Key + "|nested=" + CorridorNesting + "|"
+                + string.Join(";", Group.Select(End => End.Route.EdgeId + ":" + (End.IsSource ? End.Route.Points[0].Y : End.Route.Points[^1].Y))));
         }
 
         var SideTimer = Stopwatch.StartNew();
         ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Copy.RenderContext);
         LayoutStageTimingObserver?.Invoke("allocation/free-side-comparison", SideTimer.Elapsed.TotalMilliseconds);
 
+    }
+
+    /// <summary>Keeps equal-rank fan leaves nested when corridor growth changes route enumeration order.</summary>
+    /// <param name="Left">First side endpoint.</param>
+    /// <param name="Right">Second endpoint on the same side.</param>
+    /// <returns>Ordinary hinted and cross-axis order, then the far-leaf outer-slot order for equal cross coordinates.</returns>
+    private static int CompareCorridorPortEnds(PortEnd Left, PortEnd Right)
+    {
+        int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
+        if (HintOrder != 0) return HintOrder;
+        bool Vertical = Left.Side is "left" or "right";
+        int CrossOrder = Vertical ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
+            : Left.Other.CenterX.CompareTo(Right.Other.CenterX);
+        if (CrossOrder != 0) return CrossOrder;
+        double FirstDistance = Vertical ? Math.Abs(Left.Other.CenterX - Left.Box.CenterX) : Math.Abs(Left.Other.CenterY - Left.Box.CenterY);
+        double SecondDistance = Vertical ? Math.Abs(Right.Other.CenterX - Right.Box.CenterX) : Math.Abs(Right.Other.CenterY - Right.Box.CenterY);
+        bool FarFirst = Vertical ? Left.Other.CenterY < Left.Box.CenterY : Left.Other.CenterX > Left.Box.CenterX;
+        return FarFirst ? SecondDistance.CompareTo(FirstDistance) : FirstDistance.CompareTo(SecondDistance);
+    }
+
+    /// <summary>Identifies crossed or inverted off-axis equal-rank fan arms before changing an otherwise valid side order.</summary>
+    /// <param name="Ends">One node side's complete endpoint inventory.</param>
+    /// <param name="Context">Current construction boundary and reserved gaps.</param>
+    /// <returns>True only for a crossed or geometrically inverted flat-side fan; aligned straight terminals and honoured hints keep their order.</returns>
+    private static bool NeedsCorridorPortNesting(IReadOnlyList<PortEnd> Ends, FlowchartRenderContext Context)
+    {
+        CorridorPortOrderObserver?.Invoke("check|" + Context.ActiveLayoutStage + "|has=" + FlowchartFallbackCorridorTracks.HasReservedCapacity(Context)
+            + "|" + string.Join(";", Ends.Select(End => End.Box.Id + "/" + End.Side + "/" + End.Route.EdgeId + "/src=" + End.IsSource
+                + "/hint=" + End.IsHinted + "/peer=" + End.Other.CenterX + "," + End.Other.CenterY
+                + "/remote=" + (End.IsSource ? End.Route.EntrySide : End.Route.ExitSide))));
+        if (!FlowchartFallbackCorridorTracks.IsConstructionStage(Context) || !Ends.All(CorridorSlotIsOnFlatSide)) return false;
+        for (int I = 0; I < Ends.Count; I++)
+        for (int J = I + 1; J < Ends.Count; J++)
+        {
+            var A = Ends[I]; var B = Ends[J];
+            if (A.IsHinted || B.IsHinted || A.IsSource != B.IsSource) continue;
+            bool VerticalSide = A.Side is "left" or "right";
+            if (VerticalSide ? A.Other.CenterY != B.Other.CenterY : A.Other.CenterX != B.Other.CenterX) continue;
+            // Final facing-side choice can replace a provisional left/right
+            // entry with top/bottom after slot allocation. Off-axis equal-rank
+            // leaves already define the nesting order; aligned straight peers
+            // do not, and keep their settled centre-port allocation.
+            if (VerticalSide ? A.Other.CenterY == A.Box.CenterY : A.Other.CenterX == A.Box.CenterX) continue;
+            int RequiredOrder = CompareCorridorPortEnds(A, B);
+            int CurrentOrder = CompareExistingCorridorSlots(A, B);
+            // A port replay can invert the terminal slots before its paths are
+            // rebuilt. The inversion is already geometric evidence: normal
+            // perpendicular arms to equal-rank leaves would necessarily cross.
+            if (RequiredOrder != 0 && CurrentOrder != 0 && Math.Sign(RequiredOrder) != Math.Sign(CurrentOrder)) return true;
+            if (FlowchartBranchRouteOrder.Intersections(A.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                B.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Crossings > 0) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Preserves a settled equal-rank allocation instead of letting a later sort undo a validated nested fan.</summary>
+    /// <param name="Left">First endpoint on the node side.</param>
+    /// <param name="Right">Second endpoint on that side.</param>
+    /// <returns>Current along-side slot order; unallocated coincident anchors retain the original tie.</returns>
+    private static int CompareExistingCorridorSlots(PortEnd Left, PortEnd Right)
+    {
+        var A = Left.IsSource ? Left.Route.Points[0] : Left.Route.Points[^1];
+        var B = Right.IsSource ? Right.Route.Points[0] : Right.Route.Points[^1];
+        return Left.Side is "left" or "right" ? B.Y.CompareTo(A.Y) : A.X.CompareTo(B.X);
+    }
+
+    /// <summary>Limits ordinary corridor ordering to allocated flat faces, leaving curved and sloped connection inventories on their existing geometry policy.</summary>
+    /// <param name="End">Allocated terminal and its actual envelope.</param>
+    /// <returns>Whether the terminal lies on the named axis-aligned face.</returns>
+    private static bool CorridorSlotIsOnFlatSide(PortEnd End)
+    {
+        var Point = End.IsSource ? End.Route.Points[0] : End.Route.Points[^1];
+        double Difference = End.Side switch { "left" => Point.X - End.Box.Left, "right" => Point.X - End.Box.Right,
+            "top" => Point.Y - End.Box.Top, _ => Point.Y - End.Box.Bottom };
+        return Math.Abs(Difference) < 0.001;
     }
 
     /// <summary>Retains the preferred side when its renderer-owned boundary has capacity, otherwise compares eligible sides.</summary>

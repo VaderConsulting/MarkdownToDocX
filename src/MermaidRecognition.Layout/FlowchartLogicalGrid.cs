@@ -87,6 +87,21 @@ internal sealed class FlowchartLogicalGrid
     /// <summary>Fixed settings; changing occupancy or gaps cannot change these values.</summary>
     internal FlowchartLogicalGridConfiguration Configuration { get; }
 
+    /// <summary>Optional semantic convention checked on every complete assignment, including hints and later repairs.</summary>
+    internal Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>? RegionConvention { get; set; }
+    /// <summary>Counts proven convention violations before any ownership publication or candidate routing.</summary>
+    internal int RegionConventionRejections { get; private set; }
+
+    /// <summary>Checks a complete proposal against immutable semantic membership and records a rejected assignment.</summary>
+    /// <param name="Candidate">Complete proposed cell ownership.</param>
+    /// <returns>False only for a proven violation of the diagram's semantic convention.</returns>
+    internal bool CheckRegionConvention(IReadOnlyDictionary<string, FlowchartCellRegion> Candidate)
+    {
+        if (RegionConvention?.Invoke(Candidate) != false) return true;
+        RegionConventionRejections++;
+        return false;
+    }
+
     /// <summary>Places or moves a node atomically when all its reserved cells are free.</summary>
     /// <param name="NodeId">Node whose previous region may be replaced.</param>
     /// <param name="Region">Complete proposed occupied rectangle.</param>
@@ -98,6 +113,7 @@ internal sealed class FlowchartLogicalGrid
         if (Requirements.TryGetValue(NodeId, out var Requirement) && !Requirement(Region)) return false;
         if (Regions.Any(Pair => Pair.Key != NodeId && Pair.Value.Overlaps(Region))) return false;
         var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal) { [NodeId] = Region };
+        if (!CheckRegionConvention(Candidate)) return false;
         Current = new(this, Candidate, ColumnGaps, RowGaps);
         return true;
     }
@@ -131,6 +147,7 @@ internal sealed class FlowchartLogicalGrid
             Candidate[Change.Key] = Change.Value;
         }
         var Ordered = Candidate.Values.ToArray();
+        if (!CheckRegionConvention(Candidate)) return false;
         for (int First = 0; First < Ordered.Length; First++)
         for (int Second = 0; Second < First; Second++)
             if (Ordered[First].Overlaps(Ordered[Second])) return false;

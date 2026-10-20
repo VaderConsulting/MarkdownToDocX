@@ -8,7 +8,7 @@ using MermaidRecognition.Layout.Enterprise;
 namespace MermaidRecognition.Layout.Tests;
 
 [TestFixture]
-public sealed class LayoutModeCatalogueTests
+public sealed class LayoutModeCatalogueTests : ProductionCatalogueTestFixture
 {
     [TestCase("F", 144, DiagramLayoutMode.Grid)]
     [TestCase("F", 145, DiagramLayoutMode.Open)]
@@ -34,7 +34,7 @@ public sealed class LayoutModeCatalogueTests
             Assert.That(Contract.LayoutMode, Is.EqualTo(ExpectedMode));
             Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out string Svg), Is.True);
             Assert.That(Svg, Does.StartWith("<svg"));
-            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
             AssertOrthogonal(Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y))));
         }
         else

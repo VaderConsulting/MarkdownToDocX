@@ -347,6 +347,12 @@ public static class DiagramGridRouteBuilder
             }
             else FlowchartRenderContext.ReportOperationCount("automatic-route-cache-hits", 1);
 
+            // Cached visibility geometry belongs to the fixed bodies and ports.
+            // Corridor occupancy belongs to this routing invocation: allocate
+            // against its current lines before publishing, never cache it under
+            // a geometry-only key or run a later cleanup to separate the rails.
+            if (CellBound && FlowchartFallbackCorridorTracks.IsConstructionStage(Copy.RenderContext))
+                Path = FlowchartFallbackCorridorTracks.Allocate(Contract, BoundsById, Route, Path, Copy.EdgeRoutes, null);
 
             Route.Points.Clear();
             for (int index = 0; index < Path.Count; index++)

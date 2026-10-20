@@ -456,8 +456,15 @@ public static partial class DiagramGridLayout
                 }),
                 Columns = CellState.ColumnGaps.OrderBy(Pair => Pair.Key), Rows = CellState.RowGaps.OrderBy(Pair => Pair.Key)
             });
+            var CandidateGrid = State.Placed[0].CellNode!.Grid;
+            int SeenBandRejections = CandidateGrid.RegionConventionRejections;
             foreach (var Option in Options)
             {
+                int PreflightSpent = SpendBandPreflightSlots(State, ReferenceCompletion ? "reference-recovery" : "cell-candidate-trials",
+                    CandidateGrid.RegionConventionRejections - SeenBandRejections, CandidateLimit - Examined);
+                Examined += PreflightSpent;
+                if (!ReferenceCompletion) State.MoveBudget.CandidateMoves += PreflightSpent;
+                SeenBandRejections = CandidateGrid.RegionConventionRejections;
                 if (Examined >= CandidateLimit) break;
                 var Participants = Option.Assignment.Nodes;
                 if (Participants.Count == 0 || Participants.Any(Node => Node.PlacementHintLocked
@@ -482,6 +489,8 @@ public static partial class DiagramGridLayout
                     State.Frames.Clear();
                     BuildFramesYUp(State.Contract, State.Placed, State.Frames);
                     if (CountUnrelatedFrameOverlaps(State.Contract, State.Frames) > BeforeFrameOverlaps) continue;
+                    if (BandCandidateIsIllegal(State))
+                    { SpendBandPreflightSlots(State, ReferenceCompletion ? "reference-recovery" : "cell-candidate-trials", 1, 1); continue; }
                     WriteBack(State.Copy, State.Placed, State.Frames);
                     HashSet<FlowchartLayoutEdgeRoute>? Affected;
                     using var RoutingPhase = FlowchartCellCostTiming.ForRoutingPhase(
@@ -519,8 +528,12 @@ public static partial class DiagramGridLayout
                     Winner = Option.Subject;
                     WinnerKey = Option.Key;
                 }
-                finally { Original.Restore(State); }
+                finally { Original.Restore(State); SeenBandRejections = CandidateGrid.RegionConventionRejections; }
             }
+            int RemainingBandDrops = SpendBandPreflightSlots(State, ReferenceCompletion ? "reference-recovery" : "cell-candidate-trials",
+                CandidateGrid.RegionConventionRejections - SeenBandRejections, CandidateLimit - Examined);
+            Examined += RemainingBandDrops;
+            if (!ReferenceCompletion) State.MoveBudget.CandidateMoves += RemainingBandDrops;
             (Best ?? Original).Restore(State);
             if (Best == null) return RecoverReferenceCandidates();
             if (ReferenceCompletion || WholeRouteSet)

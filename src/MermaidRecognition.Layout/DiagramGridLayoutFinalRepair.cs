@@ -56,7 +56,13 @@ public static partial class DiagramGridLayout
                 while (Queues.Count > 0 && Examined < FlowchartLayoutRules.RepairCandidateMoves && Accepted < FlowchartLayoutRules.RepairChainDepth)
                 for (int Index = 0; Index < Queues.Count && Examined < FlowchartLayoutRules.RepairCandidateMoves && Accepted < FlowchartLayoutRules.RepairChainDepth; Index++)
                 {
-                    if (!Queues[Index].MoveNext()) { Queues[Index].Dispose(); Queues.RemoveAt(Index--); continue; }
+                    var CandidateGrid = State.Placed[0].CellNode!.Grid;
+                    int RejectionsBefore = CandidateGrid.RegionConventionRejections;
+                    bool HasOption = Queues[Index].MoveNext();
+                    Examined += SpendBandPreflightSlots(State, "final-complete-repair", CandidateGrid.RegionConventionRejections - RejectionsBefore,
+                        FlowchartLayoutRules.RepairCandidateMoves - Examined);
+                    if (Examined >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                    if (!HasOption) { Queues[Index].Dispose(); Queues.RemoveAt(Index--); continue; }
                     var Option = Queues[Index].Current;
                     bool Keep = false;
                     double ExtraLength = 0;
@@ -66,8 +72,17 @@ public static partial class DiagramGridLayout
                     {
                         // Partial factories can fail to form an assignment. Such
                         // failures never become fully routed layout candidates.
-                        if (!Option.Build()) continue;
+                        RejectionsBefore = CandidateGrid.RegionConventionRejections;
+                        if (!Option.Build())
+                        {
+                            Examined += SpendBandPreflightSlots(State, "final-complete-repair", CandidateGrid.RegionConventionRejections - RejectionsBefore,
+                                FlowchartLayoutRules.RepairCandidateMoves - Examined);
+                            if (CandidateGrid.RegionConventionRejections > RejectionsBefore) Reason = "band-convention";
+                            continue;
+                        }
                         Examined++;
+                        if (BandCandidateIsIllegal(State))
+                        { SpendBandPreflightSlots(State, "final-complete-repair", 1, 1); Reason = "band-or-frame-convention"; continue; }
                         FinalRepairStateObserver?.Invoke("candidate", Layout, State.Placed);
                         // In cell candidate mode completion cannot move these
                         // settled envelopes. Reject their existing hard fault,
@@ -287,10 +302,16 @@ public static partial class DiagramGridLayout
         /// <param name="State">Completed candidate or incumbent.</param>
         /// <returns>Complete bends, geometric crossings, shared-pair count and exact same-fan crossing identities.</returns>
         private static (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) FinalCounts(GridLayoutState State)
+            => FinalCounts(State.Copy);
+
+        /// <summary>Shares the existing complete geometric counts with initial routed-assignment comparison.</summary>
+        /// <param name="Layout">Fully routed model, without modifying or publishing any path.</param>
+        /// <returns>Exact whole-layout bends, crossings, shared pairs and same-fan crossings.</returns>
+        internal static (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) FinalCounts(FlowchartLayoutResult Layout)
         {
             int Crossings = 0, Shared = 0, FanCrossings = 0;
             var FanPairs = new HashSet<string>(StringComparer.Ordinal);
-            var Routes = State.Copy.EdgeRoutes;
+            var Routes = Layout.EdgeRoutes;
             for (int A = 0; A < Routes.Count; A++) for (int B = A + 1; B < Routes.Count; B++)
             {
                 var First = Routes[A]; var Second = Routes[B];
@@ -301,23 +322,35 @@ public static partial class DiagramGridLayout
                     || First.TargetId == Second.TargetId))
                 { FanPairs.Add(First.EdgeId + " x " + Second.EdgeId); FanCrossings += Hits.Crossings; }
             }
-            return (RouteBends(State.Copy), Crossings, Shared, FanCrossings, FanPairs);
+            return (RouteBends(Layout), Crossings, Shared, FanCrossings, FanPairs);
         }
 
         /// <summary>Refreshes only diagnostics and drawn guides after an accepted final repair.</summary>
         /// <param name="State">Accepted complete geometry; this method never changes a route or cell.</param>
-        private static void PublishFinal(GridLayoutState State)
+        internal static void PublishFinal(GridLayoutState State)
         {
-            State.Copy.ResolvedEdgeGuides = State.Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).Select(Edge =>
+            PublishFinal(State.Contract, State.Copy);
+        }
+
+        /// <summary>Publishes a selected layout after final incremental polish without replaying placement or routing.</summary>
+        /// <param name="Contract">Original declared links.</param>
+        /// <param name="Layout">Accepted, already validated complete geometry.</param>
+        internal static void PublishFinal(DiagramContract Contract, FlowchartLayoutResult Layout)
+        {
+            Layout.ResolvedEdgeGuides = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).Select(Edge =>
             {
-                if (!State.Copy.TryCopyDrawnRoutePoints(Edge, out var Points)) return null;
+                if (!Layout.TryCopyDrawnRoutePoints(Edge, out var Points)) return null;
                 return new FlowchartResolvedGuide(Edge, Points, Points.Count == 2 ? FlowchartEdgeRouteKind.Straight : FlowchartEdgeRouteKind.Grid);
             }).OfType<FlowchartResolvedGuide>().ToList();
-            State.Copy.RenderContext.CachedRouteContract = null;
-            State.Copy.RenderContext.CachedRouteGeometry = null;
-            State.Copy.RenderContext.CachedRouteGuides = null;
-            State.Copy.RenderContext.LayoutStageViolations.RemoveAll(Failure => Failure.Kind is "RouteLegality" or "SharedTrack");
-            LegalityValidationStage.Apply(State);
+            Layout.RenderContext.CachedRouteContract = null;
+            Layout.RenderContext.CachedRouteGeometry = null;
+            Layout.RenderContext.CachedRouteGuides = null;
+            // Painting and label clearance must consume the accepted model,
+            // never guides or collision points cached before the repair.
+            Layout.RenderContext.CachedSvgRenderGuides = null;
+            Layout.RenderContext.CachedLabelSpatialIndex = null;
+            Layout.RenderContext.LayoutStageViolations.RemoveAll(Failure => Failure.Kind is "RouteLegality" or "SharedTrack");
+            LegalityValidationStage.Apply(Contract, Layout);
         }
     }
 }
