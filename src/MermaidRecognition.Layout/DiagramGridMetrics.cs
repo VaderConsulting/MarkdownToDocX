@@ -174,7 +174,27 @@ public static class DiagramGridMetrics
     }
 
     /// <summary>
-    /// Equal slot or track centres along a side or gap, at least line_spacing apart and centred when possible.
+    /// Maximum ports that fit on one box side while keeping line_spacing clearance from each corner.
+    /// </summary>
+    /// <param name="SideLengthPx">Visible side length in pixels.</param>
+    /// <returns>Geometric maximum from rules 3.2 and term Track.</returns>
+    public static int MaxPortsOnSide(int SideLengthPx)
+    {
+        return MaxTracksInGap(SideLengthPx);
+    }
+
+    /// <summary>
+    /// Minimum side length that holds the requested port count with line_spacing insets.
+    /// </summary>
+    /// <param name="PortCount">Jointly allocated ports on one side.</param>
+    /// <returns>Required side span in pixels.</returns>
+    public static int MinSideLengthForPorts(int PortCount)
+    {
+        return GapWidthForTracks(PortCount);
+    }
+
+    /// <summary>
+    /// Equal slot or track centres along a side or gap, at least line_spacing apart and inset from each end.
     /// </summary>
     /// <param name="LengthPx">Side or gap length.</param>
     /// <param name="SlotCount">How many equal positions span that length.</param>
@@ -187,12 +207,13 @@ public static class DiagramGridMetrics
         }
 
         int Spacing = (int)Math.Round(FlowchartLayoutRules.LineSpacing);
-        int Span = (SlotCount - 1) * Spacing;
-        int Start = (LengthPx - Span) / 2;
+        int RequiredSpan = GapWidthForTracks(SlotCount);
+        int SpanLength = Math.Max(LengthPx, RequiredSpan);
+        int Offset = (SpanLength - RequiredSpan) / 2;
         int[] Centres = new int[SlotCount];
         for (int Index = 0; Index < SlotCount; Index++)
         {
-            Centres[Index] = Start + Index * Spacing;
+            Centres[Index] = Offset + Spacing * (Index + 1);
         }
 
         return Centres;

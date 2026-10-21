@@ -14,14 +14,16 @@ public sealed class DiagramGridLayoutTests
     [Test]
     public void EqualCentres_StandardBox_UsesTheFiveSlotPattern()
     {
-        // Centres are line_spacing (15 px) apart and centred on the side. The 150 px width
-        // spans 45–105; the 60 px height is too short for five 15 px slots, so the span is
-        // pinned to the edges at 0–60 instead of the old 12 px even division.
+        // Ports sit line_spacing (15 px) inset from each corner: n ports need (n + 1) x 15 px.
+        // The 150 px width fits five; the 60 px height fits only three (15, 30, 45), not five on the corners.
         int[] Horizontal = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_WIDTH_PX, DiagramGridMetrics.TRACKS_PER_GAP);
-        int[] Vertical = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_HEIGHT_PX, DiagramGridMetrics.TRACKS_PER_GAP);
+        int[] VerticalThree = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_HEIGHT_PX, 3);
+        int[] VerticalFiveGrown = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.MinSideLengthForPorts(5), 5);
 
         Assert.That(Horizontal, Is.EqualTo(new[] { 45, 60, 75, 90, 105 }));
-        Assert.That(Vertical, Is.EqualTo(new[] { 0, 15, 30, 45, 60 }));
+        Assert.That(VerticalThree, Is.EqualTo(new[] { 15, 30, 45 }));
+        Assert.That(VerticalFiveGrown, Is.EqualTo(new[] { 15, 30, 45, 60, 75 }));
+        Assert.That(DiagramGridMetrics.MaxPortsOnSide(DiagramGridMetrics.NODE_HEIGHT_PX), Is.EqualTo(3));
     }
 
     [Test]

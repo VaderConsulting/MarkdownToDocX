@@ -47,7 +47,7 @@ internal static partial class FlowchartFanPacking
                     && Leaves.Contains(ById[Edge.TargetId])
                 || Edge.TargetId == Hub.Id && ById.ContainsKey(Edge.SourceId) && Leaves.Contains(ById[Edge.SourceId]))
                 .ToList();
-            double PortPitch = Math.Max(1, (Horizontal ? NodeHeight : NodeWidth) / DiagramGridMetrics.TRACKS_PER_GAP);
+            double PortPitch = FlowchartLayoutRules.LineSpacing;
             double LabelHeight = 0;
             double LabelTrackPitch = 6;
             foreach (EdgeContract Edge in FanEdges)
@@ -63,15 +63,15 @@ internal static partial class FlowchartFanPacking
                     FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(Label, Options.EdgeLabelFontSizePx));
             }
             int NeededSide = DiagramGridMetrics.CeilToGrid(
-                (int)Math.Ceiling(Leaves.Count * PortPitch + 2 * DiagramGridMetrics.NODE_GAP_PX));
+                Math.Max(DiagramGridMetrics.MinSideLengthForPorts(Leaves.Count),
+                    (int)Math.Ceiling(Leaves.Count * PortPitch + 2 * DiagramGridMetrics.NODE_GAP_PX)));
             if (Hub.CellNode == null)
             {
                 if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
                 else Hub.Width = Math.Max(Hub.Width, NeededSide);
             }
             int TrackGap = Math.Max(DiagramGridMetrics.NODE_GAP_PX,
-                ((Leaves.Count + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP)
-                    * DiagramGridMetrics.GRID_UNIT_PX);
+                DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.GapWidthForTracks(Leaves.Count)));
             if (LabelHeight > 0)
                 TrackGap = Math.Max(TrackGap, DiagramGridMetrics.CeilToGrid(
                     (int)Math.Ceiling(LabelHeight + 2 * FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(

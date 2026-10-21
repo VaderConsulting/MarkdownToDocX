@@ -22,7 +22,7 @@ internal static partial class FlowchartFanPacking
     {
         var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Hub.CellNode!.Grid;
         string Side = Horizontal ? (Reverse == FanOut ? "left" : "right") : (Reverse == FanOut ? "top" : "bottom");
-        double PortPitch = Math.Max(1, Leaves.Min(Node => Horizontal ? Node.Height : Node.Width) / DiagramGridMetrics.TRACKS_PER_GAP);
+        double PortPitch = FlowchartLayoutRules.LineSpacing;
         if (!DiagramGridLayout.TryPlanCellPortCapacity(Hub, Before.Regions[Hub.Id], Side, Leaves.Count, PortPitch, out var HubSpan)) return false;
         bool MandatoryGrowth = HubSpan != Before.Regions[Hub.Id];
         int LeafRows = Leaves.Max(Node => Before.Regions[Node.Id].RowSpan), LeafColumns = Leaves.Max(Node => Before.Regions[Node.Id].ColumnSpan);
