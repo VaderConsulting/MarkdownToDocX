@@ -721,19 +721,23 @@ public static class EnterpriseParser
             bool MissingSource = !Document.Elements.ContainsKey(Relationship.SourceId);
             bool MissingTarget = !Document.Elements.ContainsKey(Relationship.TargetId);
             // Each undeclared endpoint is the source error. Reporting the
-            // consequent dropped relationship would duplicate that fault.
+            // consequent dropped relationship would duplicate that fault. Keep the
+            // relationship identity on the same visible line so rendering can
+            // explain exactly which connection cannot be drawn.
             if (MissingSource)
             {
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
-                    "relationship source \"" + Relationship.SourceId + "\" is not a declared element"));
+                    "relationship source \"" + Relationship.SourceId + "\" is not a declared element ("
+                    + Relationship.SourceId + "->" + Relationship.TargetId + ")"));
             }
 
             if (MissingTarget)
             {
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
-                    "relationship target \"" + Relationship.TargetId + "\" is not a declared element"));
+                    "relationship target \"" + Relationship.TargetId + "\" is not a declared element ("
+                    + Relationship.SourceId + "->" + Relationship.TargetId + ")"));
             }
         }
 

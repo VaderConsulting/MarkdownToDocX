@@ -409,4 +409,14 @@ public sealed class EnterpriseParserTests
             Is.True);
         Assert.That(EnterpriseParser.IsEnterpriseSource("flowchart TD\nA-->B"), Is.False);
     }
+    /// <summary>Reports an undeclared endpoint once while retaining the dropped connection's identity for the renderer.</summary>
+    [TestCase("missing -serving-> declared", "missing->declared")]
+    [TestCase("declared -serving-> missing", "declared->missing")]
+    public void Parse_UnknownEndpoint_KeepsRelationshipOnOneDiagnosticLine(string Relationship, string Identity)
+    {
+        var Result = EnterpriseParser.Parse("enterprise\napplication-component declared \"Declared\"\n" + Relationship);
+        Assert.That(Result.Diagnostics, Has.Count.EqualTo(1));
+        Assert.That(Result.Diagnostics[0].Message, Does.Contain(Identity));
+        Assert.That(Result.Diagnostics[0].Message, Does.Not.Contain("\n"));
+    }
 }
