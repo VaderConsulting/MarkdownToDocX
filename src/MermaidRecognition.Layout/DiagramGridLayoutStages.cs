@@ -241,10 +241,15 @@ public static partial class DiagramGridLayout
                         State.WrappedChainNodes.UnionWith(Placed.Select(Node => Node.Id));
                 });
                 Step("FanPacking", () => FlowchartFanPacking.Apply(Contract, Placed));
+                Step("AlignDecisionBranchTargetRow", () => AlignDecisionBranchTargetRow(Contract, Placed, Horizontal, CrossPitch));
                 Step("ComponentWrapping", () => State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal));
                 Step("DisconnectedPacking", () => FlowchartDisconnectedPacking.Apply(Contract, Placed));
                 Step("GroupMemberPacking", () => FlowchartGroupMemberPacking.Apply(Contract, Placed));
                 Step("GroupedChannelPlacement", () => FlowchartGroupedChannelPlacement.Apply(Contract, Placed));
+                if (!Horizontal && ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+                {
+                    Step("ApplySpineColumnAdjustmentsFinal", () => ApplySpineColumnAdjustments(Contract, Placed, Direction));
+                }
             }
 
             if (!Open) SnapGridNodeCentres(Placed);
