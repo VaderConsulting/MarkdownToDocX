@@ -476,15 +476,6 @@
                                        ]
                        },
                        {
-                           "id":  "initial_gap_track_headroom_percent",
-                           "value":  25,
-                           "unit":  "percent",
-                           "source":  "Initial band gap sizing; approved 20 Oct 2026",
-                           "used_by":  [
-                                           "1.7"
-                                       ]
-                       },
-                       {
                            "id":  "diamond_edges",
                            "value":  4,
                            "unit":  "sloped edges",
@@ -810,8 +801,9 @@
                            "id":  "corridor_capacity_buffer",
                            "value":  0.25,
                            "unit":  "fraction of forecast lines added when sizing a gap; rounded up, minimum one extra track",
-                           "source":  "Dave\u0027s approval, 20 Oct 2026; rule 5.1",
+                           "source":  "Dave\u0027s approval, 20 Oct 2026; rules 1.7 and 5.1; replaces initial_gap_track_headroom_percent, 21 Oct 2026",
                            "used_by":  [
+                                           "1.7",
                                            "5.1"
                                        ]
                        },
@@ -1254,7 +1246,7 @@
                                      "track_spacing",
                                      "line_spacing",
                                      "frame_gap_growth",
-                                     "initial_gap_track_headroom_percent"
+                                     "corridor_capacity_buffer"
                                  ],
                       "refs":  [
                                    "5.7",
@@ -1276,7 +1268,7 @@
                       "order":  43,
                       "blank_before":  1,
                       "text":  [
-                                   "During initial band placement, size each routing gap from the forecast lines passing through it plus initial_gap_track_headroom_percent percent. Round the reserved track count up and reserve at least one extra track for a gap with forecast traffic. Space tracks line_spacing (15 px) apart, keeping band membership, band order and column order fixed; this initial sizing does not change any repair limit. Repair geometric shortfalls monotonically. First measure the actual shortfall: missing label room calls for wrapping or a larger span (1.3); missing port capacity for a larger span or legal port reassignment; missing track capacity for routing space in a gap; an occupancy conflict for moving nodes by whole cells; missing group room for a larger frame. There is no fixed order among these repairs. Build the complete legal candidates that address the shortfall, and keep the one with the lowest score (2.13), using the existing tie-breaks (9.5) and then a deterministic final choice. When growing an external gap and growing an internal gap would both meet the need legally, grow the external gap; a grown internal gap enlarges every node that spans it and adds no routing corridor there. Every repair keeps whole-cell occupancy, non-overlap, external clearance, honoured hints, group membership, mandatory routing geometry and the main-path movement limits. Accept a repair only when it strictly reduces the measured shortfall or meets the strictly improving candidate rule (2.14); never retry an unchanged state or grow without limit. After a gap changes, update cell positions, sizes of nodes spanning it, visual and obstacle geometry, frames, ports, routes, legality and score. A shortfall caused by a port away from the middle of its edge and insufficient corner clearance is repaired by moving the unhinted child to a different column, not by growing the rank gap. Clearances, spacing and inserted space are measured on visual bounds (term Node geometry). If no legal repair exists, draw the visibly marked fallback of rule 5.7 and issue a diagnostic; never omit the diagram."
+                                   "During initial band placement, size each routing gap from the forecast lines passing through it plus corridor_capacity_buffer. Round the reserved track count up and reserve at least one extra track for a gap with forecast traffic. Space tracks line_spacing (15 px) apart, keeping band membership, band order and column order fixed; this initial sizing does not change any repair limit. Repair geometric shortfalls monotonically. First measure the actual shortfall: missing label room calls for wrapping or a larger span (1.3); missing port capacity for a larger span or legal port reassignment; missing track capacity for routing space in a gap; an occupancy conflict for moving nodes by whole cells; missing group room for a larger frame. There is no fixed order among these repairs. Build the complete legal candidates that address the shortfall, and keep the one with the lowest score (2.13), using the existing tie-breaks (9.5) and then a deterministic final choice. When growing an external gap and growing an internal gap would both meet the need legally, grow the external gap; a grown internal gap enlarges every node that spans it and adds no routing corridor there. Every repair keeps whole-cell occupancy, non-overlap, external clearance, honoured hints, group membership, mandatory routing geometry and the main-path movement limits. Accept a repair only when it strictly reduces the measured shortfall or meets the strictly improving candidate rule (2.14); never retry an unchanged state or grow without limit. After a gap changes, update cell positions, sizes of nodes spanning it, visual and obstacle geometry, frames, ports, routes, legality and score. A shortfall caused by a port away from the middle of its edge and insufficient corner clearance is repaired by moving the unhinted child to a different column, not by growing the rank gap. Clearances, spacing and inserted space are measured on visual bounds (term Node geometry). If no legal repair exists, draw the visibly marked fallback of rule 5.7 and issue a diagnostic; never omit the diagram."
                                ]
                   },
                   {
