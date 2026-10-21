@@ -415,7 +415,7 @@ public static partial class DiagramGridLayout
             if (BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
-                SetRouteEndpointSides(Route, SourceBounds, TargetBounds, LayoutPoints, HorizontalFlow);
+                SetRouteEndpointSides(Contract, Route, SourceBounds, TargetBounds, LayoutPoints, HorizontalFlow);
             }
 
             Route.Points.Clear();
@@ -554,7 +554,7 @@ public static partial class DiagramGridLayout
             if (BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
                 && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
             {
-                SetRouteEndpointSides(Route, SourceBounds, TargetBounds, LayoutPoints, HorizontalFlow);
+                SetRouteEndpointSides(Contract, Route, SourceBounds, TargetBounds, LayoutPoints, HorizontalFlow);
             }
 
             Route.Points.Clear();
@@ -570,6 +570,7 @@ public static partial class DiagramGridLayout
     }
 
     private static void SetRouteEndpointSides(
+        DiagramContract Contract,
         FlowchartLayoutEdgeRoute Route,
         FlowchartLayoutNodeBounds SourceBounds,
         FlowchartLayoutNodeBounds TargetBounds,
@@ -588,20 +589,36 @@ public static partial class DiagramGridLayout
         double TargetOffsetX = Math.Abs(EndX - TargetBounds.CenterX);
         double TargetOffsetY = Math.Abs(EndY - TargetBounds.CenterY);
 
+        int VisibleFanIn = Contract.Edges.Count(Item => Item.TargetId == Route.TargetId
+            && !string.Equals(Item.Stroke, "invisible", StringComparison.OrdinalIgnoreCase));
         if (HorizontalFlow)
         {
             Route.ExitSide = SourceOffsetY > SourceOffsetX
                 ? (StartY >= SourceBounds.CenterY ? "top" : "bottom")
                 : (StartX >= SourceBounds.CenterX ? "right" : "left");
-            Route.EntrySide = TargetOffsetY > TargetOffsetX
-                ? (EndY >= TargetBounds.CenterY ? "top" : "bottom")
-                : (EndX >= TargetBounds.CenterX ? "right" : "left");
+            if (VisibleFanIn > 1)
+            {
+                Route.EntrySide = FlowchartFacingPortSelector.ResolveFacingSide(TargetBounds, SourceBounds);
+            }
+            else
+            {
+                Route.EntrySide = TargetOffsetY > TargetOffsetX
+                    ? (EndY >= TargetBounds.CenterY ? "top" : "bottom")
+                    : (EndX >= TargetBounds.CenterX ? "right" : "left");
+            }
+
             return;
         }
 
         Route.ExitSide = SourceOffsetX > SourceOffsetY
             ? (StartX >= SourceBounds.CenterX ? "right" : "left")
             : (StartY <= SourceBounds.CenterY ? "bottom" : "top");
+        if (VisibleFanIn > 1)
+        {
+            Route.EntrySide = FlowchartFacingPortSelector.ResolveFacingSide(TargetBounds, SourceBounds);
+            return;
+        }
+
         Route.EntrySide = TargetOffsetX > TargetOffsetY
             ? (EndX >= TargetBounds.CenterX ? "right" : "left")
             : (EndY <= TargetBounds.CenterY ? "bottom" : "top");
@@ -706,7 +723,7 @@ public static partial class DiagramGridLayout
                         .ToDictionary(Pair => Pair.Key, Pair => Pair.Value), Route.SourceId, Route.TargetId)))
                 {
                     LayoutPoints = Direct;
-                    SetRouteEndpointSides(Route, Source, Target, Direct, Horizontal);
+                    SetRouteEndpointSides(Contract, Route, Source, Target, Direct, Horizontal);
                 }
             }
             if (LayoutPoints.Count < 2) continue;

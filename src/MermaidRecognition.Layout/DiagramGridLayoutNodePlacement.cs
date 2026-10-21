@@ -619,7 +619,7 @@ public static partial class DiagramGridLayout
                 }
                 if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                     Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Source.Id, Merge.Id))) continue;
-                SetRouteEndpointSides(Route, Bounds[Source.Id], Bounds[Merge.Id], Path, Horizontal);
+                SetRouteEndpointSides(Contract, Route, Bounds[Source.Id], Bounds[Merge.Id], Path, Horizontal);
                 Route.Points.Clear();
                 foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
             }
@@ -643,7 +643,7 @@ public static partial class DiagramGridLayout
                 var Path = new List<(double X, double Y)> { Map(StartMain, StartCross), Map(StartMain, EndCross), Map(EndMain, EndCross) };
                 if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                     Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Parent.Id, EarlyExit.Id))) continue;
-                SetRouteEndpointSides(Route, Bounds[Parent.Id], Bounds[EarlyExit.Id], Path, Horizontal);
+                SetRouteEndpointSides(Contract, Route, Bounds[Parent.Id], Bounds[EarlyExit.Id], Path, Horizontal);
                 Route.Points.Clear();
                 foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
             }
@@ -721,7 +721,7 @@ public static partial class DiagramGridLayout
             var Path = new List<(double X, double Y)> { Map(StartMain, StartCross), Map(EndMain, StartCross), Map(EndMain, EndCross) };
             if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                 Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Left.Id, Merge.Id))) continue;
-            SetRouteEndpointSides(Route, Bounds[Left.Id], Bounds[Merge.Id], Path, Horizontal);
+            SetRouteEndpointSides(Contract, Route, Bounds[Left.Id], Bounds[Merge.Id], Path, Horizontal);
             Route.Points.Clear();
             foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
         }

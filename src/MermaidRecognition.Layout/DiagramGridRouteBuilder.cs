@@ -1549,8 +1549,14 @@ public static class DiagramGridRouteBuilder
             // Most bounds are nowhere near this run. Perform the identical
             // geometric rejection before resolving group membership or title
             // crossing exceptions for every unrelated node and candidate.
-            if (!FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, NodeBounds))
+            bool ViolatesObstacle = NodeBounds.Geometry is { }
+                ? FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, NodeBounds)
+                : FlowchartRouteObstacleHelper.SegmentViolatesNodeTrackClearance(
+                    StartX, StartY, EndX, EndY, NodeBounds, FlowchartLayoutRules.LineSpacing);
+            if (!ViolatesObstacle)
+            {
                 continue;
+            }
             if (FlowchartFrameTitleBandHelper.TryGetObstacleBand(NodeBounds, out FlowchartFrameTitleBandHelper.Band TitleBand)
                 && FlowchartFrameTitleBandHelper.IsLegalTopPortCrossing(TitleBand,
                     StartX, StartY, EndX, EndY, SourceId, TargetId, Contract))

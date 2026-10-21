@@ -128,6 +128,10 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, FlowchartLayoutNodeBounds> FanOutBoundsById = BuildPlacedBounds(Placed, Frames);
+        Dictionary<string, int> VisibleFanInByTargetId = Contract.Edges
+            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(Edge => Edge.TargetId, StringComparer.Ordinal)
+            .ToDictionary(Group => Group.Key, Group => Group.Count(), StringComparer.Ordinal);
         foreach ((FlowchartLayoutEdgeRoute Route, BoxRef Source, BoxRef Target) Item in Pending)
         {
             string Exit;
@@ -207,7 +211,14 @@ public static partial class DiagramGridLayout
             if (RoutingHint == null)
             {
                 Exit = EligibleGeometrySide(Item.Source, Item.Target, Exit, Ends, Nodes);
-                Entry = EligibleGeometrySide(Item.Target, Item.Source, Entry, Ends, Nodes);
+                if (VisibleFanInByTargetId.GetValueOrDefault(Item.Target.Id) > 1)
+                {
+                    Entry = FacingSide(Item.Target, Item.Source);
+                }
+                else
+                {
+                    Entry = EligibleGeometrySide(Item.Target, Item.Source, Entry, Ends, Nodes);
+                }
             }
             Item.Route.ExitSide = Exit;
             Item.Route.EntrySide = Entry;
