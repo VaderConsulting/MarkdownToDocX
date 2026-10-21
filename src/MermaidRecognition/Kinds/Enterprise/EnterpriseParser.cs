@@ -720,6 +720,8 @@ public static class EnterpriseParser
         {
             bool MissingSource = !Document.Elements.ContainsKey(Relationship.SourceId);
             bool MissingTarget = !Document.Elements.ContainsKey(Relationship.TargetId);
+            // Each undeclared endpoint is the source error. Reporting the
+            // consequent dropped relationship would duplicate that fault.
             if (MissingSource)
             {
                 Diagnostics.Add(CreateError(
@@ -732,12 +734,6 @@ public static class EnterpriseParser
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
                     "relationship target \"" + Relationship.TargetId + "\" is not a declared element"));
-            }
-            if (MissingSource || MissingTarget)
-            {
-                Diagnostics.Add(CreateError(Relationship.LineNumber,
-                    "dropped relationship '" + Relationship.SourceId + "->" + Relationship.TargetId
-                    + "' because one or more endpoints are undeclared"));
             }
         }
 
