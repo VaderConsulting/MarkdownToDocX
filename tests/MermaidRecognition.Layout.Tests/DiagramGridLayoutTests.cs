@@ -14,11 +14,14 @@ public sealed class DiagramGridLayoutTests
     [Test]
     public void EqualCentres_StandardBox_UsesTheFiveSlotPattern()
     {
+        // Centres are line_spacing (15 px) apart and centred on the side. The 150 px width
+        // spans 45–105; the 60 px height is too short for five 15 px slots, so the span is
+        // pinned to the edges at 0–60 instead of the old 12 px even division.
         int[] Horizontal = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_WIDTH_PX, DiagramGridMetrics.TRACKS_PER_GAP);
         int[] Vertical = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_HEIGHT_PX, DiagramGridMetrics.TRACKS_PER_GAP);
 
-        Assert.That(Horizontal, Is.EqualTo(new[] { 15, 45, 75, 105, 135 }));
-        Assert.That(Vertical, Is.EqualTo(new[] { 6, 18, 30, 42, 54 }));
+        Assert.That(Horizontal, Is.EqualTo(new[] { 45, 60, 75, 90, 105 }));
+        Assert.That(Vertical, Is.EqualTo(new[] { 0, 15, 30, 45, 60 }));
     }
 
     [Test]
@@ -49,9 +52,9 @@ public sealed class DiagramGridLayoutTests
     public void TrackOffsets_FollowTheCentreOutwardPattern()
     {
         Assert.That(DiagramGridMetrics.TrackOffsets(1, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 9, 21 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(3, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 9, 15, 21 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(5, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 3, 9, 15, 21, 27 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(3, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30, 45 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(5, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30, 45, 60, 75 }));
     }
 
     [Test]
