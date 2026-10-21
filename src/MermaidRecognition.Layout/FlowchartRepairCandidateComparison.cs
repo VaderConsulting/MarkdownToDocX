@@ -49,8 +49,8 @@ internal static class FlowchartRepairCandidateComparison
         return CandidateCost < BaselineCost;
     }
 
-    /// <summary>Geometric tolerance read from the canonical rules file.</summary>
-    internal static double GeometryTolerancePx => FlowchartLayoutRules.GeometryTolerancePx;
+    /// <summary>Geometric tolerance for repair candidate comparison.</summary>
+    internal static double GeometryTolerancePx => DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
 
     /// <summary>Minimum parallel separation for comparisons that use line spacing.</summary>
     internal static double MinimumLineSeparationPx => FlowchartLayoutRules.LineSpacing - GeometryTolerancePx;
