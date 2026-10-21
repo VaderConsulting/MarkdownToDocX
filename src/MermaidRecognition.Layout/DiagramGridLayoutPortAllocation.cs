@@ -179,30 +179,8 @@ public static partial class DiagramGridLayout
                 // track occupancy affect the path between endpoints, never the
                 // endpoint sides. This prevents 4.7 repair becoming a late
                 // substitute for allocating sides from the placed node geometry.
-                var SourceBounds = new FlowchartLayoutNodeBounds
-                {
-                    CenterX = Item.Source.CenterX,
-                    CenterY = Item.Source.CenterY,
-                    Width = Item.Source.Width,
-                    Height = Item.Source.Height
-                };
-                var TargetBounds = new FlowchartLayoutNodeBounds
-                {
-                    CenterX = Item.Target.CenterX,
-                    CenterY = Item.Target.CenterY,
-                    Width = Item.Target.Width,
-                    Height = Item.Target.Height
-                };
-                if (FlowchartFacingPortSelector.TryStackedVerticalSides(
-                        SourceBounds, TargetBounds, out Exit, out Entry, ObstacleBounds, Item.Source.Id))
-                {
-                }
-                else
-                {
-                    Exit = FlowchartFacingPortSelector.ResolveFacingSide(
-                        SourceBounds, TargetBounds, Contract, Item.Source.Id, ObstacleBounds);
-                    Entry = FlowchartFacingPortSelector.ResolveEntrySide(TargetBounds, SourceBounds, Exit);
-                }
+                Exit = FacingSide(Item.Source, Item.Target);
+                Entry = FacingSide(Item.Target, Item.Source);
             }
             if (RoutingHint == null)
             {
@@ -264,20 +242,12 @@ public static partial class DiagramGridLayout
                 bool VerticalSide = Left.Side == "left" || Left.Side == "right";
                 int PeerOrder = VerticalSide ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
                     : Left.Other.CenterX.CompareTo(Right.Other.CenterX);
-                if (PeerOrder != 0)
-                {
-                    return PeerOrder;
-                }
-
-                if (!VerticalSide)
-                {
-                    return Left.Other.CenterY.CompareTo(Right.Other.CenterY);
-                }
-
-                if (CorridorSlotIsOnFlatSide(Left) && CorridorSlotIsOnFlatSide(Right)
+                if (PeerOrder == 0 && CorridorSlotIsOnFlatSide(Left) && CorridorSlotIsOnFlatSide(Right)
                     && FlowchartFallbackCorridorTracks.HasReservedCapacity(Copy.RenderContext))
-                {
                     return CompareExistingCorridorSlots(Left, Right);
+                if (VerticalSide)
+                {
+                    return Right.Other.CenterY.CompareTo(Left.Other.CenterY);
                 }
 
                 return Left.Other.CenterX.CompareTo(Right.Other.CenterX);
@@ -416,7 +386,7 @@ public static partial class DiagramGridLayout
         if (FlowchartFallbackCorridorTracks.IsConstructionStage(FlowchartRenderContext.Current) && Count > 1)
         {
             double Length = Side is "left" or "right" ? Box.Height : Box.Width;
-            if (!HasGeometry && Length / (Count + 1) < FlowchartRepairCandidateComparison.MinimumLineSeparationPx) return false;
+            if (!HasGeometry && Length / (Count + 1) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
             if (HasGeometry)
             {
                 var BoundaryForSpacing = Node!.GeometryProvider!.Create(Box.Width, Box.Height).ConnectionBoundary;
@@ -425,7 +395,7 @@ public static partial class DiagramGridLayout
                     if (!BoundaryForSpacing.TryPort(Side, I / (Count + 1.0), out var A)
                         || !BoundaryForSpacing.TryPort(Side, (I + 1) / (Count + 1.0), out var B)) return false;
                     if (Math.Abs(A.NormalX - B.NormalX) < 0.001 && Math.Abs(A.NormalY - B.NormalY) < 0.001
-                        && Math.Sqrt(Math.Pow(A.X - B.X, 2) + Math.Pow(A.Y - B.Y, 2)) < FlowchartRepairCandidateComparison.MinimumLineSeparationPx) return false;
+                        && Math.Sqrt(Math.Pow(A.X - B.X, 2) + Math.Pow(A.Y - B.Y, 2)) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
                 }
             }
         }
@@ -485,8 +455,7 @@ public static partial class DiagramGridLayout
             foreach (var NodeEnds in ByNode.Where(Pair => ChangedNodes.Contains(Pair.Key)).Select(Pair => Pair.Value))
             foreach (var SideEnds in NodeEnds.GroupBy(End => End.Side))
                 ApplySlots(SideEnds.OrderBy(End => End.Side is "left" or "right"
-                    ? -End.Other.CenterY : End.Other.CenterX).ThenBy(End => End.Other.CenterY)
-                    .ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToList(), Nodes);
+                    ? -End.Other.CenterY : End.Other.CenterX).ToList(), Nodes);
             FlowchartRenderContext.ReportOperationCount("port-side-assignment-cache-hits", 1);
             return;
         }
@@ -869,10 +838,10 @@ public static partial class DiagramGridLayout
         // Rounded rectangles still allocate over the complete declared edge.
         // Reserving a corner inset here moves ports away from k/(n+1) and makes
         // the slot pattern depend on the renderer's corner radius.
-        int[] SlotCentres = DiagramGridMetrics.EqualCentres(Length, Group.Count);
+        double AvailableLength = Length;
         for (int Index = 0; Index < Group.Count; Index++)
         {
-            double Along = SlotCentres[Index];
+            double Along = ((Index + 1.0) / (Group.Count + 1.0)) * AvailableLength;
             double X;
             double Y;
             int OutX = 0;

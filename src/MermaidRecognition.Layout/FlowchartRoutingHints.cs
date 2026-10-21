@@ -270,10 +270,8 @@ internal static class FlowchartRoutingHints
             // leaving the visible ports asymmetric or coincident.
             if (!Group.Any(End => End.IsHinted)) continue;
             var Ordered = Group.Key.Side is "left" or "right"
-                ? Group.OrderByDescending(End => End.Other.CenterY).ThenBy(End => End.Other.CenterX)
-                    .ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray()
-                : Group.OrderBy(End => End.Other.CenterX).ThenBy(End => End.Other.CenterY)
-                    .ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray();
+                ? Group.OrderByDescending(End => End.Other.CenterY).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray()
+                : Group.OrderBy(End => End.Other.CenterX).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray();
             bool vertical = Group.Key.Side is "left" or "right";
             double Length = vertical ? Ordered[0].Box.Height : Ordered[0].Box.Width;
             bool circle = !frameIds.Contains(Group.Key.NodeId)

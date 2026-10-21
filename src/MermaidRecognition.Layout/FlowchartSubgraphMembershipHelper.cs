@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Layout;
@@ -10,33 +9,6 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartSubgraphMembershipHelper
 {
-    /// <summary>Membership lookup owned by a synchronous pass that never changes declarations or containment.</summary>
-    /// <param name="Contract">Exact immutable contract for this scope.</param>
-    /// <param name="Parents">First-match group identity or node parent, preserving the original lookup order.</param>
-    private sealed record FixedMembership(DiagramContract Contract, Dictionary<string, string?> Parents);
-
-    private static readonly AsyncLocal<FixedMembership?> ActiveMembership = new();
-
-    /// <summary>Restores the enclosing lookup after a nested fixed-membership pass.</summary>
-    /// <param name="Previous">Lookup active before this scope.</param>
-    private sealed class MembershipScope(FixedMembership? Previous) : IDisposable
-    {
-        /// <summary>Restores the exact previous contract lookup.</summary>
-        public void Dispose() => ActiveMembership.Value = Previous;
-    }
-
-    /// <summary>Reuses exact membership answers during a pass that changes only ports and routes.</summary>
-    /// <param name="Contract">Declarations whose node and group membership stays fixed until disposal.</param>
-    /// <returns>A scope that isolates other contracts and restores any enclosing lookup.</returns>
-    internal static IDisposable ReuseFixedMembership(DiagramContract Contract)
-    {
-        var Previous = ActiveMembership.Value;
-        Dictionary<string, string?> Parents = new(StringComparer.Ordinal);
-        foreach (GroupContract Group in Contract.Groups) Parents.TryAdd(Group.Id, Group.Id);
-        foreach (NodeContract Node in Contract.Nodes) Parents.TryAdd(Node.Id, Node.ParentGroupId);
-        ActiveMembership.Value = new(Contract, Parents);
-        return new MembershipScope(Previous);
-    }
     /// <summary>
     /// Returns true when the node belongs to the group or any nested child group.
     /// </summary>
@@ -99,8 +71,6 @@ public static class FlowchartSubgraphMembershipHelper
     /// </summary>
     public static string? FindInnermostGroupId(string NodeId, DiagramContract Contract)
     {
-        if (ActiveMembership.Value is { } Membership && ReferenceEquals(Membership.Contract, Contract))
-            return NodeId == null ? null : Membership.Parents.GetValueOrDefault(NodeId);
         foreach (GroupContract Group in Contract.Groups)
         {
             if (string.Equals(Group.Id, NodeId, StringComparison.Ordinal))

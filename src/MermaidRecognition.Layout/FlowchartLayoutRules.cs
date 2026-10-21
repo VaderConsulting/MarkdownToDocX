@@ -28,16 +28,10 @@ internal static class FlowchartLayoutRules
     internal static double TrackSpacing => Get("track_spacing") * Get("grid_step");
     /// <summary>Configured minimum parallel-line and same-edge port separation, expressed directly in page pixels.</summary>
     internal static double LineSpacing => Get("line_spacing");
-    /// <summary>Float tolerance for shared-track, overlap, port-spacing and clearance comparisons.</summary>
-    internal static double GeometryTolerancePx => Get("geometry_tolerance_px");
-    /// <summary>Terminal arrowhead length used when sizing 4.4 clearance into a bounding outline.</summary>
-    internal static double ArrowheadLengthPx => Get("arrowhead_length_px");
     /// <summary>Approved fractional buffer added to forecast traffic when initial corridor gaps are sized.</summary>
     internal static double CorridorCapacityBuffer => Get("corridor_capacity_buffer");
     internal static double CrossingScore => Get("score_crossing");
     internal static double DisconnectedEndScore => Get("score_disconnected_end");
-    /// <summary>Maximum diagram span in pixels before rule 2.12 wrapping (page usable width).</summary>
-    internal static double DiagramUsableWidthPx => Get("diagram_usable_width_px");
     internal static double TargetAspectWidth => Get("target_aspect_width");
     internal static double TargetAspectHeight => Get("target_aspect_height");
     internal static double ShapePoints => Get("score_shape_points");
@@ -48,6 +42,7 @@ internal static class FlowchartLayoutRules
     internal static double NodeGroupHintScore => Get("score_hint_node_group");
     internal static double LineHintScore => Get("score_hint_line");
     internal static double CrossEndpointStandoff => Get("cross_endpoint_standoff");
+    internal static double DiagramUsableWidthPx => Get("diagram_usable_width_px");
     internal static double GroupMemberMinimumInset => Get("group_member_min_inset") * Get("grid_step");
     internal static int RepairCandidateMoves => checked((int)Get("repair_candidate_moves"));
     internal static int RepairChainDepth => checked((int)Get("repair_chain_depth"));
@@ -64,6 +59,8 @@ internal static class FlowchartLayoutRules
         if (FanLineCount < 3) throw new ArgumentOutOfRangeException(nameof(FanLineCount));
         return FanLineCount;
     }
+    internal static double RepairExtraLength => Get("repair_extra_length_px");
+    internal static int RepairExtraBends => checked((int)Get("repair_extra_bends"));
     internal static double RepairLengthWeight => Get("score_repair_length_per_grid_step");
     /// <summary>Approved routing-length weight before the once-per-layout bounded normalization.</summary>
     internal static double RouteLengthWeight => Get("score_route_length_per_grid_step");

@@ -52,8 +52,6 @@ public static class FlowchartRouteRuleChecker
             if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
                 hasCellAuthority);
             CheckFrameRun(edge, route, contract, boxes, findings);
-            CheckForeignBorderProximity(edge, route, contract, boxes, findings);
-            CheckSubTrackJog(edge, route, findings);
             CheckObstacles(edge, route, contract, layout, boxes, nodes, findings);
         }
 
@@ -119,10 +117,9 @@ public static class FlowchartRouteRuleChecker
         {
             Nodes.TryGetValue(Box.NodeId, out var Node);
             bool Blocked = false;
-            int BlockedSegmentIndex = -1;
-            for (int SegmentIndex = 1; SegmentIndex < Route.Points.Count && !Blocked; SegmentIndex++)
+            for (int Index = 1; Index < Route.Points.Count && !Blocked; Index++)
             {
-                var A = Route.Points[SegmentIndex - 1]; var B = Route.Points[SegmentIndex];
+                var A = Route.Points[Index - 1]; var B = Route.Points[Index];
                 if (Node?.GeometryProvider is { } Provider)
                 {
                     Blocked = Provider.Create(Box.Width, Box.Height).ObstacleGeometry.IntersectsSegmentInterior(
@@ -151,28 +148,9 @@ public static class FlowchartRouteRuleChecker
                     double T = Denominator == 0 ? 0 : Math.Clamp(-(Ax * Dx + Ay * Dy) / Denominator, 0, 1);
                     Blocked = Math.Pow(Ax + T * Dx, 2) + Math.Pow(Ay + T * Dy, 2) < 1 - 0.000001;
                 }
-                else Blocked = FlowchartRouteObstacleHelper.SegmentViolatesNodeTrackClearance(
-                    A.X, A.Y, B.X, B.Y, Box, FlowchartLayoutRules.LineSpacing);
-                if (Blocked)
-                {
-                    BlockedSegmentIndex = SegmentIndex;
-                }
+                else Blocked = FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Box);
             }
-            if (Blocked
-                && Box.NodeId != Edge.SourceId
-                && Box.NodeId != Edge.TargetId)
-            {
-                Findings.Add(new("10", EdgeName(Edge), $"route passes through node '{Box.NodeId}'"));
-            }
-            else if (Blocked)
-            {
-                bool terminal = (Box.NodeId == Edge.SourceId && BlockedSegmentIndex == 1)
-                    || (Box.NodeId == Edge.TargetId && BlockedSegmentIndex == Route.Points.Count - 1);
-                if (!terminal)
-                {
-                    Findings.Add(new("10", EdgeName(Edge), $"route passes through node '{Box.NodeId}'"));
-                }
-            }
+            if (Blocked) Findings.Add(new("10", EdgeName(Edge), $"route passes through node '{Box.NodeId}'"));
         }
         if (FlowchartFrameTitleBandHelper.RouteEntersAny(
                 Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
@@ -593,88 +571,10 @@ public static class FlowchartRouteRuleChecker
         }
         return nested;
     }
-    private static string FacingSide(FlowchartLayoutNodeBounds from, FlowchartLayoutNodeBounds to) =>
-        FlowchartFacingPortSelector.ResolveFacingSide(from, to);
-
-    private static void CheckForeignBorderProximity(EdgeContract edge, FlowchartLayoutEdgeRoute route,
-        DiagramContract contract, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes, List<Finding> findings)
+    private static string FacingSide(FlowchartLayoutNodeBounds from, FlowchartLayoutNodeBounds to)
     {
-        double clearance = FlowchartLayoutRules.LineSpacing;
-        for (int i = 1; i < route.Points.Count; i++)
-        {
-            FlowchartLayoutPoint a = route.Points[i - 1], b = route.Points[i];
-            bool horizontal = Math.Abs(a.Y - b.Y) <= Tolerance;
-            bool vertical = Math.Abs(a.X - b.X) <= Tolerance;
-            if (!horizontal && !vertical) continue;
-            foreach (var box in boxes.Values)
-            {
-                if (box.NodeId == edge.SourceId || box.NodeId == edge.TargetId) continue;
-                if (contract.Groups.Any(group => group.Id == box.NodeId)) continue;
-                double left = box.CenterX - box.Width / 2, right = box.CenterX + box.Width / 2;
-                double bottom = box.CenterY - box.Height / 2, top = box.CenterY + box.Height / 2;
-                if (horizontal)
-                {
-                    double y = (a.Y + b.Y) / 2;
-                    if (y < bottom - clearance || y > top + clearance) continue;
-                    double segMin = Math.Min(a.X, b.X), segMax = Math.Max(a.X, b.X);
-                    if (Math.Abs(y - left) <= clearance && segMax > left + Tolerance && segMin < right - Tolerance)
-                    {
-                        findings.Add(new Finding("4.9", EdgeName(edge), $"route scrapes the left border of '{box.NodeId}'"));
-                        return;
-                    }
-                    if (Math.Abs(y - right) <= clearance && segMax > left + Tolerance && segMin < right - Tolerance)
-                    {
-                        findings.Add(new Finding("4.9", EdgeName(edge), $"route scrapes the right border of '{box.NodeId}'"));
-                        return;
-                    }
-                }
-                else
-                {
-                    double x = (a.X + b.X) / 2;
-                    if (x < left - clearance || x > right + clearance) continue;
-                    double segMin = Math.Min(a.Y, b.Y), segMax = Math.Max(a.Y, b.Y);
-                    if (Math.Abs(x - left) <= clearance && segMax > bottom + Tolerance && segMin < top - Tolerance)
-                    {
-                        findings.Add(new Finding("4.9", EdgeName(edge), $"route scrapes the left border of '{box.NodeId}'"));
-                        return;
-                    }
-                    if (Math.Abs(x - right) <= clearance && segMax > bottom + Tolerance && segMin < top - Tolerance)
-                    {
-                        findings.Add(new Finding("4.9", EdgeName(edge), $"route scrapes the right border of '{box.NodeId}'"));
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
-    private static void CheckSubTrackJog(EdgeContract edge, FlowchartLayoutEdgeRoute route, List<Finding> findings)
-    {
-        if (route.Points.Count < 3 || edge.RoutingHint != null) return;
-        FlowchartLayoutPoint start = route.Points[0], end = route.Points[^1];
-        bool vertical = Math.Abs(start.X - end.X) <= Tolerance
-            && ((end.Y >= start.Y && route.ExitSide == "top" && route.EntrySide == "bottom")
-                || (end.Y < start.Y && route.ExitSide == "bottom" && route.EntrySide == "top"));
-        bool horizontal = Math.Abs(start.Y - end.Y) <= Tolerance
-            && ((end.X >= start.X && route.ExitSide == "right" && route.EntrySide == "left")
-                || (end.X < start.X && route.ExitSide == "left" && route.EntrySide == "right"));
-        if (!vertical && !horizontal) return;
-        double minJog = FlowchartLayoutRules.LineSpacing;
-        for (int i = 1; i + 1 < route.Points.Count; i++)
-        {
-            FlowchartLayoutPoint a = route.Points[i - 1], b = route.Points[i], c = route.Points[i + 1];
-            bool abH = Math.Abs(a.Y - b.Y) <= Tolerance, bcH = Math.Abs(b.Y - c.Y) <= Tolerance;
-            bool abV = Math.Abs(a.X - b.X) <= Tolerance, bcV = Math.Abs(b.X - c.X) <= Tolerance;
-            if ((abH && bcV) || (abV && bcH))
-            {
-                double jog = vertical ? Math.Abs(b.X - start.X) : Math.Abs(b.Y - start.Y);
-                if (jog > Tolerance && jog < minJog - Tolerance)
-                {
-                    findings.Add(new Finding("4.2", EdgeName(edge), "aligned endpoints use a jog smaller than one track"));
-                    return;
-                }
-            }
-        }
+        double dx = to.CenterX - from.CenterX, dy = to.CenterY - from.CenterY;
+        return Math.Abs(dx) >= Math.Abs(dy) ? (dx >= 0 ? "right" : "left") : (dy >= 0 ? "top" : "bottom");
     }
 
     private static void CheckFrameRun(EdgeContract edge, FlowchartLayoutEdgeRoute route, DiagramContract contract,

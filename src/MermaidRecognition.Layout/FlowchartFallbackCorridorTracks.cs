@@ -172,8 +172,7 @@ internal static class FlowchartFallbackCorridorTracks
                 double Distance = H ? Math.Abs(A.Y - C.Y) : Math.Abs(A.X - C.X);
                 double Low = H ? Math.Max(Math.Min(A.X, B.X), Math.Min(C.X, D.X)) : Math.Max(Math.Min(A.Y, B.Y), Math.Min(C.Y, D.Y));
                 double High = H ? Math.Min(Math.Max(A.X, B.X), Math.Max(C.X, D.X)) : Math.Min(Math.Max(A.Y, B.Y), Math.Max(C.Y, D.Y));
-                if (Distance < FlowchartRepairCandidateComparison.MinimumLineSeparationPx
-                    && High > Low + FlowchartRepairCandidateComparison.GeometryTolerancePx) Count++;
+                if (Distance < FlowchartLayoutRules.LineSpacing - 0.001 && High > Low + 0.001) Count++;
             }
         }
         return Count;

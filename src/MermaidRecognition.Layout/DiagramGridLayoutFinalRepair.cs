@@ -130,9 +130,11 @@ public static partial class DiagramGridLayout
                         int Changed = Original.ChangedLines();
                         if (Changed > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit:" + Changed; continue; }
                         ExtraLength = RouteLength(Layout) - BeforeLength;
-                        if (FinalRepairLengthCapForTests is double Cap && ExtraLength > Cap)
-                        { Reason = $"length:{ExtraLength:R}>{Cap:R}"; continue; }
+                        double Cap = FinalRepairLengthCapForTests ?? FlowchartLayoutRules.RepairExtraLength;
+                        if (ExtraLength > Cap) { Reason = $"length:{ExtraLength:R}>{Cap:R}"; continue; }
                         var AfterCounts = FinalCounts(State);
+                        if (AfterCounts.Bends > BeforeCounts.Bends) { Reason = "bends"; continue; }
+                        if (AfterCounts.Crossings > BeforeCounts.Crossings) { Reason = "crossings"; continue; }
                         if (AfterCounts.Shared > BeforeCounts.Shared) { Reason = "shared-tracks"; continue; }
                         if (AfterCounts.FanCrossings > BeforeCounts.FanCrossings) { Reason = "same-fan-count"; continue; }
                         if (AfterCounts.FanPairs.Except(BeforeCounts.FanPairs).Any()) { Reason = "same-fan-crossing"; continue; }
@@ -156,13 +158,8 @@ public static partial class DiagramGridLayout
                             FlowchartFinalRepairPolicy.Measure(Before, () => BeforeCounts.Crossings),
                             FlowchartFinalRepairPolicy.Measure(After, () => AfterCounts.Crossings, Cost)))
                         { Reason = "finding-or-fault"; continue; }
-                        if (After.Overlaps > Before.Overlaps || After.HintsHonoured < Before.HintsHonoured)
-                        { Reason = "hint-or-overlap"; continue; }
-                        int BeforeFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Before.Violations);
-                        int AfterFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(After.Violations);
-                        if (!FlowchartRepairCandidateComparison.CandidateBeatsBaseline(BeforeFaults, Before.HintsHonoured, Before.Cost,
-                                AfterFaults, After.HintsHonoured, Cost))
-                        { Reason = "score-or-fault"; continue; }
+                        if (After.Overlaps > Before.Overlaps || After.HintsHonoured < Before.HintsHonoured || Cost >= Before.Cost)
+                        { Reason = "score-or-hint"; continue; }
                         // Diagnostics and guides are projections only. No routing
                         // or placement is allowed after the acceptance decision.
                         PublishFinal(State);
@@ -261,8 +258,8 @@ public static partial class DiagramGridLayout
         /// <summary>Identifies exact ordered placement inputs, optionally including the incoming route assignment.</summary>
         /// <param name="State">Private candidate before reference completion.</param>
         /// <param name="IncludeRoutes">Whether route points, sides and normals belong to the signature.</param>
-        /// <returns>A deterministic digest scoped to this diagram and candidate comparison.</returns>
-        internal static string FinalReferenceIdentity(GridLayoutState State, bool IncludeRoutes)
+        /// <returns>A deterministic digest scoped to this diagram and final pass.</returns>
+        private static string FinalReferenceIdentity(GridLayoutState State, bool IncludeRoutes)
         {
             var Cells = FlowchartCellRepair.Capture(State.Placed);
             string Value = System.Text.Json.JsonSerializer.Serialize(new

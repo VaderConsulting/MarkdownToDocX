@@ -383,9 +383,9 @@ public static partial class DiagramGridLayout
     {
         if (Placed.Any(Node => Node.CellNode != null))
         {
+            // Straight inputs compete as whole-cell routed candidates, never forced centre alignment.
             return;
         }
-
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
@@ -1168,113 +1168,6 @@ public static partial class DiagramGridLayout
     }
 
     /// <summary>
-    /// Decision branch targets share one rank and one main-axis row, symmetric about the diamond unless hinted.
-    /// </summary>
-    internal static void AlignDecisionBranchTargetRow(
-        DiagramContract Contract,
-        List<GridNode> Placed,
-        bool Horizontal,
-        int CrossPitch)
-    {
-        if (Placed.Any(Node => Node.CellNode != null))
-        {
-            AlignCellDecisionBranchTargetRow(Contract, Placed, Horizontal);
-            return;
-        }
-
-        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-
-        foreach (GridNode Parent in Placed.Where(Node => Node.IsDiamond))
-        {
-            List<GridNode> Children = [];
-            foreach (EdgeContract Edge in Visible)
-            {
-                if (BackEdges.Contains(Edge)
-                    || !string.Equals(Edge.SourceId, Parent.Id, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (!ById.TryGetValue(Edge.TargetId, out GridNode? Child)
-                    || Child.Rank <= Parent.Rank
-                    || Child.PlacementHintLocked)
-                {
-                    continue;
-                }
-
-                Children.Add(Child);
-            }
-
-            if (Children.Count < 2)
-            {
-                continue;
-            }
-
-            bool AllTerminalBranches = Children.All(Child =>
-                !Visible.Any(Edge => Edge.SourceId == Child.Id)
-                && Visible.Count(Edge => Edge.TargetId == Child.Id) == 1);
-            if (!AllTerminalBranches)
-            {
-                continue;
-            }
-
-            int TargetRank = Children
-                .GroupBy(Child => Child.Rank)
-                .OrderByDescending(Group => Group.Count())
-                .ThenByDescending(Group => Group.Max(Child => Math.Abs(
-                    Main(Child, Horizontal, Old: false) - Main(Parent, Horizontal, Old: false))))
-                .First()
-                .Key;
-
-            List<GridNode> RankChildren = Children.Where(Child => Child.Rank == TargetRank).ToList();
-            double SharedMain = RankChildren.Count > 0
-                ? RankChildren.Average(Child => Main(Child, Horizontal, Old: false))
-                : Children.Average(Child => Main(Child, Horizontal, Old: false));
-
-            foreach (GridNode Child in Children)
-            {
-                Child.Rank = TargetRank;
-                SetMain(Child, (int)Math.Round(SharedMain), Horizontal);
-            }
-
-            if (Children.Count < 3)
-            {
-                continue;
-            }
-
-            double ParentCross = Cross(Parent, Horizontal, Old: false);
-            GridNode CentreChild = Children
-                .OrderBy(Child => Math.Abs(Cross(Child, Horizontal, Old: true) - ParentCross))
-                .First();
-            List<GridNode> LeftChildren = Children
-                .Where(Child => Child != CentreChild
-                    && Cross(Child, Horizontal, Old: true) < Cross(CentreChild, Horizontal, Old: true) - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-                .OrderBy(Child => Cross(Child, Horizontal, Old: true))
-                .ToList();
-            List<GridNode> RightChildren = Children
-                .Where(Child => Child != CentreChild
-                    && Cross(Child, Horizontal, Old: true) > Cross(CentreChild, Horizontal, Old: true) + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-                .OrderBy(Child => Cross(Child, Horizontal, Old: true))
-                .ToList();
-
-            SetCross(CentreChild, (int)Math.Round(ParentCross), Horizontal);
-            int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.PITCH_X_PX);
-            for (int Index = 0; Index < LeftChildren.Count; Index++)
-            {
-                SetCross(LeftChildren[Index], (int)Math.Round(ParentCross - ((Index + 1) * Pitch)), Horizontal);
-            }
-
-            for (int Index = 0; Index < RightChildren.Count; Index++)
-            {
-                SetCross(RightChildren[Index], (int)Math.Round(ParentCross + ((Index + 1) * Pitch)), Horizontal);
-            }
-        }
-    }
-
-    /// <summary>
     /// Rules A3/A5: when a parent and child sit in different columns, any same-rank node
     /// that shares the parent column blocks their vertical chord and swaps aside.
     /// </summary>
@@ -1495,9 +1388,7 @@ public static partial class DiagramGridLayout
                     .DefaultIfEmpty(0).Max();
                 return (Horizontal ? Size.Height : WordWidth) + 12;
             });
-            int Needed = DiagramGridMetrics.CeilToGrid(Math.Max(
-                DiagramGridMetrics.MinSideLengthForPorts(Group.Count()),
-                (int)Math.Ceiling(Group.Count() * Pitch + 30)));
+            int Needed = DiagramGridMetrics.CeilToGrid(Group.Count() * Pitch + 30);
             if (Cells)
             {
                 foreach (var Node in new[] { Source, Target })
@@ -1615,6 +1506,11 @@ public static partial class DiagramGridLayout
         }
         foreach (KeyValuePair<string, int> Pair in Counts)
         {
+            if (Pair.Value <= DiagramGridMetrics.TRACKS_PER_GAP)
+            {
+                continue;
+            }
+
             string[] Parts = Pair.Key.Split('|');
             if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out GridNode? Node))
             {
@@ -1622,13 +1518,8 @@ public static partial class DiagramGridLayout
             }
 
             bool AlongWidth = Parts[1] == "top" || Parts[1] == "bottom";
-            int SideLength = AlongWidth ? Math.Max(Node.Width, BoxWidth) : Math.Max(Node.Height, BoxHeight);
-            if (Pair.Value <= DiagramGridMetrics.MaxPortsOnSide(SideLength))
-            {
-                continue;
-            }
-
-            int Needed = DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.MinSideLengthForPorts(Pair.Value));
+            int MinPitch = AlongWidth ? Math.Max(1, BoxWidth / DiagramGridMetrics.TRACKS_PER_GAP) : Math.Max(1, BoxHeight / DiagramGridMetrics.TRACKS_PER_GAP);
+            int Needed = DiagramGridMetrics.CeilToGrid(Pair.Value * MinPitch);
             if (AlongWidth)
             {
                 Node.Width = Math.Max(Node.Width, Needed);

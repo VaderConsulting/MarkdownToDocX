@@ -66,7 +66,8 @@ internal static class FlowchartFinishedLayoutBendRepair
                     CandidateObserver?.Invoke(Candidate.LineId + "|" + Candidate.Detail, false);
                     continue;
                 }
-                if (Candidate.Move != null && !Candidate.Move.TryApply())
+                double Extra = Length(Candidate.Layout) - Length(Layout);
+                if (Extra > FlowchartLayoutRules.RepairExtraLength + 0.001 || Candidate.Move != null && !Candidate.Move.TryApply())
                 {
                     CandidateObserver?.Invoke(Candidate.LineId + "|" + Candidate.Detail, false);
                     continue;

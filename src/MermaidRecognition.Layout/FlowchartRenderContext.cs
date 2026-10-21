@@ -49,8 +49,6 @@ public sealed class FlowchartRenderContext
     internal int BendReassignmentRemoved { get; set; }
     /// <summary>Measurement-only control used to capture the expanded bend baseline before new repairs; production always leaves this false.</summary>
     internal bool DisableExpandedBendRepairsForTests { get; init; }
-    /// <summary>Runs every routed band trial independently for exact cache-equivalence tests; production keeps reuse enabled.</summary>
-    internal bool DisableBandTrialReuseForTests { get; init; }
     /// <summary>Finite measured wrap candidates, bounded by the existing repair-candidate count.</summary>
     internal IReadOnlyList<int> EnterpriseBandWrapWidths { get; set; } = [];
     /// <summary>Measurement-only replay of the previous extra-cell band padding; production remains at the normal rank gap.</summary>

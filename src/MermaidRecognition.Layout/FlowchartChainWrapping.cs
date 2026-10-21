@@ -78,16 +78,8 @@ internal static partial class FlowchartChainWrapping
 
             double OldWidth = Path.Max(Node => Node.X + Node.Width / 2.0) - Path.Min(Node => Node.X - Node.Width / 2.0);
             double OldHeight = Path.Max(Node => Node.Y + Node.Height / 2.0) - Path.Min(Node => Node.Y - Node.Height / 2.0);
-            double UsableSpanPx = FlowchartLayoutRules.DiagramUsableWidthPx;
-            if (Horizontal && OldWidth <= UsableSpanPx + 1e-9)
-            {
-                continue;
-            }
-
-            if (!Horizontal && OldHeight <= UsableSpanPx + 1e-9)
-            {
-                continue;
-            }
+            double OldDistance = RatioDistance(OldWidth, OldHeight);
+            if (RatioDistance(Plan.Width, Plan.Height) >= OldDistance - 1e-9) continue;
 
             Dictionary<string, (double X, double Y)> Before = Path.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y), StringComparer.Ordinal);
             double Left = Path.Min(Node => Node.X - Node.Width / 2.0);

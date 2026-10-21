@@ -746,21 +746,14 @@ public static partial class DiagramGridLayout
 
     private static string FacingSide(BoxRef From, BoxRef To)
     {
-        var fromBounds = new FlowchartLayoutNodeBounds
+        double Dx = To.CenterX - From.CenterX;
+        double Dy = To.CenterY - From.CenterY;
+        if (Math.Abs(Dx) >= Math.Abs(Dy))
         {
-            CenterX = From.CenterX,
-            CenterY = From.CenterY,
-            Width = From.Width,
-            Height = From.Height
-        };
-        var toBounds = new FlowchartLayoutNodeBounds
-        {
-            CenterX = To.CenterX,
-            CenterY = To.CenterY,
-            Width = To.Width,
-            Height = To.Height
-        };
-        return FlowchartFacingPortSelector.ResolveFacingSide(fromBounds, toBounds);
+            return Dx >= 0 ? "right" : "left";
+        }
+
+        return Dy >= 0 ? "top" : "bottom";
     }
 
     private static bool TryBox(

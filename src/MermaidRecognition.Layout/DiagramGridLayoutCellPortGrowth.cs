@@ -64,7 +64,7 @@ public static partial class DiagramGridLayout
             string[] Parts = Pair.Key.Split('|');
             if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out var Node) || Pair.Value < 2 || Node.PlacementHintLocked) continue;
             bool Width = Parts[1] is "top" or "bottom";
-            double Pitch = FlowchartLayoutRules.LineSpacing;
+            double Pitch = Math.Max(1, (Width ? BoxWidth : BoxHeight) / DiagramGridMetrics.TRACKS_PER_GAP);
             if (TryPlanCellPortCapacity(Node, Targets[Node.Id], Parts[1], Pair.Value, Pitch, out var Candidate)) Targets[Node.Id] = Candidate;
         }
         // Sharing a newly reserved cell rejects every proposed resize. Later

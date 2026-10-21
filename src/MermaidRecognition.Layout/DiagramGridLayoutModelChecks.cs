@@ -500,8 +500,11 @@ public static partial class DiagramGridLayout
         /// <param name="From">The endpoint owning the port.</param>
         /// <param name="To">Its peer endpoint.</param>
         /// <returns>The side facing the peer centre.</returns>
-        internal static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To) =>
-            FlowchartFacingPortSelector.ResolveFacingSide(From, To);
+        internal static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
+        {
+            double Dx = To.CenterX - From.CenterX, Dy = To.CenterY - From.CenterY;
+            return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
+        }
 
         /// <summary>Runs the existing settled route families only on the candidate dependency set.</summary>
         /// <param name="State">Applied cell candidate.</param>
@@ -527,9 +530,7 @@ public static partial class DiagramGridLayout
             {
                 if (FindContractEdge(State.Contract, Route)?.RoutingHint?.IsActive == true) continue;
                 var Start = Route.Points[0]; var End = Route.Points[^1];
-                bool stackedVertical = Route.ExitSide is "bottom" or "top" && Route.EntrySide is "bottom" or "top"
-                    && Math.Abs(Start.X - End.X) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
-                if (!stackedVertical && Math.Abs(Start.X - End.X) > 0.001 && Math.Abs(Start.Y - End.Y) > 0.001) continue;
+                if (Math.Abs(Start.X - End.X) > 0.001 && Math.Abs(Start.Y - End.Y) > 0.001) continue;
                 var Original = Route.Points.ToArray();
                 var OriginalPath = Original.Select(Point => (Point.X, Point.Y)).ToArray();
                 var OtherPaths = State.Copy.EdgeRoutes.Where(Other => Other != Route)

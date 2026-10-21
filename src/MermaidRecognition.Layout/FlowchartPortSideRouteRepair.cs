@@ -50,8 +50,12 @@ internal static class FlowchartPortSideRouteRepair
         Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> RoutePointCache = Layout.EdgeRoutes
             .ToDictionary(Route => Route, Route => Tuples(Route.Points).ToArray());
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        static string FacingSide(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To) =>
-            FlowchartFacingPortSelector.ResolveFacingSide(From, To);
+        static string FacingSide(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
+        {
+            double Dx = To.CenterX - From.CenterX, Dy = To.CenterY - From.CenterY;
+            return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left"
+                : Dy >= 0 ? "top" : "bottom";
+        }
         bool HasAllocatedFacingSides(FlowchartLayoutEdgeRoute Route) =>
             Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
             && Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)

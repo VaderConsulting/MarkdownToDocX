@@ -35,51 +35,15 @@ internal static class FlowchartFinalRepairPolicy
     internal static bool Allows(IReadOnlyList<FlowchartRouteRuleChecker.Finding> Before,
         IReadOnlyList<FlowchartRouteRuleChecker.Finding> After, Measurement Original, Measurement Candidate)
     {
-        int OriginalFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Original.Faults);
-        int CandidateFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Candidate.Faults);
-        if (CandidateFaults > OriginalFaults)
-        {
-            return false;
-        }
-
-        if (Candidate.Overlaps > Original.Overlaps || Candidate.HintsHonoured < Original.HintsHonoured)
-        {
-            return false;
-        }
-
-        if (CandidateFaults < OriginalFaults)
-        {
-            return true;
-        }
-
-        if (After.Count > Before.Count)
-        {
-            return false;
-        }
-
+        if (After.Count > Before.Count || Candidate.Bends > Original.Bends || Candidate.Crossings() > Original.Crossings()
+            || Candidate.Overlaps > Original.Overlaps || Candidate.HintsHonoured < Original.HintsHonoured
+            || Candidate.Cost >= Original.Cost) return false;
+        // A raw 5.9 entry is a geometric crossing report, not a proof of an
+        // avoidable fault. Its identities may change under the exact complete
+        // crossing and total-finding checks above. All other reported routing
+        // and legality categories retain their established fault counts.
         foreach (string Rule in After.Select(Finding => Finding.Rule).Where(Rule => Rule != "5.9").Distinct(StringComparer.Ordinal))
-        {
-            if (After.Count(Finding => Finding.Rule == Rule) > Before.Count(Finding => Finding.Rule == Rule))
-            {
-                return false;
-            }
-        }
-
-        if (Candidate.HintsHonoured > Original.HintsHonoured)
-        {
-            return true;
-        }
-
-        if (Candidate.Bends > Original.Bends || Candidate.Crossings() > Original.Crossings())
-        {
-            return false;
-        }
-
-        if (Candidate.Cost >= Original.Cost)
-        {
-            return false;
-        }
-
+            if (After.Count(Finding => Finding.Rule == Rule) > Before.Count(Finding => Finding.Rule == Rule)) return false;
         var FaultCounts = Original.Faults.Where(Fault => Fault.Kind != "ArrangementKept")
             .GroupBy(Fault => Fault.Kind).ToDictionary(Group => Group.Key, Group => Group.Count(), StringComparer.Ordinal);
         return !Candidate.Faults.Where(Fault => Fault.Kind != "ArrangementKept").GroupBy(Fault => Fault.Kind)

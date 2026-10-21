@@ -1698,10 +1698,10 @@ public static class FlowchartSugiyamaSvgRenderer
             Direction);
         if (RenderedSamples.Count >= 2
             && (FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints)
-                || IsAxisAlignedPolyline(LayoutPoints)
-                || FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(RenderedSamples)))
+                || IsAxisAlignedPolyline(LayoutPoints))
+            && !string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal))
         {
-            (double SegmentLabelX, double SegmentLabelY) = FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
+            return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 RenderedSamples,
                 LabelDimensions.Width,
                 LabelHeight,
@@ -1709,12 +1709,6 @@ public static class FlowchartSugiyamaSvgRenderer
                 Edge.SourceId,
                 Edge.TargetId,
                 0.0);
-            if (!string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal)
-                || FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(
-                    SegmentLabelX, SegmentLabelY, RenderedSamples) <= 6.5)
-            {
-                return (SegmentLabelX, SegmentLabelY);
-            }
         }
 
         if (RenderedSamples.Count >= 2

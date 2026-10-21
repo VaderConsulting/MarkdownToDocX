@@ -241,15 +241,10 @@ public static partial class DiagramGridLayout
                         State.WrappedChainNodes.UnionWith(Placed.Select(Node => Node.Id));
                 });
                 Step("FanPacking", () => FlowchartFanPacking.Apply(Contract, Placed));
-                Step("AlignDecisionBranchTargetRow", () => AlignDecisionBranchTargetRow(Contract, Placed, Horizontal, CrossPitch));
                 Step("ComponentWrapping", () => State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal));
                 Step("DisconnectedPacking", () => FlowchartDisconnectedPacking.Apply(Contract, Placed));
                 Step("GroupMemberPacking", () => FlowchartGroupMemberPacking.Apply(Contract, Placed));
                 Step("GroupedChannelPlacement", () => FlowchartGroupedChannelPlacement.Apply(Contract, Placed));
-                if (!Horizontal && ShouldUseSpineColumnLayout(Contract, Placed, Direction))
-                {
-                    Step("ApplySpineColumnAdjustmentsFinal", () => ApplySpineColumnAdjustments(Contract, Placed, Direction));
-                }
             }
 
             if (!Open) SnapGridNodeCentres(Placed);
@@ -381,20 +376,8 @@ public static partial class DiagramGridLayout
     private static class JointPortAllocationStage
     {
         // Rule id: 4.7 (jointly choose all endpoint ports before building routes).
-        public static void Apply(GridLayoutState State)
-        {
-            AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames,
-                State.Nodes, State.Direction, State.SharedFanSources);
-            GrowCrowdedSides(State.Contract, State.Placed, State.Copy, State.BoxWidth, State.BoxHeight);
-            if (State.Placed.Any(Node => Node.CellNode != null))
-            {
-                ReplaceCellFrames(State.Contract, State.Placed, State.Frames);
-            }
-            else
-            {
-                WriteBack(State.Copy, State.Placed, State.Frames);
-            }
-        }
+        public static void Apply(GridLayoutState State) => AssignPortSides(State.Contract, State.Copy,
+            State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
     }
 
     private static class RouteConstructionStage
@@ -644,6 +627,8 @@ public static partial class DiagramGridLayout
                         * FlowchartLayoutRules.RepairLengthWeight)
                     + (changedLines * FlowchartLayoutRules.RepairMovedLineWeight);
                 if (changedLines > FlowchartLayoutRules.RepairChainLines
+                    || RouteLength(State.Copy) - BestRouteLength > FlowchartLayoutRules.RepairExtraLength
+                    || After.Bends - Before.Bends > FlowchartLayoutRules.RepairExtraBends
                     || repairScore >= BeforeRepairScore)
                 {
                     RestoreRoutes(State.Copy, BestRoutes);
@@ -694,8 +679,6 @@ public static partial class DiagramGridLayout
                 RebuildOrdinaryFanOutRoutes(State.Contract, State.Copy, State.Placed,
                     State.Frames, State.Nodes, State.Direction,
                     ReallocatedRoutes.Select(Route => Route.SourceId).ToHashSet(StringComparer.Ordinal));
-                GrowCrowdedSides(State.Contract, State.Placed, State.Copy, State.BoxWidth, State.BoxHeight);
-                WriteBack(State.Copy, State.Placed, State.Frames);
             }
             if (State.Contract.Edges.Any(Edge => Edge.RoutingHint?.IsActive == true))
             {

@@ -180,39 +180,6 @@ public static class FlowchartRouteObstacleHelper
     }
 
     /// <summary>
-    /// Returns true when a segment enters the one-track clearance band around a node outline, including corners.
-    /// </summary>
-    public static bool SegmentViolatesNodeTrackClearance(
-        double StartX,
-        double StartY,
-        double EndX,
-        double EndY,
-        FlowchartLayoutNodeBounds NodeBounds,
-        double ClearancePx)
-    {
-        if (NodeBounds.Geometry is { } Geometry)
-        {
-            double HalfWidth = NodeBounds.Width / 2.0 + ClearancePx;
-            double HalfHeight = NodeBounds.Height / 2.0 + ClearancePx;
-            return SegmentIntersectsRectangle(
-                StartX,
-                StartY,
-                EndX,
-                EndY,
-                NodeBounds.CenterX - HalfWidth,
-                NodeBounds.CenterY + HalfHeight,
-                NodeBounds.CenterX + HalfWidth,
-                NodeBounds.CenterY - HalfHeight);
-        }
-
-        double Left = NodeBounds.CenterX - (NodeBounds.Width / 2.0) - ClearancePx;
-        double Right = NodeBounds.CenterX + (NodeBounds.Width / 2.0) + ClearancePx;
-        double Top = NodeBounds.CenterY + (NodeBounds.Height / 2.0) + ClearancePx;
-        double Bottom = NodeBounds.CenterY - (NodeBounds.Height / 2.0) - ClearancePx;
-        return SegmentIntersectsRectangle(StartX, StartY, EndX, EndY, Left, Top, Right, Bottom);
-    }
-
-    /// <summary>
     /// Returns true when a line segment intersects a node bounding box interior (excluding attach tolerance).
     /// </summary>
     public static bool SegmentIntersectsNodeInterior(
@@ -347,8 +314,7 @@ public static class FlowchartRouteObstacleHelper
                 continue;
             }
 
-            if (SegmentViolatesNodeTrackClearance(
-                    StartX, StartY, EndX, EndY, CandidateBounds, FlowchartLayoutRules.LineSpacing))
+            if (SegmentIntersectsNodeInterior(StartX, StartY, EndX, EndY, CandidateBounds))
             {
                 return true;
             }
