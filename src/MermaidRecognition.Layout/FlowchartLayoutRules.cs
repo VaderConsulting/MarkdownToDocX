@@ -32,10 +32,6 @@ internal static class FlowchartLayoutRules
     internal static double CorridorCapacityBuffer => Get("corridor_capacity_buffer");
     internal static double CrossingScore => Get("score_crossing");
     internal static double DisconnectedEndScore => Get("score_disconnected_end");
-    internal static double TargetAspectWidth => Get("target_aspect_width");
-    internal static double TargetAspectHeight => Get("target_aspect_height");
-    internal static double ShapePoints => Get("score_shape_points");
-    internal static double ShapeStep => Get("score_shape_step");
     internal static double EmptyPointsLow => Get("score_empty_points_low");
     internal static double EmptyThreshold => Get("score_empty_threshold");
     internal static double EmptyPointsHigh => Get("score_empty_points_high");

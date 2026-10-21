@@ -394,7 +394,7 @@ parameters:
     value: 548
     unit: "px"
     source: "Word page usable width at 96 dpi (~14.5 cm content)"
-    used_by: ["2.12"]
+    used_by: ["2.12","2.15","2.16"]
   - id: "legend_clearance"
     value: 1
     unit: "grid steps"
@@ -410,26 +410,6 @@ parameters:
     unit: "corners"
     source: "rule 4.3"
     used_by: ["4.3"]
-  - id: "target_aspect_width"
-    value: 4
-    unit: "parts"
-    source: "rules 2.12, 2.13"
-    used_by: ["2.12","2.13"]
-  - id: "target_aspect_height"
-    value: 3
-    unit: "parts"
-    source: "rules 2.12, 2.13"
-    used_by: ["2.12","2.13"]
-  - id: "score_shape_points"
-    value: 2
-    unit: "points per 5 percent"
-    source: "rule 2.13"
-    used_by: ["2.13"]
-  - id: "score_shape_step"
-    value: 5
-    unit: "percent"
-    source: "rule 2.13"
-    used_by: ["2.13"]
   - id: "score_empty_points_low"
     value: 10
     unit: "points per 5 percent"
@@ -937,7 +917,7 @@ rules:
     stage: "P7"
     status: "active"
     pointer: ""
-    params: ["target_aspect_width","target_aspect_height","base_cell_width","base_cell_height"]
+    params: ["diagram_usable_width_px","base_cell_width","base_cell_height"]
     refs: ["1.3","2.11","2.13","2.14","2.21"]
     outranks: []
     yields: []
@@ -946,9 +926,9 @@ rules:
     order: 56
     blank_before: 1
     text: |-
-      Wrapping (`grid` only). After compaction, wrap overlong rows or columns into successive rows/columns to approach 4:3 without worsening the complete legal-layout score. There is no fixed diagram-size or node-count limit. Preserve source order and honoured hints. A long main path **may fold only at an explicit wrap boundary**: each uninterrupted section remains aligned, and the connecting edge is routed under sections 3–5. The fold is not an ordinary sideways compaction move. Aspect ratio is a small score cost, never a hard admission limit for a legal candidate. Run compaction after wrapping and keep only strictly improving candidates (2.14). Tests compute expected dimensions from measured node sizes and gaps and never hard-code pixel dimensions. Hard: wrapping never splits a node across rows or columns, and never splits a group frame unless the group itself exceeds the wrap length. Preference: the 4:3 shape remains a quality objective only.
+      Wrapping (`grid` only). After compaction, wrap rows or columns only when the measured span along the flow axis would exceed `diagram_usable_width_px` (548 px at default embed). There is no fixed diagram-size or node-count limit beyond that page width. Preserve source order and honoured hints. A long main path **may fold only at an explicit wrap boundary**: each uninterrupted section remains aligned, and the connecting edge is routed under sections 3–5. The fold is not an ordinary sideways compaction move. Layout must never stretch or add space to chase a target shape. Run compaction after wrapping and keep only strictly improving candidates (2.14). Tests compute expected dimensions from measured node sizes and gaps and never hard-code pixel dimensions. Hard: wrapping never splits a node across rows or columns, and never splits a group frame unless the group itself exceeds the wrap length.
 
-      - The wrap length is the number of cells across, or down, that brings the whole diagram closest to 4:3 (width 4 parts to height 3 parts), without raising the rule 2.13 score. Never wrap a row or column that already fits within the wrap length. The shape is a ratio of the diagram's own computed size, with no fixed pixel size or node limit.
+      - The wrap length is the maximum number of cells across, or down, that keeps the wrapped segment within `diagram_usable_width_px`. Never wrap a row or column that already fits within that span.
 
       - Wide: cut a row longer than the wrap length into rows of at most that length. Draw the first nodes across, then start the next row directly under the previous row, in the same columns, one rank gap below.
 
@@ -969,7 +949,7 @@ rules:
     stage: "P8"
     status: "active"
     pointer: ""
-    params: ["target_aspect_width","target_aspect_height","score_shape_points","score_shape_step","score_empty_points_low","score_empty_threshold","score_empty_points_high","score_crossing","score_bend","score_disconnected_end","score_hint_node_group","score_hint_line","score_route_length_per_grid_step","grid_step"]
+    params: ["score_empty_points_low","score_empty_threshold","score_empty_points_high","score_crossing","score_bend","score_disconnected_end","score_hint_node_group","score_hint_line","score_route_length_per_grid_step","grid_step"]
     refs: ["2.21","5.10","9.1"]
     outranks: []
     yields: []
@@ -978,7 +958,7 @@ rules:
     order: 57
     blank_before: 1
     text: |-
-      Layout score. Score every complete candidate of the same diagram; the score decides only between candidates with equal legality, honoured-hint and routing-fault counts (9.1): shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings, computed by the engine and reported with the method used; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per independently honoured placement-axis hint of an element, note or group, and -15 per fully honoured connection-level line hint, including plain note connections (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node's region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length in px divided by grid_step (30 px), w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Legality faults, honoured hints and routing faults remain higher priority: the score compares only candidates with equal counts of each, in the fault-first order of 9.1. The repair length and moved-line weights under 5.10 are separate from this term.
+      Layout score. Score every complete candidate of the same diagram; the score decides only between candidates with equal legality, honoured-hint and routing-fault counts (9.1): empty + crossings + bends + disconnected ends + hints; lower is better. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings, computed by the engine and reported with the method used; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per independently honoured placement-axis hint of an element, note or group, and -15 per fully honoured connection-level line hint, including plain note connections (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node's region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length in px divided by grid_step (30 px), w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Legality faults, honoured hints and routing faults remain higher priority: the score compares only candidates with equal counts of each, in the fault-first order of 9.1. The repair length and moved-line weights under 5.10 are separate from this term.
   - id: "2.14"
     title: "Keep the best"
     title_in_text: true
@@ -1014,7 +994,7 @@ rules:
     order: 59
     blank_before: 1
     text: |-
-      Unconnected pieces. Arrange disconnected nodes or connected pieces in declared order, left-to-right then top-to-bottom. Compute the block’s own wrap length from its measured member dimensions and spacing by selecting the legal arrangement nearest 4:3; do not depend on the whole-diagram wrap length (2.12). A cluster is initially one piece. Hard: every member stays within its owning group (7.8), whose frame grows to fit.
+      Unconnected pieces. Arrange disconnected nodes or connected pieces in declared order, left-to-right then top-to-bottom. Compute the block’s own wrap length from its measured member dimensions and spacing so each row or column fits within `diagram_usable_width_px`; do not depend on the whole-diagram wrap length (2.12). A cluster is initially one piece. Hard: every member stays within its owning group (7.8), whose frame grows to fit.
   - id: "2.16"
     title: "Fans"
     title_in_text: true
@@ -1032,7 +1012,7 @@ rules:
     order: 60
     blank_before: 1
     text: |-
-      Fans. Arrange fan members into a local block whose wrap length is chosen from the fan block’s own measured dimensions and gaps to approach 4:3; do not depend on the overall diagram wrap length. Where permitted, place the source or target beside the block, in the rows (or columns) the block occupies, balanced so that the number of block cells on either side of it differs by at most one (a quality preference); when that is not legal, use the most balanced legal position. This specific rule overrides generic 2.17 placement, subject to hints and legality. Route fan lines by 5.2 and 5.8, including nested tracks. Crossings follow 5.9; hops are forbidden (section 10). Fan members may have different spans; never require equal sizes.
+      Fans. Arrange fan members into a local block whose wrap length is chosen from the fan block’s own measured dimensions and gaps so the block fits within `diagram_usable_width_px`; do not depend on the overall diagram wrap length. Where permitted, place the source or target beside the block, in the rows (or columns) the block occupies, balanced so that the number of block cells on either side of it differs by at most one (a quality preference); when that is not legal, use the most balanced legal position. This specific rule overrides generic 2.17 placement, subject to hints and legality. Route fan lines by 5.2 and 5.8, including nested tracks. Crossings follow 5.9; hops are forbidden (section 10). Fan members may have different spans; never require equal sizes.
   - id: "2.17"
     title: "Under the parent"
     title_in_text: true

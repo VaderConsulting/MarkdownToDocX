@@ -57,7 +57,7 @@ internal static partial class EnterpriseBandPlacement
             // terminal clearance remains owned by ordinary route construction.
             if (Count == 0) continue;
             int Reserved = InitialReservedTrackCount(Count);
-            double Required = Reserved * FlowchartLayoutRules.TrackSpacing;
+            double Required = DiagramGridMetrics.GapWidthForTracks(Reserved);
             double Available = Strip.Key.Columns ? Before.ColumnGaps.GetValueOrDefault(Strip.Key.After, Grid.Configuration.ColumnGap)
                 : Before.RowGaps.GetValueOrDefault(Strip.Key.After, Grid.Configuration.RowGap);
             ReportCapacity(Context, $"INITIAL_CORRIDOR_DEMAND|columns={Strip.Key.Columns}|after={Strip.Key.After}|lines={Count}|reserved={Reserved}|available={Available:R}");
@@ -75,7 +75,17 @@ internal static partial class EnterpriseBandPlacement
     internal static int InitialReservedTrackCount(int Forecast)
     {
         if (Forecast < 0) throw new ArgumentOutOfRangeException(nameof(Forecast));
-        return Forecast == 0 ? 0 : checked(Math.Max(Forecast + 1,
+        if (Forecast == 0)
+        {
+            return 0;
+        }
+
+        if (Forecast == 1)
+        {
+            return 1;
+        }
+
+        return checked(Math.Max(Forecast + 1,
             (int)Math.Ceiling(Forecast * (1 + FlowchartLayoutRules.CorridorCapacityBuffer))));
     }
 

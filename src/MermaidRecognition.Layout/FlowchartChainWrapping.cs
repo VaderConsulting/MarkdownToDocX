@@ -78,8 +78,7 @@ internal static partial class FlowchartChainWrapping
 
             double OldWidth = Path.Max(Node => Node.X + Node.Width / 2.0) - Path.Min(Node => Node.X - Node.Width / 2.0);
             double OldHeight = Path.Max(Node => Node.Y + Node.Height / 2.0) - Path.Min(Node => Node.Y - Node.Height / 2.0);
-            double OldDistance = RatioDistance(OldWidth, OldHeight);
-            if (RatioDistance(Plan.Width, Plan.Height) >= OldDistance - 1e-9) continue;
+            if (!ShouldAcceptWrap(Horizontal, OldWidth, OldHeight, Plan)) continue;
 
             Dictionary<string, (double X, double Y)> Before = Path.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y), StringComparer.Ordinal);
             double Left = Path.Min(Node => Node.X - Node.Width / 2.0);
@@ -169,8 +168,18 @@ internal static partial class FlowchartChainWrapping
         return false;
     }
 
-    private static double RatioDistance(double Width, double Height) =>
-        Math.Abs(Math.Log((Width / Height) / (4.0 / 3.0)));
+    private static bool ShouldAcceptWrap(bool Horizontal, double OldWidth, double OldHeight, FlowchartWrapPlan.Plan Plan)
+    {
+        double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
+        if (Horizontal)
+        {
+            if (OldWidth <= Usable + 1e-9) return false;
+            return Plan.Width <= Usable + 1e-9 && Plan.Width < OldWidth - 1e-9;
+        }
+
+        if (OldHeight <= Usable + 1e-9) return false;
+        return Plan.Height <= Usable + 1e-9 && Plan.Height < OldHeight - 1e-9;
+    }
 
     private static int RoundGap(double Value) => (int)(Math.Ceiling(Value / DiagramGridMetrics.GRID_UNIT_PX)
         * DiagramGridMetrics.GRID_UNIT_PX);

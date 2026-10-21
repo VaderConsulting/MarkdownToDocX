@@ -155,6 +155,7 @@ public static partial class DiagramGridLayout
                 foreach (int Index in Runs(Route, Route == First ? Second : First))
                 {
                     int Run = Index;
+                    if (Run < 0 || Run + 1 >= Route.Points.Count) continue;
                     var Other = Route == First ? Second : First;
                     bool Vertical = Math.Abs(Route.Points[Run].X - Route.Points[Run + 1].X) < 0.001;
                     double Current = Vertical ? Route.Points[Run].X : Route.Points[Run].Y;
