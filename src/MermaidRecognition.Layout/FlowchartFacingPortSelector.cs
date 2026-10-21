@@ -128,13 +128,6 @@ internal static class FlowchartFacingPortSelector
         if (sourceExitSide is "bottom" or "top")
         {
             double dx = source.CenterX - target.CenterX;
-            double dy = source.CenterY - target.CenterY;
-            if (Math.Abs(dx) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX
-                && Math.Abs(dy) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-            {
-                return ResolveFacingSide(target, source);
-            }
-
             if (Math.Abs(dx) > DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
             {
                 return dx > 0 ? "right" : "left";
