@@ -43,6 +43,8 @@ public sealed class FlowchartRenderContext
     internal bool HasInitialCorridorCapacity { get; set; }
     /// <summary>Private complete-assignment reference retains ordinary routing while keeping exactly the same reserved gaps and cells.</summary>
     internal bool SuppressReservedCorridorAssignment { get; set; }
+    /// <summary>Marks the existing final route pass as complete for this private candidate, preventing publication from changing an already scored winner.</summary>
+    internal bool FinishedRoutePassApplied { get; set; }
     /// <summary>Bends removed by rule 4.12 on the final published candidate, excluding discarded wrap trials.</summary>
     internal int BendReassignmentRemoved { get; set; }
     /// <summary>Measurement-only control used to capture the expanded bend baseline before new repairs; production always leaves this false.</summary>

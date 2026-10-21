@@ -214,7 +214,7 @@ internal static class FlowchartBendRemovingPortRepair
     /// <param name="Ends">Current node's complete ports.</param>
     /// <returns>Whether distinct side ports have the configured minimum clearance.</returns>
     private static bool Separated(End[] Ends) => Ends.GroupBy(End => End.Side).All(Group => Group.All(A => Group.All(B => A == B
-        || Math.Sqrt(Math.Pow(A.Point.X - B.Point.X, 2) + Math.Pow(A.Point.Y - B.Point.Y, 2)) >= FlowchartLayoutRules.TrackSpacing - 0.001)));
+        || Math.Sqrt(Math.Pow(A.Point.X - B.Point.X, 2) + Math.Pow(A.Point.Y - B.Point.Y, 2)) >= FlowchartLayoutRules.LineSpacing - 0.001)));
 
     /// <summary>Checks every affected/unaffected pair, so a local improvement cannot add a remote crossing or shared track.</summary>
     /// <param name="Layout">Complete candidate.</param>

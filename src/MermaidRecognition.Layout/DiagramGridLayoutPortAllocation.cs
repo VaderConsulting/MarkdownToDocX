@@ -349,17 +349,19 @@ public static partial class DiagramGridLayout
     private static string EligibleGeometrySide(BoxRef Box, BoxRef Other, string Preferred,
         List<PortEnd> Ends, Dictionary<string, NodeContract> Nodes)
     {
-        if (!Nodes.TryGetValue(Box.Id, out var Node) || Node.GeometryProvider == null) return Preferred;
+        Nodes.TryGetValue(Box.Id, out var Node);
         int Count(string Side) => Ends.Count(End => End.Box.Id == Box.Id && End.Side == Side) + 1;
         if (SupportsGeometrySide(Box, Preferred, Count(Preferred), Nodes)) return Preferred;
-        var Geometry = Node.GeometryProvider.Create(Box.Width, Box.Height);
+        var Geometry = Node?.GeometryProvider?.Create(Box.Width, Box.Height);
         return new[] { "top", "bottom", "left", "right" }
             .Where(Side => SupportsGeometrySide(Box, Side, Count(Side), Nodes))
             .OrderBy(Side =>
             {
-                Geometry.ConnectionBoundary.TryPort(Side, 0.5, out var Port);
-                return Math.Abs(Box.CenterX + Port.X - Other.CenterX)
-                    + Math.Abs(Box.CenterY - Port.Y - Other.CenterY);
+                double X = Side == "left" ? Box.Left : Side == "right" ? Box.Right : Box.CenterX;
+                double Y = Side == "top" ? Box.Top : Side == "bottom" ? Box.Bottom : Box.CenterY;
+                if (Geometry != null && Geometry.ConnectionBoundary.TryPort(Side, 0.5, out var Port))
+                { X = Box.CenterX + Port.X; Y = Box.CenterY - Port.Y; }
+                return Math.Abs(X - Other.CenterX) + Math.Abs(Y - Other.CenterY);
             }).FirstOrDefault() ?? Preferred;
     }
 
@@ -370,8 +372,7 @@ public static partial class DiagramGridLayout
     /// <param name="Nodes">Renderer-owned geometry definitions.</param>
     /// <returns>Whether this side can accept the next allocated connection end.</returns>
     private static bool SupportsNextGeometrySide(BoxRef Box, string Side, List<PortEnd> Ends, Dictionary<string, NodeContract> Nodes) =>
-        !Nodes.TryGetValue(Box.Id, out var Node) || Node.GeometryProvider == null
-        || SupportsGeometrySide(Box, Side, Ends.Count(End => End.Box.Id == Box.Id && End.Side == Side) + 1, Nodes);
+        SupportsGeometrySide(Box, Side, Ends.Count(End => End.Box.Id == Box.Id && End.Side == Side) + 1, Nodes);
 
     /// <summary>Checks the actual connection boundary rather than assuming every visual rectangle edge receives ports.</summary>
     /// <param name="Box">Measured endpoint bounds.</param>
@@ -381,8 +382,25 @@ public static partial class DiagramGridLayout
     /// <returns>Whether every allocated position belongs to an eligible connection segment.</returns>
     private static bool SupportsGeometrySide(BoxRef Box, string Side, int Count, Dictionary<string, NodeContract> Nodes)
     {
-        if (!Nodes.TryGetValue(Box.Id, out var Node) || Node.GeometryProvider == null) return true;
-        var Boundary = Node.GeometryProvider.Create(Box.Width, Box.Height).ConnectionBoundary;
+        bool HasGeometry = Nodes.TryGetValue(Box.Id, out var Node) && Node.GeometryProvider != null;
+        if (FlowchartFallbackCorridorTracks.IsConstructionStage(FlowchartRenderContext.Current) && Count > 1)
+        {
+            double Length = Side is "left" or "right" ? Box.Height : Box.Width;
+            if (!HasGeometry && Length / (Count + 1) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
+            if (HasGeometry)
+            {
+                var BoundaryForSpacing = Node!.GeometryProvider!.Create(Box.Width, Box.Height).ConnectionBoundary;
+                for (int I = 1; I < Count; I++)
+                {
+                    if (!BoundaryForSpacing.TryPort(Side, I / (Count + 1.0), out var A)
+                        || !BoundaryForSpacing.TryPort(Side, (I + 1) / (Count + 1.0), out var B)) return false;
+                    if (Math.Abs(A.NormalX - B.NormalX) < 0.001 && Math.Abs(A.NormalY - B.NormalY) < 0.001
+                        && Math.Sqrt(Math.Pow(A.X - B.X, 2) + Math.Pow(A.Y - B.Y, 2)) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
+                }
+            }
+        }
+        if (!HasGeometry) return true;
+        var Boundary = Node!.GeometryProvider!.Create(Box.Width, Box.Height).ConnectionBoundary;
         for (int Index = 1; Index <= Count; Index++)
             if (!Boundary.TryPort(Side, Index / (Count + 1.0), out _)) return false;
         return true;

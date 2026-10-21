@@ -80,6 +80,17 @@ public static partial class DiagramGridLayout
         (RenderContext ?? LaidOut.RenderContext).HasInitialCorridorCapacity = false;
         (RenderContext ?? LaidOut.RenderContext).SuppressReservedCorridorAssignment = false;
         var Result = ApplyWithRoutedBands(Contract, LaidOut, RenderContext);
+        CompletePublishedRoutes(Contract, Result);
+        PublishedLayoutObserver?.Invoke(Contract, Result);
+        return Result;
+    }
+
+    /// <summary>Completes the existing final route pass once, before candidate scoring or final publication.</summary>
+    /// <param name="Contract">Original declarations and honoured hints.</param>
+    /// <param name="Result">Fully placed layout owning its independent render context.</param>
+    private static void CompletePublishedRoutes(DiagramContract Contract, FlowchartLayoutResult Result)
+    {
+        if (Result.RenderContext.FinishedRoutePassApplied) return;
         var Context = Result.RenderContext;
         if (Context.UseCellRegions && !Context.DisableExpandedBendRepairsForTests && !Context.DisableFinishedBendRepairsForTests)
         {
@@ -100,8 +111,7 @@ public static partial class DiagramGridLayout
             }
             finally { Context.ActiveLayoutStage = Previous; }
         }
-        PublishedLayoutObserver?.Invoke(Contract, Result);
-        return Result;
+        Result.RenderContext.FinishedRoutePassApplied = true;
     }
 
     internal static FlowchartLayoutResult ApplyForGroupReflow(DiagramContract Contract,
@@ -118,6 +128,7 @@ public static partial class DiagramGridLayout
         using IDisposable CoverageScope = FlowchartCellPixelWriteGuard.ActivateCoverage(State.CellWriteCoverage);
         if (!State.IsReady) return State.Copy;
         FlowchartRenderContext Context = State.Copy.RenderContext;
+        Context.FinishedRoutePassApplied = false;
         Context.LayoutStageTrace.Clear();
         Context.LayoutStageViolations.Clear();
         Run("grid-and-measured-geometry", GridPreparationStage.Apply);

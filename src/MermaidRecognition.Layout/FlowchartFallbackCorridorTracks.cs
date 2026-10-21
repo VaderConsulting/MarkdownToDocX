@@ -52,7 +52,7 @@ internal static class FlowchartFallbackCorridorTracks
                 Path = Previous; Before = Prior;
             }
         }
-        if (Before.Shared == 0 && Before.Crossings == 0) return Path;
+        if (Before.Shared == 0 && Before.Crossings == 0 && Before.Close == 0) return Path;
         var Groups = Contract.Groups.Select(Group => Group.Id).ToHashSet(StringComparer.Ordinal);
         var Bodies = Bounds.Values.Where(Box => !Groups.Contains(Box.NodeId)).ToArray();
         int Budget = FlowchartLayoutRules.RepairCandidateMoves;
@@ -74,7 +74,7 @@ internal static class FlowchartFallbackCorridorTracks
                 double Low = Intervals.Where(Interval => Interval.High <= Coordinate + 0.001).Select(Interval => Interval.High).DefaultIfEmpty(double.NaN).Max();
                 double High = Intervals.Where(Interval => Interval.Low >= Coordinate - 0.001).Select(Interval => Interval.Low).DefaultIfEmpty(double.NaN).Min();
                 if (!double.IsFinite(Low) || !double.IsFinite(High) || High <= Low) continue;
-                double Step = FlowchartLayoutRules.TrackSpacing;
+                double Step = FlowchartLayoutRules.LineSpacing;
                 double First = Math.Ceiling((Low + DiagramGridRouteBuilder.CORNER_RADIUS_PX) / Step) * Step;
                 double Last = Math.Floor((High - DiagramGridRouteBuilder.CORNER_RADIUS_PX) / Step) * Step;
                 int Count = (int)Math.Floor((Last - First) / Step) + 1;
@@ -88,15 +88,16 @@ internal static class FlowchartFallbackCorridorTracks
                         return (Track, Candidate, Measure: Measure(Candidate, Others));
                     }).Where(Option => RunHasClearance(Option.Candidate[Index], Option.Candidate[Index + 1], Others, Step)
                         && Option.Measure.Shared <= Before.Shared && Option.Measure.Crossings <= Before.Crossings
-                        && (Option.Measure.Shared < Before.Shared || Option.Measure.Crossings < Before.Crossings))
-                    .OrderBy(Option => Option.Measure.Shared).ThenBy(Option => Option.Measure.Crossings)
+                        && (Option.Measure.Shared < Before.Shared || Option.Measure.Crossings < Before.Crossings || Option.Measure.Close < Before.Close))
+                    .Where(Option => Option.Measure.Close <= Before.Close)
+                    .OrderBy(Option => Option.Measure.Close).ThenBy(Option => Option.Measure.Shared).ThenBy(Option => Option.Measure.Crossings)
                     .ThenBy(Option => Math.Abs(Option.Track - Coordinate));
                 foreach (var Option in Options)
                 {
                     if (Budget-- <= 0) break;
                     if (!FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route, Option.Candidate, Prepared)
                         || FlowchartLayoutScore.CountCorners(Option.Candidate.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToArray()) > Bends) continue;
-                    if (Option.Measure.Shared > BestMeasure.Shared || Option.Measure.Crossings > BestMeasure.Crossings) continue;
+                    if (Option.Measure.Shared > BestMeasure.Shared || Option.Measure.Crossings > BestMeasure.Crossings || Option.Measure.Close > BestMeasure.Close) continue;
                     Best = Option.Candidate; BestMeasure = Option.Measure;
                     break;
                 }
@@ -135,17 +136,45 @@ internal static class FlowchartFallbackCorridorTracks
     /// <summary>Measures interactions with the other complete paths without changing routes, ports or diagnostics.</summary>
     /// <param name="Path">Unpublished path.</param>
     /// <param name="Others">Other exact drawn polylines.</param>
-    /// <returns>Number of overlapping line pairs and physical crossings.</returns>
-    private static (int Shared, int Crossings) Measure(IReadOnlyList<(double X, double Y)> Path,
+    /// <returns>Number of overlapping line pairs, physical crossings and under-spaced parallel segment pairs.</returns>
+    private static (int Shared, int Crossings, int Close) Measure(IReadOnlyList<(double X, double Y)> Path,
         IReadOnlyList<(double X, double Y)[]> Others)
     {
-        int Shared = 0, Crossings = 0;
+        int Shared = 0, Crossings = 0, Close = 0;
         foreach (var Other in Others)
         {
             var Intersection = FlowchartBranchRouteOrder.Intersections(Path, Other);
             if (Intersection.Overlap > 0.001) Shared++;
             Crossings += Intersection.Crossings;
+            Close += CloseParallelSegments(Path, Other);
         }
-        return (Shared, Crossings);
+        return (Shared, Crossings, Close);
+    }
+
+    /// <summary>Measures every parallel overlapping run using exact drawn coordinates, including fractional terminal tracks.</summary>
+    /// <param name="Path">Candidate polyline.</param>
+    /// <param name="Other">Unchanged neighbouring polyline.</param>
+    /// <returns>The number of segment pairs closer than the configured track spacing.</returns>
+    internal static int CloseParallelSegments(IReadOnlyList<(double X, double Y)> Path,
+        IReadOnlyList<(double X, double Y)> Other)
+    {
+        int Count = 0;
+        for (int I = 1; I < Path.Count; I++)
+        {
+            var A = Path[I - 1]; var B = Path[I];
+            bool H = Math.Abs(A.Y - B.Y) < 0.001;
+            if (H ? Math.Abs(A.X - B.X) < 0.001 : Math.Abs(A.X - B.X) >= 0.001) continue;
+            for (int J = 1; J < Other.Count; J++)
+            {
+                var C = Other[J - 1]; var D = Other[J];
+                if (H ? Math.Abs(C.Y - D.Y) >= 0.001 || Math.Abs(C.X - D.X) < 0.001
+                    : Math.Abs(C.X - D.X) >= 0.001 || Math.Abs(C.Y - D.Y) < 0.001) continue;
+                double Distance = H ? Math.Abs(A.Y - C.Y) : Math.Abs(A.X - C.X);
+                double Low = H ? Math.Max(Math.Min(A.X, B.X), Math.Min(C.X, D.X)) : Math.Max(Math.Min(A.Y, B.Y), Math.Min(C.Y, D.Y));
+                double High = H ? Math.Min(Math.Max(A.X, B.X), Math.Max(C.X, D.X)) : Math.Min(Math.Max(A.Y, B.Y), Math.Max(C.Y, D.Y));
+                if (Distance < FlowchartLayoutRules.LineSpacing - 0.001 && High > Low + 0.001) Count++;
+            }
+        }
+        return Count;
     }
 }

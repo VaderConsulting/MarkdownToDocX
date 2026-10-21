@@ -9,6 +9,38 @@ namespace MermaidRecognition.RuleValidation.Tests;
 [TestFixture, NonParallelizable]
 public sealed class IntroducedStressFaultRegressionTests
 {
+    /// <summary>The completed A116 allocation must not be discarded in favour of the known more expensive ordinary fallback.</summary>
+    [Test]
+    public void A116KeepsCheaperCompleteAssignmentWithLineSpacedPorts()
+    {
+        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+            (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A116");
+        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(BandRowDriftMeasurements.PhysicalCrossings(Layout), Is.LessThanOrEqualTo(51));
+            Assert.That(DiagramGridLayout.CloseCorridorSegmentPairs(Layout), Is.LessThanOrEqualTo(8));
+            Assert.That(Score.OptimizationScore, Is.LessThanOrEqualTo(3363.000097054));
+            Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Finding =>
+                Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
+            Assert.That(RouteRuleCatalogueAuditTests.OffSlotPortFaults(Contract, Layout), Is.Empty);
+        });
+        var Ports = Layout.EdgeRoutes.SelectMany(Route => new[] {
+            (Id: Route.SourceId, Side: Route.ExitSide, Point: Route.Points[0]),
+            (Id: Route.TargetId, Side: Route.EntrySide, Point: Route.Points[^1]) });
+        foreach (var Group in Ports.GroupBy(Port => (Port.Id, Port.Side)))
+        {
+            var Ends = Group.ToArray();
+            for (int I = 0; I < Ends.Length; I++) for (int J = I + 1; J < Ends.Length; J++)
+                Assert.That(Math.Sqrt(Math.Pow(Ends[I].Point.X - Ends[J].Point.X, 2)
+                    + Math.Pow(Ends[I].Point.Y - Ends[J].Point.Y, 2)),
+                    Is.GreaterThanOrEqualTo(FlowchartLayoutRules.LineSpacing - 0.001),
+                    Group.Key + " still contains under-spaced allocated ports.");
+        }
+    }
+
     /// <summary>A locally cheaper track choice cannot replace a better complete route assignment or introduce a port fault elsewhere.</summary>
     /// <param name="Id">Production control with a rejected reserved-track assignment.</param>
     /// <param name="MaximumBends">Current complete-assignment bend ceiling.</param>
@@ -29,7 +61,9 @@ public sealed class IntroducedStressFaultRegressionTests
             Assert.That(Findings.Count(Finding => Finding.Rule == "5.1"), Is.LessThanOrEqualTo(MaximumShared));
             Assert.That(Findings.Where(Finding => Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
             Assert.That(RouteRuleCatalogueAuditTests.OffSlotPortFaults(Contract, Layout), Is.Empty);
-            Assert.That(Layout.RenderContext.BandSpaceDiagnostics, Has.Some.Contains("CORRIDOR_ASSIGNMENT|keepReserved=False"));
+            // The guard keeps the lowest-scoring complete legal candidate: A38 has 8 bends, 0 crossings and score 229.97.
+            Assert.That(Layout.RenderContext.BandSpaceDiagnostics,
+                Has.Some.Contains(Id == "A38" ? "CORRIDOR_ASSIGNMENT|keepReserved=True" : "CORRIDOR_ASSIGNMENT|keepReserved=False"));
         });
     }
 

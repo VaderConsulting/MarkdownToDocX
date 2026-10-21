@@ -161,7 +161,7 @@
                       "order":  14,
                       "blank_before":  1,
                       "text":  [
-                                   "a line inside a gap, parallel to the gap, on which a straight run travels. Tracks are 1 grid step apart; the first track is the gap\u0027s centre line. Each track carries one line where runs overlap (rule 5.1)."
+                                   "a line inside a gap, parallel to the gap, on which a straight run travels. Adjacent parallel tracks are at least line_spacing (15 px) apart, so a 30 px gap holds two tracks; the first track is the gap\u0027s centre line. Each track carries one line where runs overlap (rule 5.1)."
                                ]
                   },
                   {
@@ -457,10 +457,21 @@
                            "id":  "track_spacing",
                            "value":  1,
                            "unit":  "grid steps",
-                           "source":  "Terms: Track",
+                           "source":  "Terms: Track; line separation is now set by line_spacing",
                            "used_by":  [
                                            "1.5",
                                            "1.7",
+                                           "5.1"
+                                       ]
+                       },
+                       {
+                           "id":  "line_spacing",
+                           "value":  15,
+                           "unit":  "px",
+                           "source":  "Minimum separation between adjacent parallel line segments and between adjacent ports on one edge; approved 20 Oct 2026",
+                           "used_by":  [
+                                           "1.7",
+                                           "3.2",
                                            "5.1"
                                        ]
                        },
@@ -1241,6 +1252,7 @@
                                      "grid_step",
                                      "track_shortage_growth",
                                      "track_spacing",
+                                     "line_spacing",
                                      "frame_gap_growth",
                                      "initial_gap_track_headroom_percent"
                                  ],
@@ -1264,7 +1276,7 @@
                       "order":  43,
                       "blank_before":  1,
                       "text":  [
-                                   "During initial band placement, size each routing gap from the forecast lines passing through it plus initial_gap_track_headroom_percent percent. Round the reserved track count up and reserve at least one extra track for a gap with forecast traffic. Use the existing track spacing, keeping band membership, band order and column order fixed; this initial sizing does not change any repair limit. Repair geometric shortfalls monotonically. First measure the actual shortfall: missing label room calls for wrapping or a larger span (1.3); missing port capacity for a larger span or legal port reassignment; missing track capacity for routing space in a gap; an occupancy conflict for moving nodes by whole cells; missing group room for a larger frame. There is no fixed order among these repairs. Build the complete legal candidates that address the shortfall, and keep the one with the lowest score (2.13), using the existing tie-breaks (9.5) and then a deterministic final choice. When growing an external gap and growing an internal gap would both meet the need legally, grow the external gap; a grown internal gap enlarges every node that spans it and adds no routing corridor there. Every repair keeps whole-cell occupancy, non-overlap, external clearance, honoured hints, group membership, mandatory routing geometry and the main-path movement limits. Accept a repair only when it strictly reduces the measured shortfall or meets the strictly improving candidate rule (2.14); never retry an unchanged state or grow without limit. After a gap changes, update cell positions, sizes of nodes spanning it, visual and obstacle geometry, frames, ports, routes, legality and score. A shortfall caused by a port away from the middle of its edge and insufficient corner clearance is repaired by moving the unhinted child to a different column, not by growing the rank gap. Clearances, spacing and inserted space are measured on visual bounds (term Node geometry). If no legal repair exists, draw the visibly marked fallback of rule 5.7 and issue a diagnostic; never omit the diagram."
+                                   "During initial band placement, size each routing gap from the forecast lines passing through it plus initial_gap_track_headroom_percent percent. Round the reserved track count up and reserve at least one extra track for a gap with forecast traffic. Space tracks line_spacing (15 px) apart, keeping band membership, band order and column order fixed; this initial sizing does not change any repair limit. Repair geometric shortfalls monotonically. First measure the actual shortfall: missing label room calls for wrapping or a larger span (1.3); missing port capacity for a larger span or legal port reassignment; missing track capacity for routing space in a gap; an occupancy conflict for moving nodes by whole cells; missing group room for a larger frame. There is no fixed order among these repairs. Build the complete legal candidates that address the shortfall, and keep the one with the lowest score (2.13), using the existing tie-breaks (9.5) and then a deterministic final choice. When growing an external gap and growing an internal gap would both meet the need legally, grow the external gap; a grown internal gap enlarges every node that spans it and adds no routing corridor there. Every repair keeps whole-cell occupancy, non-overlap, external clearance, honoured hints, group membership, mandatory routing geometry and the main-path movement limits. Accept a repair only when it strictly reduces the measured shortfall or meets the strictly improving candidate rule (2.14); never retry an unchanged state or grow without limit. After a gap changes, update cell positions, sizes of nodes spanning it, visual and obstacle geometry, frames, ports, routes, legality and score. A shortfall caused by a port away from the middle of its edge and insufficient corner clearance is repaired by moving the unhinted child to a different column, not by growing the rank gap. Clearances, spacing and inserted space are measured on visual bounds (term Node geometry). If no legal repair exists, draw the visibly marked fallback of rule 5.7 and issue a diagnostic; never omit the diagram."
                                ]
                   },
                   {
@@ -2186,7 +2198,8 @@
                       "status":  "active",
                       "pointer":  "",
                       "params":  [
-                                     "grid_step"
+                                     "grid_step",
+                                     "line_spacing"
                                  ],
                       "refs":  [
                                    "1.3",
@@ -2210,7 +2223,7 @@
                       "order":  71,
                       "blank_before":  1,
                       "text":  [
-                                   "Allocate lines jointly on each eligible edge of the connection boundary (term Node geometry), such as a rectangular side or a diamond edge. For n lines on an edge, use positions k/(n+1), k=1..n, along that edge; one line uses the edge centre. Symmetry is a quality preference. Preserve target order (3.3). Port coordinates may be fractional and are not grid-placement coordinates. A legal straight connection takes priority over symmetry: reserve the connection-boundary port aligned to its neighbour, even when n is even. Distribute the remaining distinct ports in the free intervals, preserving endpoint order and minimum clearance. Use symmetric k/(n+1) slots when no straight alignment is available. For rectangular nodes, insufficient spacing calls for a larger span (1.3) or legal port reassignment (1.7). For a diamond, insufficient port spacing or first-run clearance grows that diamond by whole grid steps (1.7). Hinted side choices participate in joint allocation. Edges need not have equal lengths; a spanning node\u0027s longer edges hold proportionally more ports at the same minimum separation. Distinguish four cases: too little port capacity on an edge, which may require growth under 1.3; too few tracks in a gap, which grows the gap (5.1); a legal route that only needs more bends, which needs no growth; and an optional quality improvement, which may use growth only under 5.6 or 5.10. A legal asymmetric allocation is never rejected for being asymmetric, and there is no symmetry score. A line leaves and joins a node at its exact allocated port position, at right angles to the side, and keeps that coordinate until its first bend. Tracks in the adjacent gap are placed at the coordinates of the ports they serve, not on a fixed grid line. Crossing, shared-track and clearance checks use this drawn geometry."
+                                   "Allocate lines jointly on each eligible edge of the connection boundary (term Node geometry), such as a rectangular side or a diamond edge. For n lines on an edge, use positions k/(n+1), k=1..n, along that edge; one line uses the edge centre. Symmetry is a quality preference. Preserve target order (3.3). Port coordinates may be fractional and are not grid-placement coordinates. A legal straight connection takes priority over symmetry: reserve the connection-boundary port aligned to its neighbour, even when n is even. Distribute the remaining distinct ports in the free intervals, preserving endpoint order and keeping adjacent ports on one edge at least line_spacing (15 px) apart. Use symmetric k/(n+1) slots when no straight alignment is available. For rectangular nodes, insufficient spacing calls for a larger span (1.3) or legal port reassignment (1.7). For a diamond, insufficient port spacing or first-run clearance grows that diamond by whole grid steps (1.7). Hinted side choices participate in joint allocation. Edges need not have equal lengths; a spanning node\u0027s longer edges hold proportionally more ports at the same minimum separation. Distinguish four cases: too little port capacity on an edge, which may require growth under 1.3; too few tracks in a gap, which grows the gap (5.1); a legal route that only needs more bends, which needs no growth; and an optional quality improvement, which may use growth only under 5.6 or 5.10. A legal asymmetric allocation is never rejected for being asymmetric, and there is no symmetry score. A line leaves and joins a node at its exact allocated port position, at right angles to the side, and keeps that coordinate until its first bend. Tracks in the adjacent gap are placed at the coordinates of the ports they serve, not on a fixed grid line. Crossing, shared-track and clearance checks use this drawn geometry."
                                ]
                   },
                   {
@@ -2922,6 +2935,7 @@
                       "pointer":  "",
                       "params":  [
                                      "track_spacing",
+                                     "line_spacing",
                                      "track_shortage_growth",
                                      "corridor_capacity_buffer"
                                  ],
@@ -2941,7 +2955,7 @@
                       "order":  94,
                       "blank_before":  1,
                       "text":  [
-                                   "Two lines never use the same track where their runs overlap. If a gap has fewer free tracks than lines, insert space as set by rule 1.7 and route again. Never enlarge an unrelated node to create track capacity; grow the gap instead. Initial band placement sizes each gap between columns and between bands for the forecast number of lines passing through it, plus corridor_capacity_buffer, rounded up and never less than one extra track. Gaps covered by a node that spans several columns are never corridors."
+                                   "Two lines never use the same track where their runs overlap, and adjacent parallel tracks are at least line_spacing (15 px) apart. If a gap has fewer free tracks than lines, insert space as set by rule 1.7 and route again. Never enlarge an unrelated node to create track capacity; grow the gap instead. Initial band placement sizes each gap between columns and between bands for the forecast number of lines passing through it, plus corridor_capacity_buffer, rounded up and never less than one extra track. Gaps covered by a node that spans several columns are never corridors."
                                ]
                   },
                   {

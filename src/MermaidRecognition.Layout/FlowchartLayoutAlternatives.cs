@@ -213,7 +213,7 @@ internal static class FlowchartLayoutAlternatives
                 var Ends = Group.ToArray();
                 for (int A = 0; A < Ends.Length; A++) for (int B = A + 1; B < Ends.Length; B++)
                     if (Math.Sqrt(Math.Pow(Ends[A].Point.X - Ends[B].Point.X, 2) + Math.Pow(Ends[A].Point.Y - Ends[B].Point.Y, 2))
-                        < FlowchartLayoutRules.TrackSpacing - 0.001) return false;
+                        < FlowchartLayoutRules.LineSpacing - 0.001) return false;
             }
         }
         var SearchBounds = new Dictionary<string, FlowchartLayoutNodeBounds>(Bounds);
