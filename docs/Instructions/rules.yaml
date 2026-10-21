@@ -25,6 +25,11 @@
 #   entries     id, kind, section, refs[], pictures[], order, blank_before, text (rendered verbatim)
 #               kind: preamble | legality (section 10 items) | routing-fault | on-hold | resolved-conflict
 #
+#   hint_overridable: true means hints may override the rule except: (a) sentences under a "Hard:" label, which
+#   covers every following sentence up to the next "Preference:" label or the end of the text; and (b) any sentence,
+#   labelled or not, that restates a section 10 item or the 2.23 band constraints, which never yields (9.1).
+#   A rule with no labels otherwise yields wholly. "Hard" means not hint-overridable; it is a legality (hard-gate)
+#   fault only where a section 10 item or the 2.23 band constraints name it.
 # RENDERING: every section, term, rule and entry is emitted in ascending 'order', preceded by
 # 'blank_before' empty lines, joined with CRLF. title, kind, stage, params, refs, outranks, yields and
 # hint_overridable are metadata only (derived at build time from the text; review before relying on them).
@@ -94,7 +99,7 @@ sections:
   - id: "routing-faults"
     order: 138
     blank_before: 1
-    heading: "## Routing faults (a candidate with one is rejected unless an applicable line hint expressly permits it, or an honoured node/group hint makes it unavoidable under 2.21; these are not hard legality)"
+    heading: "## Routing faults (precedence level 3 under 9.1, below hard legality and honoured hints: a candidate with a non-exempt routing fault loses to any candidate with fewer; an applicable line hint may expressly permit one, or an honoured node/group hint may make it unavoidable under 2.21)"
   - id: "on-hold"
     order: 140
     blank_before: 1
@@ -143,7 +148,7 @@ terms:
     order: 14
     blank_before: 1
     text: |-
-      a line inside a gap, parallel to the gap, on which a straight run travels. Adjacent parallel tracks are at least line_spacing (15 px) apart, so a 30 px gap holds two tracks; the first track is the gap's centre line. Each track carries one line where runs overlap (rule 5.1).
+      a line inside a gap, parallel to the gap, on which a straight run travels. Tracks follow the coordinates of the ports they serve (3.2). Every track is at least line_spacing (15 px) from every other track and from each node outline or frame edge bounding the gap, so a gap of width W holds at most floor(W / line_spacing) - 1 tracks: a 30 px gap holds one track, on its centre line, and a 60 px gap holds three. This is the geometric maximum. A track that a line turns onto from a port on a bounding outline must also leave that line's 4.4 run and corner_radius clear, so forecasts (1.7, 5.1) count only tracks that satisfy 4.4 for the lines they will carry; n forecast tracks need a gap of at least (n + 1) x line_spacing, and a track that a line turns onto from a port on a bounding outline lies at least min_straight_run from that outline, and at least corner_radius, plus arrowhead_length_px for an arrowheaded line, from an outline the line turns into (4.4). **Shared track**: two parallel segments of different lines share a track when their extents overlap along their direction by more than geometry_tolerance_px and their perpendicular distance is less than line_spacing minus geometry_tolerance_px. Segments of the same line, and segments that only meet at a crossing point, are exempt. Sharing a track is a legality fault (5.1, section 10).
   - id: "term.port"
     name: "Port"
     qualifier: ""
@@ -167,7 +172,7 @@ terms:
     order: 17
     blank_before: 1
     text: |-
-      a straight segment. Ordinary runs are horizontal or vertical; the initial run leaving or entering a sloped diamond edge is the sole exception and follows the edge normal (3.1). Diamond branches travel at least 50 px along that normal before turning onto the grid; other lines require at least 20 px before a corner and an arrowhead-length terminal run. A straight line with no corner needs no artificial source-side clearance.
+      a straight segment. Ordinary runs are horizontal or vertical; the initial run leaving or entering a sloped diamond edge is the sole exception and follows the edge normal (3.1). Diamond branches travel at least 50 px along that normal before turning onto the grid; other lines require a port-to-vertex distance of at least min_straight_run (20 px) before a corner, measured from the port to the corner's vertex (where the centre lines of the two runs meet), so a corner_radius arc may begin at the port, and an arrowhead-length terminal run. A straight line with no corner needs no artificial source-side clearance.
   - id: "term.corner"
     name: "Corner"
     qualifier: ""
@@ -334,17 +339,22 @@ parameters:
     value: 1
     unit: "grid steps"
     source: "Terms: Gap"
-    used_by: []
+    used_by: ["1.5"]
   - id: "track_spacing"
     value: 1
-    unit: "grid steps"
-    source: "Terms: Track; line separation is now set by line_spacing"
-    used_by: ["1.5","1.7","5.1"]
+    unit: "grid steps (gap-sizing step only)"
+    source: "Gap sizing: routing gaps are sized and grown in whole steps of this value (1.7, 5.1). It is not a line separation; adjacent lines and tracks are separated by line_spacing. Kept because the engine still reads it for gap sizing (commit ca4ead7)."
+    used_by: ["1.7","5.1"]
   - id: "line_spacing"
     value: 15
     unit: "px"
     source: "Minimum separation between adjacent parallel line segments and between adjacent ports on one edge; approved 20 Oct 2026"
-    used_by: ["1.7","3.2","5.1"]
+    used_by: ["1.7","3.2","5.1","7.3","legality.5"]
+  - id: "geometry_tolerance_px"
+    value: 0.001
+    unit: "px"
+    source: "Float tolerance for every geometric comparison (shared-track distance, overlap, port and clearance checks); previously only in code"
+    used_by: ["5.1","legality.5"]
   - id: "diamond_edges"
     value: 4
     unit: "sloped edges"
@@ -358,7 +368,7 @@ parameters:
   - id: "min_straight_run"
     value: 20
     unit: "px"
-    source: "rules 4.4 (ordinary source run)"
+    source: "rule 4.4 (ordinary source run); set equal to corner_radius by decision 2 but independent of it: if corner_radius changes, this value governs the run"
     used_by: ["4.4"]
   - id: "diamond_height_factor"
     value: 2
@@ -444,7 +454,7 @@ parameters:
     value: 20
     unit: "points per corner"
     source: "rule 2.13"
-    used_by: ["2.13","2.21","5.10"]
+    used_by: ["2.13","5.10"]
   - id: "score_disconnected_end"
     value: 20
     unit: "points"
@@ -462,12 +472,12 @@ parameters:
     used_by: ["2.13","2.21"]
   - id: "score_repair_length_per_grid_step"
     value: 1
-    unit: "points per grid step of added route length"
+    unit: "points per grid step (30 px) of added route length"
     source: "Rule 5.10; prices additional line length when comparing repair options"
     used_by: ["5.10"]
   - id: "score_route_length_per_grid_step"
     value: 1
-    unit: "points per grid step before bounded normalization"
+    unit: "points per grid step (30 px) before bounded normalization"
     source: "Approved routing length tie-break; remains below one bend"
     used_by: ["2.13"]
   - id: "score_repair_moved_line"
@@ -476,34 +486,24 @@ parameters:
     source: "Rule 5.10; prices route churn when comparing repair options"
     used_by: ["5.10"]
   - id: "repair_candidate_moves"
-    value: 16
+    value: 48
     unit: "candidate moves per diagram"
-    source: "Rule 5.10; protects the 10 second repair-time target (best move was found by candidate 15; one extra candidate is reserved)"
+    source: "Rule 5.10; search budget, 3x the old 16 so legality repairs needing more room are examined; provisional; must be confirmed by timing the full catalogue and A142 on Dave's ARM laptop under the 180 s watchdog (10 s target) before release; record the measured worst case here. Fallback if timing fails: depth 4, moves 48, lines 24. Reaching it is reported and never means 'no legal option'."
     used_by: ["5.10"]
   - id: "repair_chain_depth"
-    value: 3
+    value: 5
     unit: "repair operations"
-    source: "Rule 5.10; protects the 10 second target while allowing a full route-repair chain (catalogue winning depth: 2)"
+    source: "Rule 5.10; search budget allowing chains of up to 5 reroutes for 15 px spacing knock-on repairs; provisional; must be confirmed by timing the full catalogue and A142 on Dave's ARM laptop under the 180 s watchdog (10 s target) before release; record the measured worst case here. Fallback if timing fails: depth 4, moves 48, lines 24. Reaching it is reported."
     used_by: ["5.10"]
   - id: "repair_chain_lines"
-    value: 12
+    value: 24
     unit: "changed lines per chain"
-    source: "Rule 5.10; bounds reroute work per chain (catalogue winning maximum: 11 lines)"
+    source: "Rule 5.10; search budget, 2x the old 12 so dense corridors can be re-spaced in one chain; provisional; must be confirmed by timing the full catalogue and A142 on Dave's ARM laptop under the 180 s watchdog (10 s target) before release; record the measured worst case here. Fallback if timing fails: depth 4, moves 48, lines 24. Reaching it is reported."
     used_by: ["5.10"]
   - id: "repair_chain_lines_fan_hub"
     value: "fan_line_count"
     unit: "changed lines in one complete fan-hub candidate"
     source: "Rule 5.10; the number of declared lines in the fan, evaluated per candidate so a hub move can reroute its whole fan atomically"
-    used_by: ["5.10"]
-  - id: "repair_extra_length_px"
-    value: 61
-    unit: "px of added route length"
-    source: "Rule 5.10; bounds added route length (catalogue winning maximum: 60 px)"
-    used_by: ["5.10"]
-  - id: "repair_extra_bends"
-    value: 7
-    unit: "additional bends"
-    source: "Rule 5.10; bounds bend growth (catalogue winning maximum: 6 bends)"
     used_by: ["5.10"]
   - id: "frame_gap_growth"
     value: 1
@@ -522,9 +522,14 @@ parameters:
     used_by: ["1.7","5.1"]
   - id: "corridor_capacity_buffer"
     value: 0.25
-    unit: "fraction of forecast lines added when sizing a gap; rounded up, minimum one extra track"
+    unit: "fraction of forecast lines added when sizing a gap: ceil(forecast x (1 + buffer)) and at least forecast + 1 when the forecast exceeds one line; exactly one track for one line; none for zero"
     source: "Dave's approval, 20 Oct 2026; rules 1.7 and 5.1; replaces initial_gap_track_headroom_percent, 21 Oct 2026"
     used_by: ["1.7","5.1"]
+  - id: "arrowhead_length_px"
+    value: 10
+    unit: "px"
+    source: "Renderer arrowhead length (FlowchartSugiyamaSvgRenderer.ARROWHEAD_LENGTH_PX = 10 on master eb09c58); terminal runs and track capacity next to an entered outline"
+    used_by: ["4.4","1.7","5.1","7.3"]
   - id: "diamond_min_straight_run"
     value: 50
     unit: "px"
@@ -680,7 +685,7 @@ rules:
     stage: "G1"
     status: "active"
     pointer: ""
-    params: ["base_rank_gap","grid_step","track_spacing"]
+    params: ["base_rank_gap","base_column_gap","grid_step"]
     refs: []
     outranks: []
     yields: []
@@ -689,7 +694,7 @@ rules:
     order: 41
     blank_before: 1
     text: |-
-      Make every rank gap equal to the base rank gap of 2 grid steps. This value provides a default corridor for rounded corners, arrowhead clearance and independently allocated tracks; it is not intended to satisfy the longer diamond straight-run minimum. A rank gap grows only to hold a label, a Z, extra tracks, required run/corner clearance or a frame, and that growth changes no other gap (see rank-gap-markup.png). These are external gaps between separate nodes; a gap inside a node's occupied region is part of that node (term Grid) and is not counted as clearance.
+      Make every rank gap equal to the base rank gap of 2 grid steps, and every column gap equal to the base column gap of 1 grid step. This value provides a default corridor for rounded corners, arrowhead clearance and independently allocated tracks; it is not intended to satisfy the longer diamond straight-run minimum. A rank or column gap grows only to hold a label, a Z, extra tracks, required run/corner clearance or a frame, and that growth changes no other gap (see rank-gap-markup.png). These are external gaps between separate nodes; a gap inside a node's occupied region is part of that node (term Grid) and is not counted as clearance.
   - id: "1.6"
     title: "Snap to grid"
     title_in_text: false
@@ -717,7 +722,7 @@ rules:
     status: "active"
     pointer: ""
     params: ["grid_step","track_shortage_growth","track_spacing","line_spacing","frame_gap_growth","corridor_capacity_buffer"]
-    refs: ["5.7","1.3","2.13","2.14","9.5"]
+    refs: ["5.7","1.3","2.13","2.14","9.1","9.5"]
     outranks: []
     yields: []
     pictures: []
@@ -725,7 +730,7 @@ rules:
     order: 43
     blank_before: 1
     text: |-
-      During initial band placement, size each routing gap from the forecast lines passing through it plus corridor_capacity_buffer. Round the reserved track count up and reserve at least one extra track for a gap with forecast traffic. Space tracks line_spacing (15 px) apart, keeping band membership, band order and column order fixed; this initial sizing does not change any repair limit. Repair geometric shortfalls monotonically. First measure the actual shortfall: missing label room calls for wrapping or a larger span (1.3); missing port capacity for a larger span or legal port reassignment; missing track capacity for routing space in a gap; an occupancy conflict for moving nodes by whole cells; missing group room for a larger frame. There is no fixed order among these repairs. Build the complete legal candidates that address the shortfall, and keep the one with the lowest score (2.13), using the existing tie-breaks (9.5) and then a deterministic final choice. When growing an external gap and growing an internal gap would both meet the need legally, grow the external gap; a grown internal gap enlarges every node that spans it and adds no routing corridor there. Every repair keeps whole-cell occupancy, non-overlap, external clearance, honoured hints, group membership, mandatory routing geometry and the main-path movement limits. Accept a repair only when it strictly reduces the measured shortfall or meets the strictly improving candidate rule (2.14); never retry an unchanged state or grow without limit. After a gap changes, update cell positions, sizes of nodes spanning it, visual and obstacle geometry, frames, ports, routes, legality and score. A shortfall caused by a port away from the middle of its edge and insufficient corner clearance is repaired by moving the unhinted child to a different column, not by growing the rank gap. Clearances, spacing and inserted space are measured on visual bounds (term Node geometry). If no legal repair exists, draw the visibly marked fallback of rule 5.7 and issue a diagnostic; never omit the diagram.
+      During initial band placement, size each routing gap from the forecast lines passing through it plus corridor_capacity_buffer. Reserve ceil(forecast x (1 + corridor_capacity_buffer)) tracks, and at least forecast + 1, when the forecast exceeds one line; reserve exactly one track when it is one line, and none when it is zero. Count only tracks usable under 4.4 for the lines they will carry (term Track); a track that a line turns onto from a port on a bounding outline lies at least min_straight_run from that outline, and at least corner_radius, plus arrowhead_length_px for an arrowheaded line, from an outline the line turns into. Space tracks at least line_spacing (15 px) apart and from bounding outlines (term Track), grow gaps in whole steps of track_spacing, keeping band membership, band order and column order fixed; this initial sizing does not change any 5.10 search budget. Repair geometric shortfalls monotonically. First measure the actual shortfall: missing label room calls for wrapping or a larger span (1.3); missing port capacity for a larger span or legal port reassignment; missing track capacity for routing space in a gap; an occupancy conflict for moving nodes by whole cells; missing group room for a larger frame. There is no fixed order among these repairs. Build the complete legal candidates that address the shortfall, and keep the one with the lowest score (2.13), using the existing tie-breaks (9.5) and then a deterministic final choice. When growing an external gap and growing an internal gap would both meet the need legally, grow the external gap; a grown internal gap enlarges every node that spans it and adds no routing corridor there. Every repair keeps whole-cell occupancy, non-overlap, external clearance, honoured hints, group membership, mandatory routing geometry and the main-path movement limits. Accept a repair only when it strictly reduces the measured shortfall or its fault count, or meets the strictly improving candidate rule (2.14); a repair that lowers the fault count in the fault-first order of 9.1 is accepted even if its score, crossings or bends rise, and no repair may raise the legality-fault or routing-fault count; never retry an unchanged state or grow without limit. After a gap changes, update cell positions, sizes of nodes spanning it, visual and obstacle geometry, frames, ports, routes, legality and score. A shortfall caused by a port away from the middle of its edge and insufficient corner clearance is repaired by moving the unhinted child to a different column, not by growing the rank gap. Clearances, spacing and inserted space are measured on visual bounds (term Node geometry). If no legal repair exists, draw the visibly marked fallback of rule 5.7 and issue a diagnostic; never omit the diagram.
   - id: "2.1"
     title: "Start from Mermaid"
     title_in_text: false
@@ -815,7 +820,7 @@ rules:
     order: 49
     blank_before: 1
     text: |-
-      If a node has several children, prefer directly below it the main-path child (2.18), or off the main path the longest-path child (the child with the longest path to a terminal node). Place remaining children by 2.17, subject to clearance and honoured hints.
+      If a node has several children, the main-path child (2.18), or off the main path the longest-path child (the child with the longest path to a terminal node), prefers the cell region directly below it with overlapping columns; among equal-fault candidates whose scores tie, choose that region, otherwise the nearest free region by Manhattan cell distance, ties by 9.4. Place remaining children by 2.17, subject to clearance and honoured hints.
   - id: "2.6"
     title: "Detours and early exits"
     title_in_text: false
@@ -923,7 +928,7 @@ rules:
     order: 55
     blank_before: 1
     text: |-
-      Compaction (`grid` only). After initial placement and routing, visit nodes in rank order, then left to right. Consider moving an unhinted node by whole cells, keeping its spans, to a nearer legal position, including beside a parent when 2.17 permits it. **Never move a main-path node sideways for compaction**; a deliberate wrap fold (2.12) is the sole automatic exception. Retain a move only when the complete candidate satisfies the applicable rules and has a strictly lower score (2.13). After a move, reroute affected connections under 4.2. Move clusters as units unless an honoured hint requires a different arrangement (2.20–2.21); group membership and frame containment remain governed by 7.8. Remove only genuinely unused rows/columns; never shrink a gap needed for labels, tracks, corners or frames. Repeat until rule 2.14 stops the search. Compaction never splits, shrinks, collapses or enters a spanning node's region and never produces a fractional size; main-path and hint restrictions still apply.
+      Compaction (`grid` only). After initial placement and routing, visit nodes in rank order, then left to right. Consider moving an unhinted node by whole cells, keeping its spans, to a nearer legal position, including beside a parent when 2.17 permits it. **Never move a main-path node sideways for compaction**; a deliberate wrap fold (2.12) is the sole automatic exception. Retain a move only when the complete candidate satisfies the applicable rules and has a strictly lower score (2.13). After a move, reroute affected connections under 4.2. Move clusters as units unless an honoured hint requires a different arrangement (2.20–2.21); group membership and frame containment remain governed by 7.8. Remove only genuinely unused rows/columns; never shrink a gap needed for labels, tracks, corners or frames. Repeat until rule 2.14 stops the search. Hard: compaction never splits, shrinks, collapses or enters a spanning node's region and never produces a fractional size; main-path and hint restrictions still apply.
   - id: "2.12"
     title: "Wrapping"
     title_in_text: false
@@ -941,7 +946,7 @@ rules:
     order: 56
     blank_before: 1
     text: |-
-      Wrapping (`grid` only). After compaction, wrap overlong rows or columns into successive rows/columns to approach 4:3 without worsening the complete legal-layout score. There is no fixed diagram-size or node-count limit. Preserve source order and honoured hints. A long main path **may fold only at an explicit wrap boundary**: each uninterrupted section remains aligned, and the connecting edge is routed under sections 3–5. The fold is not an ordinary sideways compaction move. Aspect ratio is a small score cost, never a hard admission limit for a legal candidate. Wrapping never splits a group unless the group itself exceeds the selected wrap length. Run compaction after wrapping and keep only strictly improving candidates (2.14). Tests compute expected dimensions from measured node sizes and gaps and never hard-code pixel dimensions. Wrapping never splits a node across rows or columns; the 4:3 shape remains a quality objective only.
+      Wrapping (`grid` only). After compaction, wrap overlong rows or columns into successive rows/columns to approach 4:3 without worsening the complete legal-layout score. There is no fixed diagram-size or node-count limit. Preserve source order and honoured hints. A long main path **may fold only at an explicit wrap boundary**: each uninterrupted section remains aligned, and the connecting edge is routed under sections 3–5. The fold is not an ordinary sideways compaction move. Aspect ratio is a small score cost, never a hard admission limit for a legal candidate. Run compaction after wrapping and keep only strictly improving candidates (2.14). Tests compute expected dimensions from measured node sizes and gaps and never hard-code pixel dimensions. Hard: wrapping never splits a node across rows or columns, and never splits a group frame unless the group itself exceeds the wrap length. Preference: the 4:3 shape remains a quality objective only.
 
       - The wrap length is the number of cells across, or down, that brings the whole diagram closest to 4:3 (width 4 parts to height 3 parts), without raising the rule 2.13 score. Never wrap a row or column that already fits within the wrap length. The shape is a ratio of the diagram's own computed size, with no fixed pixel size or node limit.
 
@@ -952,8 +957,6 @@ rules:
       - Keep the order of the nodes: the next row or column continues from the node after the last one in the previous row or column.
 
       - One line joins the pieces. For a wrapped row, it leaves the bottom of the far-right node, runs back along a track in the gap, and enters the top of the first node of the next row. For a wrapped column, it leaves the right side of the bottom node, runs along a track in the gap, and enters the left side of the first node of the next column. This line follows sections 3 to 5 like any other line.
-
-      - Wrapping never splits a group frame unless the group is itself longer than the wrap length. Nodes of one group stay together.
 
       - After wrapping, run compaction (rule 2.11) again, so that wrapped rows and columns pack closer. A diagram can need both wide and deep wrapping. Compaction and wrapping repeat in passes; candidates are scored and kept, and the loop stops, as set by rules 2.13 and 2.14.
 
@@ -966,16 +969,16 @@ rules:
     stage: "P8"
     status: "active"
     pointer: ""
-    params: ["target_aspect_width","target_aspect_height","score_shape_points","score_shape_step","score_empty_points_low","score_empty_threshold","score_empty_points_high","score_crossing","score_bend","score_disconnected_end","score_hint_node_group","score_hint_line","score_route_length_per_grid_step"]
-    refs: ["2.21"]
+    params: ["target_aspect_width","target_aspect_height","score_shape_points","score_shape_step","score_empty_points_low","score_empty_threshold","score_empty_points_high","score_crossing","score_bend","score_disconnected_end","score_hint_node_group","score_hint_line","score_route_length_per_grid_step","grid_step"]
+    refs: ["2.21","5.10","9.1"]
     outranks: []
     yields: []
     pictures: []
-    hint_overridable: true
+    hint_overridable: false
     order: 57
     blank_before: 1
     text: |-
-      Layout score. Score each **legal, routing-fault-free (unless hinted)** candidate of the same diagram: shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per independently honoured placement-axis hint of an element, note or group, and -15 per fully honoured connection-level line hint, including plain note connections (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node's region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length divided by the base routing grid unit, w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Hints and all legality and routing-fault admission checks remain higher priority. The existing added-length and moved-line repair terms and limits under 5.10 remain separate and unchanged.
+      Layout score. Score every complete candidate of the same diagram; the score decides only between candidates with equal legality, honoured-hint and routing-fault counts (9.1): shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings, computed by the engine and reported with the method used; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per independently honoured placement-axis hint of an element, note or group, and -15 per fully honoured connection-level line hint, including plain note connections (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node's region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length in px divided by grid_step (30 px), w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Legality faults, honoured hints and routing faults remain higher priority: the score compares only candidates with equal counts of each, in the fault-first order of 9.1. The repair length and moved-line weights under 5.10 are separate from this term.
   - id: "2.14"
     title: "Keep the best"
     title_in_text: true
@@ -985,15 +988,15 @@ rules:
     status: "active"
     pointer: ""
     params: ["score_empty_threshold"]
-    refs: ["1.7"]
+    refs: ["1.7","9.1"]
     outranks: []
     yields: []
     pictures: []
-    hint_overridable: true
+    hint_overridable: false
     order: 58
     blank_before: 1
     text: |-
-      Keep the best. Compare complete legal candidates; accept only a strictly lower score. Stop after a full pass without improvement or a repeated layout signature. A finite deterministic candidate enumeration and a visited-layout set prevent cycles; do not impose an arbitrary diagram-size limit. Report any independently unsatisfiable hard constraint rather than expanding indefinitely (1.7). Empty space above 30% is a reported quality result, not a conversion failure. A candidate's state and layout signature include every node's start row, start column, row span and column span.
+      Keep the best. Compare complete candidates in the fault-first order of 9.1 (legality faults, honoured hints, non-exempt routing faults, then score); among candidates equal on the first three, accept only a strictly lower score. Stop after a full pass without improvement or a repeated layout signature. A finite deterministic candidate enumeration and a visited-layout set prevent cycles; do not impose an arbitrary diagram-size limit. Report any independently unsatisfiable hard constraint rather than expanding indefinitely (1.7). Empty space above 30% is a reported quality result, not a conversion failure. A candidate's state and layout signature include every node's start row, start column, row span and column span.
   - id: "2.15"
     title: "Unconnected pieces"
     title_in_text: true
@@ -1011,7 +1014,7 @@ rules:
     order: 59
     blank_before: 1
     text: |-
-      Unconnected pieces. Arrange disconnected nodes or connected pieces in declared order, left-to-right then top-to-bottom. Compute the block’s own wrap length from its measured member dimensions and spacing by selecting the legal arrangement nearest 4:3; do not depend on the whole-diagram wrap length (2.12). A cluster is initially one piece. Every member stays within its owning group (7.8), whose frame grows to fit.
+      Unconnected pieces. Arrange disconnected nodes or connected pieces in declared order, left-to-right then top-to-bottom. Compute the block’s own wrap length from its measured member dimensions and spacing by selecting the legal arrangement nearest 4:3; do not depend on the whole-diagram wrap length (2.12). A cluster is initially one piece. Hard: every member stays within its owning group (7.8), whose frame grows to fit.
   - id: "2.16"
     title: "Fans"
     title_in_text: true
@@ -1021,7 +1024,7 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["2.17","2.21","5.2","5.8"]
+    refs: ["2.17","2.21","5.2","5.8","5.9"]
     outranks: []
     yields: []
     pictures: []
@@ -1029,7 +1032,7 @@ rules:
     order: 60
     blank_before: 1
     text: |-
-      Fans. Arrange fan members into a local block whose wrap length is chosen from the fan block’s own measured dimensions and gaps to approach 4:3; do not depend on the overall diagram wrap length. Where permitted, place the source or target beside the block, in the rows (or columns) the block occupies, balanced so that the block extends about equally on either side of it; this balance is a quality preference. This specific rule overrides generic 2.17 placement, subject to hints and legality. Route fan lines by 5.2 and 5.8, including nested tracks. Avoid removable crossings and hops. Fan members may have different spans; never require equal sizes.
+      Fans. Arrange fan members into a local block whose wrap length is chosen from the fan block’s own measured dimensions and gaps to approach 4:3; do not depend on the overall diagram wrap length. Where permitted, place the source or target beside the block, in the rows (or columns) the block occupies, balanced so that the number of block cells on either side of it differs by at most one (a quality preference); when that is not legal, use the most balanced legal position. This specific rule overrides generic 2.17 placement, subject to hints and legality. Route fan lines by 5.2 and 5.8, including nested tracks. Crossings follow 5.9; hops are forbidden (section 10). Fan members may have different spans; never require equal sizes.
   - id: "2.17"
     title: "Under the parent"
     title_in_text: true
@@ -1047,7 +1050,7 @@ rules:
     order: 61
     blank_before: 1
     text: |-
-      Under the parent. Prefer to place a child in the rows directly below its parent, with its columns inside or overlapping the parent's columns, when its allocated ports permit a legal route. Where the spans allow, prefer the child's columns to sit evenly within the parent's columns, for example a 2-column child in the middle 2 columns of a 4-column parent; this visual alignment is a quality preference, not a legality requirement. For multiple children retain symmetric port allocation (3.2) and arrange the children's regions across the columns in port order. If a port away from the middle of its edge and a child directly below would require two corners with insufficient horizontal clearance, move the unhinted child outward by whole columns until the required horizontal and vertical runs fit; adding vertical rank-gap space alone does not fix horizontal clearance. A child may grow in any direction (1.2), and parent and child need not have the same spans; their allocated ports decide whether a straight connection is possible. There is no alignment score; alignment is rewarded only through straight connections and the bend and crossing terms. Never resize a node to fit under its parent. Main-path alignment is preferred but not forced against port geometry. Decisions follow 3.8, fans follow 2.16, and multiple parents follow 2.4. Never assume nodes have equal sizes; compare occupied regions.
+      Under the parent. Prefer to place a child in the rows directly below its parent, with its columns inside or overlapping the parent's columns, when its allocated ports permit a legal route. Where the spans allow and scores tie, choose the position whose columns sit evenly within the parent's columns, for example a 2-column child in the middle 2 columns of a 4-column parent; this is a tie-break after 2.13, not a legality requirement. For multiple children retain symmetric port allocation (3.2) and arrange the children's regions across the columns in port order. If a port away from the middle of its edge and a child directly below would require two corners with insufficient horizontal clearance, move the unhinted child outward by whole columns until the required horizontal and vertical runs fit; adding vertical rank-gap space alone does not fix horizontal clearance. A child may grow in any direction (1.2), and parent and child need not have the same spans; their allocated ports decide whether a straight connection is possible. There is no alignment score; alignment is rewarded only through straight connections and the bend and crossing terms. Never resize a node to fit under its parent. Main-path alignment is preferred but not forced against port geometry. Decisions follow 3.8, fans follow 2.16, and multiple parents follow 2.4. Never assume nodes have equal sizes; compare occupied regions.
   - id: "2.18"
     title: "Main path"
     title_in_text: true
@@ -1083,7 +1086,7 @@ rules:
     order: 63
     blank_before: 1
     text: |-
-      Free direction. When a diagram declares no direction, the engine tries each flow direction (down, right, up, left) and keeps the layout with the lowest score (rules 2.13 and 2.14), so a simple chain comes out as a straight run with the fewest corners. When a direction is declared, it is used and not changed. Hints (rule 2.21) apply inside the direction in use and never change a declared direction; with none declared, each trial scores its own honoured hints. There is no size threshold: the same rule applies to small and large diagrams. Each trial applies rule 1.1 to its direction, and Mermaid's ranks are recomputed for it. Trials may run in parallel and reuse results.
+      Free direction. When a diagram declares no direction, the engine tries each flow direction (down, right, up, left) and keeps the layout with the lowest score (rules 2.13 and 2.14), so a simple chain comes out as a straight run with the fewest corners. Hard: when a direction is declared, it is used and not changed. Hints (rule 2.21) apply inside the direction in use and never change a declared direction; with none declared, each trial scores its own honoured hints. Preference: there is no size threshold: the same rule applies to small and large diagrams. Each trial applies rule 1.1 to its direction, and Mermaid's ranks are recomputed for it. Trials may run in parallel and reuse results.
   - id: "2.20"
     title: "Clusters"
     title_in_text: true
@@ -1101,7 +1104,7 @@ rules:
     order: 64
     blank_before: 1
     text: |-
-      Clusters. Identify clusters from relationship connectivity only, never labels. A cluster does not cross a group frame; nodes belong to at most one cluster, and otherwise form single-node clusters. Move and wrap clusters as units **unless an honoured hint requires a different legal arrangement**; hints outrank clustering and must not be refused merely because they distort or split an automatic cluster. If needed, dissolve or recompute the affected cluster around the honoured hint while preserving group membership and geometry. Choose internal order to minimise crossings under higher-priority rules. Between clusters use 2.10. Cluster detection must have a deterministic tie-break based on source order. A cluster reserves its members' full occupied regions and moves them intact.
+      Clusters. Identify clusters from relationship connectivity only, never labels. Nodes belong to at most one cluster, and otherwise form single-node clusters. Hard: a cluster does not cross a group frame. Preference: move and wrap clusters as units **unless an honoured hint requires a different legal arrangement**; hints outrank clustering and must not be refused merely because they distort or split an automatic cluster. If needed, dissolve or recompute the affected cluster around the honoured hint while preserving group membership and geometry. Choose internal order to minimise crossings under higher-priority rules. Between clusters use 2.10. Cluster detection must have a deterministic tie-break based on source order. Hard: a cluster reserves its members' full occupied regions and moves them intact.
   - id: "2.21"
     title: "Hints"
     title_in_text: true
@@ -1110,8 +1113,8 @@ rules:
     stage: "P1"
     status: "active"
     pointer: ""
-    params: ["score_bend","score_hint_node_group","score_hint_line"]
-    refs: ["1.1","1.7","2.13","2.19","5.7","7.8"]
+    params: ["score_hint_node_group","score_hint_line"]
+    refs: ["1.1","1.7","2.13","2.19","5.7","7.8","9.1"]
     outranks: ["2.4","2.5","2.6","2.7","2.8","2.9","2.10","2.11","2.12","2.13","2.14","2.15","2.16","2.17","2.18","2.19","2.20","routing-faults.1"]
     yields: ["legality"]
     pictures: []
@@ -1119,7 +1122,7 @@ rules:
     order: 65
     blank_before: 1
     text: |-
-      Hints. Hints override automatic placement and routing, but never hard legality. An honoured line hint may explicitly permit the routing fault it identifies. An honoured node or group placement hint can make a tier-3 routing fault unavoidable; keep the hint, report and score that fault under 2.13 rather than dropping the hint to remove the fault. A placement hint never permits a section 10 legality fault. Hints outrank automatic clusters, compaction, wrapping and main-path preferences. Resolve contradictory hints in source order (d). Report impossible hints alongside the fallback diagram.
+      Hints. Hints override automatic placement and routing, but never hard legality. An honoured line hint may explicitly permit the routing fault it identifies. An honoured node or group placement hint can make a routing fault (precedence level 3, 9.1) unavoidable; keep the hint, report and score that fault under 2.13 rather than dropping the hint to remove the fault. A placement hint never permits a section 10 legality fault. Hints outrank automatic clusters, compaction, wrapping and main-path preferences. Resolve contradictory hints in source order (d). Report impossible hints alongside the fallback diagram.
 
       - (a) Written: a node, note or group hint is written after its declaration's label, before or after its `in` clause. Horizontal hints are left-of or right-of a named peer, optionally followed by +n, or push E or W. Vertical hints are above or below a named peer, optionally followed by +n, or push N or S. A declaration carries at most one effective hint on each axis. A further hint on an axis that already has one is dropped and reported, and hints on one axis are never combined. A line hint is written in square brackets after the relationship: leave, enter or travel, each followed by N, S, E or W, separated by commas. Every direction word is relative to the reader's view of the finished page, whatever the diagram direction (rule 1.1).
 
@@ -1131,7 +1134,7 @@ rules:
 
       - (e) Hinted nodes retain their peer relation during placement and repairs. Reposition, dissolve or recompute automatic clusters as needed to honour the hint; a cluster is not required to move whole when doing so would break an honoured hint. Group membership (7.8) and hard legality remain binding.
 
-      - (f) Legality and routing faults: hints never override legality (section 10); only the marked 5.7 fallback is excepted when no legal route exists. A line hint may expressly permit its named tier-3 routing fault. A node/group placement hint may make a tier-3 routing fault unavoidable, but never permits a legality fault: keep the honoured placement hint, report and score the routing fault under 2.13, and do not drop the hint to hide it. Evaluate feasible alternative routes and placements first. Add space when it can honour the hint (1.7); otherwise report the impossible hint and render the deterministic fallback. A valid line hint that forces a detour is honoured, scored under 2.13 and reported with the detour it causes. No cost threshold drops it.
+      - (f) Legality and routing faults: hints never override legality (section 10); only the marked 5.7 fallback is excepted when no legal route exists. A line hint may expressly permit its named routing fault (precedence level 3, 9.1). A node/group placement hint may make a routing fault unavoidable, but never permits a legality fault: keep the honoured placement hint, report and score the routing fault under 2.13, and do not drop the hint to hide it. Evaluate feasible alternative routes and placements first. Add space when it can honour the hint (1.7); otherwise report the impossible hint and render the deterministic fallback. A valid line hint that forces a detour is honoured, scored under 2.13 and reported with the detour it causes. No cost threshold drops it.
 
       - (g) Score: each placement axis honoured on its own scores -30 in rule 2.13, so a node, note or group with two honoured axes scores -60 and one with a single honoured axis -30. Each honoured line hint scores -15 once per connection, however many parts it has. There is no separate alignment score. The score only compares candidates; it never drops an honoured hint. This is intended: the structure of an original is preferred to calculated layout. A hint that cannot be honoured earns nothing, is reported with the reason, and layout continues; nothing fails.
 
@@ -1163,7 +1166,7 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["2.13","2.19","2.21","7.8"]
+    refs: ["2.13","2.19","2.21","7.8","2.24"]
     outranks: []
     yields: []
     pictures: []
@@ -1183,7 +1186,7 @@ rules:
 
       A diagram whose elements all come from one layer has no bands.
 
-      The band order, band membership and the plateau order are conventions, not preferences. A hint can't put an element in another band, can't move a band above or below a band of a different layer type and can't reorder plateaus. Such a hint is dropped and reported under 2.21(c), with no score under 2.21(g). When a declaration has hints on both axes and only one breaks a band rule, only that hint is dropped. A hint can still change an element's position within its own band, the order within the Technology and Physical band, how a band wraps, and where junctions, locations and frames go, as long as every member stays in its own band. Band membership and band order are binding: hints can't override them, and the engine enforces them as a veto.
+      The band order, band membership and the plateau order are conventions, not preferences. A hint can't put an element in another band, can't move a band above or below a band of a different layer type and can't reorder plateaus. Such a hint is dropped and reported as a warning under 2.24, with no score under 2.21(g). When a declaration has hints on both axes and only one breaks a band rule, only that hint is dropped. A hint can still change an element's position within its own band, the order within the Technology and Physical band, how a band wraps, and where junctions, locations and frames go, as long as every member stays in its own band. Band membership and band order are binding: hints can't override them, and the engine enforces them as a veto.
   - id: "2.24"
     title: "Diagnostics and error policy"
     title_in_text: true
@@ -1302,14 +1305,14 @@ rules:
     pointer: ""
     params: ["diamond_edges"]
     refs: ["1.7","2.21","3.1","3.2","3.3","4.1","4.4","4.7"]
-    outranks: ["3.1","3.2","3.3","4.7","4.8"]
-    yields: ["2.21"]
+    outranks: ["3.1","3.2","3.3","4.7"]
+    yields: []
     pictures: []
-    hint_overridable: true
+    hint_overridable: false
     order: 75
     blank_before: 1
     text: |-
-      A diamond's connection boundary is its four sloped edges, each accepting any number of distinct ports allocated symmetrically at k/(n+1) under 3.2, 3.3 and 4.7, exactly as box edges do. One line on an edge uses its centre. Every diamond line enters or leaves perpendicular to its allocated sloped edge for the minimum straight run, then turns onto the horizontal/vertical grid (3.1, 4.1, 4.4). Grow the diamond by whole grid steps under 1.7 if its ports or initial runs do not fit.
+      Hard: a diamond's connection boundary is its four sloped edges, each accepting any number of distinct ports allocated under 3.2, 3.3 and 4.7 exactly as box edges do (symmetric k/(n+1) slots where 3.2 applies, aligned straight ports first, adjacent ports at least line_spacing apart). One line on an edge uses its centre unless 3.2 reserves an aligned port. Every diamond line enters or leaves perpendicular to its allocated sloped edge for the minimum straight run, then turns onto the horizontal/vertical grid (3.1, 4.1, 4.4). Grow the diamond by whole grid steps under 1.7 if its ports or initial runs do not fit.
   - id: "3.7"
     title: "Straight branch below diamond"
     title_in_text: false
@@ -1320,14 +1323,14 @@ rules:
     pointer: ""
     params: ["diamond_min_straight_run"]
     refs: ["2.17","2.21"]
-    outranks: ["3.1","3.2","3.3","4.7","4.8"]
+    outranks: ["3.1","3.2","3.3","4.7"]
     yields: ["2.21"]
     pictures: []
     hint_overridable: true
     order: 76
     blank_before: 1
     text: |-
-      For a diamond branch to a target directly below, choose a downward-facing edge port and route its perpendicular initial run for at least 50 px before turning onto the grid. Continue by the fewest legal corners; move an unhinted child by whole grid columns if required for corner clearance (2.17). A route is straight only if the required normal departure and target geometry align.
+      Hard: a diamond branch's perpendicular initial run is at least diamond_min_straight_run (50 px) before turning onto the grid. Preference: for a target directly below, use a downward-facing edge port. Continue by the fewest legal corners; move an unhinted child by whole grid columns if required for corner clearance (2.17). A route is straight only if the required normal departure and target geometry align.
   - id: "3.8"
     title: "Decision branches"
     title_in_text: true
@@ -1338,14 +1341,14 @@ rules:
     pointer: ""
     params: ["diamond_min_straight_run"]
     refs: ["1.7","2.21","3.1","3.2","3.3","4.1","4.4","4.7"]
-    outranks: ["3.1","3.2","3.3","4.7","4.8"]
+    outranks: ["3.1","3.2","3.3","4.7"]
     yields: ["2.21"]
     pictures: ["decision-accepted.png","merge-decision-markup.png","pictures/markup-decision-branches.png","pictures/markup-three-way-decision.png"]
     hint_overridable: true
     order: 77
     blank_before: 1
     text: |-
-      Decision branches. Allocate each branch a distinct port on a suitable diamond edge using 3.2, 3.3 and 4.7, preferring the edge facing its target subject to hints and legality. Each branch departs perpendicular to its sloped edge, runs straight for at least 50 px, then turns onto horizontal or vertical routing (3.1, 4.1, 4.4). Grow the diamond and surrounding gaps by whole grid steps to reduce measured port-spacing or initial-run shortfalls (1.7). Routes are independent and never share a port or first run.
+      Decision branches. Hard: allocate each branch a distinct port on a diamond edge using 3.2, 3.3 and 4.7; each branch departs perpendicular to its sloped edge, runs straight for at least 50 px, then turns onto horizontal or vertical routing (3.1, 4.1, 4.4). Grow the diamond and surrounding gaps by whole grid steps to reduce measured port-spacing or initial-run shortfalls (1.7). Routes are independent and never share a port or first run. Preference: use the edge facing the branch's target.
   - id: "3.9"
     title: "Diamond routing"
     title_in_text: false
@@ -1356,14 +1359,14 @@ rules:
     pointer: ""
     params: []
     refs: ["2.21","3.1","4.1"]
-    outranks: ["3.1","3.2","3.3","4.7","4.8"]
+    outranks: ["3.1","3.2","3.3","4.7"]
     yields: ["2.21"]
     pictures: ["decision-three-way-markup.png","pictures/markup-three-way-decision.png"]
     hint_overridable: true
     order: 78
     blank_before: 1
     text: |-
-      Diamond lines use the same symmetric-port, track, corner-limit and crossing rules as other lines, except for their perpendicular-to-edge initial straight run and transition to the orthogonal grid (3.1, 4.1). No line may travel through the diamond interior. Prefer mirrored routing for mirrored destinations when compatible with hints and legality.
+      Hard: diamond lines use the same symmetric-port, track, corner-limit and crossing rules as other lines, except for their perpendicular-to-edge initial straight run and transition to the orthogonal grid (3.1, 4.1). No line may travel through the diamond interior. Preference: when scores tie, route mirrored destinations as mirror images.
   - id: "3.10"
     title: "Arrowhead and cross-marker boundary"
     title_in_text: false
@@ -1417,7 +1420,7 @@ rules:
     order: 82
     blank_before: 1
     text: |-
-      Allocate ports before routing under 3.2, 3.3 and 4.7, using the relative positions of the two endpoint nodes to determine port order and sides. A connection is a single straight run only when its allocated ports line up and their required departure and arrival directions agree; diamond edge normals are measured against the actual sloped edge (3.1). Always offer the legal straight outline-to-outline route as a candidate, reserving aligned ports before distributing other ports. Straight routing takes priority over symmetric port spacing. If no straight route is legal, compare node or linked-group movement (5.10) and the routes with the fewest legal direction changes from each allocated port (4.8). A legal line hint can override automatic route choice, not hard legality. After any change to a node's spans or position, recalculate its ports, routes, track availability, clearances and crossings, and then the full score (2.13). Preserve exact allocated-port terminal runs and use their drawn geometry for checks under 3.2.
+      Hard: allocate ports before routing under 3.2, 3.3 and 4.7, using the relative positions of the two endpoint nodes to determine port order and sides. A connection is a single straight run only when its allocated ports line up and their required departure and arrival directions agree; diamond edge normals are measured against the actual sloped edge (3.1). Preference: always offer the legal straight outline-to-outline route as a candidate, reserving aligned ports before distributing other ports. Straight routing takes priority over symmetric port spacing. If no straight route is legal, compare node or linked-group movement (5.10) and the routes with the fewest legal direction changes from each allocated port (4.8). A legal line hint can override the Preference sentences only. Hard: after any change to a node's spans or position, recalculate its ports, routes, track availability, clearances and crossings, and then the full score (2.13). Preserve exact allocated-port terminal runs and use their drawn geometry for checks under 3.2.
   - id: "4.3"
     title: "Corner limit"
     title_in_text: false
@@ -1427,7 +1430,7 @@ rules:
     status: "active"
     pointer: ""
     params: ["max_corners_forward","max_corners_back_edge"]
-    refs: ["2.21","5.7"]
+    refs: ["1.7","2.21","5.7"]
     outranks: []
     yields: ["2.21"]
     pictures: []
@@ -1435,7 +1438,7 @@ rules:
     order: 83
     blank_before: 1
     text: |-
-      A line has at most 2 corners, 3 for a back edge; insert space until met (rule 5.7). A line with a hint (rule 2.21) may use the corners its hint needs. A line never loops on itself, and never runs past the side of its target that faces the source and turns back.
+      Hard: a line has at most 2 corners, 3 for a back edge; insert space as rule 1.7 sets until met, and use the rule 5.7 fallback only when no legal repair exists. The sole exception is a line with a hint (rule 2.21), which may use the corners its hint needs (legality.2). A line never loops on itself, and never runs past the side of its target that faces the source and turns back.
   - id: "4.4"
     title: "Minimum straight run at ends"
     title_in_text: false
@@ -1453,7 +1456,7 @@ rules:
     order: 84
     blank_before: 1
     text: |-
-      A diamond decision branch travels at least 50 px **perpendicular to its sloped edge** before its first change of direction onto the grid. A line entering a diamond likewise follows the edge normal for its required terminal straight run; its length must accommodate the arrowhead and any transition geometry. Other lines have at least 20 px of straight travel after their source port before a corner, and every arrowheaded line has a terminal straight run at least as long as its arrowhead. Do not impose a universal 50 px source run on ordinary lines.
+      A diamond decision branch travels at least 50 px **perpendicular to its sloped edge** before its first change of direction onto the grid. A line entering a diamond likewise follows the edge normal for its required terminal straight run; its length must accommodate the arrowhead and any transition geometry. Other lines have a port-to-vertex distance of at least min_straight_run (20 px) from their source port before a corner, measured from the port to the corner's vertex (where the centre lines of the two runs meet), so a corner_radius arc may begin at the port, and every arrowheaded line has a terminal straight run at least as long as its arrowhead. Do not impose a universal 50 px source run on ordinary lines.
   - id: "4.5"
     title: "Z middle run on a track"
     title_in_text: false
@@ -1507,7 +1510,7 @@ rules:
     order: 87
     blank_before: 1
     text: |-
-      Allocate all automatic lines on each eligible connection-boundary segment (term Node geometry), such as a rectangular side or a diamond edge, together at symmetric k/(n+1) ports (3.2), then assign ports in the order of the other endpoints (3.3). Reserve ports for legal straight connections first, including a centre port when the count is even. Symmetric slots apply to the remaining free intervals. A legal side hint fixes the chosen side but does not exempt its line from joint port allocation. Reassign affected ports and reroute affected lines together to eliminate avoidable crossings (5.9), preserving hints, endpoint order and distinct connection-boundary ports. Straight alignment takes priority over symmetry. Allocate on the expanded connection boundary after spans are set (3.1). Preserve exact allocated-port terminal runs and use their drawn geometry for checks under 3.2.
+      Hard: allocate all automatic lines on each eligible connection-boundary segment (term Node geometry), such as a rectangular side or a diamond edge, together under 3.2 (aligned straight ports first, symmetric k/(n+1) slots in the remaining intervals, adjacent ports at least line_spacing apart), then assign ports in the order of the other endpoints (3.3). Preference: where several aligned straight ports compete, include a centre port when the count is even. Hard: a legal side hint fixes the chosen side but does not exempt its line from joint port allocation. Reassign affected ports and reroute affected lines together to eliminate avoidable crossings (5.9), preserving hints, endpoint order and distinct connection-boundary ports. Straight alignment takes priority over symmetry. Allocate on the expanded connection boundary after spans are set (3.1). Preserve exact allocated-port terminal runs and use their drawn geometry for checks under 3.2.
   - id: "4.8"
     title: "Fewest corners"
     title_in_text: false
@@ -1525,7 +1528,7 @@ rules:
     order: 88
     blank_before: 1
     text: |-
-      Prefer the fewest legal corners after port allocation: zero only for aligned ports, otherwise one if clear, then a two-corner Z when necessary. Prefer sides facing the opposite endpoint where the endpoint lies wholly beyond that side; break equal-corner ties in flow direction. Rule 4.11 is the specific convergence exception; 3.8 controls decision branches; 5.3–5.4 control back edges. A line hint may override automatic side and route preferences within hard legality. Do not run through boxes or turn back past the facing side of the target. Corner counts are recalculated after any growth or move (4.2).
+      Preference: use the fewest legal corners after port allocation: zero only for aligned ports, otherwise one if clear, then a two-corner Z when necessary. Use sides facing the opposite endpoint where the endpoint lies wholly beyond that side; break equal-corner ties in flow direction. Rule 4.11 is the specific convergence exception; 3.8 controls decision branches; 5.3–5.4 control back edges. A line hint may override automatic side and route preferences within hard legality. Hard: do not run through boxes or turn back past the facing side of the target. Corner counts are recalculated after any growth or move (4.2).
   - id: "4.9"
     title: "Group endpoints"
     title_in_text: true
@@ -1579,7 +1582,7 @@ rules:
     order: 91
     blank_before: 1
     text: |-
-      Convergence. Allocate all target ports jointly (3.2, 4.7). A source directly above a target uses a straight top entry **only if its allocated source and target ports align**. An offset source uses the fewest-corner legal entry: top when reachable without a prohibited gap traverse, otherwise the side facing the source. Reserve the top-centre port for a legal straight convergence; distribute offset arrivals across the remaining free sides and slots. A converging line never runs along the gap immediately above the target or uses an S-jog into its top unless a legal line hint explicitly allows that routing fault. Within a 2.10 block, follow 2.10 instead. For fan lines covered by 5.8, defer to the hub-side and nesting choices permitted by 5.8.
+      Convergence. Hard: allocate all target ports jointly (3.2, 4.7). Preference: a source directly above a target uses a straight top entry **only if its allocated source and target ports align**. An offset source uses the fewest-corner legal entry: top when reachable without a prohibited gap traverse, otherwise the side facing the source. Reserve the top-centre port for a legal straight convergence; distribute offset arrivals across the remaining free sides and slots. A converging line never runs along the gap immediately above the target or uses an S-jog into its top unless a legal line hint explicitly allows that routing fault. Within a 2.10 block, follow 2.10 instead. For fan lines covered by 5.8, defer to the hub-side and nesting choices permitted by 5.8.
   - id: "4.12"
     title: "Bend-removing port reassignment"
     title_in_text: false
@@ -1589,7 +1592,7 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["3.3","2.14"]
+    refs: ["3.3","2.14","9.1"]
     outranks: []
     yields: []
     pictures: []
@@ -1597,7 +1600,7 @@ rules:
     order: 92
     blank_before: 1
     text: |-
-      After routing, check every line that bends only to reach its port, because its port is offset from the line's approach or sits on a side that doesn't face the line. Look at the node's other lines on the same side, and on the next sides round where a line could legally use a different side. Swap or move their ports when that removes the bend. Keep a change only if it adds no crossing anywhere, adds no bend to any other line, keeps distinct ports, port order (3.3), minimum separation and every honoured hint, and strictly improves the score (2.14). Reroute only the lines affected. Repeat until no swap removes a bend, visiting each node at most once per pass so the search always ends. Hinted lines keep their hinted side and port.
+      After routing, check every line that bends only to reach its port, because its port is offset from the line's approach or sits on a side that doesn't face the line. Look at the node's other lines on the same side, and on the next sides round where a line could legally use a different side. Swap or move their ports when that removes the bend. Keep a change only if it adds no legality or routing fault, keeps distinct ports, port order (3.3), minimum separation and every honoured hint, and either removes a fault or, with equal faults, adds no crossing anywhere, adds no bend to any other line and strictly improves the score (2.14, 9.1). Reroute only the lines affected. Repeat until no swap removes a bend, visiting each node at most once per pass so the search always ends. Hinted lines keep their hinted side and port.
   - id: "5.1"
     title: "One line per track"
     title_in_text: false
@@ -1606,7 +1609,7 @@ rules:
     stage: "R5"
     status: "active"
     pointer: ""
-    params: ["track_spacing","line_spacing","track_shortage_growth","corridor_capacity_buffer"]
+    params: ["track_spacing","line_spacing","geometry_tolerance_px","track_shortage_growth","corridor_capacity_buffer"]
     refs: ["1.7"]
     outranks: []
     yields: []
@@ -1615,7 +1618,7 @@ rules:
     order: 94
     blank_before: 1
     text: |-
-      Two lines never use the same track where their runs overlap, and adjacent parallel tracks are at least line_spacing (15 px) apart. If a gap has fewer free tracks than lines, insert space as set by rule 1.7 and route again. Never enlarge an unrelated node to create track capacity; grow the gap instead. Initial band placement sizes each gap between columns and between bands for the forecast number of lines passing through it, plus corridor_capacity_buffer, rounded up and never less than one extra track. Gaps covered by a node that spans several columns are never corridors.
+      Two lines never share a track (term Track): parallel segments of different lines whose extents overlap by more than geometry_tolerance_px must be at least line_spacing (15 px) apart, and every track is at least line_spacing from the outlines bounding its gap. If a gap has fewer free tracks than lines, insert space as set by rule 1.7 (whole steps of track_spacing) and route again. Never enlarge an unrelated node to create track capacity; grow the gap instead. Initial band placement sizes each gap between columns and between bands for the forecast number of lines passing through it, plus corridor_capacity_buffer: reserve ceil(forecast x (1 + corridor_capacity_buffer)) tracks, and at least forecast + 1, when the forecast exceeds one line; reserve exactly one track when it is one line, and none when it is zero; capacity counts only tracks usable under 4.4 (term Track). Gaps covered by a node that spans several columns are never corridors.
   - id: "5.2"
     title: "Fan nesting"
     title_in_text: false
@@ -1697,7 +1700,7 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["4.3","5.10","1.3"]
+    refs: ["4.3","5.9","5.10","1.3"]
     outranks: []
     yields: []
     pictures: []
@@ -1705,7 +1708,7 @@ rules:
     order: 99
     blank_before: 1
     text: |-
-      Reconsider affected ports, tracks, sides and unhinted node positions together to remove avoidable crossings and humps. Additional corners are allowed within 4.3 unless an applicable hint permits more. Do not move a main-path node sideways during coupled repair; only a wrap fold or honoured hint can change its columns. Recompute all affected routes, apply legality, then hints, then non-exempt routing faults, then score. Remaining unavoidable crossings must be right-angled and inside gaps. Growing an unhinted node by whole cells is a candidate repair for a measured port-capacity or routing shortfall, within 4.3 and the 5.10 limits.
+      Reconsider affected ports, tracks, sides and unhinted node positions together to remove avoidable crossings (5.9) and humps (a run that moves away from its target and then back, where a route without it is legal). Additional corners are allowed within 4.3 unless an applicable hint permits more. Do not move a main-path node sideways during coupled repair; only a wrap fold or honoured hint can change its columns. Recompute all affected routes, apply legality, then hints, then non-exempt routing faults, then score. Remaining unavoidable crossings must be right-angled and inside gaps. Growing an unhinted node by whole cells is a candidate repair for a measured port-capacity or routing shortfall, within 4.3 and the 5.10 search budgets.
   - id: "5.7"
     title: "Insert space until legal"
     title_in_text: false
@@ -1732,17 +1735,17 @@ rules:
     stage: "X1"
     status: "active"
     pointer: ""
-    params: ["score_bend","score_repair_length_per_grid_step","score_repair_moved_line","repair_candidate_moves","repair_chain_depth","repair_chain_lines","repair_chain_lines_fan_hub","repair_extra_length_px","repair_extra_bends"]
-    refs: ["1.2","1.7","2.13","2.21","4.2","5.7","5.8","5.9","1.3"]
-    outranks: ["4.2","5.8","5.9"]
+    params: ["score_bend","score_repair_length_per_grid_step","score_repair_moved_line","repair_candidate_moves","repair_chain_depth","repair_chain_lines","repair_chain_lines_fan_hub"]
+    refs: ["1.2","1.7","2.13","2.21","4.2","5.7","5.8","5.9","1.3","9.1"]
+    outranks: ["4.2"]
     yields: ["2.21"]
     pictures: []
     hint_overridable: false
     order: 101
     blank_before: 1
     text: |-
-      Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, add no legality or routing fault, and lower the score. For an atomic candidate that moves a fan hub and reroutes every declared line in that fan together, repair_chain_lines_fan_hub is the number of lines in that fan. Moving the hub necessarily changes every fan terminal, so the complete fan must be scored and restored as one assignment rather than truncated at the ordinary twelve-line bound. Every other candidate still uses repair_chain_lines (12). This exception permits no unrelated changed lines and does not raise the candidate-move, chain-depth, added-length or added-bend limits. Route options obey named limits for candidate moves, chain depth, lines per chain, added length and added bends; those values protect the 10 second per-diagram target and are set from catalogue measurements. If no move qualifies, route around it as normal. Report when a named limit prevents further candidates from being examined. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same candidate limits.
-      In the final repair pass only, after placement, fan nesting, routing and every other repair are complete, a candidate may introduce a new finding identity when the complete candidate, fully rerouted and re-checked, lowers the layout score, adds no legality, hard-gate or routing fault, adds no bends or crossings in that scenario, and does not raise that scenario's total finding count. Every earlier pass keeps the rule that no finding identity may increase.
+      Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, and must not raise the scenario's legality-fault count or non-exempt routing-fault count, including fans (5.8) and avoidable crossings (5.9). It is accepted when it lowers the fault count in the fault-first order of 9.1, whatever its score, crossings or bends; otherwise it must lower the score. For an atomic candidate that moves a fan hub and reroutes every declared line in that fan together, repair_chain_lines_fan_hub is the number of lines in that fan. Moving the hub necessarily changes every fan terminal, so the complete fan must be scored and restored as one assignment rather than truncated at the ordinary repair_chain_lines bound. Every other candidate still uses repair_chain_lines (24). This exception permits no unrelated changed lines and does not raise the candidate-move or chain-depth budgets. Route options obey named search budgets for candidate moves, chain depth and lines per chain; their values are provisional until timed on the full catalogue and A142 on Dave's ARM laptop. Examine candidates in a deterministic best-first order (fault-removing candidates first, then by repair score), so reaching a budget cuts the least promising branches. The 10 s per-diagram target remains a quality goal; 180 s is the watchdog limit. Budgets are counts, never wall-clock time, so layouts stay deterministic. Added length and bends have no limit beyond 4.3; they are priced by the repair score. If no move qualifies, route around it as normal. Report when a search budget prevents further candidates from being examined; reaching a budget is reported as "search budget reached (no legal candidate found within the permitted search)", never as 'no legal option'. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same search budgets.
+      In the final repair pass only, after placement, fan nesting, routing and every other repair are complete, a candidate may introduce a new finding identity (9.1) when the complete candidate, fully rerouted and re-checked, does not raise that scenario's legality-fault or routing-fault count, does not raise its total finding count, and either removes a legality or routing fault or, with equal faults, lowers the layout score and adds no bends or crossings in that scenario. Every earlier pass also keeps the rule that no finding identity may be added.
   - id: "5.8"
     title: "Fans between columns"
     title_in_text: true
@@ -1770,7 +1773,7 @@ rules:
     status: "active"
     pointer: ""
     params: ["score_crossing"]
-    refs: ["2.13","4.3"]
+    refs: ["2.13","4.3","9.1"]
     outranks: []
     yields: ["2.21","4.3"]
     pictures: ["pictures/markup-fan-out-bad.png"]
@@ -1778,7 +1781,7 @@ rules:
     order: 103
     blank_before: 1
     text: |-
-      Avoidable crossings are **routing faults, not score terms**. If a legal alternative assignment of tracks, ports, sides or permitted extra corners removes a crossing while preserving hints and sections 3–5 (including 4.3), reject the crossing route and use the alternative. Evaluate affected lines together. A crossing with no such alternative remains as a right-angle crossing inside a gap and is reported/scored under 2.13. No hops.
+      A crossing is **avoidable** when any candidate the engine generates for the same placement removes it by a legal reassignment of tracks, ports, sides or extra corners permitted by 4.3, without raising the legality-fault or routing-fault count and while preserving hints and sections 3-5, within the 5.10 search budgets (report when a budget stopped the avoidability check). Avoidable crossings are routing faults, counted under 9.1: prefer the alternative. Evaluate affected lines together. Every remaining crossing must be a right-angle crossing inside a gap; it is reported and costs score_crossing above the forced minimum under 2.13. Crossings never outrank legality: a candidate that removes a legality fault is kept even if it adds crossings (9.1). No hops.
   - id: "6.1"
     title: "Label on a straight run"
     title_in_text: false
@@ -1877,8 +1880,8 @@ rules:
     stage: "L1"
     status: "active"
     pointer: ""
-    params: ["frame_padding","frame_gap_growth","frame_gap_growth_with_line"]
-    refs: []
+    params: ["frame_padding","frame_gap_growth","frame_gap_growth_with_line","line_spacing"]
+    refs: ["5.1"]
     outranks: []
     yields: []
     pictures: ["frame-overlap-markup.png"]
@@ -1886,7 +1889,7 @@ rules:
     order: 111
     blank_before: 1
     text: |-
-      Frames never overlap each other or cross a node that is not a member. Frame clearance is measured on the visual bounds of nodes (term Node geometry). When two frames, or a frame and an outside node, sit in neighbouring columns or ranks, grow that gap by 1 grid step, or by 2 when a line also runs through it (see frame-overlap-markup.png). Frames contain the full visual bounds of expanded members. Make room by growing frames or gaps, never by resizing an unrelated node.
+      Frames never overlap each other or cross a node that is not a member. Frame clearance is measured on the visual bounds of nodes (term Node geometry). When two frames, or a frame and an outside node, sit in neighbouring columns or ranks, grow that gap to the smallest whole number of grid steps that holds each frame's padding plus (n + 1) x line_spacing for the n tracks forecast through the gap, and a track that a line turns onto from a port on a bounding outline lies at least min_straight_run from that outline, and at least corner_radius, plus arrowhead_length_px for an arrowheaded line, from an outline the line turns into (term Track, 4.4, 5.1); this is at least 1 grid step, or 2 when a line runs through it (see frame-overlap-markup.png). Frames contain the full visual bounds of expanded members. Make room by growing frames or gaps, never by resizing an unrelated node.
   - id: "7.4"
     title: "Centre lone nested group"
     title_in_text: false
@@ -2004,7 +2007,7 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["5.9"]
+    refs: ["2.23","5.9"]
     outranks: []
     yields: []
     pictures: []
@@ -2012,7 +2015,13 @@ rules:
     order: 120
     blank_before: 1
     text: |-
-      Apply precedence in this order: (1) hard legality (section 10); (2) honoured hints, subject only to hard legality; (3) routing-fault rejection unless an applicable line hint explicitly permits the fault; (4) score-based optimisation. Mandatory structural constraints are applied during candidate construction; automatic placement preferences yield to hints. Avoidable crossings are routing faults under 5.9, not a score trade-off. Insert space only for legality or to honour hints. Valid cell occupancy is hard legality and beats every visual preference; no preference for equal node sizes may block growth that legality needs, and no optimisation may allow fractional occupancy or overlap.
+      Apply precedence in this order: (1) hard legality (section 10, and the binding band membership and band order of 2.23); (2) honoured hints, subject only to hard legality; (3) fewer non-exempt routing faults (an applicable line hint may expressly permit a fault); (4) score-based optimisation. Mandatory structural constraints are applied during candidate construction; automatic placement preferences yield to hints. Avoidable crossings are routing faults under 5.9. Comparison is fault-first and lexicographic: fewer legality (hard-gate) faults; then more honoured hints; then fewer non-exempt routing faults; then lower score. Crossings and bends count only through the score. Counts compare totals. A repair may change which finding identities are present only in the final repair pass (5.10); whole-layout candidates (placement, direction trials, wrapping, compaction) are compared by counts alone; and no repair may raise the legality-fault or non-exempt routing-fault count. Insert space only for legality or to honour hints. Valid cell occupancy is hard legality and beats every visual preference; no preference for equal node sizes may block growth that legality needs, and no optimisation may allow fractional occupancy or overlap.
+
+      - Finding: one reported rule violation, identified by its **finding identity** = rule or section 10 item id plus the ids of the lines, nodes or frames involved.
+
+      - Hard gate: a section 10 legality item or a 2.23 band membership/order violation; a hard-gate fault is a finding of one.
+
+      - Scenario: one diagram (one test case) laid out end to end; counts and comparisons "in that scenario" cover that diagram only.
   - id: "9.2"
     title: "Grow space before breaking legality"
     title_in_text: false
@@ -2048,7 +2057,7 @@ rules:
     order: 122
     blank_before: 1
     text: |-
-      A specific rule beats a general automatic rule within one step of 9.6: diamond-specific first-run and sizing rules (3.6–3.9, 4.4) supplement the shared port rules (3.1–3.3, 4.7), while back-edge rules (5.3–5.4) supplement forward-line rules. Hints override all automatic rules except hard legality.
+      A specific rule beats a general automatic rule within one step of 9.6: diamond-specific first-run and sizing rules (3.6–3.9, 4.4) add to the shared port rules (3.1–3.3, 4.7) and win where they conflict (edge-normal run, 50 px minimum), while back-edge rules (5.3–5.4) supplement forward-line rules. Hints override all automatic rules except hard legality.
   - id: "9.4"
     title: "Tie-break order"
     title_in_text: false
@@ -2066,7 +2075,7 @@ rules:
     order: 123
     blank_before: 1
     text: |-
-      Evaluate each candidate in the order of 9.1: hard legality, honoured hints, non-exempt routing faults, then complete score (2.13). Specific geometric rules take precedence over general automatic rules, but never over an honoured legal hint. Automatic ties prefer grid placement, main-path continuity, fewer crossings, fewer corners, label placement, then Mermaid source order.
+      Evaluate each candidate in the order of 9.1: hard legality, honoured hints, non-exempt routing faults, then complete score (2.13). Specific geometric rules take precedence over general automatic rules, but never over an honoured legal hint. Automatic ties, in order: fewer cells off Mermaid's snapped grid position, fewer main-path nodes whose columns do not overlap the columns of the preceding main-path node, fewer crossings, fewer corners, labels nearer their line's source, then Mermaid source order.
   - id: "9.5"
     title: "Mermaid order on tie"
     title_in_text: false
@@ -2094,7 +2103,7 @@ rules:
     status: "active"
     pointer: ""
     params: []
-    refs: ["5.7","5.10"]
+    refs: ["2.11","2.12","5.6","5.7","5.10","9.1"]
     outranks: []
     yields: []
     pictures: []
@@ -2102,7 +2111,7 @@ rules:
     order: 125
     blank_before: 1
     text: |-
-      Execution order. Parse and validate hints; determine direction, main path, decisions, fan/block placement, clusters and disconnected pieces. Apply hints as constraints throughout, ahead of automatic placement. Allocate ports jointly, route decision branches, convergence, fans and back edges, then minimise corners. Check hard legality, honour legal hints, reject non-exempt routing faults and only then score candidates. Apply compaction and wrapping. For each routing fault, apply the bounded move-before-detour repair (5.10) before changing the route; then run coupled repairs and reroute all affected lines. Coupled repairs never move main-path nodes sideways except at an explicit wrap fold or by hint. Repair only measurable shortfalls; if unresolved, render the fallback and diagnostics (5.7). Direction trials select among completed candidates; Mermaid order resolves ties.
+      Execution order. Parse and validate hints; determine direction, main path, decisions, fan/block placement, clusters and disconnected pieces. Apply hints as constraints throughout, ahead of automatic placement. Allocate ports jointly, route decision branches, convergence, fans and back edges, then minimise corners. Check hard legality, honour legal hints, count non-exempt routing faults and only then score candidates (fault-first, 9.1). Apply compaction and wrapping. For each routing fault, apply the bounded move-before-detour repair (5.10) before changing the route; then run coupled repairs and reroute all affected lines. Coupled repairs never move main-path nodes sideways except at an explicit wrap fold or by hint. Repair only measurable shortfalls; if unresolved, render the fallback and diagnostics (5.7). Direction trials select among completed candidates; Mermaid order resolves ties.
 entries:
   - id: "pre.layout.1"
     kind: "preamble"
@@ -2160,7 +2169,7 @@ entries:
     order: 35
     blank_before: 1
     text: |-
-      Every rule is generic: it uses structure and geometry, never labels, samples, tests or group titles; only hints identify peers by id (2.21). **Precedence has four distinct levels:** (1) hard legality, including geometry and section 10; (2) honoured hints, which override automatic placement and eligible routing faults; (3) routing-fault rejection for routes not explicitly permitted by hints; (4) scored optimisation. A hint cannot override hard legality, but can override automatic placement, cluster membership preferences and eligible routing faults. Rules are expressed for top-to-bottom (TB); rule 1.1 maps them to other directions. `webshop-target-rules.md` retains historical pictures and decisions.
+      Every rule is generic: it uses structure and geometry, never labels, samples, tests or group titles; only hints identify peers by id (2.21). **Precedence has four distinct levels:** (1) hard legality, including geometry and section 10; (2) honoured hints, which override automatic placement and eligible routing faults; (3) fewer routing faults, counting only faults not explicitly permitted by hints; (4) scored optimisation. A hint cannot override hard legality, but can override automatic placement, cluster membership preferences and eligible routing faults. Rules are expressed for top-to-bottom (TB); rule 1.1 maps them to other directions. `webshop-target-rules.md` retains historical pictures and decisions.
   - id: "legality.1"
     kind: "legality"
     section: "S10"
@@ -2200,12 +2209,12 @@ entries:
   - id: "legality.5"
     kind: "legality"
     section: "S10"
-    refs: []
+    refs: ["5.1"]
     pictures: []
     order: 131
     blank_before: 1
     text: |-
-      - Two lines sharing a port, first run or overlapping track.
+      - Two lines sharing a port or first run, or sharing a track: parallel segments of different lines that overlap by more than geometry_tolerance_px and are less than line_spacing (15 px) apart (term Track, 5.1).
   - id: "legality.6"
     kind: "legality"
     section: "S10"
@@ -2349,7 +2358,7 @@ entries:
     order: 150
     blank_before: 1
     text: |-
-      8\. Track spacing: brief sections 3 and 7 set 5 tracks 6 px apart; the later A16 sets 1 grid step. Kept A16.
+      8\. Track spacing: brief sections 3 and 7 set 5 tracks 6 px apart; the later A16 set 1 grid step. Superseded on 20 Oct 2026 by line_spacing = 15 px between adjacent lines and tracks; track_spacing remains only the gap-sizing step.
   - id: "resolved.9"
     kind: "resolved-conflict"
     section: "resolved-conflicts"
@@ -2395,4 +2404,3 @@ entries:
     blank_before: 1
     text: |-
       13\. Rank gap: brief section 3 sets a 1-step gap. The base rank gap is now 2 grid steps to provide a routing corridor for rounded corners, arrowhead clearance and separate tracks, rather than to impose a universal 50 px source run.
-
