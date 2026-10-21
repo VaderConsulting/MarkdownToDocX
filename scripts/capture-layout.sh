@@ -6,8 +6,10 @@ export PATH="${HOME}/.dotnet:${PATH}"
 cd "$ROOT"
 dotnet build tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj -c Release -v q
 START=$(date +%s)
+set +e
 dotnet test tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj -c Release --no-build \
   --logger "console;verbosity=normal" 2>&1 | tee "$OUT/layout.log"
+set -e
 END=$(date +%s)
 echo "LAYOUT_SECONDS=$((END-START))" | tee "$OUT/layout-time.txt"
 grep -E '^  Failed |^  Passed |Failed!' "$OUT/layout.log" | tail -5 | tee "$OUT/layout-summary.txt"
