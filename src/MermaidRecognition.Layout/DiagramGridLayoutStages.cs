@@ -627,8 +627,6 @@ public static partial class DiagramGridLayout
                         * FlowchartLayoutRules.RepairLengthWeight)
                     + (changedLines * FlowchartLayoutRules.RepairMovedLineWeight);
                 if (changedLines > FlowchartLayoutRules.RepairChainLines
-                    || RouteLength(State.Copy) - BestRouteLength > FlowchartLayoutRules.RepairExtraLength
-                    || After.Bends - Before.Bends > FlowchartLayoutRules.RepairExtraBends
                     || repairScore >= BeforeRepairScore)
                 {
                     RestoreRoutes(State.Copy, BestRoutes);
