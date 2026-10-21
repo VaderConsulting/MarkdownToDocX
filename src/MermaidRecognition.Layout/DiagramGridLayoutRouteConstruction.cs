@@ -535,6 +535,13 @@ public static partial class DiagramGridLayout
                     Nodes,
                     Direction,
                     out LayoutPoints)
+                && !FlowchartLoopBackRouteHelper.TryResolveSameSideVerticalBackRoute(
+                    Edge,
+                    Contract,
+                    BoundsById,
+                    Nodes,
+                    Direction,
+                    out LayoutPoints)
                 && !FlowchartFanInPortAllocator.TryResolveLoopBackRoute(
                     Edge,
                     Contract,

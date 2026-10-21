@@ -38,8 +38,24 @@ internal static class FlowchartDecisionBranchRouteRepair
             EdgeContract? Edge = Outgoing.FirstOrDefault(Edge => Edge.TargetId == Route.TargetId);
             if (Edge == null || Outgoing.Count is not (2 or 3)) continue;
 
-            (double SourceCross, double SourceFlow, double SourceHalfCross, _) = Axes(Source, Direction);
+            (double SourceCross, double SourceFlow, double SourceHalfCross, double SourceHalfFlow) = Axes(Source, Direction);
             (double TargetCross, double TargetFlow, double TargetHalfCross, double TargetHalfFlow) = Axes(Target, Direction);
+            bool HorizontalFlow = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+            if (HorizontalFlow && Outgoing.Count == 3
+                && TryRepairLrThreeWayVertexBranch(Route, Source, Target, SourceHalfCross, SourceHalfFlow,
+                    TargetHalfCross, TargetHalfFlow, SourceCross, TargetCross, TargetFlow, SourceFlow, Direction,
+                    Layout, Contract, Bounds, Edge))
+            {
+                continue;
+            }
+
+            if (HorizontalFlow && Math.Abs(TargetCross - SourceCross) <= Epsilon && TargetFlow > SourceFlow + Epsilon
+                && TryRepairLrCollinearForwardBranch(Route, Source, Target, SourceHalfFlow, TargetHalfFlow,
+                    SourceFlow, TargetFlow, SourceCross, TargetCross, Direction, Layout, Contract, Bounds, Edge))
+            {
+                continue;
+            }
+
             if (TargetFlow <= SourceFlow + Epsilon || Math.Abs(TargetCross - SourceCross) <= Epsilon) continue;
 
             bool TargetIsRight = TargetCross > SourceCross;
@@ -142,4 +158,92 @@ internal static class FlowchartDecisionBranchRouteRepair
     private static double Distance(FlowchartLayoutPoint A, FlowchartLayoutPoint B) => Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y);
     private static bool Near(FlowchartLayoutPoint Point, (double X, double Y) Other) =>
         Math.Abs(Point.X - Other.X) <= Epsilon && Math.Abs(Point.Y - Other.Y) <= Epsilon;
+
+    private static bool TryRepairLrCollinearForwardBranch(
+        FlowchartLayoutEdgeRoute Route, FlowchartLayoutNodeBounds Source, FlowchartLayoutNodeBounds Target,
+        double SourceHalfFlow, double TargetHalfFlow, double SourceFlow, double TargetFlow,
+        double SourceCross, double TargetCross,
+        FlowchartDirection Direction, FlowchartLayoutResult Layout, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, EdgeContract Edge)
+    {
+        (double StartX, double StartY) = Point(SourceFlow + SourceHalfFlow, SourceCross, Direction);
+        (double EndX, double EndY) = Point(TargetFlow - TargetHalfFlow, TargetCross, Direction);
+        List<FlowchartLayoutPoint> Candidate = Normalize([New((StartX, StartY)), New((EndX, EndY))]);
+        if (Candidate.Count != 2 || !Legal(Candidate, Route, Layout, Contract, Bounds)) return false;
+        Route.Points.Clear();
+        Route.Points.AddRange(Candidate.Select(Copy));
+        Route.ExitSide = "right";
+        Route.EntrySide = "left";
+        return true;
+    }
+
+    private static bool TryRepairLrThreeWayVertexBranch(
+        FlowchartLayoutEdgeRoute Route, FlowchartLayoutNodeBounds Source, FlowchartLayoutNodeBounds Target,
+        double SourceHalfCross, double SourceHalfFlow, double TargetHalfCross, double TargetHalfFlow,
+        double SourceCross, double TargetCross, double TargetFlow, double SourceFlow,
+        FlowchartDirection Direction, FlowchartLayoutResult Layout, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, EdgeContract Edge)
+    {
+        double CrossDelta = TargetCross - SourceCross;
+        double FlowDelta = TargetFlow - SourceFlow;
+        (double X, double Y) Start;
+        if (CrossDelta > Epsilon)
+        {
+            Start = Point(SourceCross + SourceHalfCross, SourceFlow, Direction);
+        }
+        else if (CrossDelta < -Epsilon)
+        {
+            Start = Point(SourceCross - SourceHalfCross, SourceFlow, Direction);
+        }
+        else if (FlowDelta > Epsilon)
+        {
+            Start = Point(SourceCross, SourceFlow + SourceHalfFlow, Direction);
+        }
+        else
+        {
+            return false;
+        }
+
+        (double EndX, double EndY) = ResolveLrTargetAttach(Target, TargetHalfCross, TargetHalfFlow, TargetCross, TargetFlow, Direction, CrossDelta, FlowDelta);
+        List<FlowchartLayoutPoint> Candidate;
+        if (Math.Abs(Start.X - EndX) <= Epsilon || Math.Abs(Start.Y - EndY) <= Epsilon)
+        {
+            Candidate = Normalize([New(Start), New((EndX, EndY))]);
+        }
+        else
+        {
+            (double CornerX, double CornerY) = Math.Abs(Start.X - EndX) <= Epsilon
+                ? (EndX, Start.Y)
+                : (Start.X, EndY);
+            Candidate = Normalize([New(Start), New((CornerX, CornerY)), New((EndX, EndY))]);
+        }
+
+        if (Candidate.Count < 2 || !Legal(Candidate, Route, Layout, Contract, Bounds)) return false;
+        Route.Points.Clear();
+        Route.Points.AddRange(Candidate.Select(Copy));
+        return true;
+    }
+
+    private static (double X, double Y) ResolveLrTargetAttach(
+        FlowchartLayoutNodeBounds Target, double TargetHalfCross, double TargetHalfFlow,
+        double TargetCross, double TargetFlow, FlowchartDirection Direction,
+        double CrossDelta, double FlowDelta)
+    {
+        if (CrossDelta > Epsilon)
+        {
+            return Point(TargetCross - TargetHalfCross, TargetFlow, Direction);
+        }
+
+        if (CrossDelta < -Epsilon)
+        {
+            return Point(TargetCross + TargetHalfCross, TargetFlow, Direction);
+        }
+
+        if (FlowDelta > Epsilon)
+        {
+            return Point(TargetCross, TargetFlow - TargetHalfFlow, Direction);
+        }
+
+        return Point(TargetCross, TargetFlow + TargetHalfFlow, Direction);
+    }
 }

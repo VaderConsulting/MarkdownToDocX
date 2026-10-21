@@ -52,6 +52,7 @@ public static class FlowchartRouteRuleChecker
             if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
                 hasCellAuthority);
             CheckFrameRun(edge, route, contract, boxes, findings);
+            CheckFrameBorderProximity(edge, route, layout.ClusterBounds, boxes, findings);
             CheckObstacles(edge, route, contract, layout, boxes, nodes, findings);
         }
 
@@ -575,6 +576,67 @@ public static class FlowchartRouteRuleChecker
     {
         double dx = to.CenterX - from.CenterX, dy = to.CenterY - from.CenterY;
         return Math.Abs(dx) >= Math.Abs(dy) ? (dx >= 0 ? "right" : "left") : (dy >= 0 ? "top" : "bottom");
+    }
+
+    private static void CheckFrameBorderProximity(EdgeContract Edge, FlowchartLayoutEdgeRoute Route,
+        IReadOnlyList<FlowchartLayoutNodeBounds> Frames,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Boxes, List<Finding> Findings)
+    {
+        double Clearance = FlowchartLayoutRules.LineSpacing;
+        foreach (FlowchartLayoutNodeBounds Frame in Frames)
+        {
+            if (string.Equals(Frame.NodeId, Edge.SourceId, StringComparison.Ordinal)
+                || string.Equals(Frame.NodeId, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            double Left = Frame.CenterX - Frame.Width / 2.0;
+            double Right = Frame.CenterX + Frame.Width / 2.0;
+            double Bottom = Frame.CenterY - Frame.Height / 2.0;
+            double Top = Frame.CenterY + Frame.Height / 2.0;
+            for (int Index = 1; Index < Route.Points.Count; Index++)
+            {
+                FlowchartLayoutPoint A = Route.Points[Index - 1];
+                FlowchartLayoutPoint B = Route.Points[Index];
+                bool Vertical = Math.Abs(A.X - B.X) <= Tolerance;
+                bool Horizontal = Math.Abs(A.Y - B.Y) <= Tolerance;
+                if (Vertical && Math.Abs(A.X - Left) <= Clearance + Tolerance
+                    && SegmentOverlapsSpan(A.Y, B.Y, Bottom, Top))
+                {
+                    Findings.Add(new Finding("4.9", EdgeName(Edge), $"route runs along frame '{Frame.NodeId}' left border"));
+                    return;
+                }
+
+                if (Vertical && Math.Abs(A.X - Right) <= Clearance + Tolerance
+                    && SegmentOverlapsSpan(A.Y, B.Y, Bottom, Top))
+                {
+                    Findings.Add(new Finding("4.9", EdgeName(Edge), $"route runs along frame '{Frame.NodeId}' right border"));
+                    return;
+                }
+
+                if (Horizontal && Math.Abs(A.Y - Bottom) <= Clearance + Tolerance
+                    && SegmentOverlapsSpan(A.X, B.X, Left, Right))
+                {
+                    Findings.Add(new Finding("4.9", EdgeName(Edge), $"route runs along frame '{Frame.NodeId}' bottom border"));
+                    return;
+                }
+
+                if (Horizontal && Math.Abs(A.Y - Top) <= Clearance + Tolerance
+                    && SegmentOverlapsSpan(A.X, B.X, Left, Right))
+                {
+                    Findings.Add(new Finding("4.9", EdgeName(Edge), $"route runs along frame '{Frame.NodeId}' top border"));
+                    return;
+                }
+            }
+        }
+    }
+
+    private static bool SegmentOverlapsSpan(double A, double B, double Min, double Max)
+    {
+        double Low = Math.Min(A, B);
+        double High = Math.Max(A, B);
+        return High > Min + Tolerance && Low < Max - Tolerance;
     }
 
     private static void CheckFrameRun(EdgeContract edge, FlowchartLayoutEdgeRoute route, DiagramContract contract,

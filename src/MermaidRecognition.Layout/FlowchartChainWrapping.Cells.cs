@@ -7,12 +7,12 @@ namespace MermaidRecognition.Layout;
 /// <summary>Wraps a complete simple path through one cell-region and gap transaction.</summary>
 internal static partial class FlowchartChainWrapping
 {
-    /// <summary>Plans whole-span row/column wrapping, grows measured label gaps and accepts only an improved aspect ratio.</summary>
+    /// <summary>Plans whole-span row/column wrapping, grows measured label gaps and accepts only when page width requires it.</summary>
     /// <param name="Path">Complete connected path in declared traversal order.</param>
     /// <param name="Horizontal">Whether traversal wraps across columns first.</param>
     /// <param name="ColumnGap">Measured horizontal label/routing clearance.</param>
     /// <param name="RowGap">Measured vertical label/routing clearance.</param>
-    /// <returns>Whether the complete legal wrap improved the aspect ratio.</returns>
+    /// <returns>Whether the complete legal wrap was applied.</returns>
     internal static bool ApplyCellPath(List<DiagramGridLayout.GridNode> Path, bool Horizontal, int ColumnGap, int RowGap)
     {
         if (Path.Count < FlowchartWrapPlan.MinimumRun + 1) return false;
@@ -49,19 +49,19 @@ internal static partial class FlowchartChainWrapping
         }
         var Plan = FlowchartCellRepair.PlanAssignment(Path, Targets, Growth);
         if (Plan?.TryApply() != true) return false;
-        bool Accepted = false;
-        try
+        double UsableSpanPx = FlowchartLayoutRules.DiagramUsableWidthPx;
+        if (Horizontal && OldWidth <= UsableSpanPx + 1e-9)
         {
-            double Width = Path.Max(Node => Node.X + Node.Width / 2d) - Path.Min(Node => Node.X - Node.Width / 2d);
-            double Height = Path.Max(Node => Node.Y + Node.Height / 2d) - Path.Min(Node => Node.Y - Node.Height / 2d);
-            Accepted = RatioDistance(Width, Height) < RatioDistance(OldWidth, OldHeight) - 1e-9;
-            return Accepted;
+            Plan.Rollback();
+            return false;
         }
-        finally
+
+        if (!Horizontal && OldHeight <= UsableSpanPx + 1e-9)
         {
-            // Aspect rejection is a complete rollback, including any label
-            // clearance gaps grown by the proposed wrapped rows and columns.
-            if (!Accepted) Plan.Rollback();
+            Plan.Rollback();
+            return false;
         }
+
+        return true;
     }
 }

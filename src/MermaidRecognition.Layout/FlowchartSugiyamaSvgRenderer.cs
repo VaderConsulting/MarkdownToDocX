@@ -1652,9 +1652,25 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartEdgeRouteKind RouteKind = FlowchartEdgeRouteKind.Curved)
     {
         FlowchartLabelDimensions LabelDimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, RenderOptions, RenderOptions.EdgeLabelFontSizePx);
-        if ((IsAxisAlignedPolyline(LayoutPoints) || FlowchartGridTerminalNormalizer.HasAxisAlignedInterior(LayoutPoints))
+        FlowchartEdgeRouteKind FlattenKind = RouteKind;
+        if (LayoutPoints.Count <= 2)
+        {
+            FlattenKind = FlowchartEdgeRouteKind.Straight;
+        }
+        else if (FlattenKind != FlowchartEdgeRouteKind.Corridor
+            && FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints))
+        {
+            FlattenKind = FlowchartEdgeRouteKind.Corridor;
+        }
+
+        List<(double X, double Y)> RenderedSamples = LayoutPoints.Count >= 2
+            ? FlowchartSharedEdgeRouter.FlattenRenderedGuide(LayoutPoints, FlattenKind, Direction)
+            : [];
+
+        if (!string.IsNullOrWhiteSpace(Edge.Label)
+            && RenderedSamples.Count >= 2
             && FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
-                LayoutPoints, LabelDimensions, RenderOptions.EdgeLabelFontSizePx,
+                RenderedSamples, LabelDimensions, RenderOptions.EdgeLabelFontSizePx,
                 out FlowchartEdgeLabelGapHelper.LabelSegmentBreak LabelBreak))
         {
             return (LabelBreak.CentreX, LabelBreak.CentreY);
@@ -1681,21 +1697,6 @@ public static class FlowchartSugiyamaSvgRenderer
         }
 
         (double ClearedX, double ClearedY) = MoveLayoutLabelClearOfConnector(Edge, Contract, LabelX, LabelY, LabelDimensions.Width, LabelHeight, LayoutPoints, BoundsById, SourceBounds, TargetBounds, Direction);
-        FlowchartEdgeRouteKind FlattenKind = RouteKind;
-        if (LayoutPoints.Count <= 2)
-        {
-            FlattenKind = FlowchartEdgeRouteKind.Straight;
-        }
-        else if (FlattenKind != FlowchartEdgeRouteKind.Corridor
-            && FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints))
-        {
-            FlattenKind = FlowchartEdgeRouteKind.Corridor;
-        }
-
-        List<(double X, double Y)> RenderedSamples = FlowchartSharedEdgeRouter.FlattenRenderedGuide(
-            LayoutPoints,
-            FlattenKind,
-            Direction);
         if (RenderedSamples.Count >= 2
             && (FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints)
                 || IsAxisAlignedPolyline(LayoutPoints))

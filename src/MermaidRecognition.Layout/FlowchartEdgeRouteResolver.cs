@@ -378,6 +378,14 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
+        if (FlowchartLoopBackRouteHelper.TryResolveSameSideVerticalBackRoute(
+                Edge, Contract, EffectiveBounds, NodeById, Direction, out List<(double X, double Y)> SameSideBackPoints))
+        {
+            LayoutPoints = SameSideBackPoints;
+            RouteKind = FlowchartEdgeRouteKind.RetryLoop;
+            return true;
+        }
+
         if (FlowchartLoopBackRouteHelper.TryResolveSoleForwardDecisionBranch(Edge, Contract, EffectiveBounds, NodeById, Direction, out List<(double X, double Y)> SoleBranchPoints))
         {
             LayoutPoints = SoleBranchPoints;

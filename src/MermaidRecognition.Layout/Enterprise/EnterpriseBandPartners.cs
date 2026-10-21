@@ -20,12 +20,12 @@ internal static partial class EnterpriseBandPlacement
         {
             var Grid = Nodes[0].CellNode!.Grid;
             double Area = Original.Values.Sum(Region => (double)Region.RowSpan * Region.ColumnSpan);
-            int ShapeWidth = (int)Math.Ceiling(Math.Sqrt(Area * FlowchartLayoutRules.TargetAspectWidth
-                / FlowchartLayoutRules.TargetAspectHeight * Grid.Configuration.CellHeight / Grid.Configuration.CellWidth));
             int LinkedWidth = Nodes.Where(Node => !Free.Contains(Node.Id)).GroupBy(Node => Classes[Node.Id].Band)
                 .Select(Band => Band.Max(Node => Targets[Node.Id].EndColumn) - Band.Min(Node => Targets[Node.Id].StartColumn))
                 .DefaultIfEmpty(0).Max();
-            PreferredWidth = Math.Max(Original.Values.Max(Region => Region.ColumnSpan), Math.Max(ShapeWidth, LinkedWidth));
+            int UsableColumns = Math.Max(1, (int)Math.Floor(FlowchartLayoutRules.DiagramUsableWidthPx
+                / Math.Max(1.0, Grid.Configuration.CellWidth + Grid.Configuration.ColumnGap)));
+            PreferredWidth = Math.Max(Original.Values.Max(Region => Region.ColumnSpan), Math.Min(LinkedWidth, UsableColumns));
             var Tie = Order.Select((Id, Index) => (Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index);
             // Cross-band links supply pulls only. Reusing the existing finite
             // sweep allowance settles medians without inventing rank edges.

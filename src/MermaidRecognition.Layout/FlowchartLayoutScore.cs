@@ -414,7 +414,7 @@ internal static partial class FlowchartLayoutScore
         return Corners > 3;
     }
 
-    /// <summary>Scores complete pre-routing node and frame geometry using the existing aspect and raster empty-space terms.</summary>
+    /// <summary>Scores complete pre-routing node and frame geometry using the raster empty-space term.</summary>
     /// <param name="Layout">Projected candidate bounds, including every frame; no route has yet been selected.</param>
     /// <returns>The unchanged placement terms of the layout score, with no invented route penalties.</returns>
     internal static double MeasurePlacement(FlowchartLayoutResult Layout)
@@ -428,17 +428,15 @@ internal static partial class FlowchartLayoutScore
 
     internal static double Calculate(double Width, double Height, int Crossings, int ForcedMinimum, double EmptyShare)
     {
-        double TargetRatio = FlowchartLayoutRules.TargetAspectWidth / FlowchartLayoutRules.TargetAspectHeight;
-        double ShapePercent = Math.Abs((Width / Math.Max(1.0, Height)) - TargetRatio) / TargetRatio * 100.0;
-        double Shape = ShapePercent / FlowchartLayoutRules.ShapeStep * FlowchartLayoutRules.ShapePoints;
         double EmptyPercent = EmptyShare * 100.0;
-        double EmptyLowRate = FlowchartLayoutRules.EmptyPointsLow / FlowchartLayoutRules.ShapeStep;
-        double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / FlowchartLayoutRules.ShapeStep;
+        double EmptyStep = 5.0;
+        double EmptyLowRate = FlowchartLayoutRules.EmptyPointsLow / EmptyStep;
+        double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / EmptyStep;
         double Empty = EmptyPercent <= FlowchartLayoutRules.EmptyThreshold
             ? EmptyPercent * EmptyLowRate
             : FlowchartLayoutRules.EmptyThreshold * EmptyLowRate
                 + (EmptyPercent - FlowchartLayoutRules.EmptyThreshold) * EmptyHighRate;
-        return Shape + Empty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
+        return Empty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
     }
 
     internal static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)

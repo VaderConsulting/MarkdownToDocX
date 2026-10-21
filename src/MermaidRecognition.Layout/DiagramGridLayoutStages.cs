@@ -222,6 +222,7 @@ public static partial class DiagramGridLayout
             {
                 State.PartnerRanks = FlowchartPartnerRankLayout.Find(Contract, Placed, Horizontal);
                 FlowchartPartnerRankLayout.Prepare(State.PartnerRanks, Horizontal, Align: false);
+                Step("AlignOpenCrossTargets", () => FlowchartOpenCrossTargetAlignment.Apply(Contract, Placed, Horizontal));
             }
 
             Step("GrowCrowdedSides", () => GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight));
@@ -475,7 +476,7 @@ public static partial class DiagramGridLayout
             new("1.1–1.7", State => WriteBack(State.Copy, State.Placed, State.Frames)),
             new("3.8,4.11", State =>
             {
-                if (!State.Open) FlowchartDecisionBranchRouteRepair.Apply(State.Copy, State.Contract);
+                FlowchartDecisionBranchRouteRepair.Apply(State.Copy, State.Contract);
             }),
             new("4.11", State =>
             {

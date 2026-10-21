@@ -401,4 +401,74 @@ public static class FlowchartLoopBackRouteHelper
         string Shape = Node.Shape.Trim();
         return string.Equals(Shape, "diamond", StringComparison.OrdinalIgnoreCase) || string.Equals(Shape, "rhombus", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Routes a non-decision loop-back when the target sits directly above the source on the same exterior side (F137 backoff to Poll).
+    /// The edge leaves the source's side face, runs straight up the corridor, and enters the target's facing side with no U-wrap below the source.
+    /// </summary>
+    public static bool TryResolveSameSideVerticalBackRoute(
+        EdgeContract Edge,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById,
+        FlowchartDirection Direction,
+        out List<(double X, double Y)> LayoutPoints)
+    {
+        LayoutPoints = [];
+        if (!IsVerticalFlow(Direction) || IsDecisionNode(NodeById, Edge.SourceId))
+        {
+            return false;
+        }
+
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        if (!BackEdges.Contains(Edge))
+        {
+            return false;
+        }
+
+        if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
+            || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
+        {
+            return false;
+        }
+
+        double FlowSign = Direction == FlowchartDirection.BottomToTop ? 1.0 : -1.0;
+        double SourceUpstreamFace = SourceBounds.CenterY - (FlowSign * SourceBounds.Height / 2.0);
+        double TargetDownstreamFace = TargetBounds.CenterY + (FlowSign * TargetBounds.Height / 2.0);
+        if ((SourceUpstreamFace - TargetDownstreamFace) * FlowSign <= COLLINEAR_EPSILON_PX)
+        {
+            return false;
+        }
+
+        double Side = ResolveLoopSide(Edge, Contract, BoundsById, BackEdges, SourceBounds, TargetBounds);
+        double SourceGapPx = FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart);
+        double TargetGapPx = FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd);
+        double CorridorX = SourceBounds.CenterX + (Side * ((SourceBounds.Width / 2.0) + SourceGapPx));
+        double TargetX = TargetBounds.CenterX + (Side * ((TargetBounds.Width / 2.0) + TargetGapPx));
+        if (Math.Abs(CorridorX - TargetX) > COLLINEAR_EPSILON_PX)
+        {
+            return false;
+        }
+
+        double StartY = SourceBounds.CenterY;
+        double EndY = TargetBounds.CenterY;
+        foreach (KeyValuePair<string, FlowchartLayoutNodeBounds> Entry in BoundsById)
+        {
+            if (string.Equals(Entry.Key, Edge.SourceId, StringComparison.Ordinal)
+                || string.Equals(Entry.Key, Edge.TargetId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (CrossesHorizontalRun(Entry.Value, CorridorX, CorridorX, StartY)
+                || CrossesHorizontalRun(Entry.Value, CorridorX, CorridorX, EndY))
+            {
+                return false;
+            }
+        }
+
+        LayoutPoints.Add((CorridorX, StartY));
+        LayoutPoints.Add((CorridorX, EndY));
+        return true;
+    }
 }
