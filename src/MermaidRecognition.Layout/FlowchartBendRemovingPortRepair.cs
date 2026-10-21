@@ -41,6 +41,19 @@ internal static class FlowchartBendRemovingPortRepair
     private sealed record Saved(FlowchartLayoutEdgeRoute Route, (double X, double Y)[] Points,
         string Exit, string Entry, double ExitX, double ExitY, double EntryX, double EntryY);
 
+    /// <summary>Exact inputs for one route against the immutable bodies of this port-only pass.</summary>
+    /// <param name="Source">Declared source identity; its shape and bounds remain fixed.</param>
+    /// <param name="Target">Declared target identity; its shape and bounds remain fixed.</param>
+    /// <param name="Exit">Allocated source side.</param>
+    /// <param name="Entry">Allocated target side.</param>
+    /// <param name="Start">Exact allocated source coordinate.</param>
+    /// <param name="End">Exact allocated target coordinate.</param>
+    /// <param name="ExitNormal">Source connection normal.</param>
+    /// <param name="EntryNormal">Target connection normal.</param>
+    private readonly record struct RouteKey(string Source, string Target, string Exit, string Entry,
+        (double X, double Y) Start, (double X, double Y) End,
+        (double X, double Y) ExitNormal, (double X, double Y) EntryNormal);
+
     /// <summary>Visits each node once in a pass, repeating only after a strictly bend-reducing accepted assignment.</summary>
     /// <param name="Contract">Original links and immutable hint declarations.</param>
     /// <param name="Layout">Finished model; only accepted affected routes are changed.</param>
@@ -48,12 +61,17 @@ internal static class FlowchartBendRemovingPortRepair
     /// <returns>Total bends removed from this completed layout.</returns>
     internal static int Apply(DiagramContract Contract, FlowchartLayoutResult Layout, Action<Improvement>? Accepted = null)
     {
+        using var Membership = FlowchartSubgraphMembershipHelper.ReuseFixedMembership(Contract);
         var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
         var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         var Hinted = Layout.EdgeRoutes.Where(Route => DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
             .Select(Route => (string?)Route.EdgeId).ToHashSet();
         var Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        // Repeated swaps and later sweeps revisit the same terminal assignment.
+        // Bodies, shapes and membership never move in this pass. Cache only the
+        // pure route construction; all live-layout interaction checks still run.
+        Dictionary<RouteKey, List<(double X, double Y)>> Paths = [];
         int Removed = 0;
         bool Progress;
         do
@@ -85,10 +103,18 @@ internal static class FlowchartBendRemovingPortRepair
                     {
                         var A = Route.Points[0]; var B = Route.Points[^1];
                         Nodes.TryGetValue(Route.SourceId, out var Source); Nodes.TryGetValue(Route.TargetId, out var Target);
-                        var Path = DiagramGridRouteBuilder.BuildRoute(A.X, A.Y, Bounds[Route.SourceId], Source?.Shape, Route.ExitSide,
-                            B.X, B.Y, Bounds[Route.TargetId], Target?.Shape, Route.EntrySide, Bounds, Route.SourceId, Route.TargetId,
-                            Contract, Direction, Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft,
-                            RequireLegal: true, ExitNormal: (Route.ExitNormalX, Route.ExitNormalY), EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
+                        var Key = new RouteKey(Route.SourceId, Route.TargetId, Route.ExitSide, Route.EntrySide,
+                            (A.X, A.Y), (B.X, B.Y), (Route.ExitNormalX, Route.ExitNormalY), (Route.EntryNormalX, Route.EntryNormalY));
+                        if (!Paths.TryGetValue(Key, out var Path))
+                        {
+                            Path = DiagramGridRouteBuilder.BuildRoute(A.X, A.Y, Bounds[Route.SourceId], Source?.Shape, Route.ExitSide,
+                                B.X, B.Y, Bounds[Route.TargetId], Target?.Shape, Route.EntrySide, Bounds, Route.SourceId, Route.TargetId,
+                                Contract, Direction, Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft,
+                                RequireLegal: true, ExitNormal: (Route.ExitNormalX, Route.ExitNormalY), EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
+                            Paths.Add(Key, Path);
+                            FlowchartRenderContext.ReportOperationCount("port-reassignment-route-cache-misses", 1);
+                        }
+                        else FlowchartRenderContext.ReportOperationCount("port-reassignment-route-cache-hits", 1);
                         if (!FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route, Path)) { Valid = false; break; }
                         Route.Points.Clear(); Route.Points.AddRange(Path.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
                         if (FlowchartLayoutScore.CountCorners(Route.Points) > Corners(Reference[Route])) { Valid = false; break; }

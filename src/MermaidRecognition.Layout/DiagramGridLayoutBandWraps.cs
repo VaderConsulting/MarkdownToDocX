@@ -10,6 +10,33 @@ public static partial class DiagramGridLayout
 {
     /// <summary>Observes fully routed initial-wrap candidates without changing their order, limits or acceptance.</summary>
     internal static Action<int, FlowchartLayoutResult, FlowchartLayoutScore.ComparisonCost, bool>? BandWrapCandidateObserver;
+
+    /// <summary>Completed private trial and the hint/capacity state produced by its exact initial geometry.</summary>
+    /// <param name="Layout">Completed trial; never modified while wrap candidates are being compared.</param>
+    /// <param name="Hints">Hint outcomes to replay when the identical trial is encountered again.</param>
+    /// <param name="CapacityNeeded">Measured initial gap demand, consumed by the winner's normal confirmation.</param>
+    private sealed record CompletedBandTrial(FlowchartLayoutResult Layout, BandHintState Hints, bool CapacityNeeded);
+
+    /// <summary>Identifies complete finite trial inputs, leaving unresolved Dagre frame/guide seeds on the original path.</summary>
+    /// <param name="State">Initial cell placement, before hint replay and frame fitting.</param>
+    /// <returns>An exact cache key, or null when later stages must first resolve an incomplete seed.</returns>
+    private static string? InitialBandTrialIdentity(GridLayoutState State)
+    {
+        if (State.Placed.Any(Node => !double.IsFinite(Node.X) || !double.IsFinite(Node.Y)
+                || !double.IsFinite(Node.Width) || !double.IsFinite(Node.Height))
+            || State.Frames.Any(Frame => !double.IsFinite(Frame.Left) || !double.IsFinite(Frame.Right)
+                || !double.IsFinite(Frame.Top) || !double.IsFinite(Frame.Bottom))
+            || State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).Any(Box => !double.IsFinite(Box.CenterX)
+                || !double.IsFinite(Box.CenterY) || !double.IsFinite(Box.Width) || !double.IsFinite(Box.Height))
+            || State.Copy.EdgeRoutes.Any(Route => !double.IsFinite(Route.ExitNormalX) || !double.IsFinite(Route.ExitNormalY)
+                || !double.IsFinite(Route.EntryNormalX) || !double.IsFinite(Route.EntryNormalY)
+                || Route.Points.Any(Point => !double.IsFinite(Point.X) || !double.IsFinite(Point.Y)))
+            || State.HintedRoutes.Values.Any(Route => Route.Points.Any(Point => !double.IsFinite(Point.X) || !double.IsFinite(Point.Y)))
+            || State.Copy.ResolvedEdgeGuides?.Any(Guide => Guide.Points.Any(Point => !double.IsFinite(Point.X) || !double.IsFinite(Point.Y))) == true
+            || State.Copy.RenderContext.CachedRouteGuides?.Any(Guide => Guide.Points.Any(Point => !double.IsFinite(Point.X) || !double.IsFinite(Point.Y))) == true)
+            return null;
+        return RouteRepairStage.FinalReferenceIdentity(State, true);
+    }
     /// <summary>Selects initial Enterprise band wrapping only after complete ports, routes, repairs and validation exist.</summary>
     /// <param name="Contract">Original contract; discarded candidates restore every hint status.</param>
     /// <param name="LaidOut">Unmodified Dagre seed, copied independently by each complete candidate.</param>
@@ -38,6 +65,11 @@ public static partial class DiagramGridLayout
         BandWrapCandidateObserver?.Invoke(int.MaxValue, Best, BestCost, Legal);
         int Width = int.MaxValue;
         var Records = new List<string>();
+        // Every width is still planned and scored in its original order. Dense
+        // bands often produce the same complete starting state at several widths;
+        // retain that trial's completed result instead of routing it again.
+        Dictionary<string, CompletedBandTrial>? CompletedTrials = Context.DisableBandTrialReuseForTests
+            ? null : new(StringComparer.Ordinal);
         foreach (int CandidateWidth in Context.EnterpriseBandWrapWidths.Where(Value => Value != int.MaxValue))
         {
             OriginalHints.Restore();
@@ -47,7 +79,7 @@ public static partial class DiagramGridLayout
                 DisableFinishedBendRepairsForTests = Context.DisableFinishedBendRepairsForTests,
                 UsePreviousEnterpriseBandPaddingForTests = Context.UsePreviousEnterpriseBandPaddingForTests };
             FlowchartLayoutResult Candidate;
-            using (FlowchartRenderContext.Activate(CandidateContext)) Candidate = ApplyCore(Contract, LaidOut, CandidateContext, false);
+            using (FlowchartRenderContext.Activate(CandidateContext)) Candidate = ApplyCore(Contract, LaidOut, CandidateContext, false, CompletedTrials);
             var Score = FlowchartLayoutScore.Measure(Contract, Candidate, false);
             bool CandidateLegal = BandLayoutIsLegal(Contract, Candidate);
             BandWrapCandidateObserver?.Invoke(CandidateWidth, Candidate, Score.Cost, CandidateLegal);

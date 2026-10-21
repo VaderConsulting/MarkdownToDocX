@@ -258,8 +258,8 @@ public static partial class DiagramGridLayout
         /// <summary>Identifies exact ordered placement inputs, optionally including the incoming route assignment.</summary>
         /// <param name="State">Private candidate before reference completion.</param>
         /// <param name="IncludeRoutes">Whether route points, sides and normals belong to the signature.</param>
-        /// <returns>A deterministic digest scoped to this diagram and final pass.</returns>
-        private static string FinalReferenceIdentity(GridLayoutState State, bool IncludeRoutes)
+        /// <returns>A deterministic digest scoped to this diagram and candidate comparison.</returns>
+        internal static string FinalReferenceIdentity(GridLayoutState State, bool IncludeRoutes)
         {
             var Cells = FlowchartCellRepair.Capture(State.Placed);
             string Value = System.Text.Json.JsonSerializer.Serialize(new
