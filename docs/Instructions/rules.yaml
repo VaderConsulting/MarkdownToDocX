@@ -390,6 +390,11 @@ parameters:
     unit: "px"
     source: "Cross marker endpoint clearance"
     used_by: ["3.10"]
+  - id: "diagram_usable_width_px"
+    value: 548
+    unit: "px"
+    source: "Word page usable width at 96 dpi (~14.5 cm content)"
+    used_by: ["2.12"]
   - id: "legend_clearance"
     value: 1
     unit: "grid steps"

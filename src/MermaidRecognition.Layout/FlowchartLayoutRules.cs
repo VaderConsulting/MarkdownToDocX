@@ -36,6 +36,8 @@ internal static class FlowchartLayoutRules
     internal static double CorridorCapacityBuffer => Get("corridor_capacity_buffer");
     internal static double CrossingScore => Get("score_crossing");
     internal static double DisconnectedEndScore => Get("score_disconnected_end");
+    /// <summary>Maximum diagram span in pixels before rule 2.12 wrapping (page usable width).</summary>
+    internal static double DiagramUsableWidthPx => Get("diagram_usable_width_px");
     internal static double TargetAspectWidth => Get("target_aspect_width");
     internal static double TargetAspectHeight => Get("target_aspect_height");
     internal static double ShapePoints => Get("score_shape_points");

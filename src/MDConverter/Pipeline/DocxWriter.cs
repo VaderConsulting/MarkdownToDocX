@@ -708,6 +708,14 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             string Svg = RenderMermaidSvg(MermaidBlock.Source);
             RenderTimer.Stop();
             ConversionStageTimingObserver?.Invoke("mermaid-svg-render", RenderTimer.Elapsed.TotalMilliseconds);
+            if (string.IsNullOrWhiteSpace(Svg))
+            {
+                string EmptyMessage = "Mermaid render returned empty SVG.";
+                _ProgressReporter?.Report(0, EmptyMessage);
+                AppendMermaidFallback(Paragraph, EmptyMessage, MermaidBlock.Source);
+                return Paragraph;
+            }
+
             MermaidImageAccessibility Accessibility = MermaidAccessibilityResolver.Resolve(
                 MermaidBlock.Source,
                 _Options.Mermaid.UseFlowchartRecognitionParser);
@@ -733,7 +741,9 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         }
         catch (Exception Ex)
         {
-            AppendMermaidFallback(Paragraph, "Mermaid render failed: " + Ex.Message, MermaidBlock.Source);
+            string FailureMessage = "Mermaid render failed: " + Ex.Message;
+            _ProgressReporter?.Report(0, FailureMessage);
+            AppendMermaidFallback(Paragraph, FailureMessage, MermaidBlock.Source);
         }
 
         return Paragraph;

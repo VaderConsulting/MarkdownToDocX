@@ -49,19 +49,19 @@ internal static partial class FlowchartChainWrapping
         }
         var Plan = FlowchartCellRepair.PlanAssignment(Path, Targets, Growth);
         if (Plan?.TryApply() != true) return false;
-        bool Accepted = false;
-        try
+        double UsableSpanPx = FlowchartLayoutRules.DiagramUsableWidthPx;
+        if (Horizontal && OldWidth <= UsableSpanPx + 1e-9)
         {
-            double Width = Path.Max(Node => Node.X + Node.Width / 2d) - Path.Min(Node => Node.X - Node.Width / 2d);
-            double Height = Path.Max(Node => Node.Y + Node.Height / 2d) - Path.Min(Node => Node.Y - Node.Height / 2d);
-            Accepted = RatioDistance(Width, Height) < RatioDistance(OldWidth, OldHeight) - 1e-9;
-            return Accepted;
+            Plan.Rollback();
+            return false;
         }
-        finally
+
+        if (!Horizontal && OldHeight <= UsableSpanPx + 1e-9)
         {
-            // Aspect rejection is a complete rollback, including any label
-            // clearance gaps grown by the proposed wrapped rows and columns.
-            if (!Accepted) Plan.Rollback();
+            Plan.Rollback();
+            return false;
         }
+
+        return true;
     }
 }
