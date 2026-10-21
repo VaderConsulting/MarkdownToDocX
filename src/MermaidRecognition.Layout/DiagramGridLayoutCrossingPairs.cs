@@ -66,8 +66,6 @@ public static partial class DiagramGridLayout
                         if (Bends > BeforeBends) { Reason = $"bends:{BeforeBends}->{Bends}"; continue; }
                         if (Crossings > BeforeCrossings) { Reason = $"crossings:{BeforeCrossings}->{Crossings}"; continue; }
                         double ExtraLength = RouteLength(Layout) - BeforeLength;
-                        if (ExtraLength > FlowchartLayoutRules.RepairExtraLength)
-                        { Reason = $"length:{ExtraLength}>{FlowchartLayoutRules.RepairExtraLength}"; continue; }
                         if (Affected.Any(Route => !FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route,
                             Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))) { Reason = "body-title-or-terminal"; continue; }
                         if (Affected.Any(Route => !FlowchartPortSideRouteRepair.HasLabelRoom(Route.Points,

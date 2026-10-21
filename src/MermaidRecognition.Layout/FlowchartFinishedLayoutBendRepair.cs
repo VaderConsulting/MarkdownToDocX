@@ -66,8 +66,7 @@ internal static class FlowchartFinishedLayoutBendRepair
                     CandidateObserver?.Invoke(Candidate.LineId + "|" + Candidate.Detail, false);
                     continue;
                 }
-                double Extra = Length(Candidate.Layout) - Length(Layout);
-                if (Extra > FlowchartLayoutRules.RepairExtraLength + 0.001 || Candidate.Move != null && !Candidate.Move.TryApply())
+                if (Candidate.Move != null && !Candidate.Move.TryApply())
                 {
                     CandidateObserver?.Invoke(Candidate.LineId + "|" + Candidate.Detail, false);
                     continue;
@@ -98,9 +97,4 @@ internal static class FlowchartFinishedLayoutBendRepair
         && A.ExitNormalX == B.ExitNormalX && A.ExitNormalY == B.ExitNormalY && A.EntryNormalX == B.EntryNormalX && A.EntryNormalY == B.EntryNormalY
         && A.Points.Select(Point => (Point.X, Point.Y)).SequenceEqual(B.Points.Select(Point => (Point.X, Point.Y)));
 
-    /// <summary>Measures exact total Manhattan length for the unchanged 61-px repair cap.</summary>
-    /// <param name="Layout">Completed candidate or base.</param>
-    /// <returns>All drawn line length in model pixels.</returns>
-    private static double Length(FlowchartLayoutResult Layout) => Layout.EdgeRoutes.Sum(Route => Enumerable.Range(1, Route.Points.Count - 1)
-        .Sum(Index => Math.Abs(Route.Points[Index].X - Route.Points[Index - 1].X) + Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y)));
 }

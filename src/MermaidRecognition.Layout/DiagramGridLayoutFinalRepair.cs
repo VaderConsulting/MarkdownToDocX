@@ -130,8 +130,8 @@ public static partial class DiagramGridLayout
                         int Changed = Original.ChangedLines();
                         if (Changed > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit:" + Changed; continue; }
                         ExtraLength = RouteLength(Layout) - BeforeLength;
-                        double Cap = FinalRepairLengthCapForTests ?? FlowchartLayoutRules.RepairExtraLength;
-                        if (ExtraLength > Cap) { Reason = $"length:{ExtraLength:R}>{Cap:R}"; continue; }
+                        double? Cap = FinalRepairLengthCapForTests;
+                        if (Cap.HasValue && ExtraLength > Cap.Value) { Reason = $"measurement-length:{ExtraLength:R}>{Cap.Value:R}"; continue; }
                         var AfterCounts = FinalCounts(State);
                         if (AfterCounts.Bends > BeforeCounts.Bends) { Reason = "bends"; continue; }
                         if (AfterCounts.Crossings > BeforeCounts.Crossings) { Reason = "crossings"; continue; }

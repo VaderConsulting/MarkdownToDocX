@@ -515,7 +515,6 @@ public static partial class DiagramGridLayout
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
                         && !AfterFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
-                        && ExtraLength <= FlowchartLayoutRules.RepairExtraLength && ExtraBends <= FlowchartLayoutRules.RepairExtraBends
                         && (!PreserveBends || ExtraBends <= 0)
                         && ChangedLines <= FlowchartLayoutRules.RepairChainLines;
                     RouteRepairCandidateObserver?.Invoke("cell-move", Option.Subject, Cost, Legal);
@@ -560,8 +559,8 @@ public static partial class DiagramGridLayout
                 if (!Original.UnchangedOutside(BestAffected!) || Confirmed.Overlaps > Before.Overlaps || Confirmed.HintsHonoured < Before.HintsHonoured
                     || !NoNewFindings(BeforeFindings, ConfirmedFindings)
                     || ConfirmedFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
-                    || CountTitleBandRoutes(State) != 0 || ExtraLength > FlowchartLayoutRules.RepairExtraLength
-                    || ExtraBends > FlowchartLayoutRules.RepairExtraBends || PreserveBends && ExtraBends > 0
+                    || CountTitleBandRoutes(State) != 0
+                    || PreserveBends && ExtraBends > 0
                     || ChangedLines > FlowchartLayoutRules.RepairChainLines
                     || (Shortfall?.Invoke() ?? 0) > InitialShortfall
                     || (Shortfall?.Invoke() ?? 0) == InitialShortfall && Cost >= Before.Cost - 0.001)

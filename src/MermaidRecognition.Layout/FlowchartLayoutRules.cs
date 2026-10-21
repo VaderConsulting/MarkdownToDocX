@@ -58,8 +58,6 @@ internal static class FlowchartLayoutRules
         if (FanLineCount < 3) throw new ArgumentOutOfRangeException(nameof(FanLineCount));
         return FanLineCount;
     }
-    internal static double RepairExtraLength => Get("repair_extra_length_px");
-    internal static int RepairExtraBends => checked((int)Get("repair_extra_bends"));
     internal static double RepairLengthWeight => Get("score_repair_length_per_grid_step");
     /// <summary>Approved routing-length weight before the once-per-layout bounded normalization.</summary>
     internal static double RouteLengthWeight => Get("score_route_length_per_grid_step");
