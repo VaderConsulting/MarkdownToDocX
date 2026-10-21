@@ -945,8 +945,10 @@ public static partial class DiagramGridLayout
                 }
             }
             int Crossings = CountRankCrossings(Copy, RankNodes, NextNodes);
-            int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
-            Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
+            if (Crossings > 0)
+            {
+                Gap = Math.Max(Gap, DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.GapWidthForTracks(Crossings)));
+            }
             double MermaidDelta = MermaidMain(NextNodes, Horizontal) - MermaidMain(RankNodes, Horizontal);
             bool HasExplicitLength = Contract.Edges.Any(Edge => Edge.MinLength > 1
                 && RankNodes.Any(Node => Node.Id == Edge.SourceId || Node.Id == Edge.TargetId)
