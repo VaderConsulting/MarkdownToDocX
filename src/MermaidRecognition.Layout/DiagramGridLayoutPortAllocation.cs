@@ -842,7 +842,14 @@ public static partial class DiagramGridLayout
         for (int Index = 0; Index < Group.Count; Index++)
         {
             PortEnd End = Group[Index];
-            if (End.KeepsCentre || StraightCenterPortFits(End))
+            if (End.KeepsCentre)
+            {
+                if (TrySetCenterPort(End, Nodes, Side, Box))
+                {
+                    continue;
+                }
+            }
+            else if (Group.Count == 1 && StraightCenterPortFits(End))
             {
                 if (TrySetCenterPort(End, Nodes, Side, Box))
                 {
