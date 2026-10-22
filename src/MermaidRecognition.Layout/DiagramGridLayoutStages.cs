@@ -245,6 +245,11 @@ public static partial class DiagramGridLayout
                 Step("DisconnectedPacking", () => FlowchartDisconnectedPacking.Apply(Contract, Placed));
                 Step("GroupMemberPacking", () => FlowchartGroupMemberPacking.Apply(Contract, Placed));
                 Step("GroupedChannelPlacement", () => FlowchartGroupedChannelPlacement.Apply(Contract, Placed));
+                Step("AlignDecisionBranchTargetRow", () => AlignDecisionBranchTargetRow(Contract, Placed, Horizontal, CrossPitch));
+                if (!Horizontal && ShouldUseSpineColumnLayout(Contract, Placed, Direction))
+                {
+                    Step("ApplySpineColumnAdjustmentsFinal", () => ApplySpineColumnAdjustments(Contract, Placed, Direction));
+                }
             }
 
             if (!Open) SnapGridNodeCentres(Placed);

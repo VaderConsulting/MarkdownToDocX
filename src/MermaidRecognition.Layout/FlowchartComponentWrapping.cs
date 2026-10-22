@@ -11,7 +11,7 @@ internal static class FlowchartComponentWrapping
 {
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        if (Horizontal || Nodes.Any(Node => Node.GroupId != null)) return false;
+        if (Horizontal || Nodes.Any(Node => Node.GroupId != null || Node.CellNode != null)) return false;
         var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         var Outgoing = Nodes.ToDictionary(Node => Node.Id, _ => new List<string>(), StringComparer.Ordinal);
         var Incoming = Nodes.ToDictionary(Node => Node.Id, _ => new List<string>(), StringComparer.Ordinal);
