@@ -150,6 +150,8 @@ public static partial class DiagramGridLayout
             Context.BendReassignmentRemoved = FlowchartBendRemovingPortRepair.Apply(Contract, Current.Copy);
             if (Context.BendReassignmentRemoved > 0) RouteRepairStage.PublishFinal(Current);
         });
+        RebuildDecisionFanOutRoutes(Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction);
+        RebuildDecisionFanInRoutes(Contract, State.Copy, State.Placed, State.Frames, State.Nodes, State.Direction);
         return State.Copy;
 
         void Run(string Name, Action<GridLayoutState> Stage)

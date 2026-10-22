@@ -139,6 +139,8 @@ public static partial class DiagramGridLayout
                     State.Contract, State.Frames, State.Direction);
                 DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Layout, State.Placed, State.Nodes,
                     State.Contract, State.Frames, State.Direction);
+                RebuildDecisionFanOutRoutes(State.Contract, Layout, State.Placed, State.Frames, State.Nodes, State.Direction);
+                RebuildDecisionFanInRoutes(State.Contract, Layout, State.Placed, State.Frames, State.Nodes, State.Direction);
             });
 
             // Apply title-band constraints to the completed route set immediately before auditing it.
@@ -166,6 +168,8 @@ public static partial class DiagramGridLayout
                     State.Contract, State.Frames, State.Direction);
                 DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(Layout, State.Placed,
                     State.Nodes, State.Contract, State.Frames, State.Direction);
+                RebuildDecisionFanOutRoutes(State.Contract, Layout, State.Placed, State.Frames, State.Nodes, State.Direction);
+                RebuildDecisionFanInRoutes(State.Contract, Layout, State.Placed, State.Frames, State.Nodes, State.Direction);
                 ProfileCall("title-band-repair", () => RepairRoutesThroughFrameTitleBands(State, Bounds, includeHinted: true));
                 StraightenLegalAlignedRoutes(State, Bounds, Nodes);
             }
@@ -1480,6 +1484,10 @@ public static partial class DiagramGridLayout
                 state.Nodes, state.Direction);
             RebuildHintedOrthogonalRoutes(state.Contract, state.Copy,
                 BuildPlacedBounds(state.Placed, state.Frames), state.Nodes, state.Direction);
+            RebuildDecisionFanOutRoutes(state.Contract, state.Copy, state.Placed, state.Frames,
+                state.Nodes, state.Direction);
+            RebuildDecisionFanInRoutes(state.Contract, state.Copy, state.Placed, state.Frames,
+                state.Nodes, state.Direction);
         }
 
         private static void RebuildHintedOrthogonalRoutes(DiagramContract contract,
