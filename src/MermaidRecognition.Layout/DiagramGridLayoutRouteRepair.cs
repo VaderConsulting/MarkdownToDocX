@@ -44,35 +44,7 @@ public static partial class DiagramGridLayout
     private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract)
     {
         if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true) return;
-        if (Mover.Points.Count == 2)
-        {
-            FlowchartLayoutPoint Start = Mover.Points[0];
-            FlowchartLayoutPoint End = Mover.Points[1];
-            bool Vertical = Math.Abs(Start.X - End.X) < 0.5;
-            bool Horizontal = Math.Abs(Start.Y - End.Y) < 0.5;
-            if (!Vertical && !Horizontal) return;
-            double TrackSeparation = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
-            FlowchartLayoutPoint OtherStart = Stay.Points[0];
-            FlowchartLayoutPoint OtherEnd = Stay.Points[^1];
-            bool Parallel = Vertical
-                ? Math.Abs(OtherStart.X - OtherEnd.X) < 0.5
-                : Math.Abs(OtherStart.Y - OtherEnd.Y) < 0.5;
-            double Gap = Vertical ? Start.X - OtherStart.X : Start.Y - OtherStart.Y;
-            double Overlap = FlowchartBranchRouteOrder.Intersections(
-                new[] { (Start.X, Start.Y), (End.X, End.Y) },
-                Stay.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Overlap;
-            if (!Parallel || Overlap <= 0 || Math.Abs(Gap) >= TrackSeparation) return;
-            double Offset = (Gap < 0 ? -TrackSeparation : TrackSeparation) - Gap;
-            var Obstacles = Contract == null ? Placed : Placed.Where(Node =>
-                !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.SourceId)
-                && !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.TargetId)).ToList();
-            if (!TryTranslateWholeOrthogonalRoute(Mover, Vertical, Offset, Obstacles))
-                TryTranslateWholeOrthogonalRoute(Mover, Vertical, -Offset, Obstacles);
-            return;
-        }
-
-        int FirstIndex = Mover.Points.Count == 3 ? 0 : 1;
-        for (int Index = FirstIndex; Index < Mover.Points.Count - 1; Index++)
+        for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
         {
             FlowchartLayoutPoint Start = Mover.Points[Index];
             FlowchartLayoutPoint End = Mover.Points[Index + 1];
@@ -132,8 +104,6 @@ public static partial class DiagramGridLayout
     internal static bool TryTranslateInternalRun(
         FlowchartLayoutEdgeRoute Route, int Index, bool Vertical, double Offset, List<GridNode> Placed)
     {
-        if (Route.Points.Count == 3 && Index == 0)
-            return TryTranslateTerminalRunPair(Route, Vertical, Offset, Placed);
         if (Index < 1 || Index + 2 >= Route.Points.Count)
         {
             return false;
@@ -199,95 +169,6 @@ public static partial class DiagramGridLayout
         {
             if (Vertical) { Start.X = OldStart; End.X = OldEnd; }
             else { Start.Y = OldStart; End.Y = OldEnd; }
-        }
-
-        return Clear;
-    }
-
-    /// <summary>Translates every point on a straight two-point route perpendicular to its run.</summary>
-    internal static bool TryTranslateWholeOrthogonalRoute(FlowchartLayoutEdgeRoute Route, bool Vertical, double Offset,
-        List<GridNode> Placed)
-    {
-        if (Route.Points.Count != 2) return false;
-        var Saved = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        foreach (var Point in Route.Points)
-        {
-            if (Vertical) Point.X += Offset;
-            else Point.Y += Offset;
-        }
-
-        bool Clear = true;
-        for (int Segment = 1; Segment <= Route.Points.Count && Clear; Segment++)
-        {
-            foreach (GridNode Node in Placed)
-            {
-                if (Node.Id == Route.SourceId || Node.Id == Route.TargetId) continue;
-                FlowchartLayoutNodeBounds Bounds = new()
-                {
-                    CenterX = Node.X, CenterY = Node.Y, Width = Node.Width, Height = Node.Height
-                };
-                FlowchartLayoutPoint A = Route.Points[Segment - 1];
-                FlowchartLayoutPoint B = Route.Points[Segment];
-                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Bounds))
-                {
-                    Clear = false;
-                    break;
-                }
-            }
-        }
-
-        if (!Clear)
-        {
-            Route.Points.Clear();
-            foreach ((double X, double Y) in Saved) Route.Points.Add(new() { X = X, Y = Y });
-        }
-
-        return Clear;
-    }
-
-    /// <summary>Moves the first interior leg of a three-point route without breaking the fixed target port.</summary>
-    private static bool TryTranslateTerminalRunPair(FlowchartLayoutEdgeRoute Route, bool Vertical, double Offset,
-        List<GridNode> Placed)
-    {
-        if (Route.Points.Count != 3) return false;
-        FlowchartLayoutPoint Start = Route.Points[0];
-        FlowchartLayoutPoint Elbow = Route.Points[1];
-        FlowchartLayoutPoint Target = Route.Points[2];
-        if (Vertical
-            ? Math.Abs(Start.X - Elbow.X) > 0.5 || Math.Abs(Elbow.Y - Target.Y) > 0.5
-            : Math.Abs(Start.Y - Elbow.Y) > 0.5 || Math.Abs(Elbow.X - Target.X) > 0.5)
-            return false;
-        double OldStart = Vertical ? Start.X : Start.Y;
-        double OldElbow = Vertical ? Elbow.X : Elbow.Y;
-        if (Vertical) { Start.X += Offset; Elbow.X += Offset; }
-        else { Start.Y += Offset; Elbow.Y += Offset; }
-        double BeforeRun = Vertical ? Elbow.X - Start.X : Elbow.Y - Start.Y;
-        double AfterRun = Vertical ? Target.X - Elbow.X : Target.Y - Elbow.Y;
-        bool Clear = Math.Abs(BeforeRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX
-            && Math.Abs(AfterRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX;
-        for (int Segment = 0; Segment <= 2 && Clear; Segment++)
-        {
-            foreach (GridNode Node in Placed)
-            {
-                if (Node.Id == Route.SourceId || Node.Id == Route.TargetId) continue;
-                FlowchartLayoutNodeBounds Bounds = new()
-                {
-                    CenterX = Node.X, CenterY = Node.Y, Width = Node.Width, Height = Node.Height
-                };
-                FlowchartLayoutPoint A = Route.Points[Segment];
-                FlowchartLayoutPoint B = Route.Points[Segment + 1];
-                if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Bounds))
-                {
-                    Clear = false;
-                    break;
-                }
-            }
-        }
-
-        if (!Clear)
-        {
-            if (Vertical) { Start.X = OldStart; Elbow.X = OldElbow; }
-            else { Start.Y = OldStart; Elbow.Y = OldElbow; }
         }
 
         return Clear;

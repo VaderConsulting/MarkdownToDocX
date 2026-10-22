@@ -325,7 +325,6 @@ public static partial class DiagramGridLayout
                 ProfileCall("terminal-track-repair", () => RouteRepairStage.RepairTerminalPortTracks(State, Bounds));
                 if (!Layout.RenderContext.IsEvaluatingCellRouteCandidate)
                     ProfileCall("joint-crossing-pair-assignments", () => RouteRepairStage.RepairCrossingPairAssignments(State, Bounds));
-                ProfileCall("distinct-track-final-seal", () => SealDistinctTracks(State, Bounds));
             }
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
@@ -601,25 +600,14 @@ public static partial class DiagramGridLayout
         {
             if (State.Placed.Any(Node => Node.CellNode != null))
             {
-                for (int Attempt = 0; Attempt < 8; Attempt++)
+                RouteRepairStage.RepairCellChannelSpacing(State);
+                foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
+                FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds);
+                for (int Pass = 0; Pass < 4 && FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed); Pass++)
                 {
-                    int SharedBefore = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy)
-                        .Count(Finding => Finding.Rule == "5.1");
-                    if (SharedBefore == 0) break;
-                    State.MoveBudget.AttemptedMoves.Clear();
-                    RouteRepairStage.RepairCellChannelSpacing(State);
-                    foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
-                    FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds);
-                    for (int Pass = 0; Pass < 4 && FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed); Pass++)
-                    {
-                    }
-
-                    SeparateTracks(State.Copy, State.Placed, State.Contract);
-                    int SharedAfter = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy)
-                        .Count(Finding => Finding.Rule == "5.1");
-                    if (SharedAfter >= SharedBefore) break;
                 }
 
+                SeparateTracks(State.Copy, State.Placed, State.Contract);
                 return;
             }
             while (true)
