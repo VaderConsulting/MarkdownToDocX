@@ -48,7 +48,7 @@ public static class FlowchartRouteRuleChecker
             CheckTerminal(edge, route, true, boxes, nodes, findings);
             CheckTerminal(edge, route, false, boxes, nodes, findings);
             CheckOrthogonal(edge, route, nodes, boxes, findings);
-            CheckAlignedStraight(edge, route, findings);
+            CheckAlignedStraight(edge, route, boxes, findings);
             if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
                 hasCellAuthority);
             CheckFrameRun(edge, route, contract, boxes, findings);
@@ -291,12 +291,19 @@ public static class FlowchartRouteRuleChecker
         string.Equals(shape, "circle", StringComparison.OrdinalIgnoreCase)
         || string.Equals(shape, "doublecircle", StringComparison.OrdinalIgnoreCase);
 
-    private static void CheckAlignedStraight(EdgeContract edge, FlowchartLayoutEdgeRoute route, List<Finding> findings)
+    private static void CheckAlignedStraight(EdgeContract edge, FlowchartLayoutEdgeRoute route,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes, List<Finding> findings)
     {
         FlowchartLayoutPoint a = route.Points[0], b = route.Points[^1];
         if ((Math.Abs(a.X - b.X) <= Tolerance || Math.Abs(a.Y - b.Y) <= Tolerance)
             && route.Points.Count != 2 && edge.RoutingHint == null)
+        {
+            // A bend is required when the straight chord would cross an unrelated box.
+            if (FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                    a.X, a.Y, b.X, b.Y, boxes, edge.SourceId, edge.TargetId))
+                return;
             findings.Add(new Finding("4.2", EdgeName(edge), "aligned ports are not connected by one straight run"));
+        }
     }
 
     private static void CheckPortUniqueness(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes, List<Finding> findings)
