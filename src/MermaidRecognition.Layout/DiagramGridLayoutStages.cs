@@ -376,8 +376,20 @@ public static partial class DiagramGridLayout
     private static class JointPortAllocationStage
     {
         // Rule id: 4.7 (jointly choose all endpoint ports before building routes).
-        public static void Apply(GridLayoutState State) => AssignPortSides(State.Contract, State.Copy,
-            State.Placed, State.Frames, State.Nodes, State.Direction, State.SharedFanSources);
+        public static void Apply(GridLayoutState State)
+        {
+            AssignPortSides(State.Contract, State.Copy, State.Placed, State.Frames,
+                State.Nodes, State.Direction, State.SharedFanSources);
+            GrowCrowdedSides(State.Contract, State.Placed, State.Copy, State.BoxWidth, State.BoxHeight);
+            if (State.Placed.Any(Node => Node.CellNode != null))
+            {
+                ReplaceCellFrames(State.Contract, State.Placed, State.Frames);
+            }
+            else
+            {
+                WriteBack(State.Copy, State.Placed, State.Frames);
+            }
+        }
     }
 
     private static class RouteConstructionStage
@@ -677,6 +689,8 @@ public static partial class DiagramGridLayout
                 RebuildOrdinaryFanOutRoutes(State.Contract, State.Copy, State.Placed,
                     State.Frames, State.Nodes, State.Direction,
                     ReallocatedRoutes.Select(Route => Route.SourceId).ToHashSet(StringComparer.Ordinal));
+                GrowCrowdedSides(State.Contract, State.Placed, State.Copy, State.BoxWidth, State.BoxHeight);
+                WriteBack(State.Copy, State.Placed, State.Frames);
             }
             if (State.Contract.Edges.Any(Edge => Edge.RoutingHint?.IsActive == true))
             {

@@ -1388,7 +1388,9 @@ public static partial class DiagramGridLayout
                     .DefaultIfEmpty(0).Max();
                 return (Horizontal ? Size.Height : WordWidth) + 12;
             });
-            int Needed = DiagramGridMetrics.CeilToGrid(Group.Count() * Pitch + 30);
+            int Needed = DiagramGridMetrics.CeilToGrid(Math.Max(
+                DiagramGridMetrics.MinSideLengthForPorts(Group.Count()),
+                (int)Math.Ceiling(Group.Count() * Pitch + 30)));
             if (Cells)
             {
                 foreach (var Node in new[] { Source, Target })
@@ -1506,11 +1508,6 @@ public static partial class DiagramGridLayout
         }
         foreach (KeyValuePair<string, int> Pair in Counts)
         {
-            if (Pair.Value <= DiagramGridMetrics.TRACKS_PER_GAP)
-            {
-                continue;
-            }
-
             string[] Parts = Pair.Key.Split('|');
             if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out GridNode? Node))
             {
@@ -1518,8 +1515,13 @@ public static partial class DiagramGridLayout
             }
 
             bool AlongWidth = Parts[1] == "top" || Parts[1] == "bottom";
-            int MinPitch = AlongWidth ? Math.Max(1, BoxWidth / DiagramGridMetrics.TRACKS_PER_GAP) : Math.Max(1, BoxHeight / DiagramGridMetrics.TRACKS_PER_GAP);
-            int Needed = DiagramGridMetrics.CeilToGrid(Pair.Value * MinPitch);
+            int SideLength = AlongWidth ? Math.Max(Node.Width, BoxWidth) : Math.Max(Node.Height, BoxHeight);
+            if (Pair.Value <= DiagramGridMetrics.MaxPortsOnSide(SideLength))
+            {
+                continue;
+            }
+
+            int Needed = DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.MinSideLengthForPorts(Pair.Value));
             if (AlongWidth)
             {
                 Node.Width = Math.Max(Node.Width, Needed);

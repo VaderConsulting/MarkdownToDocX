@@ -174,6 +174,20 @@ public static class DiagramGridMetrics
     }
 
     /// <summary>
+    /// Maximum ports that fit on one box side while keeping line_spacing clearance from each corner.
+    /// </summary>
+    /// <param name="SideLengthPx">Visible side length in pixels.</param>
+    /// <returns>Geometric maximum from rules 3.2 and term Track.</returns>
+    public static int MaxPortsOnSide(int SideLengthPx) => MaxTracksInGap(SideLengthPx);
+
+    /// <summary>
+    /// Minimum side length that holds the requested port count with line_spacing insets.
+    /// </summary>
+    /// <param name="PortCount">Jointly allocated ports on one side.</param>
+    /// <returns>Required side span in pixels.</returns>
+    public static int MinSideLengthForPorts(int PortCount) => GapWidthForTracks(PortCount);
+
+    /// <summary>
     /// Equal slot or track centres along a side or gap, symmetrical about the centre.
     /// </summary>
     /// <param name="LengthPx">Side or gap length.</param>
