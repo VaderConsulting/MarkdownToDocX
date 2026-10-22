@@ -22,4 +22,10 @@ internal static class FlowchartCellCandidateScore
         double Empty = IncludeEmptySpace ? Math.Max(0, 1 - Used / Math.Max(1, Width * Height)) : 0;
         return (FlowchartLayoutScore.Calculate(Width, Height, 0, Empty), Width * Height);
     }
+
+    internal static double MeasureWidth(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid.Snapshot State)
+    {
+        var Bounds = Nodes.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State)).ToArray();
+        return Bounds.Max(Box => Box.CenterX + Box.Width / 2.0) - Bounds.Min(Box => Box.CenterX - Box.Width / 2.0);
+    }
 }

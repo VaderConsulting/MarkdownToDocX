@@ -36,6 +36,7 @@ public static partial class DiagramGridLayout
         var BestCost = FlowchartLayoutScore.Measure(Contract, Best, false).Cost;
         bool Legal = BandLayoutIsLegal(Contract, Best);
         BandWrapCandidateObserver?.Invoke(int.MaxValue, Best, BestCost, Legal);
+        double BestSpan = FlowchartLayoutScore.PlacementWidth(Best);
         int Width = int.MaxValue;
         var Records = new List<string>();
         foreach (int CandidateWidth in Context.EnterpriseBandWrapWidths.Where(Value => Value != int.MaxValue))

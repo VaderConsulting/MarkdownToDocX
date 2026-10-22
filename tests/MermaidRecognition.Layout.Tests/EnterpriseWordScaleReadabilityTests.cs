@@ -49,6 +49,8 @@ public sealed class EnterpriseWordScaleReadabilityTests
             : EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True, Id);
         FlowchartDocxEmbedMetrics.EmbedReport Report = FlowchartDocxEmbedMetrics.Measure(Layout);
+        TestContext.Out.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"WORD_SCALE|{Id}|scale={Report.WidthScale:0.###}|px={Report.WidthPixels:0}x{Report.HeightPixels:0}|readable={Report.LabelReadable}"));
         Assert.That(Report.LabelReadable, Is.True, Id + " label scale");
         Assert.That(Report.WidthScale, Is.GreaterThan(0.35), Id + " width scale " + Report.WidthScale.ToString("0.###", CultureInfo.InvariantCulture));
     }

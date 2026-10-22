@@ -423,6 +423,8 @@ internal static partial class FlowchartLayoutScore
         return Calculate(Width, Height, 0, EmptyAreaShare(Layout, Width, Height));
     }
 
+    internal static double PlacementWidth(FlowchartLayoutResult Layout) => Bounds(Layout).Width;
+
     internal static double Calculate(double Width, double Height, int Crossings, double EmptyShare)
         => Calculate(Width, Height, Crossings, 0, EmptyShare);
 

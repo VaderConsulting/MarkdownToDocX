@@ -120,9 +120,29 @@ internal static partial class FlowchartFanPacking
     private static bool SimpleComponent(DiagramGridLayout.GridNode Hub,
         IReadOnlyCollection<DiagramGridLayout.GridNode> Leaves, IReadOnlyCollection<EdgeContract> Edges)
     {
-        var Ids = Leaves.Select(Node => Node.Id).Append(Hub.Id).ToHashSet(StringComparer.Ordinal);
-        return Edges.All(Edge => Ids.Contains(Edge.SourceId) == Ids.Contains(Edge.TargetId))
-            && Leaves.All(Leaf => Edges.Count(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id) == 1);
+        var LeafIds = Leaves.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        var Ids = LeafIds.Append(Hub.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (DiagramGridLayout.GridNode Leaf in Leaves)
+        {
+            List<EdgeContract> LeafEdges = Edges.Where(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id).ToList();
+            if (LeafEdges.Count > 2) return false;
+            if (LeafEdges.Count == 2
+                && !LeafEdges.Any(Edge => Edge.SourceId == Hub.Id || Edge.TargetId == Hub.Id))
+            {
+                return false;
+            }
+        }
+
+        return Edges.All(Edge =>
+        {
+            bool SourceInside = Ids.Contains(Edge.SourceId);
+            bool TargetInside = Ids.Contains(Edge.TargetId);
+            if (SourceInside == TargetInside) return true;
+            string LeafId = SourceInside && LeafIds.Contains(Edge.SourceId) ? Edge.SourceId
+                : TargetInside && LeafIds.Contains(Edge.TargetId) ? Edge.TargetId : string.Empty;
+            return LeafId.Length > 0
+                && Edges.Count(Other => Other.SourceId == LeafId || Other.TargetId == LeafId) == 2;
+        });
     }
 
     private static Plan Measure(DiagramGridLayout.GridNode Hub, int Count, int Columns,
