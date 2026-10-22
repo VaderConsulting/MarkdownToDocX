@@ -671,6 +671,7 @@ public static partial class DiagramGridLayout
                 var After = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                 var OldFaults = Before.Where(Finding => Finding.Rule is "10" or "3.1" or "4.1")
                     .Select(Finding => (Finding.Rule, Finding.Subject)).ToHashSet();
+                bool ClearedSharedTracks = Shared > 0 && !After.Any(Finding => Finding.Rule == "5.1");
                 bool Improved = After.Count(Finding => Finding.Rule == "5.1") <= Shared
                     && (After.Count(Finding => Finding.Rule == "5.1") < Shared
                         || After.Count(Finding => Finding.Rule is "4.11" or "5.8") < SideFaults)
@@ -682,7 +683,8 @@ public static partial class DiagramGridLayout
                     // A fully separated assignment repairs illegality and may
                     // cost more than its illegal baseline. Partial separation
                     // must not merely exchange shared tracks for new crossings.
-                    && (After.All(Finding => Finding.Rule != "5.1")
+                    && (ClearedSharedTracks
+                        || After.All(Finding => Finding.Rule != "5.1")
                         || After.Count(Finding => Finding.Rule == "5.9") <= Before.Count(Finding => Finding.Rule == "5.9"))
                     && !After.Any(Finding => Finding.Rule is "10" or "3.1" or "4.1"
                         && !OldFaults.Contains((Finding.Rule, Finding.Subject)));

@@ -15,7 +15,7 @@ public static partial class DiagramGridLayout
         List<FlowchartLayoutEdgeRoute> Routes = new List<FlowchartLayoutEdgeRoute>();
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
-            if (Route.Points.Count >= 3)
+            if (Route.Points.Count >= 2)
             {
                 Routes.Add(Route);
             }
@@ -44,7 +44,7 @@ public static partial class DiagramGridLayout
     private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract)
     {
         if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true) return;
-        for (int Index = 1; Index < Mover.Points.Count - 2; Index++)
+        for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
         {
             FlowchartLayoutPoint Start = Mover.Points[Index];
             FlowchartLayoutPoint End = Mover.Points[Index + 1];
@@ -54,7 +54,7 @@ public static partial class DiagramGridLayout
             {
                 continue;
             }
-            double TrackSeparation = DiagramGridMetrics.GRID_UNIT_PX;
+            double TrackSeparation = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
             if (Contract != null)
             {
                 var Options = FlowchartRenderOptions.FromContract(Contract);
@@ -66,7 +66,7 @@ public static partial class DiagramGridLayout
                     return (Vertical ? Size.Width : Size.Height) / 2;
                 }
                 TrackSeparation = DiagramGridMetrics.CeilToGrid((int)Math.Ceiling(Math.Max(
-                    DiagramGridMetrics.GRID_UNIT_PX, CaptionHalf(Stay) + CaptionHalf(Mover) + 6)));
+                    FlowchartLayoutRules.LineSpacing, CaptionHalf(Stay) + CaptionHalf(Mover) + 6)));
             }
 
             for (int OtherIndex = 1; OtherIndex < Stay.Points.Count; OtherIndex++)

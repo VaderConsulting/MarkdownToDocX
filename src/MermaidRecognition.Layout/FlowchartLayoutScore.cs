@@ -436,7 +436,10 @@ internal static partial class FlowchartLayoutScore
             ? EmptyPercent * EmptyLowRate
             : FlowchartLayoutRules.EmptyThreshold * EmptyLowRate
                 + (EmptyPercent - FlowchartLayoutRules.EmptyThreshold) * EmptyHighRate;
-        return Empty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
+        double OverWidthPx = Math.Max(0.0, Width - FlowchartLayoutRules.DiagramUsableWidthPx);
+        double OverWidthPercent = OverWidthPx / Math.Max(1.0, FlowchartLayoutRules.DiagramUsableWidthPx) * 100.0;
+        double WrapWidthPenalty = OverWidthPercent / EmptyScoreStepPercent * 2.0;
+        return Empty + WrapWidthPenalty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
     }
 
     internal static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)
