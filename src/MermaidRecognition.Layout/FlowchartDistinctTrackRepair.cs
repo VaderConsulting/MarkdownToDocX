@@ -20,7 +20,7 @@ internal static class FlowchartDistinctTrackRepair
         if (OnlyRoutes is { Count: 0 }) return false;
         bool Changed = false;
         int GlobalShared = FlowchartRouteRuleChecker.Check(Contract, Layout).Count(Finding => Finding.Rule == "5.1");
-        foreach (var Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 4 && (OnlyRoutes == null || OnlyRoutes.Contains(Route))))
+        foreach (var Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2 && (OnlyRoutes == null || OnlyRoutes.Contains(Route))))
         {
             // Entry/exit hints constrain the unchanged terminals. A travel hint
             // also constrains the interior, so that family is left untouched.
@@ -34,20 +34,35 @@ internal static class FlowchartDistinctTrackRepair
             var BestCompleteCost = FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
             (double X, double Y)[]? BestPoints = null;
             int Examined = 0;
-            var Runs = Enumerable.Range(1, Original.Length - 3).Where(Index => Paths.Any(Path =>
-                FlowchartBranchRouteOrder.Intersections(new[] { Original[Index], Original[Index + 1] }, Path).Overlap > 0.001)).ToArray();
-            if (Runs.Length == 0) continue;
+            int[] Runs;
+            if (Original.Length == 2)
+            {
+                if (!Paths.Any(Path => FlowchartBranchRouteOrder.Intersections(Original, Path).Overlap > 0.001)) continue;
+                Runs = [-1];
+            }
+            else
+            {
+                int FirstRun = Original.Length == 3 ? 0 : 1;
+                int LastRun = Original.Length - 3;
+                Runs = Enumerable.Range(FirstRun, Math.Max(0, LastRun - FirstRun + 1)).Where(Index => Paths.Any(Path =>
+                    FlowchartBranchRouteOrder.Intersections(new[] { Original[Index], Original[Index + 1] }, Path).Overlap > 0.001)).ToArray();
+                if (Runs.Length == 0) continue;
+            }
             for (int Distance = 1; Examined < FlowchartLayoutRules.RepairCandidateMoves; Distance++)
             foreach (int Index in Runs)
             {
-                bool Vertical = Math.Abs(Original[Index].X - Original[Index + 1].X) < 0.5;
+                bool Vertical = Index < 0
+                    ? Math.Abs(Original[0].X - Original[1].X) < 0.5
+                    : Math.Abs(Original[Index].X - Original[Index + 1].X) < 0.5;
                 foreach (int Sign in new[] { -1, 1 })
                 {
                     if (Examined++ >= FlowchartLayoutRules.RepairCandidateMoves) break;
                     Restore(Route, Original);
                     double Step = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
-                    if (!DiagramGridLayout.TryTranslateInternalRun(Route, Index, Vertical,
-                            Sign * Distance * Step, Placed)) continue;
+                    bool Moved = Index < 0
+                        ? DiagramGridLayout.TryTranslateWholeOrthogonalRoute(Route, Vertical, Sign * Distance * Step, Placed)
+                        : DiagramGridLayout.TryTranslateInternalRun(Route, Index, Vertical, Sign * Distance * Step, Placed);
+                    if (!Moved) continue;
                     var Candidate = Measure(Route, Others, Paths);
                     bool CompletesSeparation = Candidate.Shared == 0 && GlobalShared == Before.Shared;
                     if (Candidate.Shared > Before.Shared || Candidate.Crossings > Before.Crossings && !CompletesSeparation) continue;

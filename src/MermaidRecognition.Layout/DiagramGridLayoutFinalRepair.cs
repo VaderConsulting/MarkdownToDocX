@@ -130,9 +130,11 @@ public static partial class DiagramGridLayout
                         int Changed = Original.ChangedLines();
                         if (Changed > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit:" + Changed; continue; }
                         ExtraLength = RouteLength(Layout) - BeforeLength;
-                        if (FinalRepairLengthCapForTests is double Cap && ExtraLength > Cap)
-                        { Reason = $"length:{ExtraLength:R}>{Cap:R}"; continue; }
+                        double LengthCap = FinalRepairLengthCapForTests ?? 61;
+                        if (ExtraLength > LengthCap) { Reason = $"length:{ExtraLength:R}>{LengthCap:R}"; continue; }
                         var AfterCounts = FinalCounts(State);
+                        if (AfterCounts.Bends > BeforeCounts.Bends) { Reason = "bends"; continue; }
+                        if (AfterCounts.Crossings > BeforeCounts.Crossings) { Reason = "crossings"; continue; }
                         if (AfterCounts.Shared > BeforeCounts.Shared) { Reason = "shared-tracks"; continue; }
                         if (AfterCounts.FanCrossings > BeforeCounts.FanCrossings) { Reason = "same-fan-count"; continue; }
                         if (AfterCounts.FanPairs.Except(BeforeCounts.FanPairs).Any()) { Reason = "same-fan-crossing"; continue; }
