@@ -386,7 +386,7 @@ public static partial class DiagramGridLayout
         if (FlowchartFallbackCorridorTracks.IsConstructionStage(FlowchartRenderContext.Current) && Count > 1)
         {
             double Length = Side is "left" or "right" ? Box.Height : Box.Width;
-            if (!HasGeometry && Length / (Count + 1) < FlowchartRepairCandidateComparison.MinimumLineSeparationPx) return false;
+            if (!HasGeometry && Length / (Count + 1) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
             if (HasGeometry)
             {
                 var BoundaryForSpacing = Node!.GeometryProvider!.Create(Box.Width, Box.Height).ConnectionBoundary;
@@ -395,7 +395,7 @@ public static partial class DiagramGridLayout
                     if (!BoundaryForSpacing.TryPort(Side, I / (Count + 1.0), out var A)
                         || !BoundaryForSpacing.TryPort(Side, (I + 1) / (Count + 1.0), out var B)) return false;
                     if (Math.Abs(A.NormalX - B.NormalX) < 0.001 && Math.Abs(A.NormalY - B.NormalY) < 0.001
-                        && Math.Sqrt(Math.Pow(A.X - B.X, 2) + Math.Pow(A.Y - B.Y, 2)) < FlowchartRepairCandidateComparison.MinimumLineSeparationPx) return false;
+                        && Math.Sqrt(Math.Pow(A.X - B.X, 2) + Math.Pow(A.Y - B.Y, 2)) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
                 }
             }
         }

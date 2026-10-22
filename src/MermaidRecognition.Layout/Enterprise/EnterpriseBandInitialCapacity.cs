@@ -82,7 +82,7 @@ internal static partial class EnterpriseBandPlacement
 
         if (Forecast == 1)
         {
-            return 1;
+            return 2;
         }
 
         return checked(Math.Max(Forecast + 1,

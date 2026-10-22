@@ -602,10 +602,21 @@ public static partial class DiagramGridLayout
             {
                 RouteRepairStage.RepairCellChannelSpacing(State);
                 foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
+                FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds);
+                for (int Pass = 0; Pass < 4 && FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed); Pass++)
+                {
+                }
+
+                SeparateTracks(State.Copy, State.Placed, State.Contract);
                 return;
             }
             while (true)
             {
+                FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds);
+                for (int Pass = 0; Pass < 4 && FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed); Pass++)
+                {
+                }
+
                 var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                 int Shared = Before.Count(Finding => Finding.Rule == "5.1");
                 int SideFaults = Before.Count(Finding => Finding.Rule is "4.11" or "5.8");
@@ -646,8 +657,9 @@ public static partial class DiagramGridLayout
                     if (ChannelLines > FlowchartLayoutRules.RepairChainLines) continue;
                     // Reserve both terminal clearances plus the complete track
                     // lattice. One grid step covers an unfavourable port phase.
-                    Required = Math.Max(Required, (ChannelLines - 1) * DiagramGridMetrics.GRID_UNIT_PX
-                        + 4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX);
+                    double TrackPitch = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
+                    Required = Math.Max(Required, (ChannelLines - 1) * TrackPitch
+                        + 4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + TrackPitch);
                     if (Gap <= 0 || Gap >= Required) continue;
                     double Boundary = A < B ? (A + HalfA + B - HalfB) / 2 : (B + HalfB + A - HalfA) / 2;
                     var Moving = State.Placed.Where(Node => (Horizontal ? Node.X : Node.Y) > Boundary).ToArray();
