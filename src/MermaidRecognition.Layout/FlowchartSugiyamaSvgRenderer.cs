@@ -1345,11 +1345,8 @@ public static class FlowchartSugiyamaSvgRenderer
             DiagramPaddingPx,
             RenderOptions);
 
-        bool StraightIsAxisAligned = RouteKind == FlowchartEdgeRouteKind.Straight
-            && GuideSvgPoints.Count >= 2
-            && (Math.Abs(GuideSvgPoints[0].X - GuideSvgPoints[GuideSvgPoints.Count - 1].X) <= 0.6
-                || Math.Abs(GuideSvgPoints[0].Y - GuideSvgPoints[GuideSvgPoints.Count - 1].Y) <= 0.6);
-        if (StraightIsAxisAligned)
+        bool StraightChord = RouteKind == FlowchartEdgeRouteKind.Straight && GuideSvgPoints.Count >= 2;
+        if (StraightChord)
         {
             (double LayoutBoundaryX, double LayoutBoundaryY) = LayoutPoints[0];
             (double LayoutTipX, double LayoutTipY) = LayoutPoints[LayoutPoints.Count - 1];

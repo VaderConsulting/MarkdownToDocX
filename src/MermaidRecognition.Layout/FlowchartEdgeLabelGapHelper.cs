@@ -79,7 +79,12 @@ public static class FlowchartEdgeLabelGapHelper
 
         if (BestStart < 0)
         {
-            return false;
+            if (!TryResolveDiagonalStraightBreak(Points, LabelDimensions, FontSizePx, out Break))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         (double StartX, double StartY) = Points[BestStart];
@@ -95,6 +100,45 @@ public static class FlowchartEdgeLabelGapHelper
             SegmentHorizontal);
         return true;
     }
+
+    private static bool TryResolveDiagonalStraightBreak(
+        IReadOnlyList<(double X, double Y)> Points,
+        FlowchartLabelDimensions LabelDimensions,
+        double FontSizePx,
+        out LabelSegmentBreak Break)
+    {
+        Break = default!;
+        if (!TryFindLongestCollinearRun(Points, out int Start, out int End, out double Length))
+        {
+            return false;
+        }
+
+        (double StartX, double StartY) = Points[Start];
+        (double EndX, double EndY) = Points[End];
+        if (IsAxisAlignedRun(Points, Start, End, out bool Horizontal, out _))
+        {
+            return false;
+        }
+
+        double HalfGap = ComputeHalfGapAlongLinePx(LabelDimensions, FontSizePx);
+        double RequiredLength = 2.0 * HalfGap + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+        if (Length < RequiredLength)
+        {
+            return false;
+        }
+
+        Break = new LabelSegmentBreak(
+            Start,
+            End,
+            (StartX + EndX) / 2.0,
+            (StartY + EndY) / 2.0,
+            HalfGap,
+            Horizontal: false);
+        return true;
+    }
+
+    private static double ComputeHalfGapAlongLinePx(FlowchartLabelDimensions LabelDimensions, double FontSizePx) =>
+        (LabelDimensions.Width / 2.0) + ComputeCharacterGapPx(FontSizePx);
 
     public static bool TryComputeBrokenSegmentSpansForLabelCentre(
         double StartX,
@@ -148,11 +192,18 @@ public static class FlowchartEdgeLabelGapHelper
                 out HasAfter);
         }
 
-        Before = default;
-        After = default;
-        HasBefore = false;
-        HasAfter = false;
-        return false;
+        return TryComputeBrokenDiagonalSegmentSpans(
+            StartX,
+            StartY,
+            EndX,
+            EndY,
+            LabelCentreX,
+            LabelCentreY,
+            ComputeHalfGapAlongLinePx(LabelDimensions, FontSizePx),
+            out Before,
+            out HasBefore,
+            out After,
+            out HasAfter);
     }
 
     public static bool TryComputeBrokenSegmentSpans(
@@ -224,7 +275,129 @@ public static class FlowchartEdgeLabelGapHelper
             return true;
         }
 
-        return false;
+        return TryComputeBrokenDiagonalSegmentSpans(
+            StartX,
+            StartY,
+            EndX,
+            EndY,
+            CentreX,
+            CentreY,
+            HalfGapWidthPx,
+            out Before,
+            out HasBefore,
+            out After,
+            out HasAfter);
+    }
+
+    private static bool TryComputeBrokenDiagonalSegmentSpans(
+        double StartX,
+        double StartY,
+        double EndX,
+        double EndY,
+        double CentreX,
+        double CentreY,
+        double HalfGapAlongLinePx,
+        out (double X1, double Y1, double X2, double Y2) Before,
+        out bool HasBefore,
+        out (double X1, double Y1, double X2, double Y2) After,
+        out bool HasAfter)
+    {
+        Before = default;
+        After = default;
+        HasBefore = false;
+        HasAfter = false;
+        double DeltaX = EndX - StartX;
+        double DeltaY = EndY - StartY;
+        double Length = Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
+        if (Length <= 1e-6 || HalfGapAlongLinePx <= 0.0)
+        {
+            return false;
+        }
+
+        double UnitX = DeltaX / Length;
+        double UnitY = DeltaY / Length;
+        double CentreT = ((CentreX - StartX) * UnitX) + ((CentreY - StartY) * UnitY);
+        CentreT = Math.Clamp(CentreT, HalfGapAlongLinePx, Length - HalfGapAlongLinePx);
+        double GapStartT = CentreT - HalfGapAlongLinePx;
+        double GapEndT = CentreT + HalfGapAlongLinePx;
+        HasBefore = GapStartT > 0.5;
+        HasAfter = Length - GapEndT > 0.5;
+        if (!HasBefore && !HasAfter)
+        {
+            return false;
+        }
+
+        if (HasBefore)
+        {
+            Before = (StartX, StartY, StartX + UnitX * GapStartT, StartY + UnitY * GapStartT);
+        }
+
+        if (HasAfter)
+        {
+            After = (StartX + UnitX * GapEndT, StartY + UnitY * GapEndT, EndX, EndY);
+        }
+
+        return true;
+    }
+
+    private static bool TryFindLongestCollinearRun(
+        IReadOnlyList<(double X, double Y)> Points,
+        out int BestStart,
+        out int BestEnd,
+        out double BestLength)
+    {
+        BestStart = -1;
+        BestEnd = -1;
+        BestLength = 0.0;
+        for (int Start = 0; Start < Points.Count - 1; Start++)
+        {
+            for (int End = Start + 1; End < Points.Count; End++)
+            {
+                if (!IsCollinearRun(Points, Start, End, out double Length))
+                {
+                    break;
+                }
+
+                if (Length > BestLength)
+                {
+                    BestLength = Length;
+                    BestStart = Start;
+                    BestEnd = End;
+                }
+            }
+        }
+
+        return BestStart >= 0;
+    }
+
+    private static bool IsCollinearRun(
+        IReadOnlyList<(double X, double Y)> Points,
+        int Start,
+        int End,
+        out double Length)
+    {
+        Length = 0.0;
+        (double Ax, double Ay) = Points[Start];
+        (double Bx, double By) = Points[End];
+        double RunDeltaX = Bx - Ax;
+        double RunDeltaY = By - Ay;
+        double RunLength = Math.Sqrt((RunDeltaX * RunDeltaX) + (RunDeltaY * RunDeltaY));
+        if (RunLength <= 1e-6)
+        {
+            return false;
+        }
+
+        for (int Index = Start + 1; Index < End; Index++)
+        {
+            double Cross = Math.Abs(((Points[Index].X - Ax) * RunDeltaY) - ((Points[Index].Y - Ay) * RunDeltaX));
+            if (Cross / RunLength > AXIS_ALIGNED_SEGMENT_EPSILON_PX)
+            {
+                return false;
+            }
+        }
+
+        Length = RunLength;
+        return true;
     }
 
     private static bool IsAxisAlignedRun(

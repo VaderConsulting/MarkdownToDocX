@@ -19,6 +19,35 @@ public sealed class FlowchartEdgeLabelGapTests
             F -->|unknown| I[Invalid / quarantine]
         """;
 
+    const string F119Source = """
+        flowchart TD
+        Start([Start])
+        Check{Valid?}
+        OK[Accept]
+        Fail[Reject]
+
+        Start --> Check
+        Check -->|Yes| OK
+        Check -->|No| Fail
+        """;
+
+    [Test]
+    public void Render_F119Diagram_BreaksStrokeAroundDiagonalBranchLabels()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(F119Source);
+        Assert.That(
+            FlowchartSugiyamaLayoutEngine.TryLayout(
+                Contract,
+                new FlowchartRenderContext { UseCellRegions = true },
+                out FlowchartLayoutResult Layout),
+            Is.True);
+        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Layout);
+        foreach (string Label in new[] { "Yes", "No" })
+        {
+            AssertLabelHasStrokeGap(Svg, Label, FlowchartRenderOptions.FromContract(Contract));
+        }
+    }
+
     [Test]
     public void Render_FormatV1Diagram_BreaksStrokeAroundEdgeLabels()
     {
@@ -145,6 +174,31 @@ public sealed class FlowchartEdgeLabelGapTests
             if (Vertical && Math.Abs(Y1 - (LabelCentreY + HalfHeightGap)) <= TolerancePx && Y1 > LabelCentreY)
             {
                 HasAfter = true;
+            }
+
+            if (!Horizontal && !Vertical)
+            {
+                double LineLength = Math.Sqrt(((X2 - X1) * (X2 - X1)) + ((Y2 - Y1) * (Y2 - Y1)));
+                if (LineLength <= 1e-6)
+                {
+                    continue;
+                }
+
+                double UnitX = (X2 - X1) / LineLength;
+                double UnitY = (Y2 - Y1) / LineLength;
+                double LabelT = ((LabelX - X1) * UnitX) + ((LabelCentreY - Y1) * UnitY);
+                double SegmentStartT = 0.0;
+                double SegmentEndT = LineLength;
+                double GapAlongLine = Math.Max(HalfGap, HalfHeightGap);
+                if (SegmentEndT <= LabelT - GapAlongLine + TolerancePx)
+                {
+                    HasBefore = true;
+                }
+
+                if (SegmentStartT >= LabelT + GapAlongLine - TolerancePx)
+                {
+                    HasAfter = true;
+                }
             }
         }
 
