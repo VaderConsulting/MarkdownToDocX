@@ -143,6 +143,28 @@ public static partial class DiagramGridLayout
         Run("model-route-completion-and-rule-checks", ModelRouteCompletionStage.Apply);
         Run("final-legality-validation-section-10", LegalityValidationStage.Apply);
         Run("final-complete-layout-repair", RouteRepairStage.ApplyFinalCompleteRepair);
+        Run("spine-and-decision-branch-reinforcement", Current =>
+        {
+            bool HorizontalFlow = Current.Direction
+                is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+            if (HorizontalFlow || !ShouldUseSpineColumnLayout(Current.Contract, Current.Placed, Current.Direction))
+            {
+                return;
+            }
+
+            ApplySpineColumnAdjustments(Current.Contract, Current.Placed, Current.Direction);
+            int CrossPitch = Math.Max(
+                DiagramGridMetrics.PITCH_X_PX,
+                (int)Math.Round(FlowchartRenderOptions.FromContract(Current.Contract).NodeSpacingPx));
+            AlignDecisionBranchTargetRow(Current.Contract, Current.Placed, HorizontalFlow, CrossPitch);
+            if (Current.Placed.Any(Node => Node.CellNode != null))
+            {
+                ReplaceCellFrames(Current.Contract, Current.Placed, Current.Frames);
+            }
+
+            WriteBack(Current.Copy, Current.Placed, Current.Frames);
+            RouteRepairStage.PublishFinal(Current);
+        });
         Run("bend-removing-port-reassignment-4.12", Current =>
         {
             Context.BendReassignmentRemoved = 0;
