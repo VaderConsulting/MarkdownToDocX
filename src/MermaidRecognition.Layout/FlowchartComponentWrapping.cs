@@ -130,7 +130,8 @@ internal static partial class FlowchartComponentWrapping
 
     private static Plan Choose(DiagramContract Contract, List<List<DiagramGridLayout.GridNode>> Components,
         List<DiagramGridLayout.GridNode> Main, List<DiagramGridLayout.GridNode> Tail, int FanCount, int RelationalLeafCount,
-        int NodeWidth, int NodeHeight, int ColumnPitch, int RowPitch, bool NarrowWidthCompaction)
+        int NodeWidth, int NodeHeight, int ColumnPitch, int RowPitch, bool NarrowWidthCompaction, int MinimumRun = 0,
+        int MaximumRun = int.MaxValue)
     {
         double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
         var Candidates = new List<(Plan Plan, double WidthOverflow, int Alignment, int EndBalance)>();
@@ -138,8 +139,11 @@ internal static partial class FlowchartComponentWrapping
         int Maximum = Math.Max(Tail.Count, Components.Where(Component => Component != Main).DefaultIfEmpty([]).Max(Component => Component.Count));
         int MinimumFanColumns = NarrowWidthCompaction ? 1 : Math.Max(Math.Min(FanCount, FlowchartWrapPlan.MinimumRun),
             DivideRoundUp(FanCount, DiagramGridMetrics.TRACKS_PER_GAP + 1));
-        for (int Run = FlowchartWrapPlan.MinimumRun; Run <= Maximum; Run++)
-        for (int FanColumns = MinimumFanColumns; FanColumns <= Math.Max(1, FanCount); FanColumns++)
+        int FirstRun = Math.Max(FlowchartWrapPlan.MinimumRun, MinimumRun);
+        int LastRun = Math.Min(Maximum, MaximumRun);
+        int MaximumFanColumns = NarrowWidthCompaction ? MinimumFanColumns : Math.Max(1, FanCount);
+        for (int Run = FirstRun; Run <= LastRun; Run++)
+        for (int FanColumns = MinimumFanColumns; FanColumns <= MaximumFanColumns; FanColumns++)
         for (int Offset = 0; Offset < Run; Offset++)
         {
             int PackedColumns = FanColumns + 1 + DivideRoundUp(Tail.Count + Offset, Run)
@@ -171,7 +175,9 @@ internal static partial class FlowchartComponentWrapping
         }
         return Candidates
             .OrderBy(Candidate => Candidate.WidthOverflow)
-            .ThenBy(Candidate => Candidate.Plan.Width * (long)Candidate.Plan.Height)
+            .ThenBy(Candidate => NarrowWidthCompaction ? 0 : Candidate.Plan.Width * (long)Candidate.Plan.Height)
+            .ThenByDescending(Candidate => NarrowWidthCompaction ? Candidate.Plan.Run : 0)
+            .ThenBy(Candidate => NarrowWidthCompaction ? Candidate.Plan.Width : 0)
             .ThenBy(Candidate => Candidate.EndBalance)
             .ThenBy(Candidate => Candidate.Alignment)
             .First().Plan;
