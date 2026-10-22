@@ -174,7 +174,7 @@ public static class DiagramGridMetrics
     }
 
     /// <summary>
-    /// Equal slot or track centres along a side or gap, at least line_spacing apart and centred when possible.
+    /// Equal slot or track centres along a side or gap, symmetrical about the centre.
     /// </summary>
     /// <param name="LengthPx">Side or gap length.</param>
     /// <param name="SlotCount">How many equal positions span that length.</param>
@@ -186,13 +186,30 @@ public static class DiagramGridMetrics
             return [];
         }
 
-        int Spacing = (int)Math.Round(FlowchartLayoutRules.LineSpacing);
-        int Span = (SlotCount - 1) * Spacing;
-        int Start = (LengthPx - Span) / 2;
         int[] Centres = new int[SlotCount];
+        int Previous = -1;
         for (int Index = 0; Index < SlotCount; Index++)
         {
-            Centres[Index] = Start + Index * Spacing;
+            double Raw = ((Index + 0.5) * LengthPx) / SlotCount;
+            int Centre = (int)Math.Round(Raw, MidpointRounding.AwayFromZero);
+            if (Centre <= Previous)
+            {
+                Centre = Previous + 1;
+            }
+
+            if (Centre >= LengthPx)
+            {
+                Centre = LengthPx - 1;
+            }
+
+            Centres[Index] = Centre;
+            Previous = Centre;
+        }
+
+        int MirrorError = Centres[0] - (LengthPx - Centres[SlotCount - 1]);
+        if (MirrorError != 0 && SlotCount > 1)
+        {
+            Centres[SlotCount - 1] = LengthPx - Centres[0];
         }
 
         return Centres;
@@ -271,29 +288,15 @@ public static class DiagramGridMetrics
     /// <returns>Offsets from the start of the gap, one per line, in cross-axis order.</returns>
     public static int[] TrackOffsets(int LineCount, int GapPx)
     {
-        if (LineCount < 1)
+        int Units = Math.Max(1, (LineCount + TRACKS_PER_GAP - 1) / TRACKS_PER_GAP);
+        int LengthPx = Math.Max(GapPx, Units * GRID_UNIT_PX);
+        int SlotCount = Units * TRACKS_PER_GAP;
+        int[] Centres = EqualCentres(LengthPx, SlotCount);
+        int[] Indexes = SelectSlotIndexes(LineCount, SlotCount);
+        int[] Offsets = new int[Indexes.Length];
+        for (int Index = 0; Index < Indexes.Length; Index++)
         {
-            return [];
-        }
-
-        int Spacing = (int)Math.Round(FlowchartLayoutRules.LineSpacing);
-        int RequiredGap = GapWidthForTracks(LineCount);
-        int LengthPx = Math.Max(GapPx, RequiredGap);
-
-        int[] Offsets = new int[LineCount];
-        for (int Index = 0; Index < LineCount; Index++)
-        {
-            Offsets[Index] = Spacing * (Index + 1);
-        }
-
-        int Extra = LengthPx - RequiredGap;
-        if (Extra > 0)
-        {
-            int Offset = Extra / 2;
-            for (int Index = 0; Index < LineCount; Index++)
-            {
-                Offsets[Index] += Offset;
-            }
+            Offsets[Index] = Centres[Indexes[Index]];
         }
 
         return Offsets;

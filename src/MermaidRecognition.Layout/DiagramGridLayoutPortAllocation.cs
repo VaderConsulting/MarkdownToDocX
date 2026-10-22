@@ -838,10 +838,10 @@ public static partial class DiagramGridLayout
         // Rounded rectangles still allocate over the complete declared edge.
         // Reserving a corner inset here moves ports away from k/(n+1) and makes
         // the slot pattern depend on the renderer's corner radius.
-        int[] SlotCentres = DiagramGridMetrics.EqualCentres(Length, Group.Count);
+        double AvailableLength = Length;
         for (int Index = 0; Index < Group.Count; Index++)
         {
-            double Along = SlotCentres[Index];
+            double Along = ((Index + 1.0) / (Group.Count + 1.0)) * AvailableLength;
             double X;
             double Y;
             int OutX = 0;
