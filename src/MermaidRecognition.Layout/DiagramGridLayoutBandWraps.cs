@@ -52,10 +52,13 @@ public static partial class DiagramGridLayout
             var Score = FlowchartLayoutScore.Measure(Contract, Candidate, false);
             bool CandidateLegal = BandLayoutIsLegal(Contract, Candidate);
             BandWrapCandidateObserver?.Invoke(CandidateWidth, Candidate, Score.Cost, CandidateLegal);
-            bool Keep = CandidateLegal && (!Legal || Score.Cost < BestCost);
-            Records.Add($"BAND_WRAP|width={CandidateWidth}|legal={CandidateLegal}|score={Score.OptimizationScore:R}|bends={Score.Bends}|crossings={Score.Crossings}|keep={Keep}");
+            double CandidateSpan = FlowchartLayoutScore.PlacementWidth(Candidate);
+            bool Keep = CandidateLegal && (!Legal
+                || CandidateSpan < BestSpan - 1e-9
+                || Math.Abs(CandidateSpan - BestSpan) <= 1e-9 && Score.Cost < BestCost);
+            Records.Add($"BAND_WRAP|width={CandidateWidth}|legal={CandidateLegal}|span={CandidateSpan:R}|score={Score.OptimizationScore:R}|bends={Score.Bends}|crossings={Score.Crossings}|keep={Keep}");
             if (!Keep) continue;
-            Width = CandidateWidth; BestCost = Score.Cost; Legal = true;
+            Width = CandidateWidth; BestCost = Score.Cost; BestSpan = CandidateSpan; Legal = true;
             SelectedPlacement = Candidate; NeedsCapacity = CandidateContext.InitialBandCapacityNeeded;
         }
         // A trial owns a separate grid, routes and caches. Confirm the winner in

@@ -241,8 +241,8 @@ public static partial class DiagramGridLayout
                         State.WrappedChainNodes.UnionWith(Placed.Select(Node => Node.Id));
                 });
                 Step("FanPacking", () => FlowchartFanPacking.Apply(Contract, Placed));
-                Step("ComponentWrapping", () => State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal));
                 Step("DisconnectedPacking", () => FlowchartDisconnectedPacking.Apply(Contract, Placed));
+                Step("ComponentWrapping", () => State.RepairExteriorCrossings = FlowchartComponentWrapping.Apply(Contract, Placed, Horizontal));
                 Step("GroupMemberPacking", () => FlowchartGroupMemberPacking.Apply(Contract, Placed));
                 Step("GroupedChannelPlacement", () => FlowchartGroupedChannelPlacement.Apply(Contract, Placed));
                 Step("AlignDecisionBranchTargetRow", () => AlignDecisionBranchTargetRow(Contract, Placed, Horizontal, CrossPitch));
@@ -481,8 +481,9 @@ public static partial class DiagramGridLayout
             }),
             new("4.2", State =>
             {
-                if (!State.Open) FlowchartAlignedRouteStraightener.Apply(State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
-                else FlowchartAlignedRouteStraightener.ApplyNearlyAlignedFacing(State.Copy, BuildPlacedBounds(State.Placed, State.Frames));
+                var Bounds = BuildPlacedBounds(State.Placed, State.Frames);
+                if (!State.Open) FlowchartAlignedRouteStraightener.Apply(State.Copy, Bounds);
+                FlowchartAlignedRouteStraightener.ApplyNearlyAlignedFacing(State.Copy, Bounds);
             }),
             new("4.2,4.3", State =>
             {

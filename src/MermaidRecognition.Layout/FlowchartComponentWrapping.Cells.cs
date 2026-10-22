@@ -9,23 +9,59 @@ namespace MermaidRecognition.Layout;
 /// <summary>Applies fan-and-tail component wrapping through complete cell-region candidates.</summary>
 internal static partial class FlowchartComponentWrapping
 {
+    private const int MaximumCompactionPasses = 16;
+
+    internal static string? LastCellCompactionDiagnostic { get; private set; }
+
     internal static bool ApplyCells(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        if (Horizontal || !TryAnalyze(Contract, Nodes, out ComponentContext Context)) return false;
+        FlowchartRenderContext.Current?.LayoutStageTrace.Add(
+            $"ComponentWrappingCells|enter|horizontal={Horizontal}|cells={Nodes.Count(Node => Node.CellNode != null)}");
+        if (Horizontal) return false;
 
+        double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
+        bool Changed = false;
+        for (int Pass = 0; Pass < MaximumCompactionPasses; Pass++)
+        {
+            if (!TryAnalyze(Contract, Nodes, out ComponentContext Context))
+            {
+                LastCellCompactionDiagnostic = $"analyze-false-pass-{Pass}";
+                break;
+            }
+            if (!TryApplyCellsOnce(Contract, Nodes, Context, Usable, out bool Accepted)) break;
+            if (!Accepted) break;
+            Changed = true;
+            double Width = MeasureWidth(Nodes, FlowchartCellRepair.Capture(Nodes));
+            if (Width <= Usable + 1e-9) break;
+        }
+
+        return Changed;
+    }
+
+    private static bool TryApplyCellsOnce(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
+        ComponentContext Context, double Usable, out bool Accepted)
+    {
+        Accepted = false;
         FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes);
         FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
         double OldWidth = MeasureWidth(Nodes, Before);
-        double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
-        if (OldWidth <= Usable + 1e-9) return false;
+        if (OldWidth <= Usable + 1e-9)
+        {
+            LastCellCompactionDiagnostic = "already-within-usable";
+            return false;
+        }
 
         int NodeWidth = Nodes.Max(Node => Node.Width);
         int NodeHeight = Nodes.Max(Node => Node.Height);
         int ColumnPitch = NodeWidth + DiagramGridMetrics.NODE_GAP_PX;
         int RowPitch = NodeHeight + DiagramGridMetrics.NODE_GAP_PX;
         Plan Best = Choose(Contract, Context.Components, Context.Main, Context.Tail, Context.FanGrid.Count,
-            Context.RelationalLeaves.Count, NodeWidth, NodeHeight, ColumnPitch, RowPitch);
-        if (Best.Width >= OldWidth - 1e-9) return false;
+            Context.RelationalLeaves.Count, NodeWidth, NodeHeight, ColumnPitch, RowPitch, NarrowWidthCompaction: true);
+        if (Best.Width >= OldWidth - 1e-9)
+        {
+            LastCellCompactionDiagnostic = $"plan-not-narrower-{Best.Width:R}-vs-{OldWidth:R}";
+            return false;
+        }
 
         int MaxColumnSpan = Context.FanGrid.Concat([Context.Root]).Max(Node => Before.Regions[Node.Id].ColumnSpan);
         int MaxRowSpan = Context.FanGrid.Concat([Context.Root]).Max(Node => Before.Regions[Node.Id].RowSpan);
@@ -33,7 +69,11 @@ internal static partial class FlowchartComponentWrapping
             Grid.Configuration.CellWidth, Grid.Configuration.ColumnGap, ColumnPitch - NodeWidth);
         int RowStride = CellStride(MaxRowSpan,
             Grid.Configuration.CellHeight, Grid.Configuration.RowGap, RowPitch - NodeHeight);
-        if (ColumnStride == 0 || RowStride == 0) return false;
+        if (ColumnStride == 0 || RowStride == 0)
+        {
+            LastCellCompactionDiagnostic = "zero-stride";
+            return false;
+        }
 
         FlowchartCellRegion RootRegion = Before.Regions[Context.Root.Id];
         int FanRows = DivideRoundUp(Context.FanGrid.Count, Best.FanColumns);
@@ -44,15 +84,7 @@ internal static partial class FlowchartComponentWrapping
         var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
         var Growth = new List<FlowchartCellGapGrowth>();
 
-        int NextColumn = SideColumn;
-        foreach (List<DiagramGridLayout.GridNode> Component in Context.Components.Where(Component => Component != Context.Main))
-        {
-            PlaceCellColumnMajor(Component, Before, Targets, HubRow, NextColumn, Best.Run, ColumnStride, RowStride);
-            int Columns = DivideRoundUp(Component.Count, Best.Run);
-            NextColumn = checked(NextColumn + (Columns + 1) * ColumnStride);
-        }
-
-        int FanLeftColumn = Math.Max(NextColumn, SideColumn);
+        int FanLeftColumn = SideColumn;
         int RootColumn = checked(FanLeftColumn + ((Best.FanColumns - 1) / 2) * ColumnStride);
         Targets[Context.Root.Id] = new(HubRow, RootColumn, RootRegion.RowSpan, RootRegion.ColumnSpan);
         for (int Index = 0; Index < Context.FanGrid.Count; Index++)
@@ -69,29 +101,35 @@ internal static partial class FlowchartComponentWrapping
         int TailStartRow = checked(HubRow + RowStride);
         PlaceCellColumnMajor(Context.Tail, Before, Targets, TailStartRow, TailColumn, Best.Run, ColumnStride, RowStride, Best.Offset);
 
-        int ExteriorColumn = checked(TailColumn + (DivideRoundUp(Context.Tail.Count + Best.Offset, Best.Run) + 1) * ColumnStride);
-        foreach (DiagramGridLayout.GridNode Child in Context.RelationalLeaves)
+        int TailRows = DivideRoundUp(Context.Tail.Count + Best.Offset, Best.Run);
+        int BelowRow = checked(TailStartRow + TailRows * RowStride + RowStride);
+        foreach (List<DiagramGridLayout.GridNode> Component in Context.Components.Where(Component => Component != Context.Main))
         {
-            DiagramGridLayout.GridNode Parent = Context.Incoming[Child.Id]
-                .Where(Id => Context.Tail.Contains(Context.ById[Id]))
-                .Select(Id => Context.ById[Id]).First();
-            FlowchartCellRegion ChildRegion = Before.Regions[Child.Id];
-            FlowchartCellRegion ParentRegion = Targets[Parent.Id];
-            Targets[Child.Id] = new(ParentRegion.StartRow, ExteriorColumn, ChildRegion.RowSpan, ChildRegion.ColumnSpan);
-            ExteriorColumn = checked(ExteriorColumn + ColumnStride);
+            PlaceCellColumnMajor(Component, Before, Targets, BelowRow, FanLeftColumn, Best.Run, ColumnStride, RowStride);
+            BelowRow = checked(BelowRow + (DivideRoundUp(Component.Count, Best.Run) + 1) * RowStride);
         }
 
-        AppendColumnGrowth(Before, Grid, Growth, SideColumn, NextColumn, ColumnStride, ColumnPitch - NodeWidth);
+        int ExteriorColumn = checked(TailColumn + (TailRows + 1) * ColumnStride);
         AppendColumnGrowth(Before, Grid, Growth, FanLeftColumn, ExteriorColumn, ColumnStride, ColumnPitch - NodeWidth);
 
         FlowchartCellRepair.Assignment? Assignment = FlowchartCellRepair.PlanAssignment(Nodes, Targets, Growth);
-        if (Assignment == null) return false;
-        bool Accepted = false;
+        if (Assignment == null && Growth.Count > 0)
+            Assignment = FlowchartCellRepair.PlanAssignment(Nodes, Targets);
+        if (Assignment == null)
+        {
+            LastCellCompactionDiagnostic = "plan-assignment-null";
+            return false;
+        }
         try
         {
-            if (!Assignment.TryApply()) return false;
+            if (!Assignment.TryApply())
+            {
+                LastCellCompactionDiagnostic = "try-apply-false";
+                return false;
+            }
             double NewWidth = MeasureWidth(Nodes, Assignment.After);
-            Accepted = NewWidth <= Usable + 1e-9 && NewWidth < OldWidth - 1e-9;
+            Accepted = NewWidth < OldWidth - 1e-9;
+            if (!Accepted) LastCellCompactionDiagnostic = $"no-shrink-{NewWidth:R}-vs-{OldWidth:R}";
             return Accepted;
         }
         finally

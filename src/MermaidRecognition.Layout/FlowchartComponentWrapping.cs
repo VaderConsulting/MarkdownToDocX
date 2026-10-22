@@ -11,8 +11,8 @@ internal static partial class FlowchartComponentWrapping
 {
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        if (Horizontal || Nodes.Any(Node => Node.GroupId != null)) return false;
         if (Nodes.Any(Node => Node.CellNode != null)) return ApplyCells(Contract, Nodes, Horizontal);
+        if (Horizontal || Nodes.Any(Node => Node.GroupId != null)) return false;
         if (!TryAnalyze(Contract, Nodes, out ComponentContext Context)) return false;
 
         int NodeWidth = Nodes.Max(Node => Node.Width);
@@ -20,7 +20,7 @@ internal static partial class FlowchartComponentWrapping
         int ColumnPitch = NodeWidth + DiagramGridMetrics.NODE_GAP_PX;
         int RowPitch = NodeHeight + DiagramGridMetrics.NODE_GAP_PX;
         Plan Best = Choose(Contract, Context.Components, Context.Main, Context.Tail, Context.FanGrid.Count,
-            Context.RelationalLeaves.Count, NodeWidth, NodeHeight, ColumnPitch, RowPitch);
+            Context.RelationalLeaves.Count, NodeWidth, NodeHeight, ColumnPitch, RowPitch, NarrowWidthCompaction: false);
         double OldWidth = Span(Nodes, true);
         double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
         if (OldWidth <= Usable + 1e-9 || Best.Width >= OldWidth - 1e-9) return false;
@@ -130,21 +130,25 @@ internal static partial class FlowchartComponentWrapping
 
     private static Plan Choose(DiagramContract Contract, List<List<DiagramGridLayout.GridNode>> Components,
         List<DiagramGridLayout.GridNode> Main, List<DiagramGridLayout.GridNode> Tail, int FanCount, int RelationalLeafCount,
-        int NodeWidth, int NodeHeight, int ColumnPitch, int RowPitch)
+        int NodeWidth, int NodeHeight, int ColumnPitch, int RowPitch, bool NarrowWidthCompaction)
     {
         double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
         var Candidates = new List<(Plan Plan, double WidthOverflow, int Alignment, int EndBalance)>();
         var TailIndex = Tail.Select((Node, Index) => (Node.Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index, StringComparer.Ordinal);
         int Maximum = Math.Max(Tail.Count, Components.Where(Component => Component != Main).DefaultIfEmpty([]).Max(Component => Component.Count));
-        int MinimumFanColumns = Math.Max(Math.Min(FanCount, FlowchartWrapPlan.MinimumRun),
+        int MinimumFanColumns = NarrowWidthCompaction ? 1 : Math.Max(Math.Min(FanCount, FlowchartWrapPlan.MinimumRun),
             DivideRoundUp(FanCount, DiagramGridMetrics.TRACKS_PER_GAP + 1));
         for (int Run = FlowchartWrapPlan.MinimumRun; Run <= Maximum; Run++)
         for (int FanColumns = MinimumFanColumns; FanColumns <= Math.Max(1, FanCount); FanColumns++)
         for (int Offset = 0; Offset < Run; Offset++)
         {
-            int PackedColumns = FanColumns + 1 + DivideRoundUp(Tail.Count + Offset, Run) + RelationalLeafCount;
-            foreach (List<DiagramGridLayout.GridNode> Component in Components.Where(Component => Component != Main))
-                PackedColumns += 1 + DivideRoundUp(Component.Count, Run);
+            int PackedColumns = FanColumns + 1 + DivideRoundUp(Tail.Count + Offset, Run)
+                + (NarrowWidthCompaction ? 0 : RelationalLeafCount);
+            if (!NarrowWidthCompaction)
+            {
+                foreach (List<DiagramGridLayout.GridNode> Component in Components.Where(Component => Component != Main))
+                    PackedColumns += 1 + DivideRoundUp(Component.Count, Run);
+            }
             int Columns = PackedColumns;
             int Rows = Math.Max(1 + DivideRoundUp(FanCount, FanColumns), Run);
             int Width = Columns * NodeWidth + Math.Max(0, Columns - 1) * (ColumnPitch - NodeWidth);
