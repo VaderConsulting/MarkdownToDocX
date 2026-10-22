@@ -422,8 +422,6 @@ public static partial class DiagramGridLayout
             PreserveHintedRoutes(State, () => RebuildLoopBackRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
             PreserveHintedRoutes(State, () => DiagramGridRouteBuilder.RebuildDiagonalBackRoutes(
                 Copy, Placed, Nodes, Contract, Frames, Direction));
-            PreserveHintedRoutes(State, () => RebuildDecisionFanOutRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
-            PreserveHintedRoutes(State, () => RebuildDecisionFanInRoutes(Contract, Copy, Placed, Frames, Nodes, Direction));
         }
     }
 

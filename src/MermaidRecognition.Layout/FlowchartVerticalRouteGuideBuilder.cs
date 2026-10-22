@@ -430,59 +430,25 @@ public static class FlowchartVerticalRouteGuideBuilder
         FlowchartDecisionPortRole Role,
         bool IsInbound = false)
     {
+        bool SpinePort = Role == FlowchartDecisionPortRole.BottomVertex
+            || Role == FlowchartDecisionPortRole.TopVertex;
         bool AlignedTarget = Math.Abs(TargetX - HubCentreX) <= COLLINEAR_EPSILON_PX;
         bool CentreAlignedSource = Math.Abs(SourceX - HubCentreX) <= COLLINEAR_EPSILON_PX;
 
         Points.Add((SourceX, SourceY));
-        double RouteSourceX = SourceX;
-        double RouteSourceY = SourceY;
-        double MinimumStubPx = DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
-        bool SpinePort = (Role == FlowchartDecisionPortRole.BottomVertex
-                || Role == FlowchartDecisionPortRole.TopVertex)
-            && FlowchartEdgeConnectionGeometry.ShouldRenderStraightConnector(
-                SourceX,
-                SourceY,
-                TargetX,
-                TargetY);
-        if (!IsInbound
-            && FlowchartDiamondAttachHelper.IsDiamondShape(SourceShape)
-            && FlowchartDiamondAttachHelper.TryResolveOutwardNormal(
-                SourceBounds,
-                SourceX,
-                SourceY,
-                out double DiamondNormalX,
-                out double DiamondNormalY)
-            && !SpinePort)
-        {
-            double TerminalStubPx = Math.Max(
-                FlowchartEdgeTerminalStubExpander.ComputeTerminalStubLength(SourceBounds),
-                MinimumStubPx);
-            RouteSourceX = SourceX + (DiamondNormalX * TerminalStubPx);
-            RouteSourceY = SourceY + (DiamondNormalY * TerminalStubPx);
-            Points.Add((RouteSourceX, RouteSourceY));
-        }
-
-        if (IsInbound && !SpinePort)
-        {
-            double TerminalStubPx = Math.Max(
-                FlowchartEdgeTerminalStubExpander.ComputeTerminalStubLength(SourceBounds),
-                MinimumStubPx);
-            RouteSourceY = SourceY - TerminalStubPx;
-            Points.Add((SourceX, RouteSourceY));
-        }
-
         if (SpinePort || (AlignedTarget && CentreAlignedSource))
         {
             Points.Add((TargetX, TargetY));
             return;
         }
 
+        double MinimumStubPx = DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX;
         if (Role == FlowchartDecisionPortRole.SideRight
-            && RouteSourceX > HubCentreX + COLLINEAR_EPSILON_PX
-            && TargetX < RouteSourceX - COLLINEAR_EPSILON_PX)
+            && SourceX > HubCentreX + COLLINEAR_EPSILON_PX
+            && TargetX < SourceX - COLLINEAR_EPSILON_PX)
         {
-            double OutwardX = RouteSourceX + MinimumStubPx;
-            Points.Add((OutwardX, RouteSourceY));
+            double OutwardX = SourceX + MinimumStubPx;
+            Points.Add((OutwardX, SourceY));
             Points.Add((OutwardX, TargetY));
             if (Math.Abs(TargetX - OutwardX) > COLLINEAR_EPSILON_PX)
             {
@@ -493,11 +459,11 @@ public static class FlowchartVerticalRouteGuideBuilder
         }
 
         if (Role == FlowchartDecisionPortRole.SideLeft
-            && RouteSourceX < HubCentreX - COLLINEAR_EPSILON_PX
-            && TargetX > RouteSourceX + COLLINEAR_EPSILON_PX)
+            && SourceX < HubCentreX - COLLINEAR_EPSILON_PX
+            && TargetX > SourceX + COLLINEAR_EPSILON_PX)
         {
-            double OutwardX = RouteSourceX - MinimumStubPx;
-            Points.Add((OutwardX, RouteSourceY));
+            double OutwardX = SourceX - MinimumStubPx;
+            Points.Add((OutwardX, SourceY));
             Points.Add((OutwardX, TargetY));
             if (Math.Abs(TargetX - OutwardX) > COLLINEAR_EPSILON_PX)
             {
@@ -508,58 +474,13 @@ public static class FlowchartVerticalRouteGuideBuilder
         }
 
         double CorridorX = TargetBounds.CenterX;
-        if (Math.Abs(RouteSourceX - CorridorX) > COLLINEAR_EPSILON_PX)
+        if (Math.Abs(SourceX - CorridorX) > COLLINEAR_EPSILON_PX)
         {
-            Points.Add((CorridorX, RouteSourceY));
-        }
-
-        AppendTargetWithPerpendicularApproach(Points, TargetX, TargetY, TargetBounds, TargetShape);
-    }
-
-    private static void AppendTargetWithPerpendicularApproach(
-        List<(double X, double Y)> Points,
-        double TargetX,
-        double TargetY,
-        FlowchartLayoutNodeBounds TargetBounds,
-        string? TargetShape)
-    {
-        if (Points.Count == 0)
-        {
-            Points.Add((TargetX, TargetY));
-            return;
-        }
-
-        (double PriorX, double PriorY) = Points[^1];
-        if (Math.Abs(PriorX - TargetX) <= COLLINEAR_EPSILON_PX
-            || Math.Abs(PriorY - TargetY) <= COLLINEAR_EPSILON_PX)
-        {
-            Points.Add((TargetX, TargetY));
-            return;
-        }
-
-        if (!FlowchartDiamondAttachHelper.IsDiamondShape(TargetShape))
-        {
-            double TopY = TargetBounds.CenterY + (TargetBounds.Height / 2.0);
-            double BottomY = TargetBounds.CenterY - (TargetBounds.Height / 2.0);
-            if (Math.Abs(TargetY - TopY) <= FACE_TOLERANCE_PX && PriorY > TargetY + COLLINEAR_EPSILON_PX)
-            {
-                Points.Add((TargetX, PriorY));
-                Points.Add((TargetX, TargetY));
-                return;
-            }
-
-            if (Math.Abs(TargetY - BottomY) <= FACE_TOLERANCE_PX && PriorY < TargetY - COLLINEAR_EPSILON_PX)
-            {
-                Points.Add((TargetX, PriorY));
-                Points.Add((TargetX, TargetY));
-                return;
-            }
+            Points.Add((CorridorX, SourceY));
         }
 
         Points.Add((TargetX, TargetY));
     }
-
-    private const double FACE_TOLERANCE_PX = 2.5;
 
     /// <summary>
     /// Appends an S-route fan polyline with perpendicular terminal stubs (spec §15 corridor at stub X).

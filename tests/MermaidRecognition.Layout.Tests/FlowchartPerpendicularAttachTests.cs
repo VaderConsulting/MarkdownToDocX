@@ -625,8 +625,7 @@ public sealed class FlowchartPerpendicularAttachTests : ProductionCatalogueTestF
                 NodeById,
                 Direction,
                 out List<(double X, double Y)> LayoutPoints,
-                out FlowchartEdgeRouteKind RouteKind,
-                Layout);
+                out FlowchartEdgeRouteKind RouteKind);
 
             string EdgeLabel = Edge.SourceId + "->" + Edge.TargetId;
             if (!Resolved)

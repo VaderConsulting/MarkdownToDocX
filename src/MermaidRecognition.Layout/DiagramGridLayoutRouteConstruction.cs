@@ -607,13 +607,6 @@ public static partial class DiagramGridLayout
             : (EndY <= TargetBounds.CenterY ? "bottom" : "top");
     }
 
-    private static Dictionary<string, FlowchartLayoutNodeBounds> ResolveRouteRebuildBounds(
-        FlowchartLayoutResult Copy,
-        List<GridNode> Placed,
-        List<GridFrame> Frames) => Copy.NodeBounds.Count > 0
-        ? Copy.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal)
-        : BuildPlacedBounds(Placed, Frames);
-
     private static void RebuildDecisionFanOutRoutes(
         DiagramContract Contract,
         FlowchartLayoutResult Copy,
@@ -622,11 +615,15 @@ public static partial class DiagramGridLayout
         Dictionary<string, NodeContract> Nodes,
         FlowchartDirection Direction)
     {
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = ResolveRouteRebuildBounds(Copy, Placed, Frames);
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
+            // Joint port allocation has already assigned the diamond's symmetric edge slot
+            // and its true edge normal. Do not replace it with the legacy vertex-first path.
+            if (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9)
+                continue;
             if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 || !FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
             {
@@ -697,8 +694,7 @@ public static partial class DiagramGridLayout
             int SameSide = Contract.Edges.Count(Candidate => Candidate.SourceId == Route.SourceId
                 && !BackEdges.Contains(Candidate) && BoundsById.TryGetValue(Candidate.TargetId, out var Other)
                 && Math.Sign(Cross(Other) - Cross(Source)) == Side);
-            if (Outgoing < 2
-                && Side != 0 && !Occupied && SameSide == 1
+            if (Side != 0 && !Occupied && SameSide == 1
                 && !FlowchartDagrePresentation.IsDiamondShape(TargetShape)
                 && Math.Abs(Cross(Target) - SourceCross) >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX
                 && (TargetMain - Main(Source)) * Flow >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
@@ -714,85 +710,6 @@ public static partial class DiagramGridLayout
                 }
             }
             if (LayoutPoints.Count < 2) continue;
-
-            Route.Points.Clear();
-            foreach ((double PointX, double PointY) in LayoutPoints)
-            {
-                Route.Points.Add(new FlowchartLayoutPoint
-                {
-                    X = Math.Round(PointX),
-                    Y = Math.Round(PointY)
-                });
-            }
-        }
-    }
-
-    private static void RebuildDecisionFanInRoutes(
-        DiagramContract Contract,
-        FlowchartLayoutResult Copy,
-        List<GridNode> Placed,
-        List<GridFrame> Frames,
-        Dictionary<string, NodeContract> Nodes,
-        FlowchartDirection Direction)
-    {
-        if (Direction == FlowchartDirection.LeftToRight
-            || Direction == FlowchartDirection.RightToLeft)
-        {
-            return;
-        }
-
-        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = ResolveRouteRebuildBounds(Copy, Placed, Frames);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-
-        foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
-        {
-            if (!Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode)
-                || !FlowchartDagrePresentation.IsDiamondShape(TargetNode.Shape))
-            {
-                continue;
-            }
-
-            int Incoming = 0;
-            foreach (EdgeContract Candidate in Contract.Edges)
-            {
-                if (string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal)
-                    && string.IsNullOrWhiteSpace(Candidate.Label)
-                    && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
-                    && !BackEdges.Contains(Candidate))
-                {
-                    Incoming++;
-                }
-            }
-
-            if (Incoming < 2)
-            {
-                continue;
-            }
-
-            EdgeContract? Edge = Contract.Edges.FirstOrDefault(
-                Candidate => string.Equals(Candidate.SourceId, Route.SourceId, StringComparison.Ordinal)
-                    && string.Equals(Candidate.TargetId, Route.TargetId, StringComparison.Ordinal));
-            if (Edge == null || BackEdges.Contains(Edge) || !string.IsNullOrWhiteSpace(Edge.Label))
-            {
-                continue;
-            }
-
-            if (!FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
-                    Edge,
-                    Contract,
-                    BoundsById,
-                    Nodes.TryGetValue(Edge.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null,
-                    TargetNode.Shape,
-                    Direction,
-                    out List<(double X, double Y)> LayoutPoints))
-            {
-                continue;
-            }
-
-            if (LayoutPoints.Count < 2)
-            {
-                continue;
-            }
 
             Route.Points.Clear();
             foreach ((double PointX, double PointY) in LayoutPoints)

@@ -36,12 +36,15 @@ public sealed class F124DecisionPortRenderTests
         double HalfWidth = HubBounds.Width / 2.0;
         double HalfHeight = HubBounds.Height / 2.0;
 
-        (double BottomVertexX, double BottomVertexY) = (
-            HubBounds.CenterX,
-            HubBounds.CenterY - HalfHeight);
+        (double TopRightSlopeX, double TopRightSlopeY) = (
+            HubBounds.CenterX + (HalfWidth / 2.0),
+            HubBounds.CenterY + (HalfHeight / 2.0));
         (double RightVertexX, double RightVertexY) = (
             HubBounds.CenterX + HalfWidth,
             HubBounds.CenterY);
+        (double LowerRightSlopeX, double LowerRightSlopeY) = (
+            HubBounds.CenterX + (HalfWidth / 2.0),
+            HubBounds.CenterY - (HalfHeight / 2.0));
 
         (double YesAttachX, double YesAttachY) = ResolveDecisionSourceAttach(
             Contract,
@@ -60,10 +63,12 @@ public sealed class F124DecisionPortRenderTests
             "B",
             "D");
 
-        Assert.That(YesAttachX, Is.EqualTo(BottomVertexX).Within(1.0), "Yes should leave the south vertex");
-        Assert.That(YesAttachY, Is.EqualTo(BottomVertexY).Within(1.0), "Yes should leave the south vertex");
-        Assert.That(NoAttachX, Is.EqualTo(RightVertexX).Within(1.0), "No should leave the east vertex");
-        Assert.That(NoAttachY, Is.EqualTo(RightVertexY).Within(1.0), "No should leave the east vertex");
+        Assert.That(YesAttachX, Is.EqualTo(TopRightSlopeX).Within(1.0), "Yes should exit slot 1 (upper-right slope)");
+        Assert.That(YesAttachY, Is.EqualTo(TopRightSlopeY).Within(1.0), "Yes should exit slot 1 (upper-right slope)");
+        Assert.That(NoAttachX, Is.EqualTo(LowerRightSlopeX).Within(1.0), "No should exit slot 3 (lower-right slope)");
+        Assert.That(NoAttachY, Is.EqualTo(LowerRightSlopeY).Within(1.0), "No should exit slot 3 (lower-right slope)");
+        Assert.That(Math.Abs(NoAttachY - RightVertexY), Is.GreaterThan(4.0), "No must not use slot 2 (right vertex)");
+        Assert.That(Math.Abs(NoAttachX - RightVertexX), Is.GreaterThan(4.0), "No must not use slot 2 (right vertex)");
     }
 
     [Test]

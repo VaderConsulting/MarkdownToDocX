@@ -259,48 +259,6 @@ public static class FlowchartEdgeRouteResolver
         }
 
         LayoutPoints = Copied;
-        if (BoundsById != null
-            && NodeById.TryGetValue(Edge.TargetId, out NodeContract? DiamondTarget)
-            && FlowchartDagrePresentation.IsDiamondShape(DiamondTarget.Shape)
-            && CountVisibleIncoming(Contract, Edge.TargetId) >= 2
-            && string.IsNullOrWhiteSpace(Edge.Label)
-            && FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
-                Edge,
-                Contract,
-                BoundsById,
-                NodeById.TryGetValue(Edge.SourceId, out NodeContract? FanInSource) ? FanInSource.Shape : null,
-                DiamondTarget.Shape,
-                FlowchartDirectionNormalizer.Normalize(Contract.Direction),
-                out List<(double X, double Y)> FanInPoints))
-        {
-            LayoutPoints = ApplyCompassTerminalStubs(
-                FanInPoints,
-                Edge,
-                BoundsById,
-                NodeById.TryGetValue(Edge.SourceId, out NodeContract? FanInSourceNode) ? FanInSourceNode.Shape : null,
-                DiamondTarget.Shape);
-        }
-        else if (NodeById.TryGetValue(Edge.SourceId, out NodeContract? DiamondSource)
-            && FlowchartDagrePresentation.IsDiamondShape(DiamondSource.Shape)
-            && CountVisibleOutgoing(Contract, Edge.SourceId) >= 2
-            && BoundsById != null
-            && FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
-                Edge,
-                Contract,
-                BoundsById,
-                DiamondSource.Shape,
-                NodeById.TryGetValue(Edge.TargetId, out NodeContract? FanOutTarget) ? FanOutTarget.Shape : null,
-                FlowchartDirectionNormalizer.Normalize(Contract.Direction),
-                out List<(double X, double Y)> FanOutPoints))
-        {
-            LayoutPoints = ApplyCompassTerminalStubs(
-                FanOutPoints,
-                Edge,
-                BoundsById,
-                DiamondSource.Shape,
-                FanOutTarget?.Shape);
-        }
-
         if ((BackEdges ?? FlowchartBackEdgeHelper.FindBackEdges(Contract)).Contains(Edge))
         {
             RouteKind = FlowchartEdgeRouteKind.RetryLoop;
@@ -344,42 +302,6 @@ public static class FlowchartEdgeRouteResolver
 
         RouteKind = FlowchartEdgeRouteKind.Grid;
         return true;
-    }
-
-    private static List<(double X, double Y)> ApplyCompassTerminalStubs(
-        List<(double X, double Y)> Points,
-        EdgeContract Edge,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        string? SourceShape,
-        string? TargetShape)
-    {
-        if (!BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
-            || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
-        {
-            return Points;
-        }
-
-        return FlowchartEdgeTerminalStubExpander.Apply(
-            Points,
-            SourceBounds,
-            SourceShape,
-            TargetBounds,
-            TargetShape);
-    }
-
-    private static int CountVisibleIncoming(DiagramContract Contract, string TargetId)
-    {
-        int Count = 0;
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (string.Equals(Candidate.TargetId, TargetId, StringComparison.Ordinal)
-                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            {
-                Count++;
-            }
-        }
-
-        return Count;
     }
 
     private static int CountVisibleOutgoing(DiagramContract Contract, string SourceId)
