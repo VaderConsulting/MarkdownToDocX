@@ -847,7 +847,9 @@
         "2.6",
         "2.8",
         "2.9",
-        "2.10"
+        "2.10",
+        "2.24",
+        "2.25"
       ]
     },
     {
@@ -926,7 +928,8 @@
       "name": "Avoidable crossings (within 4.3 and the line hints)",
       "rules": [
         "5.1",
-        "5.9"
+        "5.9",
+        "5.11"
       ]
     },
     {
@@ -935,7 +938,7 @@
       "name": "Legality: section 10 and overlaps never broken; ties go to Mermaid order (9.5)",
       "rules": [
         "5.7",
-        "2.24",
+        "2.26",
         "9.1",
         "9.2",
         "9.3",
@@ -1883,7 +1886,7 @@
         "2.19",
         "2.21",
         "7.8",
-        "2.24"
+        "2.26"
       ],
       "outranks": [],
       "yields": [],
@@ -1904,11 +1907,63 @@
         "",
         "A diagram whose elements all come from one layer has no bands.",
         "",
-        "The band order, band membership and the plateau order are conventions, not preferences. A hint can't put an element in another band, can't move a band above or below a band of a different layer type and can't reorder plateaus. Such a hint is dropped and reported as a warning under 2.24, with no score under 2.21(g). When a declaration has hints on both axes and only one breaks a band rule, only that hint is dropped. A hint can still change an element's position within its own band, the order within the Technology and Physical band, how a band wraps, and where junctions, locations and frames go, as long as every member stays in its own band. Band membership and band order are binding: hints can't override them, and the engine enforces them as a veto."
+        "The band order, band membership and the plateau order are conventions, not preferences. A hint can't put an element in another band, can't move a band above or below a band of a different layer type and can't reorder plateaus. Such a hint is dropped and reported as a warning under 2.26, with no score under 2.21(g). When a declaration has hints on both axes and only one breaks a band rule, only that hint is dropped. A hint can still change an element's position within its own band, the order within the Technology and Physical band, how a band wraps, and where junctions, locations and frames go, as long as every member stays in its own band. Band membership and band order are binding: hints can't override them, and the engine enforces them as a veto."
       ]
     },
     {
       "id": "2.24",
+      "title": "Chains stack, branches beside",
+      "title_in_text": true,
+      "section": "S2",
+      "kind": "quality",
+      "stage": "P4",
+      "status": "active",
+      "pointer": "",
+      "params": [],
+      "refs": [
+        "2.13",
+        "2.21"
+      ],
+      "outranks": [],
+      "yields": [
+        "2.21"
+      ],
+      "pictures": [],
+      "hint_overridable": false,
+      "order": 69,
+      "blank_before": 1,
+      "text": [
+        "Chains stack, branches beside. Preference: place a chain (A to B to C to E) in one column in flow order. Place a side branch (C to D) beside the node it hangs off. Do not scatter a chain across a wide, mostly empty area. This ranks below honoured hints and hard legality."
+      ]
+    },
+    {
+      "id": "2.25",
+      "title": "Keep related nodes close",
+      "title_in_text": true,
+      "section": "S2",
+      "kind": "quality",
+      "stage": "P4",
+      "status": "active",
+      "pointer": "",
+      "params": [],
+      "refs": [
+        "2.13",
+        "2.21"
+      ],
+      "outranks": [],
+      "yields": [
+        "2.21"
+      ],
+      "pictures": [],
+      "hint_overridable": false,
+      "order": 691,
+      "blank_before": 1,
+      "text": [
+        "Keep related nodes close. Preference: a node whose only lines go to one nearby node sits next to that node, not at the far edge with a long return line (for example, Lodge by the 21st under No Late Payments). This ranks below honoured hints and hard legality."
+      ]
+    },
+    {
+      "id": "2.26",
       "title": "Diagnostics and error policy",
       "title_in_text": true,
       "section": "S2",
@@ -1924,7 +1979,7 @@
       "yields": [],
       "pictures": [],
       "hint_overridable": false,
-      "order": 69,
+      "order": 692,
       "blank_before": 1,
       "text": [
         "Diagnostics and error policy. A source that cannot be read as valid statements, or that breaks the model (unknown element type, an invalid relationship type, qualifier or rules-table cell, an unresolved endpoint or container, an unsupported Mermaid arrow or shape, an unclosed block, malformed hint syntax or a duplicate clause), is an error, and the diagram is not drawn. A hint that is read correctly but cannot be honoured, and an invalid or conflicting part of a line hint, is a warning: drop only that hint, axis or part, report it with its reason, and draw the diagram normally. A placement axis dropped by the repair process is reported as \"conflicting constraints\" only when the conflict is established, and otherwise as \"no legal candidate found within the permitted search\". A redeclaration that materially changes the effective placement hint is a warning, and an identical one is not. Every diagnostic names the line, the construct and, where one exists, the accepted form. Rule 5.7 applies only to input for which this rule reports no error."
@@ -1964,7 +2019,7 @@
       "title": "Symmetric port allocation",
       "title_in_text": false,
       "section": "S3",
-      "kind": "legality",
+      "kind": "quality",
       "stage": "R2",
       "status": "active",
       "pointer": "",
@@ -1988,7 +2043,7 @@
       "order": 72,
       "blank_before": 1,
       "text": [
-        "Allocate lines jointly on each eligible edge of the connection boundary (term Node geometry), such as a rectangular side or a diamond edge. For n lines on an edge, use positions k/(n+1), k=1..n, along that edge; one line uses the edge centre. Symmetry is a quality preference. Preserve target order (3.3). Port coordinates may be fractional and are not grid-placement coordinates. A legal straight connection takes priority over symmetry: reserve the connection-boundary port aligned to its neighbour, even when n is even. Distribute the remaining distinct ports in the free intervals, preserving endpoint order and keeping adjacent ports on one edge at least line_spacing (15 px) apart. Use symmetric k/(n+1) slots when no straight alignment is available. For rectangular nodes, insufficient spacing calls for a larger span (1.3) or legal port reassignment (1.7). For a diamond, insufficient port spacing or first-run clearance grows that diamond by whole grid steps (1.7). Hinted side choices participate in joint allocation. Edges need not have equal lengths; a spanning node's longer edges hold proportionally more ports at the same minimum separation. Distinguish four cases: too little port capacity on an edge, which may require growth under 1.3; too few tracks in a gap, which grows the gap (5.1); a legal route that only needs more bends, which needs no growth; and an optional quality improvement, which may use growth only under 5.6 or 5.10. A legal asymmetric allocation is never rejected for being asymmetric, and there is no symmetry score. A line leaves and joins a node at its exact allocated port position, at right angles to the side, and keeps that coordinate until its first bend. Tracks in the adjacent gap are placed at the coordinates of the ports they serve, not on a fixed grid line. Crossing, shared-track and clearance checks use this drawn geometry."
+        "Symmetric port allocation. Preference: on each eligible edge of the connection boundary (term Node geometry), allocate jointly. For n lines on an edge, the default slot pattern is k/(n+1), k=1..n; one line uses the edge centre; two use symmetric slots; three use centre plus both symmetric slots; four use four symmetric slots; and so on. A port may leave its slot whenever that removes a bend or makes a rule 4.2 straight run possible. Fewer bends outrank slot symmetry. Adjacent ports on one edge stay at least line_spacing (15 px) apart; that spacing is hard. Preserve target order (3.3) when it does not force extra bends. Port coordinates may be fractional and are not grid-placement coordinates. For rectangular nodes, insufficient spacing calls for a larger span (1.3) or legal port reassignment (1.7). For a diamond, insufficient port spacing or first-run clearance grows that diamond by whole grid steps (1.7). Hinted side choices participate in joint allocation. A line leaves and joins a node at its exact allocated port position, at right angles to the side, and keeps that coordinate until its first bend."
       ]
     },
     {
@@ -1996,7 +2051,7 @@
       "title": "Port order",
       "title_in_text": false,
       "section": "S3",
-      "kind": "legality",
+      "kind": "quality",
       "stage": "R2",
       "status": "active",
       "pointer": "",
@@ -2009,7 +2064,7 @@
       "order": 73,
       "blank_before": 1,
       "text": [
-        "On each connection-boundary segment, order the ports by where each line's other end is, so no two lines cross next to the node. Ordering uses each segment of the final, expanded connection boundary."
+        "Port order. Preference: on each connection-boundary segment, order the ports by where each line's other end is, so no two lines cross next to the node. Ordering uses each segment of the final, expanded connection boundary. Port order may give way when reordering removes bends or enables a rule 4.2 straight run; fewer bends outrank strict port order."
       ]
     },
     {
@@ -2262,7 +2317,7 @@
       "order": 81,
       "blank_before": 1,
       "text": [
-        "Decision port compass. Hard: compass names are fixed on the diamond (N at the top vertex, E at the right vertex, S at the bottom vertex, W at the left vertex). Inputs: one incoming line uses the N vertex; several incoming lines use N for the centre source, then the W and E vertices for the left and right sources, ordered symmetrically. Outputs: assign S first, then the W and E vertices for left and right branches; when three or more outputs leave toward the bottom half-plane, use S for the centre branch and the W and E vertices for the side branches. A Yes/No decision with one input and two outputs takes its input at N, sends Yes out at S and No out at E. A line hint may override these preferences only within hard legality."
+        "Decision port compass. Hard: compass names are fixed on the diamond (N at the top vertex, E at the right vertex, S at the bottom vertex, W at the left vertex). Inputs: one incoming line uses the N vertex; several incoming lines use N for the centre source, then the NW and NE vertices for the left and right sources, ordered symmetrically. Outputs: assign S first, then the SW and SE vertices for left and right branches; when three or more outputs leave toward the bottom half-plane, use S for the centre branch and the SW and SE vertices for the side branches. A Yes/No decision with one input and two outputs takes its input at N, sends Yes out at S and No out at E. A line hint may override these preferences only within hard legality. This replaces the edge-facing-the-target preference in 3.6 and 3.8, which now allow vertex ports where 3.11 names them."
       ]
     },
     {
@@ -2450,7 +2505,7 @@
       "order": 89,
       "blank_before": 1,
       "text": [
-        "Hard: allocate all automatic lines on each eligible connection-boundary segment (term Node geometry), such as a rectangular side or a diamond edge, together under 3.2 (aligned straight ports first, symmetric k/(n+1) slots in the remaining intervals, adjacent ports at least line_spacing apart), then assign ports in the order of the other endpoints (3.3). Preference: where several aligned straight ports compete, include a centre port when the count is even. Hard: a legal side hint fixes the chosen side but does not exempt its line from joint port allocation. Reassign affected ports and reroute affected lines together to eliminate avoidable crossings (5.9), preserving hints, endpoint order and distinct connection-boundary ports. Straight alignment takes priority over symmetry. Allocate on the expanded connection boundary after spans are set (3.1). Preserve exact allocated-port terminal runs and use their drawn geometry for checks under 3.2."
+        "Port placement. Hard: work out each node edge's centre and slots from the node's drawn outline on the side you can see, not from a bounding box that includes decorations such as a contract shape's top band (the hat). A lone line on a side leaves from the centre of that visible side. Allocate all automatic lines on each eligible connection-boundary segment together under 3.2 and 3.3 (aligned straight ports first, symmetric k/(n+1) slots when bends do not improve the route, adjacent ports at least line_spacing apart). Fewer bends outrank slot symmetry and strict port order. Hard: a legal side hint fixes the chosen side but does not exempt its line from joint port allocation. Reassign affected ports and reroute affected lines together to eliminate avoidable crossings (5.9), preserving hints and distinct connection-boundary ports. Allocate on the expanded connection boundary after spans are set (3.1). Preserve exact allocated-port terminal runs and use their drawn geometry for checks under 3.2."
       ]
     },
     {
@@ -2513,7 +2568,7 @@
       "order": 91,
       "blank_before": 1,
       "text": [
-        "Group endpoints. A relationship may name a group as its source or its target. The endpoint is the group's frame. A frame defines its own connection boundary, normally its frame edges, and the frame is treated as a box in rules 3.1 to 3.3, 4.2, 4.4, 4.7, 4.8, 5.1 to 5.6 and 2.13, and in line hints (rule 2.21): the line leaves or enters the frame on the side that faces the other end, at a port allocated symmetrically by rules 3.2 and 4.7, square-on to the frame. The line starts or ends on the outer edge of the frame and never begins inside it, except a line between a group and one of its own members, which meets the inner edge of the frame and crosses nothing else needlessly. A line to a group never runs along the frame edge. A frame endpoint that needs more ports or tracks adds room as rule 1.7 sets (legality)."
+        "Group endpoints. A relationship may name a group as its source or its target. The endpoint is the group's frame. A line to a frame ends on the frame's real edge, never at the title tab's height or short of the frame. Prefer the shortest legal route to the other end, for example straight into the bottom of a node above, not a loop over the top. A frame defines its own connection boundary, normally its frame edges, and the frame is treated as a box in rules 3.1 to 3.3, 4.2, 4.4, 4.7, 4.8, 5.1 to 5.6 and 2.13, and in line hints (rule 2.21): the line leaves or enters the frame on the side that faces the other end, at a port allocated under rules 3.2 and 4.7, square-on to the frame. The line starts or ends on the outer edge of the frame and never begins inside it, except a line between a group and one of its own members, which meets the inner edge of the frame and crosses nothing else needlessly. A line to a group never runs along the frame edge. A frame endpoint that needs more ports or tracks adds room as rule 1.7 sets (legality)."
       ]
     },
     {
@@ -2763,7 +2818,7 @@
       "params": [],
       "refs": [
         "1.7",
-        "2.24"
+        "2.26"
       ],
       "outranks": [],
       "yields": [],
@@ -2772,7 +2827,7 @@
       "order": 102,
       "blank_before": 1,
       "text": [
-        "Every input produces a diagram and diagnostics, even when requested geometry cannot be satisfied. For each repair, measure the outstanding geometric shortfall and accept only a change that strictly reduces it; use whole-step gap growth or whole-column child movement as appropriate (1.7). Port assignment and route validation happen in the layout and routing model. The painter draws only model-supplied routes; it never invents a straight centre-to-centre line for a link with no route. A missing route is an error and must be reported. For non-geometric impossibility, stop retrying and draw a deterministic fallback: retain all nodes and group frames without overlap, preserve group membership, draw every original relationship as an explicitly marked fallback connector using the shortest obstacle-avoiding orthogonal path available, and label the affected connectors as routing fallbacks in the diagnostics. A fallback connector may violate normal corner limits or routing preferences, but must not pass through nodes, hide an endpoint or change semantics. If even an obstacle-avoiding connector cannot be constructed, draw a visible dashed unresolved-connection stub at each endpoint and report the pair; never silently drop an edge or the diagram. This rule applies to input that has been read and validated without errors; a syntax or semantic error fails the diagram before layout (2.24)."
+        "Every input produces a diagram and diagnostics, even when requested geometry cannot be satisfied. For each repair, measure the outstanding geometric shortfall and accept only a change that strictly reduces it; use whole-step gap growth or whole-column child movement as appropriate (1.7). Port assignment and route validation happen in the layout and routing model. The painter draws only model-supplied routes; it never invents a straight centre-to-centre line for a link with no route. A missing route is an error and must be reported. For non-geometric impossibility, stop retrying and draw a deterministic fallback: retain all nodes and group frames without overlap, preserve group membership, draw every original relationship as an explicitly marked fallback connector using the shortest obstacle-avoiding orthogonal path available, and label the affected connectors as routing fallbacks in the diagnostics. A fallback connector may violate normal corner limits or routing preferences, but must not pass through nodes, hide an endpoint or change semantics. If even an obstacle-avoiding connector cannot be constructed, draw a visible dashed unresolved-connection stub at each endpoint and report the pair; never silently drop an edge or the diagram. This rule applies to input that has been read and validated without errors; a syntax or semantic error fails the diagram before layout (2.26)."
       ]
     },
     {
@@ -2818,6 +2873,33 @@
       "text": [
         "Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, and must not raise the scenario's legality-fault count or non-exempt routing-fault count, including fans (5.8) and avoidable crossings (5.9). It is accepted when it lowers the fault count in the fault-first order of 9.1, whatever its score, crossings or bends; otherwise it must lower the score. For an atomic candidate that moves a fan hub and reroutes every declared line in that fan together, repair_chain_lines_fan_hub is the number of lines in that fan. Moving the hub necessarily changes every fan terminal, so the complete fan must be scored and restored as one assignment rather than truncated at the ordinary repair_chain_lines bound. Every other candidate still uses repair_chain_lines (24). This exception permits no unrelated changed lines and does not raise the candidate-move or chain-depth budgets. Route options obey named search budgets for candidate moves, chain depth and lines per chain; their values are provisional until timed on the full catalogue and A142 on Dave's ARM laptop. Examine candidates in a deterministic best-first order (fault-removing candidates first, then by repair score), so reaching a budget cuts the least promising branches. The 10 s per-diagram target remains a quality goal; 180 s is the watchdog limit. Budgets are counts, never wall-clock time, so layouts stay deterministic. Added length and bends have no limit beyond 4.3; they are priced by the repair score. If no move qualifies, route around it as normal. Report when a search budget prevents further candidates from being examined; reaching a budget is reported as \"search budget reached (no legal candidate found within the permitted search)\", never as 'no legal option'. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same search budgets.",
         "In the final repair pass only, after placement, fan nesting, routing and every other repair are complete, a candidate may introduce a new finding identity (9.1) when the complete candidate, fully rerouted and re-checked, does not raise that scenario's legality-fault or routing-fault count, does not raise its total finding count, and either removes a legality or routing fault or, with equal faults, lowers the layout score and adds no bends or crossings in that scenario. Every earlier pass also keeps the rule that no finding identity may be added."
+      ]
+    },
+    {
+      "id": "5.11",
+      "title": "Use both outer channels",
+      "title_in_text": true,
+      "section": "S5",
+      "kind": "quality",
+      "stage": "R5",
+      "status": "active",
+      "pointer": "",
+      "params": [],
+      "refs": [
+        "5.1",
+        "5.9",
+        "4.2"
+      ],
+      "outranks": [],
+      "yields": [
+        "2.21"
+      ],
+      "pictures": [],
+      "hint_overridable": false,
+      "order": 1046,
+      "blank_before": 1,
+      "text": [
+        "Use both outer channels. Preference: a line that skips a rank in a single column, or returns up it, leaves from a side port and runs down the outer channel. Lines going up take one side and lines going down the other, so lines never bundle, hop or cross in one gap. A line between neighbouring ranks is a straight vertical."
       ]
     },
     {
@@ -2881,7 +2963,7 @@
       "order": 105,
       "blank_before": 1,
       "text": [
-        "A crossing is **avoidable** when any candidate the engine generates for the same placement removes it by a legal reassignment of tracks, ports, sides or extra corners permitted by 4.3, without raising the legality-fault or routing-fault count and while preserving hints and sections 3-5, within the 5.10 search budgets (report when a budget stopped the avoidability check). Avoidable crossings are routing faults, counted under 9.1: prefer the alternative. Evaluate affected lines together. Every remaining crossing must be a right-angle crossing inside a gap; it is reported and costs score_crossing above the forced minimum under 2.13. Crossings never outrank legality: a candidate that removes a legality fault is kept even if it adds crossings (9.1). No hops."
+        "A crossing is **avoidable** when any candidate the engine generates for the same placement removes it by a legal reassignment of tracks, ports, sides or extra corners permitted by 4.3, without raising the legality-fault or routing-fault count and while preserving hints and sections 3-5, within the 5.10 search budgets (report when a budget stopped the avoidability check). Avoidable crossings are routing faults, counted under 9.1: prefer the alternative. Evaluate affected lines together. Every remaining crossing must be a right-angle crossing inside a gap; it is reported and costs score_crossing above the forced minimum under 2.13. Crossings never outrank legality: a candidate that removes a legality fault is kept even if it adds crossings (9.1). No hops. Preference: when a line between two nodes has a clear outer path, route round the outside, over the top or round the side, instead of through the middle of the diagram across other lines (see also 5.11)."
       ]
     },
     {

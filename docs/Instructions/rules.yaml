@@ -1217,7 +1217,7 @@ rules:
     yields: ["2.21"]
     pictures: []
     hint_overridable: false
-    order: 70
+    order: 691
     blank_before: 1
     text: |-
       Keep related nodes close. Preference: a node whose only lines go to one nearby node sits next to that node, not at the far edge with a long return line (for example, Lodge by the 21st under No Late Payments). This ranks below honoured hints and hard legality.
@@ -1235,7 +1235,7 @@ rules:
     yields: []
     pictures: []
     hint_overridable: false
-    order: 71
+    order: 692
     blank_before: 1
     text: |-
       Diagnostics and error policy. A source that cannot be read as valid statements, or that breaks the model (unknown element type, an invalid relationship type, qualifier or rules-table cell, an unresolved endpoint or container, an unsupported Mermaid arrow or shape, an unclosed block, malformed hint syntax or a duplicate clause), is an error, and the diagram is not drawn. A hint that is read correctly but cannot be honoured, and an invalid or conflicting part of a line hint, is a warning: drop only that hint, axis or part, report it with its reason, and draw the diagram normally. A placement axis dropped by the repair process is reported as "conflicting constraints" only when the conflict is established, and otherwise as "no legal candidate found within the permitted search". A redeclaration that materially changes the effective placement hint is a warning, and an identical one is not. Every diagnostic names the line, the construct and, where one exists, the accepted form. Rule 5.7 applies only to input for which this rule reports no error.
@@ -1812,7 +1812,7 @@ rules:
     yields: ["2.21"]
     pictures: []
     hint_overridable: false
-    order: 106
+    order: 1046
     blank_before: 1
     text: |-
       Use both outer channels. Preference: a line that skips a rank in a single column, or returns up it, leaves from a side port and runs down the outer channel. Lines going up take one side and lines going down the other, so lines never bundle, hop or cross in one gap. A line between neighbouring ranks is a straight vertical.

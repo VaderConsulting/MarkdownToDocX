@@ -841,6 +841,15 @@ public static partial class DiagramGridLayout
         double AvailableLength = Length;
         for (int Index = 0; Index < Group.Count; Index++)
         {
+            PortEnd End = Group[Index];
+            if (End.KeepsCentre || StraightCenterPortFits(End))
+            {
+                if (TrySetCenterPort(End, Nodes, Side, Box))
+                {
+                    continue;
+                }
+            }
+
             double Along = ((Index + 1.0) / (Group.Count + 1.0)) * AvailableLength;
             double X;
             double Y;
@@ -1059,6 +1068,75 @@ public static partial class DiagramGridLayout
         {
             Route.Points.Insert(Route.Points.Count - 1, Stub);
         }
+    }
+
+    private static bool StraightCenterPortFits(PortEnd End)
+    {
+        if (End.Route.Points.Count != 2)
+        {
+            return false;
+        }
+
+        FlowchartLayoutPoint A = End.Route.Points[0];
+        FlowchartLayoutPoint B = End.Route.Points[^1];
+        bool HorizontalChord = Math.Abs(A.Y - B.Y) < 0.5;
+        bool VerticalChord = Math.Abs(A.X - B.X) < 0.5;
+        return End.Side switch
+        {
+            "left" or "right" => HorizontalChord,
+            "top" or "bottom" => VerticalChord,
+            _ => false
+        };
+    }
+
+    private static bool TrySetCenterPort(
+        PortEnd End,
+        Dictionary<string, NodeContract> Nodes,
+        string Side,
+        BoxRef Box)
+    {
+        if (Nodes.TryGetValue(Box.Id, out NodeContract? GeometryNode) && GeometryNode.GeometryProvider is { } Provider)
+        {
+            if (!Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, 0.5, out var Port))
+            {
+                return false;
+            }
+
+            SetEnd(End, Box.CenterX + Port.X, Box.CenterY - Port.Y, Port.NormalX, -Port.NormalY);
+            return true;
+        }
+
+        int OutX = 0;
+        int OutY = 0;
+        double X;
+        double Y;
+        if (Side == "top")
+        {
+            X = Box.CenterX;
+            Y = Box.Top;
+            OutY = 1;
+        }
+        else if (Side == "bottom")
+        {
+            X = Box.CenterX;
+            Y = Box.Bottom;
+            OutY = -1;
+        }
+        else if (Side == "left")
+        {
+            X = Box.Left;
+            Y = Box.CenterY;
+            OutX = -1;
+        }
+        else
+        {
+            X = Box.Right;
+            Y = Box.CenterY;
+            OutX = 1;
+        }
+
+        SetEnd(End, X, Y, OutX, OutY);
+        return true;
     }
 
 }

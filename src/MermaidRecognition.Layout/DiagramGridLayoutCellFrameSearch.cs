@@ -34,7 +34,10 @@ public static partial class DiagramGridLayout
         if (!Initial.Any(Conflict => (ConcernedFrame == null || Conflict.First == ConcernedFrame || Conflict.Second == ConcernedFrame)
             && (ConcernedNode == null || Conflict.Key == "node|" + ConcernedFrame + "|" + ConcernedNode))) return false;
         var Bases = new List<(FlowchartCellRepair.Assignment Plan, List<CellFrameConflict> Faults, double Score)>();
-        FlowchartCellRepair.Assignment? Best = null; double BestScore = double.PositiveInfinity; double BestReading = double.PositiveInfinity;
+        FlowchartCellRepair.Assignment? Best = null;
+        double BestScore = double.PositiveInfinity;
+        double BestReading = double.PositiveInfinity;
+        double BestChainTie = double.PositiveInfinity;
         var Seen = new HashSet<string>(StringComparer.Ordinal);
         if (MovingOnly == null)
             foreach (var Axes in new[] { (Columns: true, Rows: false), (Columns: false, Rows: true), (Columns: true, Rows: true) })
@@ -201,12 +204,15 @@ public static partial class DiagramGridLayout
             if (Faults.Count == 0)
             {
                 double Reading = FlowchartReadingOrderTie.Measure(Contract, Layout.NodeBounds);
+                double ChainTie = FlowchartChainPlacementTie.Measure(Contract, Layout.NodeBounds);
                 if (Score < BestScore - 0.0001
-                    || Math.Abs(Score - BestScore) <= 0.0001 && Reading < BestReading)
+                    || Math.Abs(Score - BestScore) <= 0.0001 && (Reading < BestReading
+                        || Math.Abs(Reading - BestReading) <= 0.0001 && ChainTie < BestChainTie))
                 {
                     Best = Plan;
                     BestScore = Score;
                     BestReading = Reading;
+                    BestChainTie = ChainTie;
                 }
             }
         }
