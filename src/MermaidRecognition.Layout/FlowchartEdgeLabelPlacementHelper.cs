@@ -159,7 +159,29 @@ public static class FlowchartEdgeLabelPlacementHelper
         out double MidX,
         out double MidY)
     {
-        return TryGetLongestAxisAlignedSegmentMidpoint(LayoutPoints, true, out MidX, out MidY);
+        MidX = 0.0;
+        MidY = 0.0;
+        for (int Index = 0; Index < LayoutPoints.Count - 1; Index++)
+        {
+            (double StartX, double StartY) = LayoutPoints[Index];
+            (double EndX, double EndY) = LayoutPoints[Index + 1];
+            if (Math.Abs(StartY - EndY) > AXIS_ALIGNED_SEGMENT_EPSILON_PX)
+            {
+                continue;
+            }
+
+            double SegmentLength = Math.Abs(EndX - StartX);
+            if (SegmentLength < MIN_LABELLED_SEGMENT_LENGTH_PX)
+            {
+                continue;
+            }
+
+            MidX = (StartX + EndX) / 2.0;
+            MidY = (StartY + EndY) / 2.0;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
