@@ -27,7 +27,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool K_SampleGallery = true;
 
-    public static bool L_ZoomPanPreview = false;
+    public static bool L_ZoomPanPreview = true;
 
     public static bool M_ExportPngSvg = false;
 
