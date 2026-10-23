@@ -13,7 +13,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool D_PlacementHintCompletion = true;
 
-    public static bool E_InlineDiagnostics = false;
+    public static bool E_InlineDiagnostics = true;
 
     public static bool F_GhostText = false;
 
