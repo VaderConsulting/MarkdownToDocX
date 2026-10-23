@@ -659,8 +659,7 @@ public static partial class DiagramGridLayout
             }
 
             bool ForceCompassPorts = FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label)
-                || FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label)
-                || HubHasYesNoCompassFanOut(Contract, Route.SourceId, BackEdges);
+                || FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label);
             if (!ForceCompassPorts
                 && (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9))
             {
@@ -781,36 +780,6 @@ public static partial class DiagramGridLayout
 
         Box = default;
         return false;
-    }
-
-    private static bool HubHasYesNoCompassFanOut(
-        DiagramContract Contract,
-        string HubId,
-        HashSet<EdgeContract> BackEdges)
-    {
-        bool HasYes = false;
-        bool HasNo = false;
-        foreach (EdgeContract Candidate in Contract.Edges)
-        {
-            if (!string.Equals(Candidate.SourceId, HubId, StringComparison.Ordinal)
-                || string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
-                || BackEdges.Contains(Candidate))
-            {
-                continue;
-            }
-
-            if (FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Candidate.Label))
-            {
-                HasYes = true;
-            }
-
-            if (FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Candidate.Label))
-            {
-                HasNo = true;
-            }
-        }
-
-        return HasYes && HasNo;
     }
 
 }

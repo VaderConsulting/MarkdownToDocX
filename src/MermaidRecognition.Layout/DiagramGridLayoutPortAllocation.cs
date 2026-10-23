@@ -455,7 +455,7 @@ public static partial class DiagramGridLayout
             foreach (var NodeEnds in ByNode.Where(Pair => ChangedNodes.Contains(Pair.Key)).Select(Pair => Pair.Value))
             foreach (var SideEnds in NodeEnds.GroupBy(End => End.Side))
                 ApplySlots(SideEnds.OrderBy(End => End.Side is "left" or "right"
-                    ? -End.Other.CenterY : End.Other.CenterX).ToList(), Nodes, Contract, Direction);
+                    ? -End.Other.CenterY : End.Other.CenterX).ToList(), Nodes, Contract, Direction, UseCompassOverrides: false);
             FlowchartRenderContext.ReportOperationCount("port-side-assignment-cache-hits", 1);
             return;
         }
@@ -581,7 +581,7 @@ public static partial class DiagramGridLayout
                 {
                     var Ordered = Group.OrderBy(End => End.Side is "left" or "right"
                         ? -End.Other.CenterY : End.Other.CenterX).ToList();
-                    ApplySlots(Ordered, Nodes, Contract, Direction);
+                    ApplySlots(Ordered, Nodes, Contract, Direction, UseCompassOverrides: false);
                 }
             }
 
@@ -770,6 +770,33 @@ public static partial class DiagramGridLayout
             return false;
         }
 
+        bool HasLabeledYesNoSource = false;
+        foreach (PortEnd End in Group)
+        {
+            if (!End.IsSource)
+            {
+                continue;
+            }
+
+            EdgeContract? Edge = FindContractEdge(Contract, End.Route);
+            if (Edge == null)
+            {
+                continue;
+            }
+
+            if (FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label)
+                || FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label))
+            {
+                HasLabeledYesNoSource = true;
+                break;
+            }
+        }
+
+        if (!HasLabeledYesNoSource)
+        {
+            return false;
+        }
+
         string HubId = Group[0].Box.Id;
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBoundsDictionary(Group);
         if (!FlowchartDecisionPortAllocator.TryResolveCompassFanOutPortsForHub(
@@ -836,7 +863,8 @@ public static partial class DiagramGridLayout
         List<PortEnd> Group,
         Dictionary<string, NodeContract> Nodes,
         DiagramContract? Contract = null,
-        FlowchartDirection? Direction = null)
+        FlowchartDirection? Direction = null,
+        bool UseCompassOverrides = true)
     {
         if (Group.Count == 0)
         {
@@ -854,6 +882,7 @@ public static partial class DiagramGridLayout
                     : FlowchartDirection.TopToBottom);
             HashSet<int> CompassFixedIndices = new HashSet<int>();
             if (Contract != null
+                && UseCompassOverrides
                 && TryApplyDiamondCompassSourcePorts(Group, Contract, FlowDirection, CompassFixedIndices))
             {
                 if (CompassFixedIndices.Count == Group.Count)
