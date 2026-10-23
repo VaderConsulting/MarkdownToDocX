@@ -49,7 +49,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool V_WatchFolder = true;
 
-    public static bool W_ArchiHintRoundTrip = false;
+    public static bool W_ArchiHintRoundTrip = true;
 
     public static bool X_DiagnosticsPanel = false;
 
