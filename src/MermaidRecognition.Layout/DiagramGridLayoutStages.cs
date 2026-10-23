@@ -226,6 +226,13 @@ public static partial class DiagramGridLayout
 
             Step("GrowCrowdedSides", () => GrowCrowdedSides(Contract, Placed, Copy, BoxWidth, BoxHeight));
             Step("GrowParallelRelationshipSides", () => GrowParallelRelationshipSides(Contract, Placed, Horizontal));
+            Step("EnterpriseSketchAlignment", () =>
+            {
+                if (!State.EnterpriseBands)
+                {
+                    Enterprise.EnterpriseBandPlacement.ApplySketchPartnerAlignment(Contract, Placed);
+                }
+            });
             Step("SeparateOverlaps", () => SeparateOverlaps(Placed, Horizontal));
             if (!Open)
             {
