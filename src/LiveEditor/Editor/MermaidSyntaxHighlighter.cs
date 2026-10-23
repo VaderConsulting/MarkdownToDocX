@@ -31,52 +31,72 @@ internal static class MermaidSyntaxHighlighter
     private static string? _ElementTypePattern;
 
     /// <summary>
-    /// Colours the editor text. Preserves caret and scroll.
+    /// Colours the editor text without scrolling or flicker.
     /// </summary>
     /// <param name="Editor">Target editor.</param>
     /// <param name="DarkTheme">When true, uses dark-theme colours.</param>
     public static void Apply(RichTextBox Editor, bool DarkTheme)
     {
-        if (Editor == null || Editor.IsDisposed)
+        if (Editor == null || Editor.IsDisposed || !Editor.IsHandleCreated)
         {
             return;
         }
 
-        int Caret = Editor.SelectionStart;
-        int SelectionLength = Editor.SelectionLength;
-        int FirstLine = Editor.GetLineFromCharIndex(Editor.GetCharIndexFromPosition(new Point(0, 0)));
         string Text = Editor.Text;
         Color DefaultColour = DarkTheme ? Color.Gainsboro : Color.Black;
         Color Background = DarkTheme ? Color.FromArgb(30, 30, 30) : Color.White;
+        using RichTextBoxPaintScope Scope = new RichTextBoxPaintScope(Editor);
         Editor.BackColor = Background;
         Editor.ForeColor = DefaultColour;
-
         Editor.SelectAll();
         Editor.SelectionColor = DefaultColour;
         Editor.SelectionBackColor = Background;
-
         ColourMatches(Editor, CommentRegex, Text, DarkTheme ? Color.FromArgb(106, 153, 85) : Color.FromArgb(0, 128, 0));
         ColourMatches(Editor, StringRegex, Text, DarkTheme ? Color.FromArgb(206, 145, 120) : Color.FromArgb(163, 21, 21));
         ColourMatches(Editor, HeaderRegex, Text, DarkTheme ? Color.FromArgb(86, 156, 214) : Color.FromArgb(0, 0, 255));
         ColourMatches(Editor, KeywordRegex, Text, DarkTheme ? Color.FromArgb(197, 134, 192) : Color.FromArgb(128, 0, 128));
         ColourMatches(Editor, RelationshipRegex, Text, DarkTheme ? Color.FromArgb(78, 201, 176) : Color.FromArgb(0, 128, 128));
         ColourMatches(Editor, GetElementTypeRegex(), Text, DarkTheme ? Color.FromArgb(78, 201, 176) : Color.FromArgb(43, 145, 175));
+    }
 
-        Editor.SelectionStart = Caret;
-        Editor.SelectionLength = SelectionLength;
-        Editor.SelectionColor = DefaultColour;
-        if (FirstLine >= 0 && FirstLine < Editor.Lines.Length)
+    /// <summary>
+    /// Tints whole lines that carry diagnostics, without scrolling the caret away.
+    /// </summary>
+    /// <param name="Editor">Target editor.</param>
+    /// <param name="LineNumbers">1-based line numbers to tint.</param>
+    /// <param name="DarkTheme">When true, uses dark-theme colours.</param>
+    public static void TintLines(RichTextBox Editor, IReadOnlyList<int> LineNumbers, bool DarkTheme)
+    {
+        if (Editor == null || Editor.IsDisposed || !Editor.IsHandleCreated || LineNumbers == null || LineNumbers.Count == 0)
         {
-            int RestoreIndex = Editor.GetFirstCharIndexFromLine(FirstLine);
-            if (RestoreIndex >= 0)
-            {
-                Editor.Select(RestoreIndex, 0);
-                Editor.ScrollToCaret();
-            }
+            return;
         }
 
-        Editor.SelectionStart = Caret;
-        Editor.SelectionLength = SelectionLength;
+        Color ErrorColour = DarkTheme ? Color.FromArgb(90, 55, 55) : Color.MistyRose;
+        using RichTextBoxPaintScope Scope = new RichTextBoxPaintScope(Editor);
+        foreach (int LineNumber in LineNumbers)
+        {
+            int LineIndex = LineNumber - 1;
+            if (LineIndex < 0 || LineIndex >= Editor.Lines.Length)
+            {
+                continue;
+            }
+
+            int Start = Editor.GetFirstCharIndexFromLine(LineIndex);
+            if (Start < 0)
+            {
+                continue;
+            }
+
+            int LineLength = Editor.Lines[LineIndex].Length;
+            if (LineLength <= 0)
+            {
+                continue;
+            }
+
+            Editor.Select(Start, Math.Min(LineLength, Editor.TextLength - Start));
+            Editor.SelectionBackColor = ErrorColour;
+        }
     }
 
     private static Regex GetElementTypeRegex()

@@ -14,7 +14,7 @@ internal sealed class SessionSettings
 
     public bool DarkTheme { get; set; }
 
-    public bool DiagnosticsVisible { get; set; } = true;
+    public bool DiagnosticsVisible { get; set; }
 
     public bool MinimapVisible { get; set; }
 

@@ -547,42 +547,19 @@ public partial class MainForm : Form
 
         if (LiveEditorFeatureGate.E_InlineDiagnostics)
         {
-            TintDiagnosticLines();
+            List<int> ErrorLines = new List<int>();
+            foreach (EnterpriseDiagnostic Diagnostic in _Diagnostics)
+            {
+                if (Diagnostic.Severity == MermaidDiagnosticSeverity.Error && Diagnostic.LineNumber > 0)
+                {
+                    ErrorLines.Add(Diagnostic.LineNumber);
+                }
+            }
+
+            MermaidSyntaxHighlighter.TintLines(SourceEditor, ErrorLines, _Settings.DarkTheme);
         }
 
         UpdateCaretDiagnosticStatus();
-    }
-
-    private void TintDiagnosticLines()
-    {
-        int Caret = SourceEditor.SelectionStart;
-        int Length = SourceEditor.SelectionLength;
-        Color ErrorColour = _Settings.DarkTheme ? Color.FromArgb(90, 55, 55) : Color.MistyRose;
-        foreach (EnterpriseDiagnostic Diagnostic in _Diagnostics)
-        {
-            if (Diagnostic.Severity != MermaidDiagnosticSeverity.Error || Diagnostic.LineNumber <= 0)
-            {
-                continue;
-            }
-
-            int LineIndex = Diagnostic.LineNumber - 1;
-            if (LineIndex >= SourceEditor.Lines.Length)
-            {
-                continue;
-            }
-
-            int Start = SourceEditor.GetFirstCharIndexFromLine(LineIndex);
-            if (Start < 0)
-            {
-                continue;
-            }
-
-            int LineLength = SourceEditor.Lines[LineIndex].Length;
-            SourceEditor.Select(Start, Math.Max(1, Math.Min(LineLength, SourceEditor.TextLength - Start)));
-            SourceEditor.SelectionBackColor = ErrorColour;
-        }
-
-        SourceEditor.Select(Math.Min(Caret, SourceEditor.TextLength), Math.Min(Length, Math.Max(0, SourceEditor.TextLength - Caret)));
     }
 
     private void UpdateCaretDiagnosticStatus()

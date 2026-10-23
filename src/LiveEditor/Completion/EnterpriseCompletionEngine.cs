@@ -118,12 +118,15 @@ internal sealed class EnterpriseCompletionEngine
         Match ElementTypeMatch = ElementTypeContextRegex.Match(LinePrefix);
         if (ElementTypeMatch.Success)
         {
-            if (LiveEditorFeatureGate.B_ElementTypeCompletion)
+            string TypedType = ElementTypeMatch.Groups["type"].Value;
+            // Only offer element types while the line is still a type token (no id yet).
+            // Require a non-empty prefix so blank lines do not open the full catalogue.
+            if (!string.IsNullOrEmpty(TypedType) && LiveEditorFeatureGate.B_ElementTypeCompletion)
             {
                 FillElementTypeSuggestions(Context, ElementTypeMatch, LineStart);
             }
 
-            if (Context.Items.Count == 0 && LiveEditorFeatureGate.J_Snippets)
+            if (Context.Items.Count == 0 && LiveEditorFeatureGate.J_Snippets && TypedType.StartsWith("snippet", StringComparison.OrdinalIgnoreCase))
             {
                 FillSnippetSuggestions(Context, ElementTypeMatch, LineStart);
             }
