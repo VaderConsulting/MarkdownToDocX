@@ -104,6 +104,12 @@ internal static partial class EnterpriseBandPlacement
         {
             var Current = Grid.Capture();
             var Completed = Current.Regions.ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
+            Planner.AlignEnterpriseChainColumns(Completed);
+            Planner.AlignFlowStackColumns(Completed);
+            Planner.AlignLonelyNeighbourColumns(Completed);
+            Planner.AlignHubBranchRows(Completed);
+            Planner.AlignSameBandChordRows(Completed);
+            Planner.AlignAccessorObjectColumns(Completed);
             Planner.AlignCompletedPartners(Completed);
             if (Grid.TryPrepare(Completed, [], out var Ready)) Grid.TryCommit(Current, Ready!);
             var PriorConvention = Grid.RegionConvention;

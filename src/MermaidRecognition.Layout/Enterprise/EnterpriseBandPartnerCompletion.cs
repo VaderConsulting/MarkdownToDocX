@@ -77,7 +77,10 @@ internal static partial class EnterpriseBandPlacement
                 if (Sweep % 2 != 0) Array.Reverse(Bands);
                 foreach (var Band in Bands)
                 {
-                    if (TimelineBands.Contains(Band.Key) || Band.Count() > 1 && !Band.Any(Node => Node.GroupId != null)) continue;
+                    if (TimelineBands.Contains(Band.Key))
+                    {
+                        continue;
+                    }
                     foreach (var Node in Band.Where(Node => Node.GroupId == null && !Hinted.Contains(Node.Id)))
                     {
                         var Partners = CrossBandMembers(Node.Id, Targets).ToArray();
