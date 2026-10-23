@@ -21,7 +21,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool H_GoToDefinition = true;
 
-    public static bool I_RenameSymbol = false;
+    public static bool I_RenameSymbol = true;
 
     public static bool J_Snippets = false;
 
