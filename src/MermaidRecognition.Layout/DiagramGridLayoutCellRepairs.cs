@@ -438,6 +438,7 @@ public static partial class DiagramGridLayout
             double BeforeLength = RouteLength(State.Copy);
             int BeforeBends = RouteBends(State.Copy);
             var BestScore = Before.Cost;
+            double BestChainTie = FlowchartChainPlacementTie.Measure(State.Contract, State.Copy.NodeBounds);
             double BestShortfall = Shortfall?.Invoke() ?? 0;
             double InitialShortfall = BestShortfall;
             CellGeometrySnapshot? Best = null;
@@ -523,10 +524,14 @@ public static partial class DiagramGridLayout
                         && (AfterFaults < BeforeFaults || FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
                             BeforeFaults, Before.HintsHonoured, Before.Cost, AfterFaults, After.HintsHonoured, Cost));
                     RouteRepairCandidateObserver?.Invoke("cell-move", Option.Subject, Cost, Legal);
+                    double ChainTie = FlowchartChainPlacementTie.Measure(State.Contract, State.Copy.NodeBounds);
                     if (!Legal || Remaining > BestShortfall
-                        || Remaining == BestShortfall && Cost >= BestScore - 0.001) continue;
+                        || Remaining == BestShortfall && Cost.CompareTo(BestScore) > 0
+                        || Remaining == BestShortfall && Cost.CompareTo(BestScore) == 0
+                            && ChainTie >= BestChainTie - 0.001) continue;
                     BestShortfall = Remaining;
                     BestScore = Cost;
+                    BestChainTie = ChainTie;
                     Best = new(State);
                     BestAffected = Affected;
                     Winner = Option.Subject;

@@ -503,6 +503,17 @@ public static partial class DiagramGridLayout
         internal static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
         {
             double Dx = To.CenterX - From.CenterX, Dy = To.CenterY - From.CenterY;
+            double Tolerance = DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
+            if (Math.Abs(Dx) <= Tolerance && Math.Abs(Dy) > Tolerance)
+            {
+                return Dy >= 0 ? "top" : "bottom";
+            }
+
+            if (Math.Abs(Dy) <= Tolerance && Math.Abs(Dx) > Tolerance)
+            {
+                return Dx >= 0 ? "right" : "left";
+            }
+
             return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
         }
 
