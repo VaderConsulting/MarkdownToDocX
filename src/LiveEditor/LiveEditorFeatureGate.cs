@@ -53,7 +53,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool X_DiagnosticsPanel = true;
 
-    public static bool Y_Minimap = false;
+    public static bool Y_Minimap = true;
 
     public static bool Z_CommandPalette = false;
 
