@@ -59,11 +59,17 @@ internal static partial class EnterpriseBandPlacement
     {
         CompletePartners = null;
         if (Nodes.Count == 0 || Nodes.Any(Node => Node.CellNode == null)) return false;
-        Dictionary<string, Classification> Classes = BuildEnterpriseClasses(Contract, Nodes);
-        if (Classes.Count == 0
-            || Classes.Values.Where(Item => Item.Conventional).Select(Item => Item.Band).Distinct().Count() <= 1)
+        var Classes = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
+            .ToDictionary(Node => Node.Id, Node => Classify(Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)), StringComparer.Ordinal);
+        if (Classes.Values.Where(Item => Item.Conventional).Select(Item => Item.Band).Distinct().Count() <= 1) return false;
+        foreach (var Node in Nodes.Where(Node => !Classes.TryGetValue(Node.Id, out var Item) || !Item.Conventional))
         {
-            return false;
+            var Neighbours = Contract.Edges.Where(Edge => Edge.SourceId == Node.Id || Edge.TargetId == Node.Id)
+                .Select(Edge => Edge.SourceId == Node.Id ? Edge.TargetId : Edge.SourceId)
+                .Where(Id => Classes.TryGetValue(Id, out var Item) && Item.Conventional)
+                .GroupBy(Id => Classes[Id].Band).OrderByDescending(Group => Group.Count()).ThenBy(Group => Group.Key).FirstOrDefault();
+            var Previous = Classes.GetValueOrDefault(Node.Id);
+            Classes[Node.Id] = new(Neighbours?.Key ?? Classes.Values.Where(Item => Item.Conventional).Min(Item => Item.Band), Previous?.Aspect ?? 1, false, Previous?.Type);
         }
         var Grid = Nodes[0].CellNode!.Grid;
         var Before = Grid.Capture();
@@ -98,7 +104,13 @@ internal static partial class EnterpriseBandPlacement
         {
             var Current = Grid.Capture();
             var Completed = Current.Regions.ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
-            RunPartnerAlignments(Planner, Completed);
+            Planner.AlignEnterpriseChainColumns(Completed);
+            Planner.AlignFlowStackColumns(Completed);
+            Planner.AlignLonelyNeighbourColumns(Completed);
+            Planner.AlignHubBranchRows(Completed);
+            Planner.AlignSameBandChordRows(Completed);
+            Planner.AlignAccessorObjectColumns(Completed);
+            Planner.AlignCompletedPartners(Completed);
             if (Grid.TryPrepare(Completed, [], out var Ready)) Grid.TryCommit(Current, Ready!);
             var PriorConvention = Grid.RegionConvention;
             var Alignment = Planner.CaptureSingletonAlignment(Grid.Capture().Regions);
@@ -113,83 +125,6 @@ internal static partial class EnterpriseBandPlacement
                 + "|crossings=" + Planner.CrossingsBefore + "->" + Planner.CrossingsAfter);
         }
         return true;
-    }
-
-    /// <summary>Runs 2.24/2.25 column alignment for single-layer enterprise diagrams that skip semantic band packing.</summary>
-    /// <param name="Contract">Enterprise contract.</param>
-    /// <param name="Nodes">Whole-cell layout members.</param>
-    internal static void ApplySketchPartnerAlignment(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
-    {
-        if (Nodes.Count == 0 || Nodes.Any(Node => Node.CellNode == null))
-        {
-            return;
-        }
-
-        Dictionary<string, Classification> Classes = BuildEnterpriseClasses(Contract, Nodes);
-        if (Classes.Count == 0
-            || Classes.Values.Where(Item => Item.Conventional).Select(Item => Item.Band).Distinct().Count() > 1)
-        {
-            return;
-        }
-
-        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
-        FlowchartLogicalGrid.Snapshot Current = Grid.Capture();
-        Dictionary<string, FlowchartCellRegion> Completed = Current.Regions.ToDictionary(
-            Pair => Pair.Key,
-            Pair => Pair.Value,
-            StringComparer.Ordinal);
-        BandPlan Planner = new(Contract, Nodes, Classes, false);
-        RunPartnerAlignments(Planner, Completed);
-        if (Grid.TryPrepare(Completed, [], out FlowchartLogicalGrid.Snapshot? Ready))
-        {
-            Grid.TryCommit(Current, Ready);
-        }
-    }
-
-    private static void RunPartnerAlignments(BandPlan Planner, Dictionary<string, FlowchartCellRegion> Completed)
-    {
-        Planner.AlignEnterpriseChainColumns(Completed);
-        Planner.AlignSameBandSpineColumns(Completed);
-        Planner.AlignFlowStackColumns(Completed);
-        Planner.AlignLonelyNeighbourColumns(Completed);
-        Planner.AlignHubBranchRows(Completed);
-        Planner.AlignAccessorObjectColumns(Completed);
-        Planner.AlignCompletedPartners(Completed);
-        Planner.AlignSameBandChordRows(Completed);
-    }
-
-    private static Dictionary<string, Classification> BuildEnterpriseClasses(
-        DiagramContract Contract,
-        IReadOnlyList<DiagramGridLayout.GridNode> Nodes)
-    {
-        Dictionary<string, Classification> Classes = Contract.Nodes
-            .Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
-            .ToDictionary(
-                Node => Node.Id,
-                Node => Classify(Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)),
-                StringComparer.Ordinal);
-        if (Classes.Count == 0)
-        {
-            return Classes;
-        }
-
-        foreach (DiagramGridLayout.GridNode Node in Nodes.Where(Node =>
-            !Classes.TryGetValue(Node.Id, out Classification? Item) || !Item.Conventional))
-        {
-            IGrouping<int, string>? Neighbours = Contract.Edges
-                .Where(Edge => Edge.SourceId == Node.Id || Edge.TargetId == Node.Id)
-                .Select(Edge => Edge.SourceId == Node.Id ? Edge.TargetId : Edge.SourceId)
-                .Where(Id => Classes.TryGetValue(Id, out Classification? Item) && Item.Conventional)
-                .GroupBy(Id => Classes[Id].Band)
-                .OrderByDescending(Group => Group.Count())
-                .ThenBy(Group => Group.Key)
-                .FirstOrDefault();
-            Classification? Previous = Classes.GetValueOrDefault(Node.Id);
-            int Band = Neighbours?.Key ?? Classes.Values.Where(Item => Item.Conventional).Min(Item => Item.Band);
-            Classes[Node.Id] = new(Band, Previous?.Aspect ?? 1, false, Previous?.Type);
-        }
-
-        return Classes;
     }
 
     /// <summary>Captures explicitly row-laid-out cohorts that repairs must move together, excluding complete active hint-dependent units and their reference peers.</summary>

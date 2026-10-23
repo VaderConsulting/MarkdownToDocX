@@ -110,13 +110,12 @@ internal static partial class EnterpriseBandPlacement
             CompactFrameNeighbours(Targets);
             AvoidBlockedBandColumns(Targets);
             AlignEnterpriseChainColumns(Targets);
-            AlignSameBandSpineColumns(Targets);
             AlignFlowStackColumns(Targets);
             AlignLonelyNeighbourColumns(Targets);
             AlignHubBranchRows(Targets);
+            AlignSameBandChordRows(Targets);
             AlignAccessorObjectColumns(Targets);
             AlignCompletedPartners(Targets);
-            AlignSameBandChordRows(Targets);
             ObservePlacement("final-band-plan", Wrap, Targets);
             return Targets;
         }
