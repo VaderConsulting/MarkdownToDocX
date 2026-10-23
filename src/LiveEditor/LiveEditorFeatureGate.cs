@@ -47,7 +47,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool U_RecentFiles = true;
 
-    public static bool V_WatchFolder = false;
+    public static bool V_WatchFolder = true;
 
     public static bool W_ArchiHintRoundTrip = false;
 
