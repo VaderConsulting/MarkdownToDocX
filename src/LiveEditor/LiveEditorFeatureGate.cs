@@ -57,7 +57,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool Z_CommandPalette = true;
 
-    public static bool AA_SelectNextOccurrence = false;
+    public static bool AA_SelectNextOccurrence = true;
 
     public static bool AB_Accessibility = false;
 
