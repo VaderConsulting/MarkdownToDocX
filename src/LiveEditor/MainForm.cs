@@ -520,12 +520,37 @@ public partial class MainForm : Form
             return;
         }
 
+        if (!Force && IsCompletedCompletionToken(Context))
+        {
+            HideCompletion();
+            return;
+        }
+
         // Prefer the list popup over RichTextBox ghost painting - Paint overlays on
         // RichTextBox are unreliable and were drawing over real source text.
         _GhostContext = null;
         _GhostText?.Hide();
         _CompletionPopup.Show(SourceEditor, Context);
         SetStatus($"{Context.Items.Count.ToString(CultureInfo.InvariantCulture)} suggestion(s) - Tab/Enter to accept, Esc to dismiss");
+    }
+
+    private static bool IsCompletedCompletionToken(CompletionContext Context)
+    {
+        if (string.IsNullOrEmpty(Context.Prefix))
+        {
+            return false;
+        }
+
+        foreach (CompletionItem Item in Context.Items)
+        {
+            string Candidate = Item.InsertText.Trim();
+            if (Candidate.StartsWith(Context.Prefix, StringComparison.OrdinalIgnoreCase) && Candidate.Length > Context.Prefix.Length)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private bool TryAcceptGhostText()
