@@ -108,14 +108,8 @@ internal static partial class EnterpriseBandPlacement
             RowMembers.UnionWith(Nodes.Where(Node => Node.GroupId == null && TimelineBands.Contains(Classes[Node.Id].Band)).Select(Node => Node.Id));
             RestackLevelBands(Targets);
             CompactFrameNeighbours(Targets);
-            AvoidBlockedBandColumns(Targets);
-            AlignEnterpriseChainColumns(Targets);
-            AlignFlowStackColumns(Targets);
-            AlignLonelyNeighbourColumns(Targets);
-            AlignHubBranchRows(Targets);
-            AlignSameBandChordRows(Targets);
-            AlignAccessorObjectColumns(Targets);
             AlignCompletedPartners(Targets);
+            AvoidBlockedBandColumns(Targets);
             ObservePlacement("final-band-plan", Wrap, Targets);
             return Targets;
         }
