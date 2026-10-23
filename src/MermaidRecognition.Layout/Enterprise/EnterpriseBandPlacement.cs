@@ -102,10 +102,7 @@ internal static partial class EnterpriseBandPlacement
             && LevelRows.All(Row => Row.All(Id => Regions[Id].StartRow == Regions[Row[0]].StartRow));
         CompletePartners = () =>
         {
-            var Current = Grid.Capture();
-            var Completed = Current.Regions.ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
-            Planner.AlignCompletedPartners(Completed);
-            if (Grid.TryPrepare(Completed, [], out var Ready)) Grid.TryCommit(Current, Ready!);
+            Planner.PublishCompletedPartnersIncrementally(Grid, Context?.BandSpaceDiagnostics);
             var PriorConvention = Grid.RegionConvention;
             var Alignment = Planner.CaptureSingletonAlignment(Grid.Capture().Regions);
             Grid.RegionConvention = Regions => PriorConvention?.Invoke(Regions) != false && Alignment(Regions);
