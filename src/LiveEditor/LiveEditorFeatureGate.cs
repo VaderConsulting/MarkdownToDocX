@@ -59,7 +59,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool AA_SelectNextOccurrence = true;
 
-    public static bool AB_Accessibility = false;
+    public static bool AB_Accessibility = true;
 
     public static bool AC_CoArchiDirtyBadge = false;
 
