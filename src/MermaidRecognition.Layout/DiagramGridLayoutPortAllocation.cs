@@ -253,13 +253,13 @@ public static partial class DiagramGridLayout
                 return Left.Other.CenterX.CompareTo(Right.Other.CenterX);
             });
 
-            ApplySlots(Group, Nodes);
+            ApplySlots(Group, Nodes, Contract, Direction);
             CorridorPortOrderObserver?.Invoke("initial|" + Copy.RenderContext.ActiveLayoutStage + "|" + Pair.Key + "|nested=" + CorridorNesting + "|"
                 + string.Join(";", Group.Select(End => End.Route.EdgeId + ":" + (End.IsSource ? End.Route.Points[0].Y : End.Route.Points[^1].Y))));
         }
 
         var SideTimer = Stopwatch.StartNew();
-        ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Copy.RenderContext);
+        ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Direction, Copy.RenderContext);
         LayoutStageTimingObserver?.Invoke("allocation/free-side-comparison", SideTimer.Elapsed.TotalMilliseconds);
 
     }
@@ -433,7 +433,7 @@ public static partial class DiagramGridLayout
     /// <param name="Context">The owning layout's search caches.</param>
     private static void ChooseFreeSidesByRouteCost(List<PortEnd> Ends,
         Dictionary<string, NodeContract> Nodes, Dictionary<string, FlowchartLayoutNodeBounds> Bounds,
-        DiagramContract Contract, FlowchartRenderContext Context)
+        DiagramContract Contract, FlowchartDirection Direction, FlowchartRenderContext Context)
     {
         var ByNode = Ends.GroupBy(End => End.Box.Id).ToDictionary(Group => Group.Key, Group => Group.ToList());
         string Obstacles = string.Join(";", Bounds.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
@@ -455,7 +455,7 @@ public static partial class DiagramGridLayout
             foreach (var NodeEnds in ByNode.Where(Pair => ChangedNodes.Contains(Pair.Key)).Select(Pair => Pair.Value))
             foreach (var SideEnds in NodeEnds.GroupBy(End => End.Side))
                 ApplySlots(SideEnds.OrderBy(End => End.Side is "left" or "right"
-                    ? -End.Other.CenterY : End.Other.CenterX).ToList(), Nodes);
+                    ? -End.Other.CenterY : End.Other.CenterX).ToList(), Nodes, Contract, Direction);
             FlowchartRenderContext.ReportOperationCount("port-side-assignment-cache-hits", 1);
             return;
         }
@@ -581,7 +581,7 @@ public static partial class DiagramGridLayout
                 {
                     var Ordered = Group.OrderBy(End => End.Side is "left" or "right"
                         ? -End.Other.CenterY : End.Other.CenterX).ToList();
-                    ApplySlots(Ordered, Nodes);
+                    ApplySlots(Ordered, Nodes, Contract, Direction);
                 }
             }
 
@@ -759,6 +759,71 @@ public static partial class DiagramGridLayout
         }
     }
 
+    private static bool TryApplyDiamondCompassSourcePorts(
+        List<PortEnd> Group,
+        DiagramContract Contract,
+        FlowchartDirection Direction,
+        HashSet<int> FixedIndices)
+    {
+        if (Group.Count == 0)
+        {
+            return false;
+        }
+
+        string HubId = Group[0].Box.Id;
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBoundsDictionary(Group);
+        if (!FlowchartDecisionPortAllocator.TryResolveCompassFanOutPortsForHub(
+                Contract,
+                Direction,
+                HubId,
+                BoundsById,
+                out Dictionary<string, (double X, double Y, double NormalX, double NormalY)> PortsByTarget))
+        {
+            return false;
+        }
+
+        for (int Index = 0; Index < Group.Count; Index++)
+        {
+            PortEnd End = Group[Index];
+            if (!End.IsSource)
+            {
+                continue;
+            }
+
+            if (!PortsByTarget.TryGetValue(End.Route.TargetId, out (double X, double Y, double NormalX, double NormalY) Attach))
+            {
+                continue;
+            }
+
+            SetEnd(End, Attach.X, Attach.Y, Attach.NormalX, Attach.NormalY);
+            FixedIndices.Add(Index);
+        }
+
+        return FixedIndices.Count > 0;
+    }
+
+    private static Dictionary<string, FlowchartLayoutNodeBounds> BuildBoundsDictionary(List<PortEnd> Group)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
+            new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+        foreach (PortEnd End in Group)
+        {
+            BoundsById[End.Box.Id] = ToLayoutBounds(End.Box);
+            BoundsById[End.Other.Id] = ToLayoutBounds(End.Other);
+        }
+
+        return BoundsById;
+    }
+
+    private static FlowchartLayoutNodeBounds ToLayoutBounds(BoxRef Box) => new()
+    {
+        NodeId = Box.Id,
+        CenterX = Box.CenterX,
+        CenterY = Box.CenterY,
+        Width = Box.Width,
+        Height = Box.Height
+    };
+
     internal static string HintSide(LayoutHintDirection Direction) => Direction switch
     {
         LayoutHintDirection.North => "top",
@@ -767,7 +832,11 @@ public static partial class DiagramGridLayout
         _ => "left"
     };
 
-    private static void ApplySlots(List<PortEnd> Group, Dictionary<string, NodeContract> Nodes)
+    private static void ApplySlots(
+        List<PortEnd> Group,
+        Dictionary<string, NodeContract> Nodes,
+        DiagramContract? Contract = null,
+        FlowchartDirection? Direction = null)
     {
         if (Group.Count == 0)
         {
@@ -779,27 +848,52 @@ public static partial class DiagramGridLayout
         bool Diamond = Nodes.TryGetValue(Box.Id, out NodeContract? Node) && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
         if (Diamond && !Box.IsFrame)
         {
-            List<(double X, double Y)> Destinations = new List<(double X, double Y)>();
-            foreach (PortEnd End in Group)
+            FlowchartDirection FlowDirection = Direction
+                ?? (Contract != null
+                    ? FlowchartDirectionNormalizer.Normalize(Contract.Direction)
+                    : FlowchartDirection.TopToBottom);
+            HashSet<int> CompassFixedIndices = new HashSet<int>();
+            if (Contract != null
+                && TryApplyDiamondCompassSourcePorts(Group, Contract, FlowDirection, CompassFixedIndices))
             {
+                if (CompassFixedIndices.Count == Group.Count)
+                {
+                    return;
+                }
+            }
+
+            List<int> RemainingIndices = CompassFixedIndices.Count == 0
+                ? Enumerable.Range(0, Group.Count).ToList()
+                : Enumerable.Range(0, Group.Count).Where(Index => !CompassFixedIndices.Contains(Index)).ToList();
+            List<(double X, double Y)> Destinations = new List<(double X, double Y)>();
+            foreach (int Index in RemainingIndices)
+            {
+                PortEnd End = Group[Index];
                 Destinations.Add((End.Other.CenterX - Box.CenterX, End.Other.CenterY - Box.CenterY));
             }
 
-            var Reservations = Enumerable.Range(0, Group.Count).Where(Index =>
+            if (Destinations.Count == 0)
             {
-                var End = Group[Index];
+                return;
+            }
+
+            HashSet<int> Reservations = Enumerable.Range(0, RemainingIndices.Count).Where(SubIndex =>
+            {
+                PortEnd End = Group[RemainingIndices[SubIndex]];
                 if (End.KeepsCentre) return true;
                 if (End.Route.Points.Count != 2) return false;
-                var A = End.Route.Points[0]; var B = End.Route.Points[^1];
+                FlowchartLayoutPoint A = End.Route.Points[0];
+                FlowchartLayoutPoint B = End.Route.Points[^1];
                 return Math.Abs(A.X - B.X) < 0.001 && Math.Abs(End.Box.CenterX - End.Other.CenterX) < 0.001
                     || Math.Abs(A.Y - B.Y) < 0.001 && Math.Abs(End.Box.CenterY - End.Other.CenterY) < 0.001;
             }).ToHashSet();
             if (FlowchartDiamondPorts.TryAssign((int)Box.Width, (int)Box.Height, Destinations, out IReadOnlyList<FlowchartDiamondPort> Ports, Reservations)
-                && Ports.Count == Group.Count)
+                && Ports.Count == RemainingIndices.Count)
             {
-                for (int Index = 0; Index < Group.Count; Index++)
+                for (int SubIndex = 0; SubIndex < RemainingIndices.Count; SubIndex++)
                 {
-                    FlowchartDiamondPort Port = Ports[Index];
+                    int Index = RemainingIndices[SubIndex];
+                    FlowchartDiamondPort Port = Ports[SubIndex];
                     double X = Box.CenterX + Port.OffsetX;
                     double Y = Box.CenterY + Port.OffsetY;
                     SetEnd(Group[Index], X, Y, Port.DepartureX, Port.DepartureY);

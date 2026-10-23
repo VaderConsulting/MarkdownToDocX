@@ -1365,7 +1365,7 @@ public static partial class DiagramGridLayout
                     && nodes.TryGetValue(ends[0].Box.Id, out NodeContract? node)
                     && FlowchartDagrePresentation.IsDiamondShape(node.Shape))
                 {
-                    ApplySlots(ends, nodes);
+                    ApplySlots(ends, nodes, contract);
                     continue;
                 }
                 bool CorridorNesting = NeedsCorridorPortNesting(ends, layout.RenderContext);
@@ -1384,7 +1384,7 @@ public static partial class DiagramGridLayout
                     return vertical ? right.Other.CenterY.CompareTo(left.Other.CenterY)
                         : left.Other.CenterX.CompareTo(right.Other.CenterX);
                 });
-                ApplySlots(ends, nodes);
+                ApplySlots(ends, nodes, contract);
                 CorridorPortOrderObserver?.Invoke("final|" + layout.RenderContext.ActiveLayoutStage + "|" + ends[0].Box.Id + "|" + ends[0].Side + "|nested=" + CorridorNesting + "|"
                     + string.Join(";", ends.Select(End => End.Route.EdgeId + ":" + (End.IsSource ? End.Route.Points[0].Y : End.Route.Points[^1].Y))));
             }

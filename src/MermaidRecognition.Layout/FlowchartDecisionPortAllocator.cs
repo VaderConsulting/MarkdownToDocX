@@ -236,6 +236,7 @@ public static class FlowchartDecisionPortAllocator
                 && TryAssignCompassFanOutPorts(
                     CompassOutgoing,
                     BoundsById,
+                    Direction,
                     CompassCentreX,
                     CompassCentreY,
                     CompassHalfWidth,
@@ -425,6 +426,7 @@ public static class FlowchartDecisionPortAllocator
         bool CompassFanOutPorts = TryAssignCompassFanOutPorts(
             Outgoing,
             BoundsById,
+            Direction,
             CentreX,
             CentreY,
             HalfWidth,
@@ -700,6 +702,17 @@ public static class FlowchartDecisionPortAllocator
         Right
     }
 
+    /// <summary>Rule 3.11 Yes/No exits mapped through rule 1.1 for the active flow direction.</summary>
+    private static (DiamondVertexKind YesVertex, DiamondVertexKind NoVertex) ResolveYesNoExitVertices(
+        FlowchartDirection Direction) => Direction switch
+    {
+        FlowchartDirection.TopToBottom => (DiamondVertexKind.Bottom, DiamondVertexKind.Right),
+        FlowchartDirection.BottomToTop => (DiamondVertexKind.Top, DiamondVertexKind.Left),
+        FlowchartDirection.LeftToRight => (DiamondVertexKind.Right, DiamondVertexKind.Bottom),
+        FlowchartDirection.RightToLeft => (DiamondVertexKind.Left, DiamondVertexKind.Top),
+        _ => (DiamondVertexKind.Bottom, DiamondVertexKind.Right)
+    };
+
     private static (double X, double Y, FlowchartDecisionPortRole Role) ResolveDecisionFanOutAttach(
         FlowchartLayoutNodeBounds SourceBounds,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
@@ -805,7 +818,7 @@ public static class FlowchartDecisionPortAllocator
         Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> PortsByTarget =
             new Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)>(StringComparer.Ordinal);
 
-        if (TryAssignCompassFanOutPorts(Outgoing, BoundsById, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace,
+        if (TryAssignCompassFanOutPorts(Outgoing, BoundsById, Direction, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace,
                 out Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> CompassPorts))
         {
             foreach (KeyValuePair<string, (double X, double Y, FlowchartDecisionPortRole Role)> Entry in CompassPorts)
@@ -823,14 +836,31 @@ public static class FlowchartDecisionPortAllocator
                 continue;
             }
 
-            DiamondVertexKind Preferred = ResolvePreferredVertexForTarget(
-                TargetBounds,
-                CentreX,
-                CentreY,
-                UseBottomFace,
-                HorizontalFlow,
-                RightToLeft);
-            if (TryResolveBypassRejoinFanOutVertex(
+            (DiamondVertexKind YesVertex, DiamondVertexKind NoVertex) = ResolveYesNoExitVertices(Direction);
+            DiamondVertexKind Preferred;
+            if (FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(OutgoingEdge.Label))
+            {
+                Preferred = NoVertex;
+            }
+            else if (FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(OutgoingEdge.Label))
+            {
+                Preferred = YesVertex;
+            }
+            else
+            {
+                Preferred = ResolvePreferredVertexForTarget(
+                    TargetBounds,
+                    CentreX,
+                    CentreY,
+                    UseBottomFace,
+                    HorizontalFlow,
+                    RightToLeft);
+            }
+
+            bool LabeledYesNo = FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(OutgoingEdge.Label)
+                || FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(OutgoingEdge.Label);
+            if (!LabeledYesNo
+                && TryResolveBypassRejoinFanOutVertex(
                     OutgoingEdge,
                     Outgoing,
                     BoundsById,
@@ -840,7 +870,17 @@ public static class FlowchartDecisionPortAllocator
             {
                 Preferred = BypassVertex;
             }
-            if (ShouldUseSlantedEdgeCentrePort(
+
+            if (LabeledYesNo)
+            {
+                PortsByTarget[OutgoingEdge.TargetId] = ResolveVertexAttach(
+                    Preferred, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+                Taken |= VertexToOccupancy(Preferred);
+                continue;
+            }
+
+            if (!FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(OutgoingEdge.Label)
+                && ShouldUseSlantedEdgeCentrePort(
                     Preferred,
                     TargetBounds,
                     CentreX,
@@ -1249,6 +1289,7 @@ public static class FlowchartDecisionPortAllocator
     private static bool TryAssignCompassFanOutPorts(
         List<EdgeContract> Outgoing,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        FlowchartDirection Direction,
         double CentreX,
         double CentreY,
         double HalfWidth,
@@ -1270,13 +1311,51 @@ public static class FlowchartDecisionPortAllocator
             if (FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label)) NoEdge = Edge;
         }
 
+        (DiamondVertexKind YesVertex, DiamondVertexKind NoVertex) = ResolveYesNoExitVertices(Direction);
+
         if (Outgoing.Count == 2 && YesEdge != null && NoEdge != null)
         {
             PortsByTarget[YesEdge.TargetId] = ResolveVertexAttach(
-                DiamondVertexKind.Bottom, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+                YesVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
             PortsByTarget[NoEdge.TargetId] = ResolveVertexAttach(
-                DiamondVertexKind.Right, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+                NoVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
             return true;
+        }
+
+        if (Outgoing.Count >= 3 && (YesEdge != null || NoEdge != null))
+        {
+            if (YesEdge != null)
+            {
+                PortsByTarget[YesEdge.TargetId] = ResolveVertexAttach(
+                    YesVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+            }
+
+            if (NoEdge != null)
+            {
+                PortsByTarget[NoEdge.TargetId] = ResolveVertexAttach(
+                    NoVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+            }
+
+            foreach (EdgeContract Edge in Outgoing)
+            {
+                if (Edge == YesEdge || Edge == NoEdge || PortsByTarget.ContainsKey(Edge.TargetId))
+                {
+                    continue;
+                }
+
+                if (!BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds? TargetBounds))
+                {
+                    continue;
+                }
+
+                DiamondVertexKind SideVertex = TargetBounds.CenterX < CentreX
+                    ? DiamondVertexKind.Left
+                    : DiamondVertexKind.Right;
+                PortsByTarget[Edge.TargetId] = ResolveEdgeCentreFallbackAttach(
+                    SideVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+            }
+
+            return PortsByTarget.Count == Outgoing.Count;
         }
 
         if (Outgoing.Count == 3)
@@ -1298,9 +1377,9 @@ public static class FlowchartDecisionPortAllocator
         {
             List<EdgeContract> Ordered = Outgoing.OrderBy(Edge => Edge.CreationIndex).ToList();
             PortsByTarget[Ordered[0].TargetId] = ResolveVertexAttach(
-                DiamondVertexKind.Bottom, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+                YesVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
             PortsByTarget[Ordered[1].TargetId] = ResolveVertexAttach(
-                DiamondVertexKind.Right, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
+                NoVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
             return true;
         }
 
@@ -1651,5 +1730,117 @@ public static class FlowchartDecisionPortAllocator
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Rule 3.11 compass fan-out ports for one decision hub (grid joint diamond allocation).
+    /// </summary>
+    public static bool TryResolveCompassFanOutPortsForHub(
+        DiagramContract Contract,
+        FlowchartDirection Direction,
+        string HubId,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        out Dictionary<string, (double X, double Y, double NormalX, double NormalY)> PortsByTargetId)
+    {
+        PortsByTargetId = new Dictionary<string, (double X, double Y, double NormalX, double NormalY)>(StringComparer.Ordinal);
+        if (!BoundsById.TryGetValue(HubId, out FlowchartLayoutNodeBounds HubBounds))
+        {
+            return false;
+        }
+
+        List<EdgeContract> Outgoing = FlowchartSharedPortAllocator.GetVisibleEdgesFromSource(Contract, HubId);
+        if (Outgoing.Count < 2)
+        {
+            return false;
+        }
+
+        double CentreX = HubBounds.CenterX;
+        double CentreY = HubBounds.CenterY;
+        double HalfWidth = HubBounds.Width / 2.0;
+        double HalfHeight = HubBounds.Height / 2.0;
+        bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
+            || Direction == FlowchartDirection.RightToLeft;
+        bool UseBottomFace = !HorizontalFlow && AllTargetsBelowSource(Outgoing, BoundsById, CentreY);
+        if (!TryAssignCompassFanOutPorts(
+                Outgoing,
+                BoundsById,
+                Direction,
+                CentreX,
+                CentreY,
+                HalfWidth,
+                HalfHeight,
+                UseBottomFace,
+                out Dictionary<string, (double X, double Y, FlowchartDecisionPortRole Role)> PortsByTarget))
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<string, (double X, double Y, FlowchartDecisionPortRole Role)> Entry in PortsByTarget)
+        {
+            (double NormalX, double NormalY) = ResolveCompassPortDepartureNormal(
+                Entry.Value.X,
+                Entry.Value.Y,
+                CentreX,
+                CentreY,
+                HalfWidth,
+                HalfHeight,
+                Entry.Value.Role);
+            PortsByTargetId[Entry.Key] = (Entry.Value.X, Entry.Value.Y, NormalX, NormalY);
+        }
+
+        return PortsByTargetId.Count == Outgoing.Count;
+    }
+
+    private static (double NormalX, double NormalY) ResolveCompassPortDepartureNormal(
+        double X,
+        double Y,
+        double CentreX,
+        double CentreY,
+        double HalfWidth,
+        double HalfHeight,
+        FlowchartDecisionPortRole Role)
+    {
+        const double VertexEpsilon = 1.5;
+        if (Math.Abs(X - (CentreX + HalfWidth)) < VertexEpsilon && Math.Abs(Y - CentreY) < VertexEpsilon)
+        {
+            return (1.0, 0.0);
+        }
+
+        if (Math.Abs(X - (CentreX - HalfWidth)) < VertexEpsilon && Math.Abs(Y - CentreY) < VertexEpsilon)
+        {
+            return (-1.0, 0.0);
+        }
+
+        if (Math.Abs(Y - (CentreY - HalfHeight)) < VertexEpsilon && Math.Abs(X - CentreX) < VertexEpsilon)
+        {
+            return (0.0, -1.0);
+        }
+
+        if (Math.Abs(Y - (CentreY + HalfHeight)) < VertexEpsilon && Math.Abs(X - CentreX) < VertexEpsilon)
+        {
+            return (0.0, 1.0);
+        }
+
+        int WidthPx = (int)Math.Round(HalfWidth * 2.0);
+        int HeightPx = (int)Math.Round(HalfHeight * 2.0);
+        double EdgeX = HeightPx;
+        double EdgeY = WidthPx;
+        (double RawX, double RawY) = Role switch
+        {
+            FlowchartDecisionPortRole.SideRight => (EdgeX, -EdgeY),
+            FlowchartDecisionPortRole.SideLeft => (-EdgeX, -EdgeY),
+            FlowchartDecisionPortRole.TopVertex => (-EdgeX, EdgeY),
+            FlowchartDecisionPortRole.BottomVertex => (EdgeX, EdgeY),
+            _ => X >= CentreX
+                ? (EdgeX, Y >= CentreY ? EdgeY : -EdgeY)
+                : (-EdgeX, Y >= CentreY ? EdgeY : -EdgeY)
+        };
+        double Length = Math.Sqrt((RawX * RawX) + (RawY * RawY));
+        if (Length < 1e-9)
+        {
+            return (1.0, 0.0);
+        }
+
+        return (RawX / Length, RawY / Length);
     }
 }

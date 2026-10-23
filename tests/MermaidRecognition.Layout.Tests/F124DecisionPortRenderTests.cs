@@ -22,7 +22,7 @@ public sealed class F124DecisionPortRenderTests
         """;
 
     [Test]
-    public void TryResolveLayoutGuidePoints_F124_TwoBranchesUseSlotsOneAndThree()
+    public void TryResolveLayoutGuidePoints_F124_YesAndNoUseMainFlowAndEastVertices()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F124_SOURCE);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
@@ -36,39 +36,22 @@ public sealed class F124DecisionPortRenderTests
         double HalfWidth = HubBounds.Width / 2.0;
         double HalfHeight = HubBounds.Height / 2.0;
 
-        (double TopRightSlopeX, double TopRightSlopeY) = (
-            HubBounds.CenterX + (HalfWidth / 2.0),
-            HubBounds.CenterY + (HalfHeight / 2.0));
-        (double RightVertexX, double RightVertexY) = (
+        (double YesVertexX, double YesVertexY) = (
             HubBounds.CenterX + HalfWidth,
             HubBounds.CenterY);
-        (double LowerRightSlopeX, double LowerRightSlopeY) = (
-            HubBounds.CenterX + (HalfWidth / 2.0),
-            HubBounds.CenterY - (HalfHeight / 2.0));
+        (double NoVertexX, double NoVertexY) = (
+            HubBounds.CenterX,
+            HubBounds.CenterY - HalfHeight);
 
         (double YesAttachX, double YesAttachY) = ResolveDecisionSourceAttach(
-            Contract,
-            Layout,
-            BoundsById,
-            NodeById,
-            Direction,
-            "B",
-            "C");
+            Contract, Layout, BoundsById, NodeById, Direction, "B", "C");
         (double NoAttachX, double NoAttachY) = ResolveDecisionSourceAttach(
-            Contract,
-            Layout,
-            BoundsById,
-            NodeById,
-            Direction,
-            "B",
-            "D");
+            Contract, Layout, BoundsById, NodeById, Direction, "B", "D");
 
-        Assert.That(YesAttachX, Is.EqualTo(TopRightSlopeX).Within(1.0), "Yes should exit slot 1 (upper-right slope)");
-        Assert.That(YesAttachY, Is.EqualTo(TopRightSlopeY).Within(1.0), "Yes should exit slot 1 (upper-right slope)");
-        Assert.That(NoAttachX, Is.EqualTo(LowerRightSlopeX).Within(1.0), "No should exit slot 3 (lower-right slope)");
-        Assert.That(NoAttachY, Is.EqualTo(LowerRightSlopeY).Within(1.0), "No should exit slot 3 (lower-right slope)");
-        Assert.That(Math.Abs(NoAttachY - RightVertexY), Is.GreaterThan(4.0), "No must not use slot 2 (right vertex)");
-        Assert.That(Math.Abs(NoAttachX - RightVertexX), Is.GreaterThan(4.0), "No must not use slot 2 (right vertex)");
+        Assert.That(YesAttachX, Is.EqualTo(YesVertexX).Within(1.0), "Yes should leave at S (right vertex in LR)");
+        Assert.That(YesAttachY, Is.EqualTo(YesVertexY).Within(1.0));
+        Assert.That(NoAttachX, Is.EqualTo(NoVertexX).Within(1.0), "No should leave at E (bottom vertex in LR), not SE");
+        Assert.That(NoAttachY, Is.EqualTo(NoVertexY).Within(1.0));
     }
 
     [Test]
@@ -80,7 +63,7 @@ public sealed class F124DecisionPortRenderTests
             B --> C{Let me think}
             C -->|One| D[Laptop]
             C -->|Two| E[iPhone]
-            C -->|Three| F[Other gift]
+            C -->|Three| F[fa:fa-car Car]
             """);
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
