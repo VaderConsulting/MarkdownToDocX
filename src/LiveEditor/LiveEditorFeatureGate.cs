@@ -41,7 +41,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool R_RenderTiming = true;
 
-    public static bool S_LegacyPreview = false;
+    public static bool S_LegacyPreview = true;
 
     public static bool T_PersistentSession = false;
 
