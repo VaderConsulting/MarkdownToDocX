@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using LiveEditor.Archi;
+using LiveEditor.Completion;
 using MDConverter;
 
 namespace LiveEditor;
@@ -15,12 +16,12 @@ namespace LiveEditor;
 public partial class MainForm : Form
 {
     private const string DEFAULT_SOURCE =
-        "flowchart TD" + "\r\n"
-        + "  Start([Start]) --> Decision{Ready?}" + "\r\n"
-        + "  Decision -->|Yes| Work[Do work]" + "\r\n"
-        + "  Decision -->|No| Wait[Wait]" + "\r\n"
-        + "  Work --> Done([Done])" + "\r\n"
-        + "  Wait --> Decision" + "\r\n";
+        "enterprise" + "\r\n"
+        + "  title LiveEditor relationship suggestions" + "\r\n"
+        + "  application-component webShop \"Web Shop\"" + "\r\n"
+        + "  application-service orderApi \"Order API\"" + "\r\n"
+        +         "  data-object order \"Order\"" + "\r\n"
+        + "  webShop -";
 
     private string? _CurrentSourcePath;
 
@@ -34,22 +35,139 @@ public partial class MainForm : Form
 
     private Image? _LastGoodPreview;
 
+    private readonly EnterpriseCompletionEngine _CompletionEngine = new EnterpriseCompletionEngine();
+
+    private readonly CompletionPopup _CompletionPopup = new CompletionPopup();
+
+    private bool _SuppressCompletion;
+
+    private readonly bool _CapturePreviewOnShown;
+
     /// <summary>
     /// Creates the live editor window.
     /// </summary>
     public MainForm()
+        : this(CapturePreviewOnShown: false)
     {
+    }
+
+    /// <summary>
+    /// Creates the live editor window.
+    /// </summary>
+    /// <param name="CapturePreviewOnShown">When true, saves a screenshot after opening the completion popup, then closes.</param>
+    public MainForm(bool CapturePreviewOnShown)
+    {
+        _CapturePreviewOnShown = CapturePreviewOnShown;
         InitializeComponent();
         WireEvents();
         SourceEditor.Text = DEFAULT_SOURCE;
+        SourceEditor.SelectionStart = SourceEditor.Text.Length;
         _IsDirty = false;
         UpdateTitle();
         QueueRender();
+        Shown += MainForm_Shown;
+    }
+
+    private async void MainForm_Shown(object? Sender, EventArgs E)
+    {
+        SourceEditor.Focus();
+        SourceEditor.SelectionStart = SourceEditor.Text.Length;
+        RefreshCompletion(Force: true);
+        if (!_CapturePreviewOnShown)
+        {
+            return;
+        }
+
+        await Task.Delay(500).ConfigureAwait(true);
+        RefreshCompletion(Force: true);
+        await Task.Delay(300).ConfigureAwait(true);
+        string OutputPath = Path.Combine(
+            Path.GetDirectoryName(Application.ExecutablePath) ?? Environment.CurrentDirectory,
+            "liveeditor-completion-preview.png");
+        try
+        {
+            WriteCompletionPreviewBitmap(OutputPath);
+            Console.WriteLine("Wrote preview: " + OutputPath);
+        }
+        catch (Exception Ex)
+        {
+            Console.Error.WriteLine("Preview capture failed: " + Ex.Message);
+        }
+
+        Close();
+    }
+
+    private void WriteCompletionPreviewBitmap(string OutputPath)
+    {
+        CompletionContext Context = _CompletionEngine.Build(SourceEditor.Text, SourceEditor.SelectionStart);
+        using Bitmap FormBitmap = new Bitmap(ClientSize.Width, ClientSize.Height);
+        DrawToBitmap(FormBitmap, new Rectangle(Point.Empty, ClientSize));
+
+        int PopupWidth = 440;
+        int RowHeight = 24;
+        int VisibleRows = Math.Min(8, Math.Max(1, Context.Items.Count));
+        int PopupHeight = 12 + (VisibleRows * RowHeight);
+        Point Caret = SourceEditor.GetPositionFromCharIndex(Math.Max(0, SourceEditor.SelectionStart - 1));
+        Point EditorOrigin = SourceEditor.PointToScreen(Point.Empty);
+        Point FormOrigin = PointToScreen(Point.Empty);
+        int PopupX = EditorOrigin.X - FormOrigin.X + Caret.X + 8;
+        int PopupY = EditorOrigin.Y - FormOrigin.Y + Caret.Y + SourceEditor.Font.Height + 4;
+        if (PopupX + PopupWidth > FormBitmap.Width - 8)
+        {
+            PopupX = FormBitmap.Width - PopupWidth - 8;
+        }
+
+        if (PopupY + PopupHeight > FormBitmap.Height - 8)
+        {
+            PopupY = Math.Max(8, FormBitmap.Height - PopupHeight - 8);
+        }
+
+        int CanvasWidth = Math.Max(FormBitmap.Width, PopupX + PopupWidth + 16);
+        int CanvasHeight = Math.Max(FormBitmap.Height, PopupY + PopupHeight + 16);
+        using Bitmap Canvas = new Bitmap(CanvasWidth, CanvasHeight);
+        using Graphics Graphics = Graphics.FromImage(Canvas);
+        Graphics.Clear(Color.WhiteSmoke);
+        Graphics.DrawImage(FormBitmap, Point.Empty);
+
+        Rectangle PopupBounds = new Rectangle(PopupX, PopupY, PopupWidth, PopupHeight);
+        using SolidBrush Background = new SolidBrush(Color.White);
+        using SolidBrush Selected = new SolidBrush(SystemColors.Highlight);
+        using SolidBrush Primary = new SolidBrush(SystemColors.WindowText);
+        using SolidBrush Secondary = new SolidBrush(SystemColors.GrayText);
+        using SolidBrush SelectedText = new SolidBrush(SystemColors.HighlightText);
+        using Pen Border = new Pen(Color.FromArgb(180, 180, 180));
+        Graphics.FillRectangle(Background, PopupBounds);
+        Graphics.DrawRectangle(Border, PopupBounds);
+        using Font PopupFont = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
+        for (int Index = 0; Index < VisibleRows && Index < Context.Items.Count; Index++)
+        {
+            CompletionItem Item = Context.Items[Index];
+            Rectangle Row = new Rectangle(PopupBounds.X + 1, PopupBounds.Y + 6 + (Index * RowHeight), PopupBounds.Width - 2, RowHeight);
+            if (Index == 0)
+            {
+                Graphics.FillRectangle(Selected, Row);
+            }
+
+            Brush TextBrush = Index == 0 ? SelectedText : Primary;
+            Brush DetailBrush = Index == 0 ? SelectedText : Secondary;
+            Graphics.DrawString(Item.DisplayText, PopupFont, TextBrush, Row.X + 8, Row.Y + 2);
+            if (!string.IsNullOrWhiteSpace(Item.Detail))
+            {
+                SizeF Size = Graphics.MeasureString(Item.DisplayText, PopupFont);
+                Graphics.DrawString(Item.Detail, PopupFont, DetailBrush, Row.X + 12 + Size.Width, Row.Y + 2);
+            }
+        }
+
+        Canvas.Save(OutputPath, System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private void WireEvents()
     {
         SourceEditor.TextChanged += SourceEditor_TextChanged;
+        SourceEditor.KeyDown += SourceEditor_KeyDown;
+        SourceEditor.PreviewKeyDown += SourceEditor_PreviewKeyDown;
+        SourceEditor.MouseDown += SourceEditor_MouseDown;
+        SourceEditor.LostFocus += SourceEditor_LostFocus;
         RenderTimer.Tick += RenderTimer_Tick;
         OpenMenuItem.Click += OpenMenuItem_Click;
         SaveMenuItem.Click += SaveMenuItem_Click;
@@ -62,6 +180,7 @@ public partial class MainForm : Form
         OpenCoArchiFolderMenuItem.Click += OpenCoArchiFolderMenuItem_Click;
         SaveCoArchiFolderMenuItem.Click += SaveCoArchiFolderMenuItem_Click;
         FormClosing += MainForm_FormClosing;
+        _CompletionPopup.ItemAccepted += CompletionPopup_ItemAccepted;
     }
 
     private void SourceEditor_TextChanged(object? Sender, EventArgs E)
@@ -69,6 +188,107 @@ public partial class MainForm : Form
         _IsDirty = true;
         UpdateTitle();
         QueueRender();
+        if (!_SuppressCompletion)
+        {
+            RefreshCompletion();
+        }
+    }
+
+    private void SourceEditor_PreviewKeyDown(object? Sender, PreviewKeyDownEventArgs E)
+    {
+        if (_CompletionPopup.IsVisible
+            && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Up || E.KeyCode == Keys.Down || E.KeyCode == Keys.Escape))
+        {
+            E.IsInputKey = true;
+        }
+    }
+
+    private void SourceEditor_KeyDown(object? Sender, KeyEventArgs E)
+    {
+        if (E.Control && E.KeyCode == Keys.Space)
+        {
+            RefreshCompletion(Force: true);
+            E.SuppressKeyPress = true;
+            E.Handled = true;
+            return;
+        }
+
+        if (_CompletionPopup.TryHandleKey(E.KeyData))
+        {
+            E.SuppressKeyPress = true;
+            E.Handled = true;
+        }
+    }
+
+    private void SourceEditor_MouseDown(object? Sender, MouseEventArgs E)
+    {
+        _CompletionPopup.Hide();
+    }
+
+    private void SourceEditor_LostFocus(object? Sender, EventArgs E)
+    {
+        // Keep the caret popup open while it is visible; ToolStripDropDown can briefly steal focus.
+    }
+
+    private void CompletionPopup_ItemAccepted(object? Sender, CompletionItem Item)
+    {
+        _SuppressCompletion = true;
+        try
+        {
+            _IsDirty = true;
+            UpdateTitle();
+            QueueRender();
+        }
+        finally
+        {
+            _SuppressCompletion = false;
+        }
+
+        SetStatus("Inserted " + Item.DisplayText);
+        BeginInvoke(RefreshCompletion);
+    }
+
+    private void RefreshCompletion()
+    {
+        RefreshCompletion(Force: false);
+    }
+
+    private void RefreshCompletion(bool Force)
+    {
+        if (IsDisposed || !SourceEditor.Focused && !Force)
+        {
+            if (!Force)
+            {
+                return;
+            }
+        }
+
+        CompletionContext Context = _CompletionEngine.Build(SourceEditor.Text, SourceEditor.SelectionStart);
+        if (Context.TokenKind == CompletionTokenKind.None)
+        {
+            _CompletionPopup.Hide();
+            if (Force && !string.IsNullOrWhiteSpace(Context.StatusMessage))
+            {
+                SetStatus(Context.StatusMessage);
+            }
+
+            return;
+        }
+
+        if (Context.Items.Count == 0)
+        {
+            _CompletionPopup.Hide();
+            if (!string.IsNullOrWhiteSpace(Context.StatusMessage))
+            {
+                SetStatus(TruncateStatus(Context.StatusMessage));
+            }
+
+            return;
+        }
+
+        _CompletionPopup.Show(SourceEditor, Context);
+        SetStatus(Context.Items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + " suggestion(s) - Tab/Enter to accept, Esc to dismiss");
     }
 
     private void QueueRender()
@@ -300,6 +520,7 @@ public partial class MainForm : Form
         _RenderCancellation?.Cancel();
         _RenderCancellation?.Dispose();
         RenderTimer.Stop();
+        _CompletionPopup.Dispose();
     }
 
     private void ImportExchangeMenuItem_Click(object? Sender, EventArgs E)

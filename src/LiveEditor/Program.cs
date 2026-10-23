@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Windows.Forms;
 using LiveEditor.Archi;
+using LiveEditor.Completion;
 
 namespace LiveEditor;
 
@@ -23,8 +24,16 @@ internal static class Program
             return RunSmoke();
         }
 
+        if (Args.Length > 0 && string.Equals(Args[0], "--smoke-completion", StringComparison.OrdinalIgnoreCase))
+        {
+            return RunCompletionSmoke();
+        }
+
+        bool CapturePreview = Args.Length > 0
+            && string.Equals(Args[0], "--capture-preview", StringComparison.OrdinalIgnoreCase);
+
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm());
+        Application.Run(new MainForm(CapturePreview));
         return 0;
     }
 
@@ -130,5 +139,49 @@ internal static class Program
             {
             }
         }
+    }
+
+    private static int RunCompletionSmoke()
+    {
+        string Source =
+            "enterprise" + "\n"
+            + "  application-component webShop \"Web Shop\"" + "\n"
+            + "  application-service orderApi \"Order API\"" + "\n"
+            + "  data-object order \"Order\"" + "\n"
+            + "  webShop -";
+
+        EnterpriseCompletionEngine Engine = new EnterpriseCompletionEngine();
+        CompletionContext KindContext = Engine.Build(Source, Source.Length);
+        if (KindContext.TokenKind != CompletionTokenKind.RelationshipKind || KindContext.Items.Count == 0)
+        {
+            Console.Error.WriteLine("Expected relationship-kind suggestions after 'webShop -'.");
+            Console.Error.WriteLine("Status: " + KindContext.StatusMessage);
+            Console.Error.WriteLine("Kind: " + KindContext.TokenKind + ", count=" + KindContext.Items.Count);
+            return 1;
+        }
+
+        Console.WriteLine("Kind suggestions: " + KindContext.Items.Count);
+        foreach (CompletionItem Item in KindContext.Items)
+        {
+            Console.WriteLine("  " + Item.DisplayText + " | " + Item.Detail);
+        }
+
+        string WithServing = Source + "serving-> ";
+        CompletionContext TargetContext = Engine.Build(WithServing, WithServing.Length);
+        if (TargetContext.TokenKind != CompletionTokenKind.RelationshipTarget || TargetContext.Items.Count == 0)
+        {
+            Console.Error.WriteLine("Expected target suggestions after 'webShop -serving-> '.");
+            Console.Error.WriteLine("Status: " + TargetContext.StatusMessage);
+            return 1;
+        }
+
+        Console.WriteLine("Target suggestions: " + TargetContext.Items.Count);
+        foreach (CompletionItem Item in TargetContext.Items)
+        {
+            Console.WriteLine("  " + Item.DisplayText + " | " + Item.Detail);
+        }
+
+        Console.WriteLine("LiveEditor completion smoke OK");
+        return 0;
     }
 }
