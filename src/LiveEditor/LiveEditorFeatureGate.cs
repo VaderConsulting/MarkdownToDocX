@@ -37,7 +37,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool P_SplitOrientation = true;
 
-    public static bool Q_KeepLastGoodPreview = false;
+    public static bool Q_KeepLastGoodPreview = true;
 
     public static bool R_RenderTiming = false;
 
