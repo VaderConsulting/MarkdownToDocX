@@ -773,6 +773,7 @@ public partial class MainForm : Form
     {
         _PreviewZoom = ClampZoom(Zoom);
         _Settings.PreviewZoom = _PreviewZoom;
+        _Settings.PreviewFitToWindow = false;
         ApplyPreviewZoom();
         SetStatus($"Preview zoom {Math.Round(_PreviewZoom * 100.0).ToString(CultureInfo.InvariantCulture)}%");
     }
@@ -788,18 +789,31 @@ public partial class MainForm : Form
         {
             PreviewImage.Dock = DockStyle.Fill;
             PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
+            PreviewCanvas.AutoScrollMinSize = Size.Empty;
             return;
         }
 
-        // Keep the image docked and let Zoom scale it inside the canvas.
-        // Explicit pixel sizing previously left a blank pane after splitter/DPI layout.
-        PreviewImage.Dock = DockStyle.Fill;
-        PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
+        if (_Settings.PreviewFitToWindow)
+        {
+            PreviewCanvas.AutoScrollPosition = Point.Empty;
+            PreviewCanvas.AutoScrollMinSize = Size.Empty;
+            PreviewImage.Dock = DockStyle.Fill;
+            PreviewImage.Location = Point.Empty;
+            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
+        }
+        else
+        {
+            int Width = Math.Max(1, (int)Math.Round(PreviewImage.Image.Width * _PreviewZoom));
+            int Height = Math.Max(1, (int)Math.Round(PreviewImage.Image.Height * _PreviewZoom));
+            PreviewImage.Dock = DockStyle.None;
+            PreviewImage.Location = Point.Empty;
+            PreviewImage.Size = new Size(Width, Height);
+            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
+            PreviewCanvas.AutoScrollMinSize = new Size(Width, Height);
+        }
+
         PreviewImage.Visible = true;
         PreviewImage.BringToFront();
-        PreviewCanvas.AutoScrollMinSize = new Size(
-            Math.Max(1, (int)Math.Round(PreviewImage.Image.Width * _PreviewZoom)),
-            Math.Max(1, (int)Math.Round(PreviewImage.Image.Height * _PreviewZoom)));
         PreviewImage.Invalidate();
         PreviewCanvas.Invalidate();
     }
@@ -835,9 +849,9 @@ public partial class MainForm : Form
             return;
         }
 
-        double WidthScale = Math.Max(1, PreviewCanvas.ClientSize.Width - 8) / (double)PreviewImage.Image.Width;
-        double HeightScale = Math.Max(1, PreviewCanvas.ClientSize.Height - 8) / (double)PreviewImage.Image.Height;
-        SetPreviewZoom(Math.Min(WidthScale, HeightScale));
+        _Settings.PreviewFitToWindow = true;
+        ApplyPreviewZoom();
+        SetStatus("Preview fitted to window");
     }
 
     private void ExportPngMenuItem_Click(object? Sender, EventArgs E)

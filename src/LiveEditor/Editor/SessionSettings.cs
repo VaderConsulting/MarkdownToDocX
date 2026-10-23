@@ -22,6 +22,8 @@ internal sealed class SessionSettings
 
     public bool LegacyPreview { get; set; }
 
+    public bool PreviewFitToWindow { get; set; } = true;
+
     public double PreviewZoom { get; set; } = 1.0;
 
     public string? LastFilePath { get; set; }
