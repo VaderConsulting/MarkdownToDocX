@@ -35,7 +35,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool O_ThemeToggle = true;
 
-    public static bool P_SplitOrientation = false;
+    public static bool P_SplitOrientation = true;
 
     public static bool Q_KeepLastGoodPreview = false;
 
