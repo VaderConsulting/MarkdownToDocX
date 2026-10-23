@@ -19,6 +19,18 @@ internal sealed class EnterpriseCompletionEngine
         @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s*-(?<kind>[A-Za-z]+)(?:\([^)]*\))?->\s*(?<tgt>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?\s*$",
         RegexOptions.Compiled);
 
+    private static readonly Regex QualifierContextRegex = new Regex(
+        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s*-(?<kind>access|influence|association)\((?<qual>[A-Za-z+-]*)$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex ElementTypeContextRegex = new Regex(
+        @"^(?<indent>\s*)(?<type>[A-Za-z-]*)$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex PlacementContextRegex = new Regex(
+        @"^(?<indent>\s*)(?:[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+(?<hint>[A-Za-z-]*)$",
+        RegexOptions.Compiled);
+
     private EnterpriseDocument? _CachedDocument;
 
     private string _CachedSource = string.Empty;
@@ -74,6 +86,14 @@ internal sealed class EnterpriseCompletionEngine
 
         GetLineBounds(Source, CaretIndex, out int LineStart, out int LineEnd);
         string LinePrefix = Source.Substring(LineStart, CaretIndex - LineStart);
+
+        Match QualifierMatch = QualifierContextRegex.Match(LinePrefix);
+        if (QualifierMatch.Success && LiveEditorFeatureGate.C_QualifierCompletion)
+        {
+            FillQualifierSuggestions(Context, QualifierMatch, LineStart);
+            return Context;
+        }
+
         Match TargetMatch = TargetContextRegex.Match(LinePrefix);
         if (TargetMatch.Success)
         {
@@ -88,7 +108,198 @@ internal sealed class EnterpriseCompletionEngine
             return Context;
         }
 
+        Match PlacementMatch = PlacementContextRegex.Match(LinePrefix);
+        if (PlacementMatch.Success && LiveEditorFeatureGate.D_PlacementHintCompletion)
+        {
+            FillPlacementSuggestions(Context, PlacementMatch, LineStart);
+            return Context;
+        }
+
+        Match ElementTypeMatch = ElementTypeContextRegex.Match(LinePrefix);
+        if (ElementTypeMatch.Success)
+        {
+            if (LiveEditorFeatureGate.B_ElementTypeCompletion)
+            {
+                FillElementTypeSuggestions(Context, ElementTypeMatch, LineStart);
+            }
+
+            if (Context.Items.Count == 0 && LiveEditorFeatureGate.J_Snippets)
+            {
+                FillSnippetSuggestions(Context, ElementTypeMatch, LineStart);
+            }
+
+            return Context;
+        }
+
         return Context;
+    }
+
+    /// <summary>
+    /// Returns signature-help text for the relationship being typed, when both ends can be inferred.
+    /// </summary>
+    public string BuildSignatureHelp(string Source, int CaretIndex)
+    {
+        RefreshDocument(Source);
+        if (_CachedDocument == null)
+        {
+            return string.Empty;
+        }
+
+        GetLineBounds(Source, CaretIndex, out int LineStart, out _);
+        string LinePrefix = Source.Substring(LineStart, Math.Max(0, CaretIndex - LineStart));
+        Match KindMatch = KindContextRegex.Match(LinePrefix);
+        if (!KindMatch.Success)
+        {
+            return string.Empty;
+        }
+
+        string SourceId = KindMatch.Groups["src"].Value;
+        if (!_CachedDocument.Elements.TryGetValue(SourceId, out EnterpriseElement? SourceElement))
+        {
+            return string.Empty;
+        }
+
+        string SourceType = EnterpriseElementCatalog.GetKebabName(SourceElement.ElementType);
+        HashSet<char> Letters = CollectOutgoingLetters(_CachedDocument, SourceType);
+        List<string> Names = new List<string>();
+        foreach (KeyValuePair<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata> Pair in EnterpriseElementCatalog.Relationships)
+        {
+            if (Letters.Contains(Pair.Value.Letter))
+            {
+                Names.Add(Pair.Value.Name);
+            }
+        }
+
+        Names.Sort(StringComparer.OrdinalIgnoreCase);
+        return Names.Count == 0
+            ? string.Empty
+            : SourceId + " -{" + string.Join("|", Names) + "}-> target";
+    }
+
+    /// <summary>
+    /// Returns ghost-text insert when exactly one suggestion exists.
+    /// </summary>
+    public string? TryGetGhostText(CompletionContext Context)
+    {
+        if (Context == null || Context.Items.Count != 1)
+        {
+            return null;
+        }
+
+        string Insert = Context.Items[0].InsertText;
+        if (Insert.StartsWith(Context.Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return Insert.Substring(Context.Prefix.Length);
+        }
+
+        return Insert;
+    }
+
+    /// <summary>Gets the cached enterprise document, if any.</summary>
+    public EnterpriseDocument? CachedDocument
+    {
+        get
+        {
+            return _CachedDocument;
+        }
+    }
+
+    private static void FillElementTypeSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.ElementType;
+        string Prefix = Match.Groups["type"].Value;
+        Context.Prefix = Prefix;
+        Group TypeGroup = Match.Groups["type"];
+        Context.ReplaceStart = LineStart + TypeGroup.Index;
+        Context.ReplaceEnd = LineStart + TypeGroup.Index + TypeGroup.Length;
+        foreach (KeyValuePair<EnterpriseElementType, EnterpriseElementMetadata> Pair in EnterpriseElementCatalog.Elements)
+        {
+            string Name = Pair.Value.KebabName;
+            if (!StartsWithPrefix(Name, Prefix))
+            {
+                continue;
+            }
+
+            Context.Items.Add(new CompletionItem(Name + " ", Name, Pair.Value.SpecName));
+        }
+
+        Context.Items.Sort(CompareItems);
+    }
+
+    private static void FillQualifierSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.Qualifier;
+        string Kind = Match.Groups["kind"].Value.ToLowerInvariant();
+        string Prefix = Match.Groups["qual"].Value;
+        Context.Prefix = Prefix;
+        Group QualGroup = Match.Groups["qual"];
+        Context.ReplaceStart = LineStart + QualGroup.Index;
+        Context.ReplaceEnd = LineStart + QualGroup.Index + QualGroup.Length;
+        string[] Options = Kind switch
+        {
+            "access" => new[] { "read", "write", "readwrite", "access" },
+            "influence" => new[] { "+", "-", "++", "--" },
+            "association" => new[] { "directed" },
+            _ => Array.Empty<string>()
+        };
+        foreach (string Option in Options)
+        {
+            if (!StartsWithPrefix(Option, Prefix))
+            {
+                continue;
+            }
+
+            Context.Items.Add(new CompletionItem(Option + ")-> ", Option, Kind + " qualifier"));
+        }
+    }
+
+    private static void FillPlacementSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.PlacementHint;
+        string Prefix = Match.Groups["hint"].Value;
+        Context.Prefix = Prefix;
+        Group HintGroup = Match.Groups["hint"];
+        Context.ReplaceStart = LineStart + HintGroup.Index;
+        Context.ReplaceEnd = LineStart + HintGroup.Index + HintGroup.Length;
+        string[] Hints = { "above", "below", "left-of", "right-of", "push" };
+        foreach (string Hint in Hints)
+        {
+            if (!StartsWithPrefix(Hint, Prefix))
+            {
+                continue;
+            }
+
+            string Insert = Hint == "push" ? "push N" : Hint + " ";
+            Context.Items.Add(new CompletionItem(Insert, Hint, "placement hint"));
+        }
+    }
+
+    private static void FillSnippetSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.Snippet;
+        string Prefix = Match.Groups["type"].Value;
+        Context.Prefix = Prefix;
+        Group TypeGroup = Match.Groups["type"];
+        Context.ReplaceStart = LineStart + TypeGroup.Index;
+        Context.ReplaceEnd = LineStart + TypeGroup.Index + TypeGroup.Length;
+        (string Name, string Insert, string Detail)[] Snippets =
+        {
+            ("snippet-serving",
+                "application-component app \"App\"\r\n  application-service svc \"Service\"\r\n  app -serving-> svc\r\n",
+                "component serving service"),
+            ("snippet-access",
+                "application-component app \"App\"\r\n  data-object data \"Data\"\r\n  app -access(write)-> data\r\n",
+                "component access data")
+        };
+        foreach ((string Name, string Insert, string Detail) in Snippets)
+        {
+            if (!StartsWithPrefix(Name, Prefix) && !StartsWithPrefix("snippet", Prefix))
+            {
+                continue;
+            }
+
+            Context.Items.Add(new CompletionItem(Insert, Name, Detail));
+        }
     }
 
     private static void FillKindSuggestions(

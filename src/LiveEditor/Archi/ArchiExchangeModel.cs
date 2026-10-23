@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace LiveEditor.Archi;
@@ -157,6 +158,9 @@ internal sealed class ArchiExchangeElement
 
     /// <summary>Gets or sets junction polarity when the type is a junction.</summary>
     public EnterpriseJunctionKind? JunctionKind { get; set; }
+
+    /// <summary>Gets or sets the optional Mermaid placement hint preserved across Archi round-trip.</summary>
+    public PlacementHintContract? PlacementHint { get; set; }
 }
 
 /// <summary>

@@ -9,7 +9,11 @@ internal enum CompletionTokenKind
 {
     None,
     RelationshipKind,
-    RelationshipTarget
+    RelationshipTarget,
+    ElementType,
+    Qualifier,
+    PlacementHint,
+    Snippet
 }
 
 /// <summary>

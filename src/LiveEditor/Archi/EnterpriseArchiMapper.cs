@@ -66,7 +66,8 @@ internal static class EnterpriseArchiMapper
                 ElementType = Element.ElementType,
                 Label = string.IsNullOrWhiteSpace(Element.Label) ? Element.Id : Element.Label,
                 ParentMermaidId = Element.ParentId,
-                JunctionKind = Element.JunctionKind
+                JunctionKind = Element.JunctionKind,
+                PlacementHint = Element.PlacementHint
             };
             Model.Elements.Add(Mapped);
         }
@@ -156,6 +157,15 @@ internal static class EnterpriseArchiMapper
             {
                 Builder.Append(" in ");
                 Builder.Append(Element.ParentMermaidId);
+            }
+
+            if (LiveEditorFeatureGate.W_ArchiHintRoundTrip)
+            {
+                string HintSuffix = ArchiHintProperties.FormatPlacementSuffix(Element.PlacementHint);
+                if (!string.IsNullOrEmpty(HintSuffix))
+                {
+                    Builder.Append(HintSuffix);
+                }
             }
 
             Builder.AppendLine();

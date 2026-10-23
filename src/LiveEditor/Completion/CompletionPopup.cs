@@ -15,7 +15,7 @@ internal sealed class CompletionPopup : IDisposable
 
     private CompletionContext? _Context;
 
-    private TextBox? _Target;
+    private TextBoxBase? _Target;
 
     private Form? _OwnerForm;
 
@@ -77,7 +77,7 @@ internal sealed class CompletionPopup : IDisposable
     /// </summary>
     /// <param name="Target">Source editor.</param>
     /// <param name="Context">Completion context with items.</param>
-    public void Show(TextBox Target, CompletionContext Context)
+    public void Show(TextBoxBase Target, CompletionContext Context)
     {
         if (Target == null || Context == null || Context.Items.Count == 0)
         {
@@ -95,6 +95,13 @@ internal sealed class CompletionPopup : IDisposable
         }
 
         _List.SelectedIndex = 0;
+        if (LiveEditorFeatureGate.AB_Accessibility)
+        {
+            _List.AccessibleName = "Enterprise completion suggestions";
+            _List.AccessibleDescription = Context.Items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + " suggestions available";
+        }
+
         int VisibleRows = Math.Min(8, Context.Items.Count);
         _List.Height = Math.Max(44, VisibleRows * _List.ItemHeight + 4);
         ((ToolStripControlHost)_DropDown.Items[0]).Size = _List.Size;
@@ -199,7 +206,7 @@ internal sealed class CompletionPopup : IDisposable
             return;
         }
 
-        TextBox Target = _Target;
+        TextBoxBase Target = _Target;
         CompletionContext Context = _Context;
         int Start = Math.Max(0, Math.Min(Context.ReplaceStart, Target.TextLength));
         int End = Math.Max(Start, Math.Min(Context.ReplaceEnd, Target.TextLength));
@@ -247,8 +254,17 @@ internal sealed class CompletionPopup : IDisposable
 
         CompletionItem Item = (CompletionItem)_List.Items[E.Index];
         bool Selected = (E.State & DrawItemState.Selected) == DrawItemState.Selected;
+        bool HighContrast = LiveEditorFeatureGate.AB_Accessibility && SystemInformation.HighContrast;
         Color Primary = Selected ? SystemColors.HighlightText : SystemColors.WindowText;
-        Color Secondary = Selected ? Color.FromArgb(220, 220, 220) : SystemColors.GrayText;
+        Color Secondary = Selected
+            ? (HighContrast ? SystemColors.HighlightText : Color.FromArgb(220, 220, 220))
+            : SystemColors.GrayText;
+        if (HighContrast && !Selected)
+        {
+            using SolidBrush RowBackground = new SolidBrush(SystemColors.Window);
+            E.Graphics.FillRectangle(RowBackground, E.Bounds);
+        }
+
         using SolidBrush PrimaryBrush = new SolidBrush(Primary);
         using SolidBrush SecondaryBrush = new SolidBrush(Secondary);
         Rectangle Bounds = E.Bounds;
@@ -333,13 +349,13 @@ internal sealed class CompletionPopup : IDisposable
         Reposition();
     }
 
-    private static Point GetCaretScreenPoint(TextBox Target)
+    private static Point GetCaretScreenPoint(TextBoxBase Target)
     {
         Point CaretClient = GetCaretClientPoint(Target);
         return Target.PointToScreen(new Point(CaretClient.X, CaretClient.Y + Target.Font.Height + 2));
     }
 
-    private static Point GetCaretClientPoint(TextBox Target)
+    private static Point GetCaretClientPoint(TextBoxBase Target)
     {
         int Index = Target.SelectionStart;
         if (Index <= 0)

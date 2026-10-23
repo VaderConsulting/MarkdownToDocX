@@ -72,14 +72,20 @@ internal static class ArchiNativeModelXml
                 string Name = (string?)Element.Attribute("name") ?? string.Empty;
                 string MermaidId = ArchiObjectIds.ToMermaidId(ArchiId, Name, UsedMermaidIds);
                 ArchiIdToMermaidId[ArchiId] = MermaidId;
-                Model.Elements.Add(new ArchiExchangeElement
+                ArchiExchangeElement MappedElement = new ArchiExchangeElement
                 {
                     ArchiId = ArchiId,
                     MermaidId = MermaidId,
                     ElementType = ElementType,
                     Label = string.IsNullOrWhiteSpace(Name) ? MermaidId : Name,
                     JunctionKind = JunctionKind
-                });
+                };
+                if (LiveEditorFeatureGate.W_ArchiHintRoundTrip)
+                {
+                    MappedElement.PlacementHint = ArchiHintProperties.ReadPlacement(Element);
+                }
+
+                Model.Elements.Add(MappedElement);
                 continue;
             }
 
@@ -176,6 +182,11 @@ internal static class ArchiNativeModelXml
                 new XAttribute(XsiNs + "type", "archimate:" + TypeName),
                 new XAttribute("name", string.IsNullOrWhiteSpace(Element.Label) ? Element.MermaidId : Element.Label),
                 new XAttribute("id", Element.ArchiId));
+            if (LiveEditorFeatureGate.W_ArchiHintRoundTrip)
+            {
+                ArchiHintProperties.WritePlacement(Node, Element.PlacementHint);
+            }
+
             Folder.Add(Node);
         }
 
