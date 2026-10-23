@@ -250,8 +250,10 @@ namespace LiveEditor
             //
             EditorSplit.Dock = DockStyle.Fill;
             EditorSplit.Name = "EditorSplit";
-            EditorSplit.Panel1.Controls.Add(SourceEditor);
+            EditorSplit.Panel1MinSize = 240;
+            EditorSplit.Panel2MinSize = 240;
             EditorSplit.Panel1.Controls.Add(MinimapBox);
+            EditorSplit.Panel1.Controls.Add(SourceEditor);
             EditorSplit.Panel2.Controls.Add(PreviewHost);
             EditorSplit.SplitterDistance = 600;
             //

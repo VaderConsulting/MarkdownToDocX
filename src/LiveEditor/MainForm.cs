@@ -26,6 +26,15 @@ public partial class MainForm : Form
     private const double PREVIEW_ZOOM_STEP = 1.20;
     private const string DEFAULT_SOURCE =
         "enterprise\r\n"
+        + "  title LiveEditor preview\r\n"
+        + "  application-component webShop \"Web Shop\"\r\n"
+        + "  application-service orderApi \"Order API\"\r\n"
+        + "  data-object order \"Order\"\r\n"
+        + "  webShop -serving-> orderApi\r\n"
+        + "  orderApi -access(write)-> order\r\n";
+
+    private const string COMPLETION_DEMO_SOURCE =
+        "enterprise\r\n"
         + "  title LiveEditor relationship suggestions\r\n"
         + "  application-component webShop \"Web Shop\"\r\n"
         + "  application-service orderApi \"Order API\"\r\n"
@@ -83,17 +92,53 @@ public partial class MainForm : Form
         UpdateTitle();
         QueueHighlight();
         QueueRender();
+        Load += MainForm_Load;
         Shown += MainForm_Shown;
+    }
+
+    private void MainForm_Load(object? Sender, EventArgs E)
+    {
+        BeginInvoke(EnsureEditorSplitLayout);
+    }
+
+    private void EnsureEditorSplitLayout()
+    {
+        if (EditorSplit.Width < 100)
+        {
+            return;
+        }
+
+        int MinimumPane = Math.Min(240, Math.Max(120, EditorSplit.Width / 4));
+        EditorSplit.Panel1MinSize = MinimumPane;
+        EditorSplit.Panel2MinSize = MinimumPane;
+        int Preferred = (int)Math.Round(EditorSplit.Width * 0.45);
+        int Maximum = Math.Max(MinimumPane, EditorSplit.Width - MinimumPane - EditorSplit.SplitterWidth);
+        if (EditorSplit.SplitterDistance < MinimumPane || EditorSplit.SplitterDistance > Maximum)
+        {
+            EditorSplit.SplitterDistance = Math.Max(MinimumPane, Math.Min(Maximum, Preferred));
+        }
     }
 
     private async void MainForm_Shown(object? Sender, EventArgs E)
     {
+        EnsureEditorSplitLayout();
         SourceEditor.Focus();
         SourceEditor.SelectionStart = Math.Min(_Settings.CaretIndex, SourceEditor.TextLength);
         RefreshCompletion(Force: true);
         if (!_CapturePreviewOnShown)
         {
             return;
+        }
+
+        _SuppressCompletion = true;
+        try
+        {
+            SourceEditor.Text = COMPLETION_DEMO_SOURCE;
+            SourceEditor.SelectionStart = SourceEditor.TextLength;
+        }
+        finally
+        {
+            _SuppressCompletion = false;
         }
 
         await Task.Delay(500).ConfigureAwait(true);
@@ -241,6 +286,10 @@ public partial class MainForm : Form
         ExportSvgMenuItem.Enabled = LiveEditorFeatureGate.M_ExportPngSvg;
         RecentFilesMenuItem.Enabled = LiveEditorFeatureGate.U_RecentFiles;
         SamplesMenu.Enabled = LiveEditorFeatureGate.K_SampleGallery;
+        if (LiveEditorFeatureGate.K_SampleGallery && SamplesMenu.DropDownItems.Count == 0)
+        {
+            BuildSamplesMenu();
+        }
     }
 
     private void ApplySettings()
@@ -878,6 +927,7 @@ public partial class MainForm : Form
 
         EditorSplit.Orientation = EditorSplit.Orientation == Orientation.Vertical ? Orientation.Horizontal : Orientation.Vertical;
         _Settings.VerticalSplit = EditorSplit.Orientation == Orientation.Vertical;
+        EnsureEditorSplitLayout();
     }
 
     private void ToggleDiagnosticsMenuItem_Click(object? Sender, EventArgs E)
