@@ -55,7 +55,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool Y_Minimap = true;
 
-    public static bool Z_CommandPalette = false;
+    public static bool Z_CommandPalette = true;
 
     public static bool AA_SelectNextOccurrence = false;
 
