@@ -23,7 +23,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool I_RenameSymbol = true;
 
-    public static bool J_Snippets = false;
+    public static bool J_Snippets = true;
 
     public static bool K_SampleGallery = false;
 
