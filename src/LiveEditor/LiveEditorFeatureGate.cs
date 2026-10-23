@@ -31,7 +31,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool M_ExportPngSvg = true;
 
-    public static bool N_CopySource = false;
+    public static bool N_CopySource = true;
 
     public static bool O_ThemeToggle = false;
 
