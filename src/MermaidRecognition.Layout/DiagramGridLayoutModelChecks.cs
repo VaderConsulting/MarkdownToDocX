@@ -311,6 +311,18 @@ public static partial class DiagramGridLayout
             {
                 State.CellFinalRoutingReady = true;
                 RouteRepairStage.RepairCellTerminalSpacing(State, Bounds);
+            }
+            if (State.Placed.Any(Node => Node.CellNode != null))
+            {
+                // A cell move competes with the completed retained fan, not
+                // provisional crossings that nesting would remove for free.
+                // Private move trials complete the same nesting before scoring.
+                var FanResult = FlowchartStarFanNesting.Apply(State.Contract, Layout);
+                FlowchartRenderContext.ReportOperationCount("star-nesting/kept", FanResult.Kept);
+                FlowchartRenderContext.ReportOperationCount("star-nesting/rejected", FanResult.Rejected);
+            }
+            if (State.Placed.Any(Node => Node.CellNode != null) && !Layout.RenderContext.IsEvaluatingCellRouteCandidate)
+            {
                 if (RouteRepairStage.ApplyFinalMoveBeforeDetour(State))
                 {
                     Bounds.Clear();
@@ -319,9 +331,6 @@ public static partial class DiagramGridLayout
             }
             if (State.Placed.Any(Node => Node.CellNode != null))
             {
-                var FanResult = FlowchartStarFanNesting.Apply(State.Contract, Layout);
-                FlowchartRenderContext.ReportOperationCount("star-nesting/kept", FanResult.Kept);
-                FlowchartRenderContext.ReportOperationCount("star-nesting/rejected", FanResult.Rejected);
                 ProfileCall("terminal-track-repair", () => RouteRepairStage.RepairTerminalPortTracks(State, Bounds));
                 if (!Layout.RenderContext.IsEvaluatingCellRouteCandidate)
                     ProfileCall("joint-crossing-pair-assignments", () => RouteRepairStage.RepairCrossingPairAssignments(State, Bounds));

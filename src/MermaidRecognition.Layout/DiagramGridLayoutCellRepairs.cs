@@ -518,7 +518,6 @@ public static partial class DiagramGridLayout
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
                         && !AfterFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
-                        && AfterFaults <= BeforeFaults
                         && (!PreserveBends || ExtraBends <= 0)
                         && ChangedLines <= FlowchartLayoutRules.RepairChainLines
                         && (AfterFaults < BeforeFaults || FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
@@ -571,7 +570,7 @@ public static partial class DiagramGridLayout
                 if (!Original.UnchangedOutside(BestAffected!) || Confirmed.Overlaps > Before.Overlaps || Confirmed.HintsHonoured < Before.HintsHonoured
                     || !NoNewFindings(BeforeFindings, ConfirmedFindings)
                     || ConfirmedFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
-                    || CountTitleBandRoutes(State) != 0 || ConfirmedFaults > InitialFaults
+                    || CountTitleBandRoutes(State) != 0
                     || PreserveBends && ExtraBends > 0
                     || ChangedLines > FlowchartLayoutRules.RepairChainLines
                     || (Shortfall?.Invoke() ?? 0) > InitialShortfall
