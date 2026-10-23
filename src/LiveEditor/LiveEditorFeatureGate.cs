@@ -45,7 +45,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool T_PersistentSession = true;
 
-    public static bool U_RecentFiles = false;
+    public static bool U_RecentFiles = true;
 
     public static bool V_WatchFolder = false;
 
