@@ -61,6 +61,7 @@ public partial class MainForm : Form
     private bool _SuppressCompletion;
     private bool _SuppressWatcher;
     private bool _SuppressCaretUi;
+    private bool _IsApplyingEditorFormatting;
     private int _RenderGeneration;
     private double _PreviewZoom = 1.0;
     private DateTime? _BrokenSince;
@@ -329,6 +330,11 @@ public partial class MainForm : Form
 
     private void SourceEditor_TextChanged(object? Sender, EventArgs E)
     {
+        if (_IsApplyingEditorFormatting)
+        {
+            return;
+        }
+
         _IsDirty = true;
         _SelectedOccurrences.Clear();
         UpdateTitle();
@@ -517,6 +523,7 @@ public partial class MainForm : Form
     {
         HighlightTimer.Stop();
         _SuppressCaretUi = true;
+        _IsApplyingEditorFormatting = true;
         try
         {
             if (LiveEditorFeatureGate.A_SyntaxHighlighting)
@@ -534,6 +541,7 @@ public partial class MainForm : Form
         }
         finally
         {
+            _IsApplyingEditorFormatting = false;
             _SuppressCaretUi = false;
         }
 

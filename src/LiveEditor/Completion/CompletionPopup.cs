@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -26,6 +27,8 @@ internal sealed class CompletionPopup : IDisposable
     private bool _IsDisposed;
 
     private bool _OwnerEventsHooked;
+
+    private string _ContentSignature = string.Empty;
 
     /// <summary>
     /// Creates the popup host.
@@ -95,6 +98,14 @@ internal sealed class CompletionPopup : IDisposable
 
         _Target = Target;
         _Context = Context;
+        string ContentSignature = BuildContentSignature(Context);
+        if (_DropDown.Visible && string.Equals(_ContentSignature, ContentSignature, StringComparison.Ordinal))
+        {
+            Reposition();
+            return;
+        }
+
+        string? SelectedInsertText = (_List.SelectedItem as CompletionItem)?.InsertText;
         _List.BeginUpdate();
         _List.Items.Clear();
         foreach (CompletionItem Item in Context.Items)
@@ -102,7 +113,9 @@ internal sealed class CompletionPopup : IDisposable
             _List.Items.Add(Item);
         }
 
-        _List.SelectedIndex = 0;
+        _ContentSignature = ContentSignature;
+        int SelectedIndex = FindItemIndex(SelectedInsertText);
+        _List.SelectedIndex = SelectedIndex >= 0 ? SelectedIndex : 0;
         if (LiveEditorFeatureGate.AB_Accessibility)
         {
             _List.AccessibleName = "Enterprise completion suggestions";
@@ -162,6 +175,7 @@ internal sealed class CompletionPopup : IDisposable
 
         _Context = null;
         _Target = null;
+        _ContentSignature = string.Empty;
     }
 
     /// <summary>
@@ -315,6 +329,45 @@ internal sealed class CompletionPopup : IDisposable
     private void OwnerForm_GeometryChanged(object? Sender, EventArgs E)
     {
         Reposition();
+    }
+
+    private int FindItemIndex(string? InsertText)
+    {
+        if (string.IsNullOrEmpty(InsertText))
+        {
+            return -1;
+        }
+
+        for (int Index = 0; Index < _List.Items.Count; Index++)
+        {
+            if (_List.Items[Index] is CompletionItem Item && string.Equals(Item.InsertText, InsertText, StringComparison.Ordinal))
+            {
+                return Index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static string BuildContentSignature(CompletionContext Context)
+    {
+        StringBuilder Builder = new StringBuilder();
+        Builder.Append((int)Context.TokenKind);
+        Builder.Append('|');
+        Builder.Append(Context.ReplaceStart);
+        Builder.Append('|');
+        Builder.Append(Context.ReplaceEnd);
+        foreach (CompletionItem Item in Context.Items)
+        {
+            Builder.Append('|');
+            Builder.Append(Item.InsertText);
+            Builder.Append('\u001F');
+            Builder.Append(Item.DisplayText);
+            Builder.Append('\u001F');
+            Builder.Append(Item.Detail);
+        }
+
+        return Builder.ToString();
     }
 
     private static Point GetCaretClientPoint(TextBoxBase Target)
