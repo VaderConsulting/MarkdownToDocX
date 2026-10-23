@@ -7,7 +7,7 @@ internal static class LiveEditorFeatureGate
 {
     public static bool A_SyntaxHighlighting = true;
 
-    public static bool B_ElementTypeCompletion = false;
+    public static bool B_ElementTypeCompletion = true;
 
     public static bool C_QualifierCompletion = false;
 
