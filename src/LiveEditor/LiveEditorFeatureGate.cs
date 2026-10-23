@@ -17,7 +17,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool F_GhostText = true;
 
-    public static bool G_SignatureHelp = false;
+    public static bool G_SignatureHelp = true;
 
     public static bool H_GoToDefinition = false;
 
