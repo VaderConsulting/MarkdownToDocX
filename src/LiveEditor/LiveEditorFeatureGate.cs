@@ -39,7 +39,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool Q_KeepLastGoodPreview = true;
 
-    public static bool R_RenderTiming = false;
+    public static bool R_RenderTiming = true;
 
     public static bool S_LegacyPreview = false;
 
