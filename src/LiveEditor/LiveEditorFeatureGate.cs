@@ -19,7 +19,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool G_SignatureHelp = true;
 
-    public static bool H_GoToDefinition = false;
+    public static bool H_GoToDefinition = true;
 
     public static bool I_RenameSymbol = false;
 
