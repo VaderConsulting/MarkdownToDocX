@@ -33,7 +33,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool N_CopySource = true;
 
-    public static bool O_ThemeToggle = false;
+    public static bool O_ThemeToggle = true;
 
     public static bool P_SplitOrientation = false;
 
