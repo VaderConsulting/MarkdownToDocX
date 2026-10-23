@@ -5,7 +5,7 @@ namespace LiveEditor;
 /// </summary>
 internal static class LiveEditorFeatureGate
 {
-    public static bool A_SyntaxHighlighting = false;
+    public static bool A_SyntaxHighlighting = true;
 
     public static bool B_ElementTypeCompletion = false;
 
