@@ -28,8 +28,24 @@ internal sealed class EnterpriseCompletionEngine
         RegexOptions.Compiled);
 
     private static readonly Regex PlacementContextRegex = new Regex(
-        @"^(?<indent>\s*)(?:[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+(?<hint>[A-Za-z-]*)$",
+        @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+(?<hint>[A-Za-z-]*)$",
         RegexOptions.Compiled);
+
+    private static readonly HashSet<string> NonElementLineStarters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "title",
+        "version",
+        "direction",
+        "enterprise",
+        "enterprise-beta",
+        "note",
+        "classDef",
+        "class",
+        "style",
+        "linkStyle",
+        "accTitle",
+        "accDescr"
+    };
 
     private EnterpriseDocument? _CachedDocument;
 
@@ -111,8 +127,12 @@ internal sealed class EnterpriseCompletionEngine
         Match PlacementMatch = PlacementContextRegex.Match(LinePrefix);
         if (PlacementMatch.Success && LiveEditorFeatureGate.D_PlacementHintCompletion)
         {
-            FillPlacementSuggestions(Context, PlacementMatch, LineStart);
-            return Context;
+            string DeclaredType = PlacementMatch.Groups["etype"].Value;
+            if (!NonElementLineStarters.Contains(DeclaredType) && IsKnownElementTypeToken(DeclaredType))
+            {
+                FillPlacementSuggestions(Context, PlacementMatch, LineStart);
+                return Context;
+            }
         }
 
         Match ElementTypeMatch = ElementTypeContextRegex.Match(LinePrefix);
@@ -446,6 +466,32 @@ internal sealed class EnterpriseCompletionEngine
         }
 
         return Letters;
+    }
+
+    private static bool IsKnownElementTypeToken(string Token)
+    {
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            return false;
+        }
+
+        if (string.Equals(Token, "group", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Token, "and-junction", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Token, "or-junction", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Token, "junction", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (KeyValuePair<EnterpriseElementType, EnterpriseElementMetadata> Pair in EnterpriseElementCatalog.Elements)
+        {
+            if (string.Equals(Pair.Value.KebabName, Token, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool StartsWithPrefix(string Value, string Prefix)

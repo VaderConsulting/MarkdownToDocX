@@ -308,10 +308,9 @@ namespace LiveEditor
             // PreviewImage
             //
             PreviewImage.BackColor = Color.White;
-            PreviewImage.Location = new Point(0, 0);
+            PreviewImage.Dock = DockStyle.Fill;
             PreviewImage.Name = "PreviewImage";
             PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
-            PreviewImage.Size = new Size(640, 480);
             PreviewImage.TabStop = false;
             PreviewImage.AccessibleName = "Diagram preview image";
             //

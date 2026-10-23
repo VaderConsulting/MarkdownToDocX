@@ -60,6 +60,7 @@ public partial class MainForm : Form
     private bool _IsDirty;
     private bool _SuppressCompletion;
     private bool _SuppressWatcher;
+    private bool _SuppressCaretUi;
     private int _RenderGeneration;
     private double _PreviewZoom = 1.0;
     private DateTime? _BrokenSince;
@@ -342,10 +343,17 @@ public partial class MainForm : Form
 
     private void SourceEditor_SelectionChanged(object? Sender, EventArgs E)
     {
+        if (_SuppressCaretUi)
+        {
+            return;
+        }
+
         UpdateSignatureHelp();
         UpdateCaretDiagnosticStatus();
-        _CompletionPopup.Reposition();
-        _GhostText?.Hide();
+        if (_CompletionPopup.IsVisible)
+        {
+            _CompletionPopup.Reposition();
+        }
     }
 
     private void SourceEditor_PreviewKeyDown(object? Sender, PreviewKeyDownEventArgs E)
@@ -444,17 +452,8 @@ public partial class MainForm : Form
             return;
         }
 
-        string? Ghost = LiveEditorFeatureGate.F_GhostText ? _CompletionEngine.TryGetGhostText(Context) : null;
-        if (!string.IsNullOrEmpty(Ghost))
-        {
-            _CompletionPopup.Hide();
-            _GhostContext = Context;
-            Point Caret = SourceEditor.GetPositionFromCharIndex(SourceEditor.SelectionStart);
-            _GhostText?.Show(new Point(Caret.X, Caret.Y + 1), Ghost);
-            SetStatus("Tab to accept suggestion");
-            return;
-        }
-
+        // Prefer the list popup over RichTextBox ghost painting - Paint overlays on
+        // RichTextBox are unreliable and were drawing over real source text.
         _GhostContext = null;
         _GhostText?.Hide();
         _CompletionPopup.Show(SourceEditor, Context);
@@ -517,17 +516,30 @@ public partial class MainForm : Form
     private void HighlightTimer_Tick(object? Sender, EventArgs E)
     {
         HighlightTimer.Stop();
-        if (LiveEditorFeatureGate.A_SyntaxHighlighting)
+        _SuppressCaretUi = true;
+        try
         {
-            MermaidSyntaxHighlighter.Apply(SourceEditor, _Settings.DarkTheme);
+            if (LiveEditorFeatureGate.A_SyntaxHighlighting)
+            {
+                MermaidSyntaxHighlighter.Apply(SourceEditor, _Settings.DarkTheme);
+            }
+
+            RefreshDiagnostics();
+            if (LiveEditorFeatureGate.Y_Minimap && MinimapBox.Visible)
+            {
+                MinimapBox.Text = SourceEditor.Text;
+                MinimapBox.BackColor = SourceEditor.BackColor;
+                MinimapBox.ForeColor = SourceEditor.ForeColor;
+            }
+        }
+        finally
+        {
+            _SuppressCaretUi = false;
         }
 
-        RefreshDiagnostics();
-        if (LiveEditorFeatureGate.Y_Minimap && MinimapBox.Visible)
+        if (_CompletionPopup.IsVisible)
         {
-            MinimapBox.Text = SourceEditor.Text;
-            MinimapBox.BackColor = SourceEditor.BackColor;
-            MinimapBox.ForeColor = SourceEditor.ForeColor;
+            _CompletionPopup.Reposition();
         }
     }
 
@@ -766,13 +778,22 @@ public partial class MainForm : Form
     {
         if (PreviewImage.Image == null)
         {
+            PreviewImage.Dock = DockStyle.Fill;
+            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
             return;
         }
 
-        int Width = Math.Max(1, (int)Math.Round(PreviewImage.Image.Width * _PreviewZoom));
-        int Height = Math.Max(1, (int)Math.Round(PreviewImage.Image.Height * _PreviewZoom));
-        PreviewImage.Size = new Size(Width, Height);
+        // Keep the image docked and let Zoom scale it inside the canvas.
+        // Explicit pixel sizing previously left a blank pane after splitter/DPI layout.
+        PreviewImage.Dock = DockStyle.Fill;
         PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
+        PreviewImage.Visible = true;
+        PreviewImage.BringToFront();
+        PreviewCanvas.AutoScrollMinSize = new Size(
+            Math.Max(1, (int)Math.Round(PreviewImage.Image.Width * _PreviewZoom)),
+            Math.Max(1, (int)Math.Round(PreviewImage.Image.Height * _PreviewZoom)));
+        PreviewImage.Invalidate();
+        PreviewCanvas.Invalidate();
     }
 
     private void ZoomInMenuItem_Click(object? Sender, EventArgs E)

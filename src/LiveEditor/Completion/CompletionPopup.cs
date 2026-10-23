@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace LiveEditor.Completion;
@@ -9,6 +10,9 @@ namespace LiveEditor.Completion;
 /// </summary>
 internal sealed class CompletionPopup : IDisposable
 {
+    // Rich Edit EM_POSFROMCHAR (WM_USER + 38), not the plain Edit control message.
+    private const int EM_POSFROMCHAR = 0x0426;
+
     private readonly ToolStripDropDown _DropDown;
 
     private readonly ListBox _List;
@@ -34,11 +38,12 @@ internal sealed class CompletionPopup : IDisposable
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
             IntegralHeight = false,
             ItemHeight = 22,
-            Width = 420,
+            Width = 440,
             Height = 180,
-            DrawMode = DrawMode.OwnerDrawFixed
+            DrawMode = DrawMode.Normal,
+            BackColor = SystemColors.Window,
+            ForeColor = SystemColors.WindowText
         };
-        _List.DrawItem += List_DrawItem;
         _List.Click += List_Click;
         _List.DoubleClick += List_DoubleClick;
 
@@ -47,7 +52,8 @@ internal sealed class CompletionPopup : IDisposable
             AutoSize = false,
             Margin = Padding.Empty,
             Padding = Padding.Empty,
-            Size = _List.Size
+            Size = _List.Size,
+            BackColor = SystemColors.Window
         };
 
         _DropDown = new ToolStripDropDown
@@ -55,7 +61,9 @@ internal sealed class CompletionPopup : IDisposable
             AutoClose = false,
             AutoSize = false,
             DropShadowEnabled = true,
-            Padding = Padding.Empty
+            Padding = Padding.Empty,
+            BackColor = SystemColors.Window,
+            Opacity = 1.0
         };
         _DropDown.Items.Add(Host);
     }
@@ -103,25 +111,29 @@ internal sealed class CompletionPopup : IDisposable
         }
 
         int VisibleRows = Math.Min(8, Context.Items.Count);
-        _List.Height = Math.Max(44, VisibleRows * _List.ItemHeight + 4);
+        _List.Height = Math.Max(48, (VisibleRows * _List.ItemHeight) + 8);
+        _List.Width = 440;
         ((ToolStripControlHost)_DropDown.Items[0]).Size = _List.Size;
+        _DropDown.Size = new Size(_List.Width + 2, _List.Height + 2);
         _List.EndUpdate();
 
         HookOwnerEvents(Target.FindForm());
-        Point ScreenPoint = GetCaretScreenPoint(Target);
+        Point ClientPoint = GetCaretClientPoint(Target);
+        ClientPoint.Y += Target.Font.Height + 2;
         if (_DropDown.Visible)
         {
+            Point ScreenPoint = Target.PointToScreen(ClientPoint);
             _DropDown.Left = ScreenPoint.X;
             _DropDown.Top = ScreenPoint.Y;
         }
         else
         {
-            _DropDown.Show(ScreenPoint);
+            _DropDown.Show(Target, ClientPoint);
         }
     }
 
     /// <summary>
-    /// Moves the open popup so it stays under the caret (for example after the host window moves).
+    /// Moves the open popup so it stays under the caret.
     /// </summary>
     public void Reposition()
     {
@@ -130,7 +142,11 @@ internal sealed class CompletionPopup : IDisposable
             return;
         }
 
-        MoveToCaret();
+        Point ClientPoint = GetCaretClientPoint(_Target);
+        ClientPoint.Y += _Target.Font.Height + 2;
+        Point ScreenPoint = _Target.PointToScreen(ClientPoint);
+        _DropDown.Left = ScreenPoint.X;
+        _DropDown.Top = ScreenPoint.Y;
     }
 
     /// <summary>
@@ -227,7 +243,6 @@ internal sealed class CompletionPopup : IDisposable
 
         _IsDisposed = true;
         Hide();
-        _List.DrawItem -= List_DrawItem;
         _List.Click -= List_Click;
         _List.DoubleClick -= List_DoubleClick;
         _DropDown.Dispose();
@@ -242,53 +257,6 @@ internal sealed class CompletionPopup : IDisposable
     private void List_DoubleClick(object? Sender, EventArgs E)
     {
         AcceptSelected();
-    }
-
-    private void List_DrawItem(object? Sender, DrawItemEventArgs E)
-    {
-        E.DrawBackground();
-        if (E.Index < 0 || E.Index >= _List.Items.Count)
-        {
-            return;
-        }
-
-        CompletionItem Item = (CompletionItem)_List.Items[E.Index];
-        bool Selected = (E.State & DrawItemState.Selected) == DrawItemState.Selected;
-        bool HighContrast = LiveEditorFeatureGate.AB_Accessibility && SystemInformation.HighContrast;
-        Color Primary = Selected ? SystemColors.HighlightText : SystemColors.WindowText;
-        Color Secondary = Selected
-            ? (HighContrast ? SystemColors.HighlightText : Color.FromArgb(220, 220, 220))
-            : SystemColors.GrayText;
-        if (HighContrast && !Selected)
-        {
-            using SolidBrush RowBackground = new SolidBrush(SystemColors.Window);
-            E.Graphics.FillRectangle(RowBackground, E.Bounds);
-        }
-
-        using SolidBrush PrimaryBrush = new SolidBrush(Primary);
-        using SolidBrush SecondaryBrush = new SolidBrush(Secondary);
-        Rectangle Bounds = E.Bounds;
-        E.Graphics.DrawString(Item.DisplayText, _List.Font, PrimaryBrush, Bounds.Left + 6, Bounds.Top + 2);
-        if (!string.IsNullOrWhiteSpace(Item.Detail))
-        {
-            SizeF PrimarySize = E.Graphics.MeasureString(Item.DisplayText, _List.Font);
-            float DetailX = Bounds.Left + 12 + PrimarySize.Width;
-            E.Graphics.DrawString(Item.Detail, _List.Font, SecondaryBrush, DetailX, Bounds.Top + 2);
-        }
-
-        E.DrawFocusRectangle();
-    }
-
-    private void MoveToCaret()
-    {
-        if (_Target == null)
-        {
-            return;
-        }
-
-        Point ScreenPoint = GetCaretScreenPoint(_Target);
-        _DropDown.Left = ScreenPoint.X;
-        _DropDown.Top = ScreenPoint.Y;
     }
 
     private void HookOwnerEvents(Form? Owner)
@@ -349,22 +317,32 @@ internal sealed class CompletionPopup : IDisposable
         Reposition();
     }
 
-    private static Point GetCaretScreenPoint(TextBoxBase Target)
-    {
-        Point CaretClient = GetCaretClientPoint(Target);
-        return Target.PointToScreen(new Point(CaretClient.X, CaretClient.Y + Target.Font.Height + 2));
-    }
-
     private static Point GetCaretClientPoint(TextBoxBase Target)
     {
-        int Index = Target.SelectionStart;
+        int Index = Math.Max(0, Math.Min(Target.SelectionStart, Target.TextLength));
+        if (Target is RichTextBox Rich && Rich.IsHandleCreated)
+        {
+            Point FromMessage = new Point();
+            IntPtr Result = SendMessage(Rich.Handle, EM_POSFROMCHAR, (IntPtr)Index, IntPtr.Zero);
+            if (Result != IntPtr.Zero || Index == 0)
+            {
+                int Packed = Result.ToInt32();
+                FromMessage.X = (short)(Packed & 0xFFFF);
+                FromMessage.Y = (short)((Packed >> 16) & 0xFFFF);
+                if (FromMessage.X != 0 || FromMessage.Y != 0 || Index == 0)
+                {
+                    return FromMessage;
+                }
+            }
+        }
+
         if (Index <= 0)
         {
             return new Point(2, 2);
         }
 
         Point Point = Target.GetPositionFromCharIndex(Index);
-        if (Point.X == 0 && Point.Y == 0 && Index > 0)
+        if (Point.X == 0 && Point.Y == 0)
         {
             Point = Target.GetPositionFromCharIndex(Index - 1);
             using Graphics Graphics = Target.CreateGraphics();
@@ -375,4 +353,7 @@ internal sealed class CompletionPopup : IDisposable
 
         return Point;
     }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 }
