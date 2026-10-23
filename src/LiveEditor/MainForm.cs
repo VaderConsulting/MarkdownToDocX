@@ -103,20 +103,18 @@ public partial class MainForm : Form
 
     private void EnsureEditorSplitLayout()
     {
-        if (EditorSplit.Width < 100)
+        int Span = EditorSplit.Orientation == Orientation.Vertical ? EditorSplit.Width : EditorSplit.Height;
+        if (Span < 100)
         {
             return;
         }
 
-        int MinimumPane = Math.Min(240, Math.Max(120, EditorSplit.Width / 4));
+        int MinimumPane = Math.Min(240, Math.Max(120, Span / 4));
         EditorSplit.Panel1MinSize = MinimumPane;
         EditorSplit.Panel2MinSize = MinimumPane;
-        int Preferred = (int)Math.Round(EditorSplit.Width * 0.45);
-        int Maximum = Math.Max(MinimumPane, EditorSplit.Width - MinimumPane - EditorSplit.SplitterWidth);
-        if (EditorSplit.SplitterDistance < MinimumPane || EditorSplit.SplitterDistance > Maximum)
-        {
-            EditorSplit.SplitterDistance = Math.Max(MinimumPane, Math.Min(Maximum, Preferred));
-        }
+        int Preferred = (int)Math.Round(Span * 0.45);
+        int Maximum = Math.Max(MinimumPane, Span - MinimumPane - EditorSplit.SplitterWidth);
+        EditorSplit.SplitterDistance = Math.Max(MinimumPane, Math.Min(Maximum, Preferred));
     }
 
     private async void MainForm_Shown(object? Sender, EventArgs E)
@@ -297,7 +295,12 @@ public partial class MainForm : Form
         _PreviewZoom = ClampZoom(_Settings.PreviewZoom);
         BodySplit.Panel2Collapsed = !LiveEditorFeatureGate.X_DiagnosticsPanel || !_Settings.DiagnosticsVisible;
         MinimapBox.Visible = LiveEditorFeatureGate.Y_Minimap && _Settings.MinimapVisible;
-        EditorSplit.Orientation = _Settings.VerticalSplit ? Orientation.Vertical : Orientation.Horizontal;
+        Orientation DesiredOrientation = _Settings.VerticalSplit ? Orientation.Vertical : Orientation.Horizontal;
+        if (EditorSplit.Orientation != DesiredOrientation)
+        {
+            EditorSplit.Orientation = DesiredOrientation;
+        }
+
         ToggleLegacyPreviewMenuItem.Checked = LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview;
         ToggleDiagnosticsMenuItem.Checked = !BodySplit.Panel2Collapsed;
         ToggleMinimapMenuItem.Checked = MinimapBox.Visible;
