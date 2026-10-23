@@ -842,22 +842,17 @@ public static partial class DiagramGridLayout
         for (int Index = 0; Index < Group.Count; Index++)
         {
             PortEnd End = Group[Index];
-            if (End.KeepsCentre)
+            if (Group.Count == 1
+                && (End.KeepsCentre || StraightCenterPortFits(End))
+                && TrySetCenterPort(End, Nodes, Side, Box))
             {
-                if (TrySetCenterPort(End, Nodes, Side, Box))
-                {
-                    continue;
-                }
-            }
-            else if (Group.Count == 1 && StraightCenterPortFits(End))
-            {
-                if (TrySetCenterPort(End, Nodes, Side, Box))
-                {
-                    continue;
-                }
+                continue;
             }
 
-            double Along = ((Index + 1.0) / (Group.Count + 1.0)) * AvailableLength;
+            double SlotSpacing = Math.Max(
+                FlowchartLayoutRules.LineSpacing,
+                AvailableLength / (Group.Count + 1.0));
+            double Along = SlotSpacing * (Index + 1.0);
             double X;
             double Y;
             int OutX = 0;

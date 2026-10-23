@@ -1266,8 +1266,8 @@ public static class FlowchartDecisionPortAllocator
         EdgeContract? NoEdge = null;
         foreach (EdgeContract Edge in Outgoing)
         {
-            if (IsYesLabel(Edge.Label)) YesEdge = Edge;
-            if (IsNoLabel(Edge.Label)) NoEdge = Edge;
+            if (FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label)) YesEdge = Edge;
+            if (FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label)) NoEdge = Edge;
         }
 
         if (Outgoing.Count == 2 && YesEdge != null && NoEdge != null)
@@ -1306,14 +1306,6 @@ public static class FlowchartDecisionPortAllocator
 
         return false;
     }
-
-    private static bool IsYesLabel(string? Label) =>
-        string.Equals(Label?.Trim(), "yes", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Label?.Trim(), "y", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsNoLabel(string? Label) =>
-        string.Equals(Label?.Trim(), "no", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Label?.Trim(), "n", StringComparison.OrdinalIgnoreCase);
 
     private static (double X, double Y) ResolveFanOutTargetAttach(
         FlowchartLayoutNodeBounds TargetBounds,

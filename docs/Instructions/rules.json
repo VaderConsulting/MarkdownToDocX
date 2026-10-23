@@ -37,77 +37,76 @@
                      },
                      {
                          "id":  "S2",
-                         "order":  44,
+                         "order":  45,
                          "blank_before":  1,
                          "heading":  "## 2. Placement"
                      },
                      {
                          "id":  "S3",
-                         "order":  69,
+                         "order":  70,
                          "blank_before":  1,
                          "heading":  "## 3. Ports and diamonds"
                      },
                      {
                          "id":  "S4",
-                         "order":  80,
+                         "order":  82,
                          "blank_before":  1,
                          "heading":  "## 4. Line shape"
                      },
                      {
                          "id":  "S5",
-                         "order":  93,
+                         "order":  95,
                          "blank_before":  1,
                          "heading":  "## 5. Tracks and crossings"
                      },
                      {
                          "id":  "S6",
-                         "order":  104,
+                         "order":  106,
                          "blank_before":  1,
                          "heading":  "## 6. Labels"
                      },
                      {
                          "id":  "S7",
-                         "order":  108,
+                         "order":  110,
                          "blank_before":  1,
                          "heading":  "## 7. Groups and frames"
                      },
                      {
                          "id":  "S8",
-                         "order":  117,
+                         "order":  119,
                          "blank_before":  1,
                          "heading":  "## 8. Sequence diagrams"
                      },
                      {
                          "id":  "S9",
-                         "order":  119,
+                         "order":  121,
                          "blank_before":  1,
                          "heading":  "## 9. Precedence"
                      },
                      {
                          "id":  "S10",
-                         "order":  126,
+                         "order":  128,
                          "blank_before":  1,
                          "heading":  "## 10. Must never (normal candidates are rejected for these violations; a marked rule 5.7 fallback connector is excepted only when no legal route exists, remains a reported diagnostic, and is never synthesized by the painter from node centres)"
                      },
                      {
                          "id":  "routing-faults",
-                         "order":  138,
+                         "order":  140,
                          "blank_before":  1,
-                         "heading":  "## Routing faults (a candidate with one is rejected unless an applicable line hint expressly permits it, or an honoured node/group hint makes it unavoidable under 2.21; these are not hard legality)"
+                         "heading":  "## Routing faults (precedence level 3 under 9.1, below hard legality and honoured hints: a candidate with a non-exempt routing fault loses to any candidate with fewer; an applicable line hint may expressly permit one, or an honoured node/group hint may make it unavoidable under 2.21)"
                      },
                      {
                          "id":  "on-hold",
-                         "order":  140,
+                         "order":  142,
                          "blank_before":  1,
                          "heading":  "## On hold (do not build until Dave redefines them)"
                      },
                      {
                          "id":  "resolved-conflicts",
-                         "order":  142,
+                         "order":  144,
                          "blank_before":  1,
                          "heading":  "## Resolved conflicts"
-                     }
-                 ],
+                     },
     "terms":  [
                   {
                       "id":  "term.grid-step",
@@ -861,18 +860,20 @@
                                      ]
                        },
                        {
-                           "id":  "P4",
-                           "group":  "placement",
-                           "name":  "Multi-parent, branches, detours, chains, blocks (2.4 applies within this step)",
-                           "rules":  [
-                                         "2.4",
-                                         "2.5",
-                                         "2.6",
-                                         "2.8",
-                                         "2.9",
-                                         "2.10"
-                                     ]
-                       },
+                         "id":  "P4",
+                         "group":  "placement",
+                         "name":  "Multi-parent, branches, detours, chains, blocks (2.4 applies within this step)",
+                         "rules":  [
+                                   "2.4",
+                                   "2.5",
+                                   "2.6",
+                                   "2.8",
+                                   "2.9",
+                                   "2.10",
+                                   "2.24",
+                                   "2.25",
+                         ]
+                     },
                        {
                            "id":  "P5",
                            "group":  "placement",
@@ -897,19 +898,20 @@
                                      ]
                        },
                        {
-                           "id":  "R2",
-                           "group":  "routing",
-                           "name":  "Joint port allocation",
-                           "rules":  [
-                                         "3.1",
-                                         "3.2",
-                                         "3.3",
-                                         "3.6",
-                                         "3.10",
-                                         "4.7",
-                                         "4.9"
-                                     ]
-                       },
+                         "id":  "R2",
+                         "group":  "routing",
+                         "name":  "Joint port allocation",
+                         "rules":  [
+                                   "3.1",
+                                   "3.2",
+                                   "3.3",
+                                   "3.6",
+                                   "3.10",
+                                   "3.11",
+                                   "4.7",
+                                   "4.9",
+                         ]
+                     },
                        {
                            "id":  "R3",
                            "group":  "routing",
@@ -945,29 +947,30 @@
                                      ]
                        },
                        {
-                           "id":  "R5",
-                           "group":  "routing",
-                           "name":  "Avoidable crossings (within 4.3 and the line hints)",
-                           "rules":  [
-                                         "5.1",
-                                         "5.9"
-                                     ]
-                       },
+                         "id":  "R5",
+                         "group":  "routing",
+                         "name":  "Avoidable crossings (within 4.3 and the line hints)",
+                         "rules":  [
+                                   "5.1",
+                                   "5.9",
+                                   "5.11",
+                         ]
+                     },
                        {
-                           "id":  "V1",
-                           "group":  "legality",
-                           "name":  "Legality: section 10 and overlaps never broken; ties go to Mermaid order (9.5)",
-                           "rules":  [
-                                         "5.7",
-                                         "2.24",
-                                         "9.1",
-                                         "9.2",
-                                         "9.3",
-                                         "9.4",
-                                         "9.5",
-                                         "9.6"
-                                     ]
-                       },
+                         "id":  "V1",
+                         "group":  "legality",
+                         "name":  "Legality: section 10 and overlaps never broken; ties go to Mermaid order (9.5)",
+                         "rules":  [
+                                   "5.7",
+                                   "2.26",
+                                   "9.1",
+                                   "9.2",
+                                   "9.3",
+                                   "9.4",
+                                   "9.5",
+                                   "9.6",
+                         ]
+                     },
                        {
                            "id":  "P6",
                            "group":  "placement",
@@ -1012,16 +1015,185 @@
                                      ]
                        },
                        {
-                           "id":  "P8",
-                           "group":  "placement",
-                           "name":  "Free direction picks among candidates by score (never overrides a declared direction)",
-                           "rules":  [
-                                         "2.13",
-                                         "2.14",
-                                         "2.19"
-                                     ]
-                       }
-                   ],
+                         "id":  "1.8",
+                         "title":  "Reading order",
+                         "title_in_text":  false,
+                         "section":  "S1",
+                         "kind":  "quality",
+                         "stage":  "P1",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "2.1",
+                                   "2.3",
+                                   "2.13",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+
+                                   ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  44,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Hard: the main flow reads left to right, then top to bottom. When two legal placements tie on score and routing quality, keep the earlier node farther left; when horizontal position also ties, keep it higher.",
+                         ]
+                     },                     {
+                         "id":  "2.25",
+                         "title":  "Keep related nodes close",
+                         "title_in_text":  true,
+                         "section":  "S2",
+                         "kind":  "quality",
+                         "stage":  "P4",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "2.13",
+                                   "2.21",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+                                   "2.21",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  691,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Keep related nodes close. Preference: a node whose only lines go to one nearby node sits next to that node, not at the far edge with a long return line (for example, Lodge by the 21st under No Late Payments). This ranks below honoured hints and hard legality.",
+                         ]
+                     },                     {
+                         "id":  "2.26",
+                         "title":  "Diagnostics and error policy",
+                         "title_in_text":  true,
+                         "section":  "S2",
+                         "kind":  "legality",
+                         "stage":  "V1",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "5.7",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+
+                                   ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  692,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Diagnostics and error policy. A source that cannot be read as valid statements, or that breaks the model (unknown element type, an invalid relationship type, qualifier or rules-table cell, an unresolved endpoint or container, an unsupported Mermaid arrow or shape, an unclosed block, malformed hint syntax or a duplicate clause), is an error, and the diagram is not drawn. A hint that is read correctly but cannot be honoured, and an invalid or conflicting part of a line hint, is a warning: drop only that hint, axis or part, report it with its reason, and draw the diagram normally. A placement axis dropped by the repair process is reported as \"conflicting constraints\" only when the conflict is established, and otherwise as \"no legal candidate found within the permitted search\". A redeclaration that materially changes the effective placement hint is a warning, and an identical one is not. Every diagnostic names the line, the construct and, where one exists, the accepted form. Rule 5.7 applies only to input for which this rule reports no error.",
+                         ]
+                     },                     {
+                         "id":  "3.11",
+                         "title":  "Decision port compass",
+                         "title_in_text":  true,
+                         "section":  "S3",
+                         "kind":  "legality",
+                         "stage":  "R2",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "3.1",
+                                   "3.2",
+                                   "3.3",
+                                   "4.1",
+                                   "4.4",
+                                   "4.7",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+                                   "2.21",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  true,
+                         "order":  81,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Decision port compass. Hard: compass names are fixed on the diamond (N at the top vertex, E at the right vertex, S at the bottom vertex, W at the left vertex). Inputs: one incoming line uses the N vertex; several incoming lines use N for the centre source, then the NW and NE vertices for the left and right sources, ordered symmetrically. Outputs: assign S first, then the SW and SE vertices for left and right branches; when three or more outputs leave toward the bottom half-plane, use S for the centre branch and the SW and SE vertices for the side branches. Match branch labels without regard to letter case, after trimming the surrounding whitespace. The Yes branch is any label equal to Y or Yes (so Y, y, Yes, YES and yes all count), and it leaves at S. The No branch is any label equal to N or No (so N, n, No, NO and no all count), and it leaves at E. A Yes/No decision with one input and two outputs takes its input at N and applies those Yes and No assignments. A line hint may override these preferences only within hard legality. This replaces the edge-facing-the-target preference in 3.6 and 3.8, which now allow vertex ports where 3.11 names them.",
+                         ]
+                     },                     {
+                         "id":  "5.11",
+                         "title":  "Use both outer channels",
+                         "title_in_text":  true,
+                         "section":  "S5",
+                         "kind":  "quality",
+                         "stage":  "R5",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "5.1",
+                                   "5.9",
+                                   "4.2",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+                                   "2.21",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  1046,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Use both outer channels. Preference: a line that skips a rank in a single column, or returns up it, leaves from a side port and runs down the outer channel. Lines going up take one side and lines going down the other, so lines never bundle, hop or cross in one gap. A line between neighbouring ranks is a straight vertical.",
+                         ]
+                     },                     {
+                         "id":  "routing-faults.1",
+                         "kind":  "routing-fault",
+                         "section":  "routing-faults",
+                         "refs":  [
+                                   "4.3",
+                                   "4.11",
+                                   "5.8",
+                                   "5.9",
+                                   "6.1",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "order":  141,
+                         "blank_before":  1,
+                         "text":  [
+                                   "- A line bent, jogged or displaced solely for a label (6.1); a convergence line travelling along the gap above its target or S-jogging into its top (4.11); a fan line using the far side or going around its source, or sharing an overlapping track (5.8); any crossing removable by a legal reassignment or permitted extra corner (5.9). Reject these unless an applicable hint permits the fault under 2.21. The section 10 hard constraints still apply to normal connectors.",
+                         ]
+                     },
     "rules":  [
                   {
                       "id":  "1.1",
