@@ -18,6 +18,20 @@ internal sealed class SessionSettings
 
     public bool MinimapVisible { get; set; }
 
+    public bool AutoIndent { get; set; } = true;
+
+    public bool InsertSpaces { get; set; } = true;
+
+    public int IndentSize { get; set; } = 2;
+
+    public bool EditorWordWrap { get; set; }
+
+    public float EditorFontSize { get; set; } = 11F;
+
+    public int RenderDelayMilliseconds { get; set; } = 350;
+
+    public int HighlightDelayMilliseconds { get; set; } = 250;
+
     public bool VerticalSplit { get; set; } = true;
 
     public bool LegacyPreview { get; set; }

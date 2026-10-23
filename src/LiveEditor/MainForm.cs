@@ -244,6 +244,7 @@ public partial class MainForm : Form
         CommandPaletteMenuItem.Click += CommandPaletteMenuItem_Click;
         SelectNextOccurrenceMenuItem.Click += SelectNextOccurrenceMenuItem_Click;
         InsertArchiSnippetMenuItem.Click += InsertArchiSnippetMenuItem_Click;
+        SettingsMenuItem.Click += SettingsMenuItem_Click;
         ToggleThemeMenuItem.Click += ToggleThemeMenuItem_Click;
         ToggleSplitOrientationMenuItem.Click += ToggleSplitOrientationMenuItem_Click;
         ZoomInMenuItem.Click += ZoomInMenuItem_Click;
@@ -307,6 +308,23 @@ public partial class MainForm : Form
         ToggleDiagnosticsMenuItem.Checked = !BodySplit.Panel2Collapsed;
         ToggleMinimapMenuItem.Checked = MinimapBox.Visible;
         ToggleThemeMenuItem.Checked = _Settings.DarkTheme;
+        ApplyEditorPreferences();
+    }
+
+    private void ApplyEditorPreferences()
+    {
+        float FontSize = Math.Max(8F, Math.Min(32F, _Settings.EditorFontSize));
+        if (Math.Abs(SourceEditor.Font.Size - FontSize) > 0.01F)
+        {
+            Font PreviousFont = SourceEditor.Font;
+            SourceEditor.Font = new Font("Consolas", FontSize, FontStyle.Regular, GraphicsUnit.Point);
+            PreviousFont.Dispose();
+        }
+
+        SourceEditor.WordWrap = _Settings.EditorWordWrap;
+        SourceEditor.ScrollBars = _Settings.EditorWordWrap ? RichTextBoxScrollBars.Vertical : RichTextBoxScrollBars.Both;
+        RenderTimer.Interval = Math.Max(50, Math.Min(5000, _Settings.RenderDelayMilliseconds));
+        HighlightTimer.Interval = Math.Max(50, Math.Min(5000, _Settings.HighlightDelayMilliseconds));
     }
 
     private void RestoreSessionContent()
@@ -394,10 +412,54 @@ public partial class MainForm : Form
             return;
         }
 
+        if (TryInsertNewLineIndent(E) || TryInsertIndentUnit(E))
+        {
+            E.SuppressKeyPress = true;
+            E.Handled = true;
+            return;
+        }
+
         if (E.KeyCode == Keys.Escape)
         {
             HideCompletion();
         }
+    }
+
+    private bool TryInsertNewLineIndent(KeyEventArgs E)
+    {
+        if (!_Settings.AutoIndent || E.KeyCode != Keys.Enter || E.Control || E.Alt)
+        {
+            return false;
+        }
+
+        int CaretIndex = SourceEditor.SelectionStart;
+        int LineStart = CaretIndex;
+        while (LineStart > 0 && SourceEditor.Text[LineStart - 1] != '\n')
+        {
+            LineStart--;
+        }
+
+        int IndentEnd = LineStart;
+        while (IndentEnd < CaretIndex && (SourceEditor.Text[IndentEnd] == ' ' || SourceEditor.Text[IndentEnd] == '\t'))
+        {
+            IndentEnd++;
+        }
+
+        string ExistingIndent = SourceEditor.Text.Substring(LineStart, IndentEnd - LineStart);
+        SourceEditor.SelectedText = Environment.NewLine + ExistingIndent;
+        return true;
+    }
+
+    private bool TryInsertIndentUnit(KeyEventArgs E)
+    {
+        if (E.KeyCode != Keys.Tab || E.Control || E.Alt || E.Shift || SourceEditor.SelectionLength != 0)
+        {
+            return false;
+        }
+
+        int IndentSize = Math.Max(1, Math.Min(16, _Settings.IndentSize));
+        SourceEditor.SelectedText = _Settings.InsertSpaces ? new string(' ', IndentSize) : "\t";
+        return true;
     }
 
     private void SourceEditor_MouseDown(object? Sender, MouseEventArgs E)
@@ -1118,7 +1180,7 @@ public partial class MainForm : Form
             return;
         }
 
-        string Commands = "Open, Save, Copy source, Go to definition, Rename symbol, Toggle theme, Toggle diagnostics, Toggle minimap, Fit preview, Export PNG, Export SVG";
+        string Commands = "Open, Save, Copy source, Go to definition, Rename symbol, Settings, Toggle theme, Toggle diagnostics, Toggle minimap, Fit preview, Export PNG, Export SVG";
         string Command = Microsoft.VisualBasic.Interaction.InputBox($"Enter a command:\r\n{Commands}", "Command palette", string.Empty).Trim();
         if (Command.Length == 0)
         {
@@ -1132,6 +1194,7 @@ public partial class MainForm : Form
             ["Copy source"] = CopySourceMenuItem,
             ["Go to definition"] = GoToDefinitionMenuItem,
             ["Rename symbol"] = RenameSymbolMenuItem,
+            ["Settings"] = SettingsMenuItem,
             ["Toggle theme"] = ToggleThemeMenuItem,
             ["Toggle diagnostics"] = ToggleDiagnosticsMenuItem,
             ["Toggle minimap"] = ToggleMinimapMenuItem,
@@ -1147,6 +1210,23 @@ public partial class MainForm : Form
         {
             SetStatus($"Unknown command '{Command}'");
         }
+    }
+
+    private void SettingsMenuItem_Click(object? Sender, EventArgs E)
+    {
+        using SettingsForm Dialog = new SettingsForm(_Settings);
+        if (Dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        Dialog.ApplyTo(_Settings);
+        ApplyEditorPreferences();
+        _Settings.Save();
+        QueueHighlight();
+        QueueRender();
+        SourceEditor.Focus();
+        SetStatus("Settings saved");
     }
 
     private void BuildSamplesMenu()

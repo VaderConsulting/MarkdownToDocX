@@ -38,6 +38,8 @@ namespace LiveEditor
             CommandPaletteMenuItem = new ToolStripMenuItem();
             SelectNextOccurrenceMenuItem = new ToolStripMenuItem();
             InsertArchiSnippetMenuItem = new ToolStripMenuItem();
+            SettingsSeparator = new ToolStripSeparator();
+            SettingsMenuItem = new ToolStripMenuItem();
             ViewMenu = new ToolStripMenuItem();
             ToggleThemeMenuItem = new ToolStripMenuItem();
             ToggleSplitOrientationMenuItem = new ToolStripMenuItem();
@@ -130,7 +132,9 @@ namespace LiveEditor
                 FindReferencesMenuItem,
                 SelectNextOccurrenceMenuItem,
                 InsertArchiSnippetMenuItem,
-                CommandPaletteMenuItem
+                CommandPaletteMenuItem,
+                SettingsSeparator,
+                SettingsMenuItem
             });
             EditMenu.Name = "EditMenu";
             EditMenu.Text = "&Edit";
@@ -154,6 +158,9 @@ namespace LiveEditor
             CommandPaletteMenuItem.Name = "CommandPaletteMenuItem";
             CommandPaletteMenuItem.ShortcutKeys = Keys.Control | Keys.Shift | Keys.P;
             CommandPaletteMenuItem.Text = "Command &palette...";
+            SettingsSeparator.Name = "SettingsSeparator";
+            SettingsMenuItem.Name = "SettingsMenuItem";
+            SettingsMenuItem.Text = "&Settings...";
             //
             // ViewMenu
             //
@@ -394,6 +401,8 @@ namespace LiveEditor
         private ToolStripMenuItem CommandPaletteMenuItem;
         private ToolStripMenuItem SelectNextOccurrenceMenuItem;
         private ToolStripMenuItem InsertArchiSnippetMenuItem;
+        private ToolStripSeparator SettingsSeparator;
+        private ToolStripMenuItem SettingsMenuItem;
         private ToolStripMenuItem ViewMenu;
         private ToolStripMenuItem ToggleThemeMenuItem;
         private ToolStripMenuItem ToggleSplitOrientationMenuItem;
