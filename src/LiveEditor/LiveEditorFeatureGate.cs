@@ -63,5 +63,5 @@ internal static class LiveEditorFeatureGate
 
     public static bool AC_CoArchiDirtyBadge = true;
 
-    public static bool AD_InsertFromArchi = false;
+    public static bool AD_InsertFromArchi = true;
 }
