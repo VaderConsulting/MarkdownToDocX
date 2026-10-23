@@ -11,7 +11,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool C_QualifierCompletion = true;
 
-    public static bool D_PlacementHintCompletion = false;
+    public static bool D_PlacementHintCompletion = true;
 
     public static bool E_InlineDiagnostics = false;
 
