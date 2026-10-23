@@ -51,7 +51,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool W_ArchiHintRoundTrip = true;
 
-    public static bool X_DiagnosticsPanel = false;
+    public static bool X_DiagnosticsPanel = true;
 
     public static bool Y_Minimap = false;
 
