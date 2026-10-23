@@ -9,7 +9,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool B_ElementTypeCompletion = true;
 
-    public static bool C_QualifierCompletion = false;
+    public static bool C_QualifierCompletion = true;
 
     public static bool D_PlacementHintCompletion = false;
 
