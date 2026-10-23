@@ -61,7 +61,7 @@ internal static class LiveEditorFeatureGate
 
     public static bool AB_Accessibility = true;
 
-    public static bool AC_CoArchiDirtyBadge = false;
+    public static bool AC_CoArchiDirtyBadge = true;
 
     public static bool AD_InsertFromArchi = false;
 }
