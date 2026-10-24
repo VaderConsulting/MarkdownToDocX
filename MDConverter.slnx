@@ -3,12 +3,14 @@
     <Project Path="src/md2docx/md2docx.csproj" />
     <Project Path="src/MDConverter/MDConverter.csproj" />
     <Project Path="src/Converter/Converter.csproj" Id="3b21be3a-b3be-4784-add0-bdd588cad341" />
+    <Project Path="src/LiveEditor/LiveEditor.csproj" />
     <Project Path="src/MermaidRecognition/MermaidRecognition.csproj" />
     <Project Path="src/MermaidRecognition.Layout/MermaidRecognition.Layout.csproj" />
     <Project Path="src/MermaidRecognition.NaiadAdapter/MermaidRecognition.NaiadAdapter.csproj" />
     <Project Path="src/MermaidRecognition.RuleValidation/MermaidRecognition.RuleValidation.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/LiveEditor.Tests/LiveEditor.Tests.csproj" />
     <Project Path="tests/MDConverter.Tests/MDConverter.Tests.csproj" />
     <Project Path="tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj" />
     <Project Path="tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj" />

@@ -332,6 +332,52 @@ public sealed class EnterpriseParserTests
     }
 
     [Test]
+    public void Parse_SameTypeRedeclaration_DoesNotUpdateTheElement()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              application-component webShop "One"
+              application-component webShop "Two"
+            """);
+
+        Assert.That(Result.Diagnostics[0].Message, Does.Contain("line 3: duplicate element id \"webShop\""));
+        Assert.That(Result.Document.Elements["webShop"].Label, Is.EqualTo("One"));
+    }
+
+    [Test]
+    public void Parse_ExactDuplicateRelationship_ReportsAnError()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              application-component webShop "Web Shop"
+              data-object order "Order"
+              webShop -access(read)-> order
+              webShop -access(read)-> order
+            """);
+
+        Assert.That(Result.Diagnostics[0].Message, Does.Contain("duplicate relationship"));
+        Assert.That(Result.Document.Relationships, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void Parse_DifferentAccessQualifier_IsNotADuplicate()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse(
+            """
+            enterprise
+              application-component webShop "Web Shop"
+              data-object order "Order"
+              webShop -access(read)-> order
+              webShop -access(write)-> order
+            """);
+
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.Relationships, Has.Count.EqualTo(2));
+    }
+
+    [Test]
     public void Parse_UnknownRelationshipEndpoint_ReportsLineNumber()
     {
         EnterpriseParseResult Result = EnterpriseParser.Parse(

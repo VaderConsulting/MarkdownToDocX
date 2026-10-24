@@ -262,6 +262,11 @@ public static class EnterpriseParser
                 continue;
             }
 
+            if (IsIncompleteElementDeclaration(Line))
+            {
+                continue;
+            }
+
             Diagnostics.Add(CreateError(LineNumber, "cannot parse \"" + Line + "\""));
         }
 
@@ -347,24 +352,6 @@ public static class EnterpriseParser
         }
         if (Document.HasDrawingItem(Id))
         {
-            if (Document.Elements.TryGetValue(Id, out var Existing) && Existing.ElementType == ElementType)
-            {
-                if (ElementMatch.Groups["label"].Success)
-                {
-                    Existing.Label = Unquote(ElementMatch.Groups["label"].Value);
-                    Existing.IsMarkdownLabel = IsMarkdown(ElementMatch.Groups["label"].Value);
-                }
-                if (ElementMatch.Groups["parent"].Success) Existing.ParentId = ElementMatch.Groups["parent"].Value;
-                if (ElementMatch.Groups["placement"].Success) Existing.PlacementHint = ParsePlacementHint(ElementMatch, LineNumber);
-                if (Document.Groups.TryGetValue(Id, out var Group))
-                {
-                    Group.Label = Existing.Label;
-                    Group.IsMarkdownLabel = Existing.IsMarkdownLabel;
-                    Group.ParentId = Existing.ParentId;
-                    Group.PlacementHint = Existing.PlacementHint;
-                }
-                return;
-            }
             Diagnostics.Add(CreateError(LineNumber, "duplicate element id \"" + Id + "\""));
             return;
         }
@@ -497,7 +484,50 @@ public static class EnterpriseParser
             Relationship.AccessKind = EnterpriseAccessKind.Write;
         }
 
+        foreach (EnterpriseRelationship Existing in Document.Relationships)
+        {
+            if (IsSameRelationship(Existing, Relationship))
+            {
+                Diagnostics.Add(CreateError(LineNumber, "duplicate relationship \"" + SourceId + " -" + EnterpriseElementCatalog.GetRelationshipName(Kind) + "-> " + TargetId + "\""));
+                return;
+            }
+        }
+
         Document.Relationships.Add(Relationship);
+    }
+
+    /// <summary>
+    /// True when both lines connect the same elements with the same type and qualifier.
+    /// A different qualifier is a different relationship.
+    /// </summary>
+    private static bool IsSameRelationship(EnterpriseRelationship Existing, EnterpriseRelationship Candidate)
+    {
+        if (!string.Equals(Existing.SourceId, Candidate.SourceId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.Equals(Existing.TargetId, Candidate.TargetId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Existing.Kind != Candidate.Kind)
+        {
+            return false;
+        }
+
+        if (Existing.AccessKind != Candidate.AccessKind)
+        {
+            return false;
+        }
+
+        if (!string.Equals(Existing.InfluenceStrength, Candidate.InfluenceStrength, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return Existing.DirectedAssociation == Candidate.DirectedAssociation;
     }
 
     private static bool TryApplyQualifier(
@@ -827,6 +857,29 @@ public static class EnterpriseParser
         "BT" => EnterpriseDiagramDirection.Bt,
         _ => EnterpriseDiagramDirection.Tb
     };
+
+    private static bool IsIncompleteElementDeclaration(string Line)
+    {
+        if (Line.IndexOf(' ') >= 0 || Line.IndexOf('\t') >= 0)
+        {
+            return false;
+        }
+
+        if (EnterpriseElementCatalog.TryResolveElementType(Line, out _))
+        {
+            return true;
+        }
+
+        foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
+        {
+            if (Metadata.KebabName.Length > Line.Length && Metadata.KebabName.StartsWith(Line, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static EnterpriseDiagnostic CreateError(int LineNumber, string Message)
     {
