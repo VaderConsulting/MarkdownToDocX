@@ -108,59 +108,98 @@ public static class FlowchartSvgLineJump
     private static List<Crossing> FindCrossings(List<EdgeStroke> Strokes)
     {
         List<Crossing> Crossings = [];
-        for (int LeftIndex = 0; LeftIndex < Strokes.Count; LeftIndex++)
+        FlowchartRenderContext.ReportOperationCount("line-jump-stroke-pairs", (long)Strokes.Count * Math.Max(0, Strokes.Count - 1) / 2);
+        List<SweepSegment> Segments = [];
+        for (int StrokeIndex = 0; StrokeIndex < Strokes.Count; StrokeIndex++)
         {
-            for (int RightIndex = LeftIndex + 1; RightIndex < Strokes.Count; RightIndex++)
+            List<(double X, double Y)> Points = Strokes[StrokeIndex].Points;
+            for (int SegmentIndex = 1; SegmentIndex < Points.Count; SegmentIndex++)
             {
-                EdgeStroke Left = Strokes[LeftIndex];
-                EdgeStroke Right = Strokes[RightIndex];
-                for (int LeftSegment = 1; LeftSegment < Left.Points.Count; LeftSegment++)
-                {
-                    (double AX, double AY) = Left.Points[LeftSegment - 1];
-                    (double BX, double BY) = Left.Points[LeftSegment];
-                    if (!IsAxisSegment(AX, AY, BX, BY, out bool LeftHorizontal))
-                    {
-                        continue;
-                    }
-
-                    for (int RightSegment = 1; RightSegment < Right.Points.Count; RightSegment++)
-                    {
-                        (double CX, double CY) = Right.Points[RightSegment - 1];
-                        (double DX, double DY) = Right.Points[RightSegment];
-                        if (!IsAxisSegment(CX, CY, DX, DY, out bool RightHorizontal) || LeftHorizontal == RightHorizontal)
-                        {
-                            continue;
-                        }
-
-                        if (!TryIntersect(AX, AY, BX, BY, CX, CY, DX, DY, out double CrossX, out double CrossY, out double Ua, out double Ub))
-                        {
-                            continue;
-                        }
-
-                        // Endpoints are junctions. Pick a stroke with enough
-                        // straight space for a bridge beside a nearby corner.
-                        if (Ua <= 1e-6 || Ua >= 1 - 1e-6 || Ub <= 1e-6 || Ub >= 1 - 1e-6) continue;
-                        double LeftClear = Math.Min(Distance(CrossX, CrossY, AX, AY), Distance(CrossX, CrossY, BX, BY));
-                        double RightClear = Math.Min(Distance(CrossX, CrossY, CX, CY), Distance(CrossX, CrossY, DX, DY));
-                        int Hopper = RightClear >= HOP_RADIUS_PX || RightClear >= LeftClear ? RightIndex : LeftIndex;
-                        int HopSegment = Hopper == RightIndex ? RightSegment : LeftSegment;
-                        string Reason = FindReason(Left, Right);
-                        Crossings.Add(new Crossing(Hopper, HopSegment, CrossX, CrossY));
-                        FlowchartRenderContext.Current.Jumps.Add(new DrawnJump(
-                            Strokes[Hopper].SourceId,
-                            Strokes[Hopper].TargetId,
-                            Strokes[Hopper == RightIndex ? LeftIndex : RightIndex].SourceId,
-                            Strokes[Hopper == RightIndex ? LeftIndex : RightIndex].TargetId,
-                            CrossX,
-                            CrossY,
-                            Reason));
-                    }
-                }
+                (double X1, double Y1) = Points[SegmentIndex - 1];
+                (double X2, double Y2) = Points[SegmentIndex];
+                if (!IsAxisSegment(X1, Y1, X2, Y2, out bool Horizontal)) continue;
+                Segments.Add(new SweepSegment(StrokeIndex, SegmentIndex, X1, Y1, X2, Y2, Horizontal));
             }
         }
 
+        Segments.Sort(static (Left, Right) => Left.MinX.CompareTo(Right.MinX));
+        List<SweepSegment> Active = [];
+        List<CandidatePair> Candidates = [];
+        long BroadPhaseTests = 0;
+        foreach (SweepSegment Current in Segments)
+        {
+            for (int Index = Active.Count - 1; Index >= 0; Index--)
+                if (Active[Index].MaxX < Current.MinX) Active.RemoveAt(Index);
+
+            foreach (SweepSegment Prior in Active)
+            {
+                BroadPhaseTests++;
+                if (Prior.StrokeIndex == Current.StrokeIndex
+                    || Prior.Horizontal == Current.Horizontal
+                    || Prior.MaxY < Current.MinY || Current.MaxY < Prior.MinY)
+                    continue;
+
+                SweepSegment Left = Prior.StrokeIndex < Current.StrokeIndex ? Prior : Current;
+                SweepSegment Right = Prior.StrokeIndex < Current.StrokeIndex ? Current : Prior;
+                Candidates.Add(new CandidatePair(Left, Right));
+            }
+            Active.Add(Current);
+        }
+
+        Candidates.Sort(static (Left, Right) =>
+        {
+            int Compare = Left.Left.StrokeIndex.CompareTo(Right.Left.StrokeIndex);
+            if (Compare != 0) return Compare;
+            Compare = Left.Right.StrokeIndex.CompareTo(Right.Right.StrokeIndex);
+            if (Compare != 0) return Compare;
+            Compare = Left.Left.SegmentIndex.CompareTo(Right.Left.SegmentIndex);
+            return Compare != 0 ? Compare : Left.Right.SegmentIndex.CompareTo(Right.Right.SegmentIndex);
+        });
+
+        foreach (CandidatePair Pair in Candidates)
+        {
+            SweepSegment LeftSegment = Pair.Left;
+            SweepSegment RightSegment = Pair.Right;
+            EdgeStroke Left = Strokes[LeftSegment.StrokeIndex];
+            EdgeStroke Right = Strokes[RightSegment.StrokeIndex];
+            if (!TryIntersect(LeftSegment.X1, LeftSegment.Y1, LeftSegment.X2, LeftSegment.Y2,
+                    RightSegment.X1, RightSegment.Y1, RightSegment.X2, RightSegment.Y2,
+                    out double CrossX, out double CrossY, out double Ua, out double Ub))
+                continue;
+            if (Ua <= 1e-6 || Ua >= 1 - 1e-6 || Ub <= 1e-6 || Ub >= 1 - 1e-6) continue;
+
+            double LeftClear = Math.Min(Distance(CrossX, CrossY, LeftSegment.X1, LeftSegment.Y1), Distance(CrossX, CrossY, LeftSegment.X2, LeftSegment.Y2));
+            double RightClear = Math.Min(Distance(CrossX, CrossY, RightSegment.X1, RightSegment.Y1), Distance(CrossX, CrossY, RightSegment.X2, RightSegment.Y2));
+            int Hopper = RightClear >= HOP_RADIUS_PX || RightClear >= LeftClear ? RightSegment.StrokeIndex : LeftSegment.StrokeIndex;
+            int HopSegment = Hopper == RightSegment.StrokeIndex ? RightSegment.SegmentIndex : LeftSegment.SegmentIndex;
+            string Reason = FindReason(Left, Right);
+            Crossings.Add(new Crossing(Hopper, HopSegment, CrossX, CrossY));
+            FlowchartRenderContext.Current.Jumps.Add(new DrawnJump(
+                Strokes[Hopper].SourceId,
+                Strokes[Hopper].TargetId,
+                Strokes[Hopper == RightSegment.StrokeIndex ? LeftSegment.StrokeIndex : RightSegment.StrokeIndex].SourceId,
+                Strokes[Hopper == RightSegment.StrokeIndex ? LeftSegment.StrokeIndex : RightSegment.StrokeIndex].TargetId,
+                CrossX,
+                CrossY,
+                Reason));
+        }
+
+        FlowchartRenderContext.ReportOperationCount("line-jump-broadphase-pair-tests", BroadPhaseTests);
+        FlowchartRenderContext.ReportOperationCount("line-jump-segment-pair-tests", Candidates.Count);
+        FlowchartRenderContext.ReportOperationCount("line-jump-crossings-found", Crossings.Count);
         return Crossings;
     }
+
+    private readonly record struct SweepSegment(
+        int StrokeIndex, int SegmentIndex, double X1, double Y1, double X2, double Y2, bool Horizontal)
+    {
+        public double MinX => Math.Min(X1, X2);
+        public double MaxX => Math.Max(X1, X2);
+        public double MinY => Math.Min(Y1, Y2);
+        public double MaxY => Math.Max(Y1, Y2);
+    }
+
+    private readonly record struct CandidatePair(SweepSegment Left, SweepSegment Right);
 
     private static string FindReason(EdgeStroke Left, EdgeStroke Right)
     {

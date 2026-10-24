@@ -21,7 +21,7 @@ There are **two live render paths** plus one forthcoming consumer.
 | --- | --- | --- |
 | **Native flowchart Sugiyama** | Default for `flowchart` / `graph` fences (`MermaidOptions.UseNativeSugiyamaRenderer`, default true) | `FlowchartSugiyamaLayoutEngine` → post-processors → `FlowchartSugiyamaSvgRenderer` |
 | **Naiad (legacy)** | Every other recognised Mermaid kind, and flowchart when native is off or fails | Per-type `*Renderer` in `extern/Naiad`. Graph kinds call `DagreLayoutEngine`; the rest pack their own geometry |
-| **Enterprise (PR #1, not on this branch)** | `enterprise` fences on `enterprise-diagram` | Maps ArchiMate compounds onto flowchart subgraphs and **must keep using the flowchart layout and routing exactly** |
+| **Enterprise (PR #1, not on this branch)** | `enterprise` fences on `enterprise-diagram` | Maps Enterprise compounds onto flowchart subgraphs and **must keep using the flowchart layout and routing exactly** |
 
 DOCX embedding (`DocxWriter.RenderMermaidSvg`) tries the recognition flowchart bridge first, then `Mermaid.Render` (Naiad). Native render eligibility (`NativeRenderCapabilities`) is flowchart-only for a real SVG today; sequence, class, state, ER, pie, gantt, mindmap, and gitGraph are listed as “can attempt” but have **no native Sugiyama renderer** yet.
 
@@ -42,7 +42,7 @@ These are **node + edge** diagrams. They already think in ranks, order, and conn
 | **Class** | `Naiad` `ClassRenderer` | Convert to a `GraphModel`, then **same** `DagreLayoutEngine`. Spacing 60 / 80 (×2 scale) | Straight centre-to-centre lines plus UML markers | No clusters. Packages are not compound boxes |
 | **State** | `Naiad` `StateRenderer` | Convert to graph, **same** Dagre. Spacing 120 / 80. Extra passes align start/end and notes | Dagre routes; back-edges curve; notes sit beside states | Composite states are flattened into the graph, not nested clusters |
 | **ER** | `Naiad` `ERRenderer` | Convert to graph, **same** Dagre. Spacing 100 / 100 (Mermaid `erRenderer.js`) | Dagre routes; cardinality markers; slotted face attach | No clusters |
-| **Enterprise** (PR #1) | `EnterpriseSvgRenderer` on the flowchart contract | **Flowchart Sugiyama exactly.** Mapper emits subgraphs for groups/locations/junctions; leaf sizes come from ArchiMate boxes | Same resolver and curve builder as flowchart. Only markers and dashes stay ArchiMate | Same membership / compound-edge rules as flowchart |
+| **Enterprise** (PR #1) | `EnterpriseSvgRenderer` on the flowchart contract | **Flowchart Sugiyama exactly.** Mapper emits subgraphs for groups/locations/junctions; leaf sizes come from Enterprise boxes | Same resolver and curve builder as flowchart. Only markers and dashes stay Enterprise | Same membership / compound-edge rules as flowchart |
 
 **Important:** class, state, and ER already share **Naiad Dagre**, not native Sugiyama. Unifying them means moving those three off Dagre onto the native engine, with a profile - not inventing graph layout for them from scratch.
 
@@ -126,14 +126,14 @@ MSAGL `src/MermaidRecognition.Layout/Sugiyama/Core/Layout/Arrowheads.cs` stays *
 
 | Current copies | Keep |
 | --- | --- |
-| `src/MermaidRecognition.Layout/FlowchartSugiyamaSvgRenderer.cs` (`AppendCircleMarker`, `AppendCrossMarker`, inlined point heads) + `FlowchartRenderedPathMarkerHelper.cs` + `FlowchartEdgeAttachConstants.GetExteriorGapPx` | Grow into one **`DiagramMarkerPainter`**. Every type that draws a tip calls this. `MarkerSet` chooses the glyph (flowchart point/circle/cross, UML, ER cardinality, ArchiMate, sequence). |
+| `src/MermaidRecognition.Layout/FlowchartSugiyamaSvgRenderer.cs` (`AppendCircleMarker`, `AppendCrossMarker`, inlined point heads) + `FlowchartRenderedPathMarkerHelper.cs` + `FlowchartEdgeAttachConstants.GetExteriorGapPx` | Grow into one **`DiagramMarkerPainter`**. Every type that draws a tip calls this. `MarkerSet` chooses the glyph (flowchart point/circle/cross, UML, ER cardinality, Enterprise, sequence). |
 | `extern/Naiad/src/Naiad/Rendering/SvgBuilder.cs` `AddArrowMarker`, `AddMermaidArrowMarker`, `AddCircleMarker`, `AddCrossMarker` (SVG `<marker>`) | Stop using `<marker>` for diagram tips. Same painter, inlined paths (Word/Skia already need this). |
 | `src/MDConverter/Pipeline/DocxWriter.cs` (third copy: inlines `marker-end` for Skia) | Raster path **consumes** `DiagramMarkerPainter`. No private triangle. |
 | `StateRenderer.DrawArrowhead` (`extern/Naiad/src/Naiad/Diagrams/State/StateRenderer.cs`) | Delete. |
 | Near-identical 8 px / π/6 triangles in `C4Renderer.cs`, `ArchitectureRenderer.DrawArrow`, `RequirementRenderer.cs` | Delete. Call the painter. |
 | `ClassRenderer.cs` (`AddArrowMarker` / `arrowhead-open`). `SequenceRenderer.cs` (`mermaid-svg_sequence-arrowhead`) | Same painter, `MarkerSet = uml` or `sequence`. |
 | `ERRenderer.cs` crow’s-foot / circle / bar glyphs | Glyphs live **in** `DiagramMarkerPainter` as the `er` marker set. Attach and inset stay shared. |
-| Enterprise ArchiMate markers (PR #1) | `MarkerSet = archimate` on the same painter. No enterprise-only tip path. |
+| Enterprise markers (PR #1) | `MarkerSet = enterprise` on the same painter. No enterprise-only tip path. |
 
 #### Label placement
 
@@ -166,7 +166,7 @@ Every type that sizes a box from a string has invented its own `length × fontSi
 
 **Keep:** one **`DiagramTextMeasurer`**, grown from `FlowchartNodeSizeEstimator` and `FlowchartRichLabelSvgWriter` (those are the spec-traced metrics). Input is text, font size, weight, family, wrap width. Every renderer - including sequence, gantt, pie, timeline - calls it. Private `MeasureText` methods are deleted. A profile may pass size and weight; it may not pick a different em factor.
 
-Node **shape** extras (diamond `S = W0 + H0`, class compartments, ER header + rows, ArchiMate box sizes on PR #1) are profile `NodeMeasurer` arithmetic **on top of** the shared text measure and shared padding. `EnterpriseNodeSizer` (PR #1) must not remain a second text path.
+Node **shape** extras (diamond `S = W0 + H0`, class compartments, ER header + rows, Enterprise box sizes on PR #1) are profile `NodeMeasurer` arithmetic **on top of** the shared text measure and shared padding. `EnterpriseNodeSizer` (PR #1) must not remain a second text path.
 
 #### Padding and spacing
 
@@ -293,7 +293,7 @@ The **shared router** (`FlowchartSharedEdgeRouter`) owns every edge. The padded 
 | Snap loose ends onto the box they join | `SnapAllEndpointsToBoxes` | `Arrowheads.TrimSplineAndCalculateArrowheads` |
 | Keep labels off boxes and other strokes | `FlowchartEdgeLabelClearanceHelper` | `EdgeLabelPlacement` |
 
-Markers stay **per-type paint**: flowchart arrows/cross/circle; class UML; ER cardinalities; ArchiMate serving/realization. The engine returns attach points; the renderer draws the marker.
+Markers stay **per-type paint**: flowchart arrows/cross/circle; class UML; ER cardinalities; Enterprise serving/realization. The engine returns attach points; the renderer draws the marker.
 
 ### 4.6 Label placement
 
@@ -333,7 +333,7 @@ LayoutProfile
   Containment             Enforce | None
   AllowCompoundEndpoints  true | false
   NodeMeasurer            delegate(node) → (width, height, shape)
-  MarkerSet               flowchart | uml | er | archimate | none
+  MarkerSet               flowchart | uml | er | enterprise | none
   PostPasses              named list (decision order, parallel columns, note park, …)
   SpecializedModule       null | Sequence | Gantt | Pie | Timeline | …
 ```
@@ -343,7 +343,7 @@ LayoutProfile
 | Kind | Direction | Spacing (node / rank) | Routing | Ports | Containment | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | Flowchart | Author | 50 / 50 | Curved | FlowchartFan | Enforce | Current defaults. Slack 8, title 26, padding 18 |
-| Enterprise | TB | Same as flowchart | Curved | FlowchartFan | Enforce | **No extra router.** Only `MarkerSet = archimate` and ArchiMate node sizes |
+| Enterprise | TB | Same as flowchart | Curved | FlowchartFan | Enforce | **No extra router.** Only `MarkerSet = enterprise` and Enterprise node sizes |
 | Class | Author (often TB) | 120 / 160 (today’s 60/80 ×2) | Direct | FaceCentre | None (until packages) | Compartment boxes from `NodeMeasurer` |
 | State | Author | 120 / 80 | Curved | FaceCentre | Optional (composites later) | Start/end size; notes as a post-pass |
 | ER | Author | 100 / 100 | Direct | Slotted faces | None | Header + attribute height in `NodeMeasurer` |
@@ -422,7 +422,7 @@ Class and ER start with `RoutingStyle = Direct` so we do not suddenly curve UML/
 
 ### Stage 3 - Enterprise stays a profile
 
-When PR #1 needs these layout fixes, **rebase or merge `flowchart-layout-fixes` into `enterprise-diagram`** (not the other way around). Enterprise profile = flowchart + ArchiMate markers and sizes. Re-run `docs/enterprise/rendered/parity/` and the 2 px geometry tests. No enterprise-only router.
+When PR #1 needs these layout fixes, **rebase or merge `flowchart-layout-fixes` into `enterprise-diagram`** (not the other way around). Enterprise profile = flowchart + Enterprise markers and sizes. Re-run `docs/enterprise/rendered/parity/` and the 2 px geometry tests. No enterprise-only router.
 
 ### Stage 4 - Grid / nested-boundary types
 

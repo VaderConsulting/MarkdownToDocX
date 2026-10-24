@@ -1,5 +1,8 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
+using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 
 namespace MermaidRecognition.Layout.Tests.Enterprise;
@@ -7,6 +10,88 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class PlacementHintLayoutTests
 {
+    [Test]
+    public void DirectionHints_AreAppliedInFinishedPageCoordinates()
+    {
+        const string Source = """
+            enterprise TB
+              application-component abovePeer "Above peer"
+              application-component aboveNode "Above node" above abovePeer
+              application-component belowPeer "Below peer"
+              application-component belowNode "Below node" below belowPeer
+            """;
+
+        string Svg = Render(Source);
+        string NorthSvg = Render("""
+            enterprise TB
+              application-component northSource "North source"
+              application-component northTarget "North target"
+              northSource -flow-> northTarget [leave N]
+            """);
+        string SouthSvg = Render("""
+            enterprise TB
+              application-component southSource "South source"
+              application-component southTarget "South target"
+              southSource -flow-> southTarget [leave S]
+            """);
+
+        double abovePeerY = LabelY(Svg, "Above peer");
+        double aboveNodeY = LabelY(Svg, "Above node");
+        double belowPeerY = LabelY(Svg, "Below peer");
+        double belowNodeY = LabelY(Svg, "Below node");
+        (double StartY, double NextY) north = FirstTwoPathY(NorthSvg, "northSource", "northTarget");
+        (double StartY, double NextY) south = FirstTwoPathY(SouthSvg, "southSource", "southTarget");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(aboveNodeY, Is.LessThan(abovePeerY), "above must render toward the top of the page");
+            Assert.That(belowNodeY, Is.GreaterThan(belowPeerY), "below must render toward the bottom of the page");
+            Assert.That(north.NextY, Is.LessThan(north.StartY), "leave N must route upward on the page");
+            Assert.That(south.NextY, Is.GreaterThan(south.StartY), "leave S must route downward on the page");
+        });
+
+        static double LabelY(string Svg, string Label)
+        {
+            Match match = Regex.Match(Svg,
+                "<text x=\"[^\"]+\" y=\"([^\"]+)\"[^>]*>" + Regex.Escape(Label) + "</text>");
+            Assert.That(match.Success, Is.True, $"Rendered label '{Label}' was not found.");
+            return double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+        }
+
+        static string Render(string Source)
+        {
+            DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(
+                EnterpriseValidator.Analyze(Source).Document);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+            return FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Layout);
+        }
+
+        static (double StartY, double NextY) FirstTwoPathY(string Svg, string SourceId, string TargetId)
+        {
+            Match path = Regex.Match(Svg,
+                "<path d=\"([^\"]+)\"[^>]*data-edge-source=\"" + Regex.Escape(SourceId)
+                + "\" data-edge-target=\"" + Regex.Escape(TargetId) + "\"");
+            if (path.Success)
+            {
+                MatchCollection coordinates = Regex.Matches(path.Groups[1].Value,
+                    @"-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?");
+                Assert.That(coordinates.Count, Is.GreaterThanOrEqualTo(2),
+                    $"Rendered route {SourceId}->{TargetId} has no initial segment.");
+                return (CoordinateY(coordinates[0].Value), CoordinateY(coordinates[1].Value));
+            }
+
+            Match line = Regex.Match(Svg,
+                "<line[^>]*y1=\"([^\"]+)\"[^>]*y2=\"([^\"]+)\"[^>]*data-edge-source=\""
+                + Regex.Escape(SourceId) + "\"[^>]*data-edge-target=\"" + Regex.Escape(TargetId) + "\"");
+            Assert.That(line.Success, Is.True, $"Rendered route {SourceId}->{TargetId} was not found.");
+            return (double.Parse(line.Groups[1].Value, CultureInfo.InvariantCulture),
+                double.Parse(line.Groups[2].Value, CultureInfo.InvariantCulture));
+
+            static double CoordinateY(string Coordinate) =>
+                double.Parse(Coordinate.Split(',')[1], CultureInfo.InvariantCulture);
+        }
+    }
+
     [Test]
     public void AgainstFlowChain_HonoursAllRelativeHintsBeforeRouting()
     {
@@ -68,6 +153,9 @@ public sealed class PlacementHintLayoutTests
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             Assert.That(Route.Points, Has.Count.GreaterThanOrEqualTo(2));
+            Assert.That(Route.ExitSide, Is.EqualTo("top"), $"{Route.SourceId}->{Route.TargetId} must leave north.");
+            Assert.That(Route.Points[1].Y, Is.GreaterThan(Route.Points[0].Y),
+                $"{Route.SourceId}->{Route.TargetId} must travel north in the post-flip Y-up model.");
             foreach ((FlowchartLayoutPoint A, FlowchartLayoutPoint B) in Route.Points.Zip(Route.Points.Skip(1)))
             foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
                 Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
@@ -78,7 +166,7 @@ public sealed class PlacementHintLayoutTests
     }
 
     [Test]
-    public void RelativeHints_KeepSourceOrderedRow()
+    public void RelativeHints_KeepSourceOrderedChainOnTheSameRow()
     {
         const string Source = """
             enterprise
@@ -97,10 +185,10 @@ public sealed class PlacementHintLayoutTests
         var Ordered = Enumerable.Range(1, 5).Select(Index => Layout[$"a{Index}"]).ToArray();
         Assert.Multiple(() =>
         {
-            Assert.That(Ordered.Select(Node => Node.CenterY).Distinct().Count(), Is.EqualTo(1),
-                string.Join(", ", Ordered.Select(Node => $"{Node.NodeId}=({Node.CenterX},{Node.CenterY})")));
             for (int Index = 1; Index < Ordered.Length; Index++)
                 Assert.That(Ordered[Index].CenterX, Is.GreaterThan(Ordered[Index - 1].CenterX));
+            Assert.That(Ordered.Select(Node => Node.CenterY).Distinct().Count(), Is.EqualTo(1),
+                "right-of places each node on its peer's row");
         });
     }
 

@@ -5,6 +5,9 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartSubgraphLayoutRect
 {
+    /// <summary>Reserved title-strip height, including the renderer's text clearance.</summary>
+    public double TitleBandHeightPx { get; set; } = FlowchartSubgraphBoundsBuilder.TITLE_BAND_PX;
+
     public string GroupId
     {
         get => _GroupId; set => _GroupId = value;

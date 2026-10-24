@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -97,6 +98,30 @@ public readonly struct FlowchartSvgRect
 /// </summary>
 public static class FlowchartEdgeLabelClearanceHelper
 {
+    private static long _pointTests;
+    private static long _nodeBoxTests;
+    private static long _candidatePositions;
+
+    internal static void ResetOperationCounts()
+    {
+        _pointTests = 0;
+        _nodeBoxTests = 0;
+        _candidatePositions = 0;
+    }
+
+    internal static void FlushOperationCounts()
+    {
+        FlowchartRenderContext.ReportOperationCount("label-point-tests", _pointTests % 4096);
+        FlowchartRenderContext.ReportOperationCount("label-node-box-tests", _nodeBoxTests % 4096);
+        FlowchartRenderContext.ReportOperationCount("label-candidate-positions", _candidatePositions % 4096);
+    }
+
+    private static void CountOperation(ref long Counter, string Name)
+    {
+        long Count = Interlocked.Increment(ref Counter);
+        if ((Count & 4095) == 0) FlowchartRenderContext.ReportOperationCount(Name, 4096);
+    }
+
     private const double LABEL_MARGIN_PX = 4.0;
 
     /// <summary>
@@ -148,7 +173,21 @@ public static class FlowchartEdgeLabelClearanceHelper
         FlowchartDirection Direction,
         IReadOnlyList<FlowchartSvgRect> NodeRects,
         double PreferredSign,
-        IReadOnlyList<IReadOnlyList<(double X, double Y)>>? OtherGuideSvgPoints = null)
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>>? OtherGuideSvgPoints = null) =>
+        MoveClearOfConnector(CentreX, CentreY, Width, Height, GuideSvgPoints, Direction, NodeRects,
+            PreferredSign, OtherGuideSvgPoints, null);
+
+    internal static (double X, double Y) MoveClearOfConnector(
+        double CentreX,
+        double CentreY,
+        double Width,
+        double Height,
+        IReadOnlyList<(double X, double Y)> GuideSvgPoints,
+        FlowchartDirection Direction,
+        IReadOnlyList<FlowchartSvgRect> NodeRects,
+        double PreferredSign,
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>>? OtherGuideSvgPoints,
+        FlowchartSvgSpatialIndex? ObstacleIndex)
     {
         if (GuideSvgPoints.Count < 2 || Width <= 0.0 || Height <= 0.0)
         {
@@ -157,26 +196,32 @@ public static class FlowchartEdgeLabelClearanceHelper
 
         List<(double X, double Y)> OwnSamples = SampleConnector(GuideSvgPoints);
         List<(double X, double Y)> Samples = new List<(double X, double Y)>(OwnSamples);
-        if (OtherGuideSvgPoints is not null)
+        if (OtherGuideSvgPoints is not null && ObstacleIndex == null)
         {
+            // Keep the exact existing sampled geometry, but query neighbouring
+            // samples through the same broad phase used by the SVG painter.
+            // Canvas measurement has no painter index and previously scanned
+            // every other connector at every candidate label position.
+            ObstacleIndex = new FlowchartSvgSpatialIndex();
             foreach (IReadOnlyList<(double X, double Y)> OtherPoints in OtherGuideSvgPoints)
             {
                 if (OtherPoints.Count >= 2)
                 {
-                    Samples.AddRange(SampleConnector(OtherPoints));
+                    foreach (var Sample in SampleConnector(OtherPoints))
+                        ObstacleIndex.AddPoint(Sample.X, Sample.Y);
                 }
             }
         }
 
         bool ClearOfOwnConnector = IsClear(CentreX, CentreY, Width, Height, OwnSamples, NodeRects, CheckNodes: false)
             && DistanceFromLabelToConnector(CentreX, CentreY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX;
-        bool HasOtherConnectors = Samples.Count > OwnSamples.Count;
-        if (ClearOfOwnConnector && (!HasOtherConnectors || IsClear(CentreX, CentreY, Width, Height, Samples, NodeRects, CheckNodes: false)))
+        bool HasOtherConnectors = ObstacleIndex?.PointCount > 0 || Samples.Count > OwnSamples.Count;
+        if (ClearOfOwnConnector && (!HasOtherConnectors || IsClear(CentreX, CentreY, Width, Height, Samples, NodeRects, CheckNodes: false, ObstacleIndex)))
         {
             return (CentreX, CentreY);
         }
 
-        if (HasOtherConnectors && TrySearchClearCentre(OwnSamples, Samples, Width, Height, Direction, NodeRects, PreferredSign, out double ClearX, out double ClearY))
+        if (HasOtherConnectors && TrySearchClearCentre(OwnSamples, Samples, Width, Height, Direction, NodeRects, PreferredSign, ObstacleIndex, out double ClearX, out double ClearY))
         {
             return (ClearX, ClearY);
         }
@@ -186,7 +231,7 @@ public static class FlowchartEdgeLabelClearanceHelper
             return (CentreX, CentreY);
         }
 
-        if (TrySearchClearCentre(OwnSamples, OwnSamples, Width, Height, Direction, NodeRects, PreferredSign, out ClearX, out ClearY))
+        if (TrySearchClearCentre(OwnSamples, OwnSamples, Width, Height, Direction, NodeRects, PreferredSign, null, out ClearX, out ClearY))
         {
             return (ClearX, ClearY);
         }
@@ -205,26 +250,27 @@ public static class FlowchartEdgeLabelClearanceHelper
         FlowchartDirection Direction,
         IReadOnlyList<FlowchartSvgRect> NodeRects,
         double PreferredSign,
+        FlowchartSvgSpatialIndex? ObstacleIndex,
         out double ClearX,
         out double ClearY)
     {
         (double CentreX, double CentreY) = ResolveArcLengthMidpoint(OwnSamples);
         bool SearchAlongX = Direction == FlowchartDirection.TopToBottom || Direction == FlowchartDirection.BottomToTop;
         double FirstSign = PreferredSign < 0.0 ? -1.0 : 1.0;
-        if (TrySearchAcrossFlow(CentreX, CentreY, 0.0, SearchAlongX, FirstSign, Width, Height, ObstacleSamples, NodeRects, out ClearX, out ClearY) && DistanceFromLabelToConnector(ClearX, ClearY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX)
+        if (TrySearchAcrossFlow(CentreX, CentreY, 0.0, SearchAlongX, FirstSign, Width, Height, ObstacleSamples, NodeRects, ObstacleIndex, out ClearX, out ClearY) && DistanceFromLabelToConnector(ClearX, ClearY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX)
         {
             return true;
         }
 
         double FirstClearX = ClearX;
         double FirstClearY = ClearY;
-        bool FoundFirst = IsClear(FirstClearX, FirstClearY, Width, Height, ObstacleSamples, NodeRects, CheckNodes: true);
+        bool FoundFirst = IsClear(FirstClearX, FirstClearY, Width, Height, ObstacleSamples, NodeRects, CheckNodes: true, ObstacleIndex);
         for (double Shift = ALONG_FLOW_SHIFT_STEP_PX; Shift <= MAX_ALONG_FLOW_SHIFT_PX; Shift += ALONG_FLOW_SHIFT_STEP_PX)
         {
             for (int ShiftAttempt = 0; ShiftAttempt < 2; ShiftAttempt++)
             {
                 double SignedShift = ShiftAttempt == 0 ? Shift : -Shift;
-                if (TrySearchAcrossFlow(CentreX, CentreY, SignedShift, SearchAlongX, FirstSign, Width, Height, ObstacleSamples, NodeRects, out double ShiftedX, out double ShiftedY) && DistanceFromLabelToConnector(ShiftedX, ShiftedY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX)
+                if (TrySearchAcrossFlow(CentreX, CentreY, SignedShift, SearchAlongX, FirstSign, Width, Height, ObstacleSamples, NodeRects, ObstacleIndex, out double ShiftedX, out double ShiftedY) && DistanceFromLabelToConnector(ShiftedX, ShiftedY, Width, Height, OwnSamples) <= MAX_DETACHED_LABEL_GAP_PX)
                 {
                     ClearX = ShiftedX;
                     ClearY = ShiftedY;
@@ -252,6 +298,7 @@ public static class FlowchartEdgeLabelClearanceHelper
         double Height,
         IReadOnlyList<(double X, double Y)> ObstacleSamples,
         IReadOnlyList<FlowchartSvgRect> NodeRects,
+        FlowchartSvgSpatialIndex? ObstacleIndex,
         out double ClearX,
         out double ClearY)
     {
@@ -261,10 +308,11 @@ public static class FlowchartEdgeLabelClearanceHelper
         {
             for (int Attempt = 0; Attempt < 2; Attempt++)
             {
+                CountOperation(ref _candidatePositions, "label-candidate-positions");
                 double Sign = Attempt == 0 ? FirstSign : -FirstSign;
                 double CandidateX = SearchAlongX ? StartX + (Sign * Distance) : StartX;
                 double CandidateY = SearchAlongX ? StartY : StartY + (Sign * Distance);
-                if (IsClear(CandidateX, CandidateY, Width, Height, ObstacleSamples, NodeRects, CheckNodes: true))
+                if (IsClear(CandidateX, CandidateY, Width, Height, ObstacleSamples, NodeRects, CheckNodes: true, ObstacleIndex))
                 {
                     ClearX = CandidateX;
                     ClearY = CandidateY;
@@ -333,13 +381,16 @@ public static class FlowchartEdgeLabelClearanceHelper
         double Height,
         IReadOnlyList<(double X, double Y)> Samples,
         IReadOnlyList<FlowchartSvgRect> NodeRects,
-        bool CheckNodes)
+        bool CheckNodes,
+        FlowchartSvgSpatialIndex? ObstacleIndex = null)
     {
         double HalfWidth = (Width / 2.0) + LABEL_HORIZONTAL_MARGIN_PX;
         double HalfHeight = (Height / 2.0) + LABEL_MARGIN_PX;
         FlowchartSvgRect LabelRect = new FlowchartSvgRect(CentreX - HalfWidth, CentreY - HalfHeight, CentreX + HalfWidth, CentreY + HalfHeight);
+        if (ObstacleIndex?.ContainsPoint(LabelRect) == true) return false;
         foreach ((double X, double Y) Sample in Samples)
         {
+            CountOperation(ref _pointTests, "label-point-tests");
             if (LabelRect.Contains(Sample.X, Sample.Y))
             {
                 return false;
@@ -353,8 +404,10 @@ public static class FlowchartEdgeLabelClearanceHelper
 
         double NodeHalfWidth = (Width / 2.0) + LABEL_MARGIN_PX;
         FlowchartSvgRect NodeCheckRect = new FlowchartSvgRect(CentreX - NodeHalfWidth, CentreY - HalfHeight, CentreX + NodeHalfWidth, CentreY + HalfHeight);
+        if (ObstacleIndex?.IntersectsRectangle(NodeCheckRect) == true) return false;
         foreach (FlowchartSvgRect NodeRect in NodeRects)
         {
+            CountOperation(ref _nodeBoxTests, "label-node-box-tests");
             if (NodeCheckRect.Intersects(NodeRect))
             {
                 return false;
@@ -364,7 +417,7 @@ public static class FlowchartEdgeLabelClearanceHelper
         return true;
     }
 
-    private static List<(double X, double Y)> SampleConnector(IReadOnlyList<(double X, double Y)> GuideSvgPoints)
+    internal static List<(double X, double Y)> SampleConnector(IReadOnlyList<(double X, double Y)> GuideSvgPoints)
     {
         List<(double X, double Y)> Samples = [];
         if (FlowchartCurvePathBuilder.TryBuildStubBridgeCurvePathData(GuideSvgPoints, out string PathData)

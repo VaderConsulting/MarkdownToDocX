@@ -80,7 +80,7 @@ internal static class FlowchartConvergenceRouteRepair
                 ScoreContext.MeasureCandidateSummary(Route, CandidateInteractions);
             bool Keep = After.Overlaps == 0 && After.Crossings <= Before.Crossings
                 && (Before.Score.HasValue
-                    ? After.Score.HasValue && After.Score.Value < Before.Score.Value - 0.001
+                    ? After.Score.HasValue && After.Cost < Before.Cost - 0.001
                     : After.RejectingFaults < Before.RejectingFaults
                         || After.RejectingFaults == Before.RejectingFaults
                             && Corners(Candidate) < Corners(Original));

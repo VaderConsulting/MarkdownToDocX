@@ -10,6 +10,8 @@ internal static class FlowchartTerminalRowPlacement
 {
     internal static void Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
+        // Bound-node hole proposals compete in the routed whole-cell scorer.
+        if (Nodes.Any(Node => Node.CellNode != null)) return;
         // Group frames and junction branches have their own placement rules.
         if (Contract.Groups.Count > 0 || Nodes.Any(Node => Node.IsDiamond || Node.Shape is not (null or "" or "rect" or "rounded" or "round"))) return;
         var ById = Nodes.ToDictionary(Node => Node.Id);
@@ -44,6 +46,48 @@ internal static class FlowchartTerminalRowPlacement
             Leaf.Rank = Parent.Rank;
             if (Horizontal) { Leaf.X = Parent.X; Leaf.Y = Candidate; }
             else { Leaf.Y = Parent.Y; Leaf.X = Candidate; }
+        }
+    }
+
+    /// <summary>Offers a leaf the free whole-cell slot beside its parent without publishing regions or rank metadata.</summary>
+    /// <param name="Contract">Visible graph and group restrictions.</param>
+    /// <param name="Nodes">Complete diagram ownership.</param>
+    /// <param name="Horizontal">Whether parent ranks advance across columns.</param>
+    /// <returns>Complete leaf translations; the routed scorer checks clearance, hints and total cost.</returns>
+    internal static IEnumerable<DiagramGridLayout.CellRouteMoveTarget> CellCandidates(DiagramContract Contract,
+        List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
+    {
+        if (Contract.Groups.Count > 0 || Nodes.Any(Node => Node.IsDiamond || Node.Shape is not (null or "" or "rect" or "rounded" or "round"))) yield break;
+        var Regions = FlowchartCellRepair.Capture(Nodes).Regions;
+        var ById = Nodes.ToDictionary(Node => Node.Id);
+        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        foreach (var Leaf in Nodes.Where(Node => !Node.PlacementHintLocked && !Edges.Any(Edge => Edge.SourceId == Node.Id)))
+        {
+            var Incoming = Edges.Where(Edge => Edge.TargetId == Leaf.Id).ToArray();
+            if (Incoming.Length != 1 || Back.Contains(Incoming[0]) || !ById.TryGetValue(Incoming[0].SourceId, out var Parent)
+                || Parent.Rank >= Leaf.Rank) continue;
+            var A = Regions[Parent.Id]; var B = Regions[Leaf.Id];
+            int Side = Math.Sign((Horizontal ? B.StartRow : B.StartColumn) - (Horizontal ? A.StartRow : A.StartColumn));
+            if (Side == 0) continue;
+            var Children = Edges.Where(Edge => Edge.SourceId == Parent.Id && Edge.TargetId != Leaf.Id)
+                .Select(Edge => ById.GetValueOrDefault(Edge.TargetId)).ToArray();
+            if (Children.Length == 0 || Children.Any(Child => Child == null || Child.Rank != Leaf.Rank
+                || Math.Sign((Horizontal ? Regions[Child.Id].StartRow : Regions[Child.Id].StartColumn)
+                    - (Horizontal ? A.StartRow : A.StartColumn)) != -Side
+                || Edges.Any(Edge => Edge.SourceId == Child.Id)
+                || !Edges.Any(Edge => Edge.TargetId == Child.Id && Edge.SourceId != Parent.Id
+                    && ById.TryGetValue(Edge.SourceId, out var Peer) && Peer.Rank == Parent.Rank))) continue;
+            int Cross = Horizontal ? Side < 0 ? A.StartRow - B.RowSpan : A.EndRow
+                : Side < 0 ? A.StartColumn - B.ColumnSpan : A.EndColumn;
+            bool Bounded = Nodes.Any(Other => Other != Leaf && Other.Rank == Parent.Rank
+                && Side * ((Horizontal ? Regions[Other.Id].StartRow : Regions[Other.Id].StartColumn) - Cross) > 0);
+            if (!Bounded) continue;
+            int Row = Horizontal ? Cross : A.StartRow, Column = Horizontal ? A.StartColumn : Cross;
+            var Candidate = new FlowchartCellRegion(Row, Column, B.RowSpan, B.ColumnSpan);
+            if (Regions.Any(Pair => Pair.Key != Leaf.Id && Pair.Value.Overlaps(Candidate))) continue;
+            yield return new($"terminal-hole|{Leaf.Id}|{Row}|{Column}", Leaf.Id, [Leaf],
+                checked(Row - B.StartRow), checked(Column - B.StartColumn));
         }
     }
 }

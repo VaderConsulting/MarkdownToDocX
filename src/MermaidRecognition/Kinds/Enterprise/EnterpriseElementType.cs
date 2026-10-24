@@ -1,7 +1,7 @@
 namespace MermaidRecognition.Kinds.Enterprise;
 
 /// <summary>
-/// In-scope ArchiMate 3.2 element types for the enterprise diagram.
+/// In-scope Enterprise element types for the enterprise diagram.
 /// </summary>
 public enum EnterpriseElementType
 {

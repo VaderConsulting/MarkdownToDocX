@@ -12,7 +12,7 @@ namespace MermaidRecognition.Layout.Tests;
 /// Catalogue fixture render gates (F11–F24 shape/edge parity).
 /// </summary>
 [TestFixture]
-public sealed class FlowchartCatalogueRenderTests
+public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixture
 {
     [Test]
     public void TryResolveLayoutGuidePoints_F113_ParallelBranchFanIn_UsesExteriorCorridor()
@@ -26,7 +26,7 @@ public sealed class FlowchartCatalogueRenderTests
             Start --> B5 --> End
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
@@ -131,7 +131,7 @@ public sealed class FlowchartCatalogueRenderTests
             Top[/Wide top/] --> Bottom[\Wide bottom/]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
@@ -170,7 +170,7 @@ public sealed class FlowchartCatalogueRenderTests
             A[Rectangle] --> B(Rounded rectangle) --> C{Diamond decision} --> D((Circle))
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double Ax = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A").CenterX;
         double Bx = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterX;
@@ -191,7 +191,7 @@ public sealed class FlowchartCatalogueRenderTests
             App[Application] --> Store
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, NodeContract> NodeById = Contract.Nodes
             .ToDictionary(Node => Node.Id, Node => Node);
@@ -275,7 +275,7 @@ public sealed class FlowchartCatalogueRenderTests
             C[C] --- D[D]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double AY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A").CenterY;
         double CY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
@@ -468,7 +468,7 @@ public sealed class FlowchartCatalogueRenderTests
             B -->|"Step 2: persist (async)"| C[Store]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds Source = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         FlowchartLayoutNodeBounds Validator = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B");
@@ -560,7 +560,7 @@ public sealed class FlowchartCatalogueRenderTests
             Check -->|No| Fail[Reject]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         var BoundsById = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
         EdgeContract Edge = Contract.Edges.Single(Candidate => Candidate.Label == "Yes");
@@ -607,7 +607,7 @@ public sealed class FlowchartCatalogueRenderTests
             Check -->|No| Fail[Reject]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
         foreach (EdgeContract Edge in Contract.Edges.Where(
@@ -650,9 +650,9 @@ public sealed class FlowchartCatalogueRenderTests
         Assert.That(ThreeDash.Edges[0].MinLength, Is.EqualTo(2));
         Assert.That(FourDash.Edges[0].MinLength, Is.EqualTo(3));
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(TwoDash, out FlowchartLayoutResult LayoutTwo), Is.True);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(ThreeDash, out FlowchartLayoutResult LayoutThree), Is.True);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(FourDash, out FlowchartLayoutResult LayoutFour), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(TwoDash, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult LayoutTwo), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(ThreeDash, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult LayoutThree), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(FourDash, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult LayoutFour), Is.True);
 
         double SpanTwo = LayoutTwo.NodeBounds.Max(Bounds => Bounds.CenterY) - LayoutTwo.NodeBounds.Min(Bounds => Bounds.CenterY);
         double SpanThree = LayoutThree.NodeBounds.Max(Bounds => Bounds.CenterY) - LayoutThree.NodeBounds.Min(Bounds => Bounds.CenterY);
@@ -672,7 +672,7 @@ public sealed class FlowchartCatalogueRenderTests
             E[E] ----> F[F]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double GapAb = GetFlowAxisGap(Layout, "A", "B");
         double GapCd = GetFlowAxisGap(Layout, "C", "D");
@@ -692,7 +692,7 @@ public sealed class FlowchartCatalogueRenderTests
             E[E] ----> F[F]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds A = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         FlowchartLayoutNodeBounds B = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B");
@@ -723,7 +723,7 @@ public sealed class FlowchartCatalogueRenderTests
             E[E] ----> F[F]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double Ax = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A").CenterX;
         double Cx = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterX;
@@ -743,7 +743,7 @@ public sealed class FlowchartCatalogueRenderTests
             W3[Worker 3] --> Agg
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double W1X = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "W1").CenterX;
         double W2X = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "W2").CenterX;
@@ -766,7 +766,7 @@ public sealed class FlowchartCatalogueRenderTests
             Check -->|No| Fail[Reject]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double OkX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "OK").CenterX;
         double FailX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Fail").CenterX;
@@ -787,7 +787,7 @@ public sealed class FlowchartCatalogueRenderTests
             E --> F[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double IngressY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A").CenterY;
         double EnqueueY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
@@ -813,7 +813,7 @@ public sealed class FlowchartCatalogueRenderTests
             Hub --> W3[Worker 3]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -909,14 +909,9 @@ public sealed class FlowchartCatalogueRenderTests
             """);
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        int CurvedPathCount = System.Text.RegularExpressions.Regex.Matches(
-            Svg,
-            @"<path d=""M[^""C]+L[^""C]+C[^""]+L[^""C]+"" fill=""none""").Count;
-        int StraightLineCount = SvgStraightConnectorReader.Read(Svg).Count;
-
-        Assert.That(StraightLineCount, Is.EqualTo(1), "Centre Worker 2→Aggregate should be a straight vertical line");
-        Assert.That(CurvedPathCount, Is.GreaterThanOrEqualTo(2),
-            "Offset fan-in edges should use smooth curves, not orthogonal elbow paths");
+        foreach (string Worker in new[] { "W1", "W2", "W3" })
+            OrthogonalRouteTestHelper.AssertEveryBendRounded(
+                OrthogonalRouteTestHelper.ExtractEdgePath(Svg, Worker, "Agg"));
     }
 
     [Test]
@@ -929,7 +924,7 @@ public sealed class FlowchartCatalogueRenderTests
             W3[Worker 3] --> Agg
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -945,7 +940,7 @@ public sealed class FlowchartCatalogueRenderTests
             "W1",
             "Agg",
             FlowchartEdgeAttachFace.Top,
-            FlowchartEdgeRouteKind.Curved);
+            Layout.CellNodes == null ? FlowchartEdgeRouteKind.Corridor : FlowchartEdgeRouteKind.Straight);
 
         AssertEdgeSourceFace(
             Contract,
@@ -965,7 +960,7 @@ public sealed class FlowchartCatalogueRenderTests
             "W3",
             "Agg",
             FlowchartEdgeAttachFace.Top,
-            FlowchartEdgeRouteKind.Curved);
+            Layout.CellNodes == null ? FlowchartEdgeRouteKind.Corridor : FlowchartEdgeRouteKind.Straight);
 
         foreach (string WorkerId in new[] { "W1", "W2", "W3" })
         {
@@ -1000,6 +995,14 @@ public sealed class FlowchartCatalogueRenderTests
 
             Assert.That(TargetFace, Is.EqualTo(ExpectedFace), $"{WorkerId} should enter Aggregate on the face that faces it (spec §15.0C.1)");
         }
+
+        double[] TargetPorts = Layout.EdgeRoutes.Where(Route => Route.TargetId == "Agg")
+            .Select(Route => Route.Points[^1].X).OrderBy(X => X).ToArray();
+        Assert.That(TargetPorts, Has.Length.EqualTo(3));
+        Assert.That((TargetPorts[0] + TargetPorts[^1]) / 2.0,
+            Is.EqualTo(BoundsById["Agg"].CenterX).Within(1.0));
+        Assert.That(TargetPorts[1] - TargetPorts[0],
+            Is.EqualTo(TargetPorts[2] - TargetPorts[1]).Within(1.0));
     }
 
     [Test]
@@ -1070,7 +1073,7 @@ public sealed class FlowchartCatalogueRenderTests
             E --> F[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -1249,7 +1252,7 @@ public sealed class FlowchartCatalogueRenderTests
             Check -->|No| Fail[Reject]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds Ok = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "OK");
         FlowchartLayoutNodeBounds Fail = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Fail");
@@ -1294,7 +1297,7 @@ public sealed class FlowchartCatalogueRenderTests
             Check -->|No| Fail[Reject]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds Start = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Start");
         FlowchartLayoutNodeBounds Check = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "Check");
@@ -1376,7 +1379,7 @@ public sealed class FlowchartCatalogueRenderTests
             A -->|reject| C[Rejected]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds Request = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         FlowchartLayoutNodeBounds Approved = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B");
@@ -1402,7 +1405,7 @@ public sealed class FlowchartCatalogueRenderTests
             C -->|Three| F[Other gift]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirection.TopToBottom;
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -1459,7 +1462,7 @@ public sealed class FlowchartCatalogueRenderTests
             A -->|reject| C[Rejected]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirection.LeftToRight;
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -1534,7 +1537,7 @@ public sealed class FlowchartCatalogueRenderTests
             D -->|no| F[Stop]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double PathAX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A").CenterX;
         double PathBX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterX;
@@ -1557,7 +1560,7 @@ public sealed class FlowchartCatalogueRenderTests
             D -->|yes| E[Continue]
             D -->|no| F[Stop]
             """);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
@@ -1603,7 +1606,7 @@ public sealed class FlowchartCatalogueRenderTests
             D -->|no| F[Stop]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -1688,7 +1691,7 @@ public sealed class FlowchartCatalogueRenderTests
             D -->|no| F[Stop]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -1767,7 +1770,7 @@ public sealed class FlowchartCatalogueRenderTests
             D --> A
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double HubY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterY;
         double DoneY = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C").CenterY;
@@ -1787,7 +1790,7 @@ public sealed class FlowchartCatalogueRenderTests
             D --> A
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double HubX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").CenterX;
         double HubHalfWidth = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "B").Width / 2.0;
@@ -1816,7 +1819,7 @@ public sealed class FlowchartCatalogueRenderTests
             end
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds NodeC = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "C");
         FlowchartLayoutNodeBounds NodeD = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "D");
@@ -1855,7 +1858,7 @@ public sealed class FlowchartCatalogueRenderTests
             C --> OUT[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         double InX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "IN").CenterX;
         double OutX = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "OUT").CenterX;
@@ -1879,7 +1882,7 @@ public sealed class FlowchartCatalogueRenderTests
             C --> OUT[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
@@ -1911,7 +1914,7 @@ public sealed class FlowchartCatalogueRenderTests
             S3 --> End[End]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds S1 = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "S1");
         FlowchartLayoutNodeBounds S2 = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "S2");
@@ -1936,7 +1939,7 @@ public sealed class FlowchartCatalogueRenderTests
             S3 --> End[End]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
             .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
@@ -1970,7 +1973,7 @@ public sealed class FlowchartCatalogueRenderTests
             P3 --> Egress[Egress]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds P1 = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "P1");
         FlowchartLayoutNodeBounds P2 = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "P2");
@@ -2000,7 +2003,7 @@ public sealed class FlowchartCatalogueRenderTests
             b1 --> OUT[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
@@ -2038,7 +2041,7 @@ public sealed class FlowchartCatalogueRenderTests
             L3 --> R3
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
@@ -2076,7 +2079,7 @@ public sealed class FlowchartCatalogueRenderTests
             L3 --> R3
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
@@ -2148,7 +2151,7 @@ public sealed class FlowchartCatalogueRenderTests
             P --> Out[Output]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -2190,7 +2193,7 @@ public sealed class FlowchartCatalogueRenderTests
             b2 --> Egress[Egress]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
@@ -2225,7 +2228,7 @@ public sealed class FlowchartCatalogueRenderTests
             I2 -.->|audit copy| P2
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds, StringComparer.Ordinal);
@@ -2280,7 +2283,7 @@ public sealed class FlowchartCatalogueRenderTests
             end
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
@@ -2328,7 +2331,7 @@ public sealed class FlowchartCatalogueRenderTests
             Persist[(Optional archive)] --> Done
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
         double SpineX = BoundsById["Start"].CenterX;
@@ -2396,7 +2399,7 @@ public sealed class FlowchartCatalogueRenderTests
             Persist[(Optional archive)] --> Done
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -2452,7 +2455,7 @@ public sealed class FlowchartCatalogueRenderTests
             Persist[(Optional archive)] --> Done
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -2500,7 +2503,7 @@ public sealed class FlowchartCatalogueRenderTests
             Persist[(Optional archive)] --> Done
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
@@ -2604,7 +2607,7 @@ public sealed class FlowchartCatalogueRenderTests
             end
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds Start = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "Start");
         FlowchartLayoutNodeBounds InnerTop = Layout.NodeBounds.Single(Bounds => Bounds.NodeId == "InnerTop");
@@ -2644,7 +2647,7 @@ public sealed class FlowchartCatalogueRenderTests
             end
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
@@ -2713,7 +2716,7 @@ public sealed class FlowchartCatalogueRenderTests
             end
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
             Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, StringComparer.Ordinal);
@@ -2892,7 +2895,9 @@ public sealed class FlowchartCatalogueRenderTests
             A["- Item 1<br/>- Item 2<br/>- Item 3"] --> B[Next]
             """);
 
-        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
+        string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Layout);
         double NodeCentreX = ExtractRectangleCentreXFromSvg(Svg, 0);
         double NodeWidth = ExtractRectangleWidthFromSvg(Svg, 0);
         double NodeHeight = ExtractRectangleHeightFromSvg(Svg, 0);
@@ -2907,7 +2912,9 @@ public sealed class FlowchartCatalogueRenderTests
         double BlockMidpointX = BlockStartX + (BlockWidthPx / 2.0);
 
         Assert.That(BlockMidpointX, Is.EqualTo(NodeCentreX).Within(1.5));
-        Assert.That(NodeWidth, Is.EqualTo(NodeHeight).Within(1.0));
+        FlowchartCellNode Cell = Layout.CellNodes!.Single(Node => Node.Id == "A").CellNode!;
+        Assert.That(NodeWidth, Is.EqualTo(Cell.Grid.Measure(Cell.Region).Width).Within(0.01));
+        Assert.That(NodeHeight, Is.EqualTo(Cell.Grid.Measure(Cell.Region).Height).Within(0.01));
     }
 
     [Test]
@@ -2918,12 +2925,19 @@ public sealed class FlowchartCatalogueRenderTests
             A["<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>"] --> B[Out]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutNodeBounds TableNode = Layout.NodeBounds.First(Bounds => Bounds.NodeId == "A");
         double AspectRatio = TableNode.Width / TableNode.Height;
         Assert.That(AspectRatio, Is.InRange(0.55, 1.75));
-        Assert.That(TableNode.Width, Is.LessThan(140.0));
+        Assert.That(Layout.CellNodes!.Single(Node => Node.Id == "A").CellNode!.Region.ColumnSpan, Is.EqualTo(1));
+        Assert.That(TableNode.Width, Is.EqualTo(150));
+        FlowchartLabelDimensions Text = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
+            Contract.Nodes.Single(Node => Node.Id == "A").Label!,
+            FlowchartRenderOptions.FromContract(Contract), 16);
+        Assert.That(Text.Width, Is.LessThanOrEqualTo(TableNode.Width));
+        Assert.That(Text.Height, Is.LessThanOrEqualTo(TableNode.Height));
     }
 
     [Test]

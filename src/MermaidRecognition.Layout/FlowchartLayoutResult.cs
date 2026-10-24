@@ -10,6 +10,10 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public sealed class FlowchartLayoutResult
 {
+    /// <summary>Per-invocation counts distinguishing legacy writes from actual checks on cell-bound nodes.</summary>
+    internal FlowchartCellWriteCoverage? CellWriteCoverage { get; set; }
+    /// <summary>Authoritative closed-mode nodes retained for ownership audits; null for the legacy and open pipelines.</summary>
+    internal IReadOnlyList<DiagramGridLayout.GridNode>? CellNodes { get; set; }
     /// <summary>Mutable routing and rendering state owned by this layout.</summary>
     public FlowchartRenderContext RenderContext { get; internal set; } = new();
 
@@ -24,6 +28,9 @@ public sealed class FlowchartLayoutResult
     public double GraphHeight { get; init; }
 
     private readonly List<FlowchartLayoutEdgeRoute> _EdgeRoutes = [];
+
+    /// <summary>Routes resolved by the layout model for renderers to consume.</summary>
+    internal List<FlowchartResolvedGuide>? ResolvedEdgeGuides { get; set; }
 
     /// <summary>
     /// Dagre edge polylines for the diagram.

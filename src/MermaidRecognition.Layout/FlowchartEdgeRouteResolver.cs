@@ -34,17 +34,30 @@ public static class FlowchartEdgeRouteResolver
             BoundsById,
             NodeById,
             Direction,
-            Layout?.RenderContext ?? new FlowchartRenderContext());
+            Layout?.RenderContext ?? FlowchartRenderContext.Current);
+        long Scanned = 0;
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
+            Scanned++;
             if (!IsSameEdge(Guide.Edge, Edge))
             {
                 continue;
             }
 
+            if (FlowchartRenderContext.Current.IsSvgEdgePainting)
+            {
+                FlowchartRenderContext.ReportOperationCount("paint-guide-resolver-calls", 1);
+                FlowchartRenderContext.ReportOperationCount("paint-guide-list-entries-scanned", Scanned);
+            }
             LayoutPoints = new List<(double X, double Y)>(Guide.Points);
             RouteKind = Guide.RouteKind;
             return LayoutPoints.Count >= 2;
+        }
+
+        if (FlowchartRenderContext.Current.IsSvgEdgePainting)
+        {
+            FlowchartRenderContext.ReportOperationCount("paint-guide-resolver-calls", 1);
+            FlowchartRenderContext.ReportOperationCount("paint-guide-list-entries-scanned", Scanned);
         }
 
         LayoutPoints = [];
@@ -62,7 +75,8 @@ public static class FlowchartEdgeRouteResolver
     {
         if (Layout == null
             && RenderContext.CachedRouteGuides != null
-            && ReferenceEquals(RenderContext.CachedRouteContract, Contract))
+            && ReferenceEquals(RenderContext.CachedRouteContract, Contract)
+            && RenderContext.CachedRouteGeometry == GuideGeometry(BoundsById))
         {
             return RenderContext.CachedRouteGuides;
         }
@@ -94,13 +108,6 @@ public static class FlowchartEdgeRouteResolver
         return string.Equals(Left.SourceId, Right.SourceId, StringComparison.Ordinal)
             && string.Equals(Left.TargetId, Right.TargetId, StringComparison.Ordinal);
     }
-
-    private static bool IsEnterpriseJunction(
-        IReadOnlyDictionary<string, NodeContract> Nodes,
-        string NodeId) => Nodes.TryGetValue(NodeId, out NodeContract? Node)
-            && Node.Metadata.TryGetValue("enterpriseElementType", out MermaidMetadataValue? Metadata)
-            && Metadata is RawMetadata Raw
-            && string.Equals(Raw.RawValue, "Junction", StringComparison.Ordinal);
 
     /// <summary>
     /// Resolves every visible edge, then applies diagram-wide parallel separation.
@@ -151,6 +158,9 @@ public static class FlowchartEdgeRouteResolver
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, MutableBounds);
 
         List<FlowchartResolvedGuide> Guides = [];
+        IReadOnlySet<EdgeContract> BackEdges = Layout == null
+            ? new HashSet<EdgeContract>()
+            : FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -165,7 +175,9 @@ public static class FlowchartEdgeRouteResolver
                     NodeById,
                     Edge,
                     out List<(double X, double Y)> GridPoints,
-                    out FlowchartEdgeRouteKind GridKind))
+                    out FlowchartEdgeRouteKind GridKind,
+                    BackEdges,
+                    MutableBounds))
             {
                 Guides.Add(new FlowchartResolvedGuide(Edge, GridPoints, GridKind));
                 continue;
@@ -209,8 +221,16 @@ public static class FlowchartEdgeRouteResolver
 
         RenderContext.CachedRouteContract = Contract;
         RenderContext.CachedRouteGuides = Guides;
+        RenderContext.CachedRouteGeometry = GuideGeometry(BoundsById);
         return Guides;
     }
+
+    /// <summary>Identifies the complete supplied geometry so reused render contexts cannot return guides from an earlier frame fit.</summary>
+    /// <param name="Bounds">The endpoint and obstacle bounds supplied to this guide lookup.</param>
+    /// <returns>A deterministic exact-double signature, independent of dictionary insertion order.</returns>
+    private static string GuideGeometry(IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds) =>
+        string.Join(";", Bounds.OrderBy(Pair => Pair.Key, StringComparer.Ordinal).Select(Pair =>
+            FormattableString.Invariant($"{Pair.Key}:{Pair.Value.CenterX:R},{Pair.Value.CenterY:R},{Pair.Value.Width:R},{Pair.Value.Height:R}")));
 
     private static bool UsedGridLayoutRoutes(FlowchartLayoutResult? Layout, List<FlowchartResolvedGuide> Guides)
     {
@@ -226,7 +246,9 @@ public static class FlowchartEdgeRouteResolver
         IReadOnlyDictionary<string, NodeContract> NodeById,
         EdgeContract Edge,
         out List<(double X, double Y)> LayoutPoints,
-        out FlowchartEdgeRouteKind RouteKind)
+        out FlowchartEdgeRouteKind RouteKind,
+        IReadOnlySet<EdgeContract>? BackEdges = null,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>? BoundsById = null)
     {
         LayoutPoints = [];
         RouteKind = FlowchartEdgeRouteKind.Unknown;
@@ -237,7 +259,7 @@ public static class FlowchartEdgeRouteResolver
         }
 
         LayoutPoints = Copied;
-        if (FlowchartBackEdgeHelper.FindBackEdges(Contract).Contains(Edge))
+        if ((BackEdges ?? FlowchartBackEdgeHelper.FindBackEdges(Contract)).Contains(Edge))
         {
             RouteKind = FlowchartEdgeRouteKind.RetryLoop;
             return true;
@@ -258,11 +280,12 @@ public static class FlowchartEdgeRouteResolver
                 return true;
             }
 
-            Dictionary<string, FlowchartLayoutNodeBounds> BoundsById =
-                new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
-            foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+            Dictionary<string, FlowchartLayoutNodeBounds> RouteBoundsById = BoundsById as Dictionary<string, FlowchartLayoutNodeBounds>
+                ?? new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal);
+            if (BoundsById == null)
             {
-                BoundsById[Bounds.NodeId] = Bounds;
+                foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+                    RouteBoundsById[Bounds.NodeId] = Bounds;
             }
 
             if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
@@ -270,7 +293,7 @@ public static class FlowchartEdgeRouteResolver
                     Edge.SourceId,
                     SourceNode.Shape,
                     FlowchartDirectionNormalizer.Normalize(Contract.Direction),
-                    BoundsById))
+                    RouteBoundsById))
             {
                 RouteKind = FlowchartEdgeRouteKind.Grid;
                 return true;
@@ -480,9 +503,7 @@ public static class FlowchartEdgeRouteResolver
         // Allocate structural fan ports before the generic semantic router.
         // The shared router may improve tracks, but must not replace these
         // jointly selected, symmetric endpoints with individually shorter ones.
-        bool SourceIsEnterpriseJunction = IsEnterpriseJunction(NodeById, Edge.SourceId);
-        bool TargetIsEnterpriseJunction = IsEnterpriseJunction(NodeById, Edge.TargetId);
-        if (!TargetIsEnterpriseJunction && FlowchartFanInPortAllocator.TryResolveEdgeRoute(
+        if (FlowchartFanInPortAllocator.TryResolveEdgeRoute(
                 Edge, Contract, BoundsById, SourceShape, TargetShape, Direction,
                 out List<(double X, double Y)> EarlyFanInPoints))
         {
@@ -491,7 +512,7 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (!SourceIsEnterpriseJunction && FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
+        if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
                 Edge, Contract, BoundsById, SourceShape, TargetShape, Direction,
                 out List<(double X, double Y)> EarlyOrdinaryFanOutPoints))
         {
@@ -500,7 +521,7 @@ public static class FlowchartEdgeRouteResolver
             return true;
         }
 
-        if (!SourceIsEnterpriseJunction && FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
+        if (FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
                 Edge, Contract, BoundsById, SourceShape, TargetShape, Direction,
                 out List<(double X, double Y)> EarlyFanOutPoints))
         {

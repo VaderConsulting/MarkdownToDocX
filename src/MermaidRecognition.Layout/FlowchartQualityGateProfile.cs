@@ -33,12 +33,12 @@ public sealed class FlowchartQualityGateProfile
         TreatDashedAndSolidAsOneStyle: false);
 
     /// <summary>
-    /// ArchiMate paint: first connector path is the edge; filled markers and group
+    /// Enterprise paint: first connector path is the edge; filled markers and group
     /// chrome are decorations, not strokes. Dashed and solid orthogonal runs are
     /// one right-angle style.
     /// </summary>
-    public static FlowchartQualityGateProfile ArchiMate { get; } = new FlowchartQualityGateProfile(
-        "archimate",
+    public static FlowchartQualityGateProfile Enterprise { get; } = new FlowchartQualityGateProfile(
+        "enterprise",
         KeepFirstRelationshipConnector: true,
         SkipFilledRelationshipMarkers: true,
         IgnoreGroupChromeStrokes: true,
@@ -73,7 +73,7 @@ public sealed class FlowchartQualityGateProfile
     /// Detects the paint profile from SVG markup.
     /// </summary>
     /// <param name="Svg">Rendered SVG.</param>
-    /// <returns>ArchiMate when relationship or element classes are present.</returns>
+    /// <returns>Enterprise when relationship or element classes are present.</returns>
     public static FlowchartQualityGateProfile Detect(string Svg)
     {
         if (string.IsNullOrWhiteSpace(Svg))
@@ -86,7 +86,7 @@ public sealed class FlowchartQualityGateProfile
             || Svg.Contains("application-component", StringComparison.OrdinalIgnoreCase)
             || Svg.Contains("class=\"element ", StringComparison.OrdinalIgnoreCase))
         {
-            return ArchiMate;
+            return Enterprise;
         }
 
         return Flowchart;

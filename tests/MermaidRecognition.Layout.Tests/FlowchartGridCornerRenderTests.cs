@@ -30,7 +30,6 @@ public sealed class FlowchartGridCornerRenderTests
             A -->{EdgeLabel} C[Rejected]
             """);
         XDocument Svg = XDocument.Parse(FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract));
-        int RoundedCornerCount = 0;
         foreach (string Target in new[] { "B", "C" })
         {
             string[] Paths = Svg.Descendants()
@@ -41,9 +40,8 @@ public sealed class FlowchartGridCornerRenderTests
                 .ToArray();
             foreach (string Path in Paths)
             {
-                OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(Path);
+                OrthogonalRouteTestHelper.AssertEveryBendRounded(Path);
                 int CubicCount = Regex.Matches(Path, "C").Count;
-                RoundedCornerCount += CubicCount;
                 if (Regex.Matches(Path, "L").Count > 1)
                 {
                     Assert.That(CubicCount, Is.GreaterThan(0),
@@ -51,6 +49,16 @@ public sealed class FlowchartGridCornerRenderTests
                 }
             }
         }
-        Assert.That(RoundedCornerCount, Is.GreaterThan(0), "Expected at least one rounded branch.");
+    }
+
+    [Test]
+    public void Render_ForcedElbow_ExercisesRoundedCorner()
+    {
+        // An explicit orthogonal elbow prevents a straight fan from making this
+        // rounding regression vacuous when placement improves.
+        string Path = FlowchartCurvePathBuilder.BuildRoundedCornerPathData(
+            [(0d, 0d), (120d, 0d), (120d, 120d)], 20);
+        OrthogonalRouteTestHelper.AssertOrthogonalPathWithRoundedCorners(Path);
+        Assert.That(Path, Does.Contain("C"));
     }
 }

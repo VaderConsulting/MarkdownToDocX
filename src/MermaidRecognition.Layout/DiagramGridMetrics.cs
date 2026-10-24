@@ -144,6 +144,50 @@ public static class DiagramGridMetrics
     }
 
     /// <summary>
+    /// Maximum parallel tracks that fit in a gap while keeping line_spacing clearance from each outline.
+    /// </summary>
+    /// <param name="GapPx">Gap width in pixels.</param>
+    /// <returns>Track capacity from term Track.</returns>
+    public static int MaxTracksInGap(int GapPx)
+    {
+        if (GapPx < 1)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (int)Math.Floor(GapPx / FlowchartLayoutRules.LineSpacing) - 1);
+    }
+
+    /// <summary>
+    /// Minimum gap width that holds the requested number of tracks with line_spacing insets.
+    /// </summary>
+    /// <param name="TrackCount">Forecast tracks that must fit.</param>
+    /// <returns>Required interior span in pixels.</returns>
+    public static int GapWidthForTracks(int TrackCount)
+    {
+        if (TrackCount < 1)
+        {
+            return 0;
+        }
+
+        return (TrackCount + 1) * (int)Math.Round(FlowchartLayoutRules.LineSpacing);
+    }
+
+    /// <summary>
+    /// Maximum ports that fit on one box side while keeping line_spacing clearance from each corner.
+    /// </summary>
+    /// <param name="SideLengthPx">Visible side length in pixels.</param>
+    /// <returns>Geometric maximum from rules 3.2 and term Track.</returns>
+    public static int MaxPortsOnSide(int SideLengthPx) => MaxTracksInGap(SideLengthPx);
+
+    /// <summary>
+    /// Minimum side length that holds the requested port count with line_spacing insets.
+    /// </summary>
+    /// <param name="PortCount">Jointly allocated ports on one side.</param>
+    /// <returns>Required side span in pixels.</returns>
+    public static int MinSideLengthForPorts(int PortCount) => GapWidthForTracks(PortCount);
+
+    /// <summary>
     /// Equal slot or track centres along a side or gap, symmetrical about the centre.
     /// </summary>
     /// <param name="LengthPx">Side or gap length.</param>

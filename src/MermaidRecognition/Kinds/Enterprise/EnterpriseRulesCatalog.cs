@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace MermaidRecognition.Kinds.Enterprise;
 
 /// <summary>
-/// Embedded ArchiMate 3.1 and 3.2 relationship tables for every enterprise type.
+/// Embedded Enterprise 3.1 and 3.2 relationship tables for every enterprise type.
 /// Application + Technology 3.1 cells were eye-checked; every new-layer cell and the
 /// 15 Application/Technology 3.2 deltas come from Archi <c>relationships.xml</c> and stay provisional.
 /// </summary>

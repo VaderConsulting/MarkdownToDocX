@@ -240,7 +240,7 @@ public static class EnterpriseNotationSvg
 
         if (Metadata.BoxKind == EnterpriseBoxKind.Contract)
         {
-            double Notch = 6;
+            double Notch = EnterpriseDecoratedNodeGeometry.CONTRACT_INSET;
             return "<path " + FillStroke + " d=\"M" + N(X) + "," + N(Y)
                 + " H" + N(X + Width)
                 + " L" + N(X + Width - Notch) + "," + N(Y + Notch)
@@ -254,13 +254,13 @@ public static class EnterpriseNotationSvg
 
         if (Metadata.BoxKind == EnterpriseBoxKind.Representation)
         {
-            double Wave = Height - 8;
+            double Wave = Height - EnterpriseDecoratedNodeGeometry.WAVE_INSET;
             return "<path " + FillStroke + " d=\"M" + N(X) + "," + N(Y)
                 + " H" + N(X + Width)
                 + " V" + N(Y + Wave)
-                + " Q" + N(X + (Width * 0.75)) + "," + N(Y + Height + 2)
+                + " Q" + N(X + (Width * 0.75)) + "," + N(Y + Wave + EnterpriseDecoratedNodeGeometry.WAVE_CONTROL_OFFSET)
                 + " " + N(X + (Width * 0.5)) + "," + N(Y + Wave)
-                + " Q" + N(X + (Width * 0.25)) + "," + N(Y + Wave - 10)
+                + " Q" + N(X + (Width * 0.25)) + "," + N(Y + Wave - EnterpriseDecoratedNodeGeometry.WAVE_CONTROL_OFFSET)
                 + " " + N(X) + "," + N(Y + Wave)
                 + " Z\"/>"
                 + IconSvg(Metadata.Icon, X + Width - 23, Y + 3, Fill);

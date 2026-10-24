@@ -8,7 +8,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Wraps isolated simple paths onto the measured diagram grid.</summary>
-internal static class FlowchartChainWrapping
+internal static partial class FlowchartChainWrapping
 {
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
@@ -38,17 +38,12 @@ internal static class FlowchartChainWrapping
             Components.Add(CollectComponent(Seed.Id, ById, Incoming, Outgoing, Seen));
         }
 
-        // Disconnected parts are packed together as one operation; moving only one can enlarge the whole diagram.
-        if (Components.Count != 1)
-        {
-            return false;
-        }
-
         bool Changed = false;
         foreach (List<DiagramGridLayout.GridNode> Component in Components)
         {
-            List<DiagramGridLayout.GridNode>? Path = OrderedPath(Component, ById, Incoming, Outgoing);
-            if (Path == null || Path.Count < FlowchartWrapPlan.MinimumRun + 1) continue;
+            foreach (List<DiagramGridLayout.GridNode> Path in OrderedPaths(Component, ById, Incoming, Outgoing))
+            {
+            if (Path.Count < FlowchartWrapPlan.MinimumRun + 1) continue;
             if (Path.Select(Node => Node.GroupId).Distinct(StringComparer.Ordinal).Count() != 1) continue;
 
             int NodeWidth = Path.Max(Node => Node.Width);
@@ -67,14 +62,18 @@ internal static class FlowchartChainWrapping
                 RowGap = Math.Max(RowGap, RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                     Size, Options.EdgeLabelFontSizePx, Horizontal: false) + DiagramGridRouteBuilder.CORNER_RADIUS_PX));
             }
+            if (Path.Any(Node => Node.CellNode != null))
+            {
+                Changed |= ApplyCellPath(Path, Horizontal, ColumnGap, RowGap);
+                continue;
+            }
             FlowchartWrapPlan.Plan Plan = FlowchartWrapPlan.Choose(
                 Path.Count, NodeWidth, NodeHeight, ColumnGap, RowGap, Horizontal);
             if (Plan.Columns >= Path.Count || Plan.Rows >= Path.Count) continue;
 
             double OldWidth = Path.Max(Node => Node.X + Node.Width / 2.0) - Path.Min(Node => Node.X - Node.Width / 2.0);
             double OldHeight = Path.Max(Node => Node.Y + Node.Height / 2.0) - Path.Min(Node => Node.Y - Node.Height / 2.0);
-            double OldDistance = RatioDistance(OldWidth, OldHeight);
-            if (RatioDistance(Plan.Width, Plan.Height) >= OldDistance - 1e-9) continue;
+            if (!ShouldAcceptWrap(Horizontal, OldWidth, OldHeight, Plan)) continue;
 
             Dictionary<string, (double X, double Y)> Before = Path.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y), StringComparer.Ordinal);
             double Left = Path.Min(Node => Node.X - Node.Width / 2.0);
@@ -107,6 +106,7 @@ internal static class FlowchartChainWrapping
             }
 
             Changed = true;
+            }
         }
 
         return Changed;
@@ -132,25 +132,39 @@ internal static class FlowchartChainWrapping
         return Result;
     }
 
-    private static List<DiagramGridLayout.GridNode>? OrderedPath(List<DiagramGridLayout.GridNode> Component,
+    private static IEnumerable<List<DiagramGridLayout.GridNode>> OrderedPaths(List<DiagramGridLayout.GridNode> Component,
         IReadOnlyDictionary<string, DiagramGridLayout.GridNode> ById,
         IReadOnlyDictionary<string, List<string>> Incoming,
         IReadOnlyDictionary<string, List<string>> Outgoing)
     {
-        if (Component.Any(Node => Incoming[Node.Id].Count > 1 || Outgoing[Node.Id].Count > 1)) return null;
-        DiagramGridLayout.GridNode[] Starts = Component.Where(Node => Incoming[Node.Id].Count == 0).ToArray();
-        if (Starts.Length != 1) return null;
+        HashSet<string> ComponentIds = Component.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        var SeenStarts = new HashSet<string>(StringComparer.Ordinal);
+        foreach (DiagramGridLayout.GridNode Start in Component.Where(Node => Outgoing[Node.Id].Count == 1))
+        {
+            if (!SeenStarts.Add(Start.Id)) continue;
+            List<DiagramGridLayout.GridNode>? Path = WalkPath(Start, ById, Outgoing, ComponentIds);
+            if (Path != null) yield return Path;
+        }
+    }
+
+    private static List<DiagramGridLayout.GridNode>? WalkPath(DiagramGridLayout.GridNode Start,
+        IReadOnlyDictionary<string, DiagramGridLayout.GridNode> ById,
+        IReadOnlyDictionary<string, List<string>> Outgoing,
+        HashSet<string> ComponentIds)
+    {
         var Result = new List<DiagramGridLayout.GridNode>();
         var Seen = new HashSet<string>(StringComparer.Ordinal);
-        DiagramGridLayout.GridNode Current = Starts[0];
-        while (Seen.Add(Current.Id))
+        DiagramGridLayout.GridNode? Current = Start;
+        while (Current != null && Seen.Add(Current.Id))
         {
             Result.Add(Current);
-            if (Outgoing[Current.Id].Count == 0) break;
-            Current = ById[Outgoing[Current.Id][0]];
+            if (Outgoing[Current.Id].Count != 1) break;
+            string NextId = Outgoing[Current.Id][0];
+            if (!ComponentIds.Contains(NextId) || Seen.Contains(NextId)) break;
+            Current = ById[NextId];
         }
 
-        return Result.Count == Component.Count ? Result : null;
+        return Result.Count >= FlowchartWrapPlan.MinimumRun + 1 ? Result : null;
     }
 
     private static bool HasOverlap(IEnumerable<DiagramGridLayout.GridNode> Moved,
@@ -164,8 +178,23 @@ internal static class FlowchartChainWrapping
         return false;
     }
 
-    private static double RatioDistance(double Width, double Height) =>
-        Math.Abs(Math.Log((Width / Height) / (4.0 / 3.0)));
+    private static bool ShouldAcceptWrap(bool Horizontal, double OldWidth, double OldHeight, FlowchartWrapPlan.Plan Plan)
+    {
+        double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
+        if (Horizontal)
+        {
+            if (OldWidth <= Usable + 1e-9) return false;
+            return Plan.Width <= Usable + 1e-9 && Plan.Width < OldWidth - 1e-9;
+        }
+
+        if (OldWidth > Usable + 1e-9 && Plan.Width <= Usable + 1e-9 && Plan.Width < OldWidth - 1e-9)
+        {
+            return true;
+        }
+
+        if (OldHeight <= Usable + 1e-9) return false;
+        return Plan.Height <= Usable + 1e-9 && Plan.Height < OldHeight - 1e-9;
+    }
 
     private static int RoundGap(double Value) => (int)(Math.Ceiling(Value / DiagramGridMetrics.GRID_UNIT_PX)
         * DiagramGridMetrics.GRID_UNIT_PX);

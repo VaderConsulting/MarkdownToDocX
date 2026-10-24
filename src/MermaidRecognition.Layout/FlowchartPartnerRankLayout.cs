@@ -6,7 +6,7 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Plans complete many-to-many fans as aligned ranks with nested tracks.</summary>
-internal static class FlowchartPartnerRankLayout
+internal static partial class FlowchartPartnerRankLayout
 {
     private const int TRACK_PITCH = 6;
     // Reserve enough track slots that a crossing stays on the straight part
@@ -52,6 +52,8 @@ internal static class FlowchartPartnerRankLayout
                 || Parent.Rank == Children[0].Rank
                 || Parents.Any(Node => !Outgoing[Node.Id].Select(Edge => Edge.TargetId).Order().SequenceEqual(Targets.Order()))
                 || Children.Any(Node => !Incoming[Node.Id].Select(Edge => Edge.SourceId).Order().SequenceEqual(Sources.Order()))) continue;
+            if (Parents.Any(Node => Node.CellNode != null)
+                && FlowchartGroupedChannelPlacement.OwnsCompleteCellBlock(Contract, Nodes, Parents, Children)) continue;
             int LargestSideCount = Math.Max(Parents.Length, Children.Length);
             int Pitch = Math.Max(CORNER_TRACK_PITCH,
                 Parents.Concat(Children).Min(Node => CrossSize(Node, Horizontal)) / (LargestSideCount + 1));
@@ -63,6 +65,13 @@ internal static class FlowchartPartnerRankLayout
 
     internal static void Prepare(List<Partners> Blocks, bool Horizontal, bool Align = true)
     {
+        if (Blocks.SelectMany(Block => Block.Parents.Concat(Block.Children)).Any(Node => Node.CellNode != null))
+        {
+            // A rejected whole-cell specialised plan leaves ordinary joint
+            // allocation responsible for these links, never stale port sizes.
+            if (!PrepareCells(Blocks, Horizontal, Align)) Blocks.Clear();
+            return;
+        }
         for (int BlockIndex = 0; BlockIndex < Blocks.Count; BlockIndex++)
         {
             var Block = Blocks[BlockIndex];
@@ -116,6 +125,7 @@ internal static class FlowchartPartnerRankLayout
     internal static bool GrowGaps(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         List<DiagramGridLayout.GridFrame> Frames, List<Partners> Blocks, bool Horizontal)
     {
+        if (Nodes.Any(Node => Node.CellNode != null)) return GrowCellGaps(Contract, Nodes, Frames, Blocks, Horizontal);
         bool Changed = false;
         foreach (var Block in Blocks)
         {
@@ -232,6 +242,12 @@ internal static class FlowchartPartnerRankLayout
             .OrderByDescending(Pair => Pair.Parent).ThenByDescending(Pair => Pair.Child)
             .Concat(BentPairs.Where(Pair => Pair.Child < ProjectedChild(Pair.Parent))
                 .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child)).ToList();
+        // Independent cell ranks need a track even for a projected matching
+        // pair when its actual ports do not align. Legacy placement always
+        // aligned these pairs, so its track order stays unchanged.
+        if (Nodes.Any(Node => Node.CellNode != null))
+            Bent.AddRange(BentPairs.Where(Pair => Pair.Child == ProjectedChild(Pair.Parent))
+                .OrderBy(Pair => Pair.Parent).ThenBy(Pair => Pair.Child));
         var Lanes = Bent.Select((Pair, Index) => (Pair,
             Lane: Flow * (Start + TERMINAL_RESERVE + Index * CORNER_TRACK_PITCH)))
             .ToDictionary(Item => Item.Pair, Item => Item.Lane);

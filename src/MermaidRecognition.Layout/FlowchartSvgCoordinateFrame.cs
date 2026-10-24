@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Flowchart;
@@ -20,6 +21,8 @@ public sealed class FlowchartSvgCoordinateFrame
 
     public double DiagramPaddingPx { get; init; }
 
+    internal Dictionary<string, string> RouteClassByEdgeKey { get; init; } = new(StringComparer.Ordinal);
+
     /// <summary>
     /// Converts one layout-space point to SVG user coordinates.
     /// </summary>
@@ -36,6 +39,7 @@ public sealed class FlowchartSvgCoordinateFrame
 /// </summary>
 public static class FlowchartSvgCoordinateFrameResolver
 {
+    internal static Action<string, double>? StageTimingObserver { get; set; }
     /// <summary>
     /// Builds the same MinLeft/MaxTop frame used when rendering SVG output.
     /// </summary>
@@ -129,12 +133,12 @@ public static class FlowchartSvgCoordinateFrameResolver
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
-        List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
+        List<FlowchartResolvedGuide> ResolvedGuides = Measure("coordinate-guides", () => FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
             Contract,
             Layout,
             BoundsById,
             NodeById,
-            Direction);
+            Direction));
         Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
             new Dictionary<EdgeContract, FlowchartResolvedGuide>();
         foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
@@ -142,10 +146,10 @@ public static class FlowchartSvgCoordinateFrameResolver
             GuideByEdge[Guide.Edge] = Guide;
         }
 
-        Dictionary<string, string> RouteClassByEdgeKey =
-            FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction);
+        Dictionary<string, string> RouteClassByEdgeKey = Measure("coordinate-route-classification", () =>
+            FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction));
 
-        FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForEdgeLabels(
+        Measure("coordinate-edge-label-bounds", () => FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForEdgeLabels(
             Contract,
             RenderOptions,
             BoundsById,
@@ -155,9 +159,9 @@ public static class FlowchartSvgCoordinateFrameResolver
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
-            ref MaxTop);
+            ref MaxTop));
 
-        FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForRetryLoops(
+        Measure("coordinate-retry-loop-bounds", () => FlowchartSugiyamaSvgRenderer.ExpandLayoutBoundsForRetryLoops(
             Contract,
             Direction,
             Layout.NodeBounds,
@@ -165,13 +169,13 @@ public static class FlowchartSvgCoordinateFrameResolver
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
-            ref MaxTop);
+            ref MaxTop));
 
         FlowchartSubgraphBoundsRequest BoundsRequest =
             FlowchartSubgraphBoundsRequest.FromContract(Contract, RenderOptions);
-        List<FlowchartSubgraphLayoutRect> SubgraphRects = Layout.ClusterBounds.Count > 0
+        List<FlowchartSubgraphLayoutRect> SubgraphRects = Measure("coordinate-subgraph-rectangles", () => Layout.ClusterBounds.Count > 0
             ? FlowchartSugiyamaSvgRenderer.BuildDagreClusterRects(Contract, Layout)
-            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest);
+            : FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById, BoundsRequest));
         if (Layout.ClusterBounds.Count > 0)
         {
             foreach (FlowchartLayoutNodeBounds Cluster in Layout.ClusterBounds)
@@ -205,9 +209,29 @@ public static class FlowchartSvgCoordinateFrameResolver
             Layout = Layout,
             MinLeft = MinLeft,
             MaxTop = MaxTop,
-            DiagramPaddingPx = DiagramPaddingPx
+            DiagramPaddingPx = DiagramPaddingPx,
+            RouteClassByEdgeKey = RouteClassByEdgeKey
         };
 
         return true;
+    }
+
+    private static T Measure<T>(string Name, Func<T> Operation)
+    {
+        Action<string, double>? Observer = StageTimingObserver;
+        if (Observer == null) return Operation();
+        Observer(Name, -1);
+        Stopwatch Timer = Stopwatch.StartNew();
+        try { return Operation(); }
+        finally
+        {
+            Timer.Stop();
+            Observer(Name, Timer.Elapsed.TotalMilliseconds);
+        }
+    }
+
+    private static void Measure(string Name, Action Operation)
+    {
+        Measure(Name, () => { Operation(); return true; });
     }
 }

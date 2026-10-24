@@ -1,0 +1,57 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using MermaidRecognition.Contract;
+
+namespace MermaidRecognition.Layout;
+
+/// <summary>Plans independent terminal inputs beside their collectors in whole cells.</summary>
+internal static partial class FlowchartTerminalInputPlacement
+{
+    /// <summary>Builds all independent-input moves before publishing reservations or changing logical ranks.</summary>
+    /// <param name="Contract">Visible relationships and return-edge classification.</param>
+    /// <param name="Nodes">Complete shared diagram ownership.</param>
+    /// <param name="Horizontal">Whether the cross axis uses rows.</param>
+    /// <param name="CrossPitch">Existing measured minimum cross-axis separation.</param>
+    /// <returns>Whether a complete legal assignment was accepted.</returns>
+    internal static bool ApplyCells(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal, int CrossPitch)
+    {
+        var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Nodes[0].CellNode!.Grid;
+        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var Ranks = new Dictionary<DiagramGridLayout.GridNode, int>();
+        foreach (var Root in Nodes.Where(Node => !Node.IsDiamond && !Node.PlacementHintLocked && !Edges.Any(Edge => Edge.TargetId == Node.Id)))
+        {
+            var Outgoing = Edges.Where(Edge => Edge.SourceId == Root.Id).ToArray();
+            if (Outgoing.Length != 1 || Back.Contains(Outgoing[0]) || !ById.TryGetValue(Outgoing[0].TargetId, out var Target)
+                || Target.IsDiamond || Target.GroupId != Root.GroupId || Target.Rank <= Root.Rank || Edges.Any(Edge => Edge.SourceId == Target.Id)) continue;
+            var Others = Edges.Where(Edge => Edge.TargetId == Target.Id && Edge.SourceId != Root.Id).ToArray();
+            if (Others.Length == 0 || Others.Any(Edge => Back.Contains(Edge) || !ById.TryGetValue(Edge.SourceId, out var Parent)
+                || Parent.GroupId != Root.GroupId || Parent.Rank >= Target.Rank || !Edges.Any(Incoming => Incoming.TargetId == Parent.Id))
+                || !Others.Any(Edge => Edges.Count(Outgoing => Outgoing.SourceId == Edge.SourceId) > 1)) continue;
+            var Anchor = Targets[Target.Id];
+            int Centre = Horizontal ? Anchor.StartRow : Anchor.StartColumn;
+            int Side = Math.Sign(Centre - Others.Average(Edge => Horizontal ? Targets[Edge.SourceId].StartRow : Targets[Edge.SourceId].StartColumn));
+            if (Side == 0) continue;
+            int Pitch = Math.Max(Horizontal ? Anchor.RowSpan : Anchor.ColumnSpan,
+                Horizontal ? Targets[Root.Id].RowSpan : Targets[Root.Id].ColumnSpan);
+            var Original = Targets[Root.Id];
+            for (int Step = 1; Step <= Nodes.Count + 1; Step++)
+            {
+                int Cross = checked(Centre + Side * Step * Pitch);
+                var Candidate = new FlowchartCellRegion(Horizontal ? Cross : Anchor.StartRow,
+                    Horizontal ? Anchor.StartColumn : Cross, Original.RowSpan, Original.ColumnSpan);
+                var Bounds = Root.CellNode!.Bounds(Candidate, Root.GeometryProvider);
+                if (Math.Abs((Horizontal ? Bounds.CenterY : Bounds.CenterX) - (Horizontal ? Target.Y : Target.X)) < CrossPitch) continue;
+                Targets[Root.Id] = Candidate;
+                if (Grid.TryPrepare(Targets, [], out _)) { Ranks[Root] = Target.Rank; break; }
+                Targets[Root.Id] = Original;
+            }
+        }
+        if (!FlowchartCellRepair.TryAssign(Nodes, Targets)) return false;
+        foreach (var Pair in Ranks) Pair.Key.Rank = Pair.Value;
+        return true;
+    }
+}

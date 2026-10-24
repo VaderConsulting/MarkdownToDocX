@@ -5,6 +5,27 @@ namespace MermaidRecognition.Layout.Tests;
 
 internal static class OrthogonalRouteTestHelper
 {
+    /// <summary>Allows straight strokes but rejects a direction change at an unrounded line vertex.</summary>
+    internal static void AssertEveryBendRounded(string PathData)
+    {
+        AssertOrthogonalPathWithRoundedCorners(PathData);
+        (double X, double Y) Current = default, PreviousVector = default;
+        bool PreviousWasLine = false;
+        foreach (Match Command in Regex.Matches(PathData, @"([MLC])([^MLC]*)"))
+        {
+            double[] Values = ParseNumbers(Command.Groups[2].Value);
+            string Kind = Command.Groups[1].Value;
+            var Next = (X: Values[^2], Y: Values[^1]);
+            var Vector = (X: Next.X - Current.X, Y: Next.Y - Current.Y);
+            if (Kind == "L" && PreviousWasLine)
+                Assert.That(Math.Abs(PreviousVector.X * Vector.Y - PreviousVector.Y * Vector.X),
+                    Is.LessThan(0.01), "Every direction change must use a rounded corner.");
+            PreviousWasLine = Kind == "L";
+            PreviousVector = Vector;
+            Current = Next;
+        }
+    }
+
     internal static string ExtractEdgePath(string Svg, string SourceId, string TargetId)
     {
         string Marker = $"data-edge-source=\"{SourceId}\" data-edge-target=\"{TargetId}\"";

@@ -29,7 +29,7 @@ public static class EnterpriseParity
 
     /// <summary>
     /// Renders the equivalent flowchart through the native markdown2docx pipeline,
-    /// using enterprise leaf sizes so the layout boxes match the ArchiMate boxes.
+    /// using enterprise leaf sizes so the layout boxes match the Enterprise boxes.
     /// </summary>
     /// <param name="EnterpriseSource">Enterprise source.</param>
     /// <returns>Flowchart SVG.</returns>

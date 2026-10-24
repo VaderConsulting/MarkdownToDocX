@@ -89,6 +89,11 @@ function Test-Rules($doc, [string]$rulebookPath) {
   foreach ($d in $dups) { $errors.Add("Rule $($d.Name) appears $($d.Count) times") }
   $known = @{}; foreach ($x in $ruleIds) { $known[$x] = 1 }; foreach ($e in $doc.entries) { $known[$e.id] = 1 }; $known['legality'] = 1
   $paramIds = @{}; foreach ($p in $doc.parameters) { $paramIds[$p.id] = 1 }
+  foreach ($p in $doc.parameters) {
+    if ($p.id -eq 'repair_chain_lines_fan_hub') {
+      if ($p.value -cne 'fan_line_count') { $errors.Add('repair_chain_lines_fan_hub must evaluate to fan_line_count') }
+    } elseif ($p.value -is [string]) { $errors.Add("Parameter $($p.id): expected a numeric value") }
+  }
   $stageIds = @{}; foreach ($s in $doc.precedence) { $stageIds[$s.id] = 1 }
   $orders = @{}
   foreach ($r in $doc.rules) {
@@ -120,7 +125,18 @@ $val = Test-Rules $doc $CompareTo
 $text = Get-RenderedRulebook $doc
 $target = if ($OutFile) { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutFile) } else { Join-Path ([System.IO.Path]::GetTempPath()) 'LAYOUT-RULEBOOK.rendered.md' }
 [System.IO.File]::WriteAllText($target, $text, $utf8)
-if ($JsonTwin) { [System.IO.File]::WriteAllText([System.IO.Path]::ChangeExtension($RulesFile, '.json'), ($doc | ConvertTo-Json -Depth 8), $utf8) }
+if ($JsonTwin) {
+  $jsonPath = [System.IO.Path]::ChangeExtension($RulesFile, '.json')
+  $exporter = Join-Path $here 'Export-RulesJson.py'
+  if (Test-Path $exporter) {
+    $py = if (Get-Command python3 -ErrorAction SilentlyContinue) { 'python3' } else { 'python' }
+    & $py $exporter
+    if ($LASTEXITCODE -ne 0) { throw "Export-RulesJson.py failed with exit code $LASTEXITCODE" }
+  }
+  else {
+    [System.IO.File]::WriteAllText($jsonPath, ($doc | ConvertTo-Json -Depth 8), $utf8)
+  }
+}
 
 "Rendered: $target"
 "Rules $($val.Rules) (active $($val.Active), removed $($val.Removed)), terms $($val.Terms), parameters $($val.Parameters), stages $($val.Stages), other entries $($val.Entries); rulebook rule numbers $($val.RulebookRuleNumbers)"

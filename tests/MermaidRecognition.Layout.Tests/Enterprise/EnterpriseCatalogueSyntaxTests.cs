@@ -6,7 +6,7 @@ using MermaidRecognition.Layout.Enterprise;
 namespace MermaidRecognition.Layout.Tests.Enterprise;
 
 [TestFixture]
-public sealed class EnterpriseCatalogueSyntaxTests
+public sealed class EnterpriseCatalogueSyntaxTests : ProductionCatalogueTestFixture
 {
     private static readonly int[] ValidSyntaxScenarios =
         [100, 101, 118, 119, 121, 122, 123, 124, 125, 126, 127, 128];

@@ -8,7 +8,7 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Packs an isolated group's direct members into its best measured row-and-column block.</summary>
-internal static class FlowchartGroupMemberPacking
+internal static partial class FlowchartGroupMemberPacking
 {
     private sealed record Plan(int Columns, int Rows, double Width, double Height, double Score);
 
@@ -37,6 +37,11 @@ internal static class FlowchartGroupMemberPacking
                 (Inside.Contains(Edge.SourceId) || Inside.Contains(Edge.TargetId))
                 && !(Inside.Contains(Edge.SourceId) && Inside.Contains(Edge.TargetId)));
             if (External) continue;
+            if (Members.Any(Node => Node.CellNode != null))
+            {
+                ApplyCellMembers(Members);
+                continue;
+            }
             double Width = Members.Max(Node => Node.Width), Height = Members.Max(Node => Node.Height);
             double ColumnPitch = Width + DiagramGridMetrics.NODE_GAP_PX;
             double RowPitch = Height + DiagramGridMetrics.NODE_GAP_PX;

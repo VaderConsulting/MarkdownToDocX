@@ -241,6 +241,10 @@ public static partial class DiagramGridLayout
         int CrossPitch,
         bool CoordinatesPlaced)
     {
+        // Both metadata and position writes forced symmetric outcome lanes.
+        // Keep initial ordering; let real allocated-port costs select whole
+        // cell alternatives rather than imposing the decision's centre line.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -287,6 +291,10 @@ public static partial class DiagramGridLayout
     private static void CentreTerminalFans(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, bool CoordinatesPlaced)
     {
+        // The whole pass positions a parent/input chain on the median child.
+        // Neither its ordering rewrite nor its pixel adjustment is a cell
+        // placement rule; legal straightening belongs to candidate scoring.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -333,9 +341,18 @@ public static partial class DiagramGridLayout
         }
     }
 
+    /// <summary>Retains legacy sole-terminal centre alignment only for unbound placement; authoritative cell regions are never adjusted by this policy.</summary>
+    /// <param name="Contract">Visible relationships used to identify sole-input terminal children.</param>
+    /// <param name="Placed">Placement nodes, whose existing cell ownership makes both legacy phases inapplicable.</param>
+    /// <param name="Horizontal">Whether the legacy cross axis is vertical.</param>
+    /// <param name="CoordinatesPlaced">Whether to update legacy pixel coordinates as well as ordering metadata.</param>
     private static void AlignSingleTerminalChildren(DiagramContract Contract, List<GridNode> Placed,
         bool Horizontal, bool CoordinatesPlaced)
     {
+        // This legacy pass exists only to straighten parent/child centres.
+        // Cell placement has no centre-positioning policy: skip both its
+        // pre-placement column rewrite and its later coordinate adjustment.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -361,9 +378,14 @@ public static partial class DiagramGridLayout
     /// A sole forward input enters a decision straight on its upstream vertex.
     /// Return edges into that input do not displace it from the decision's row.
     /// </summary>
-    private static void AlignUnbranchedDecisionInputs(
+    internal static void AlignUnbranchedDecisionInputs(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
@@ -404,7 +426,11 @@ public static partial class DiagramGridLayout
         {
             return;
         }
-
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellHorizontalRetryOutcomes(Contract, Placed);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -450,6 +476,11 @@ public static partial class DiagramGridLayout
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
         if (Horizontal) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellVerticalLoopBranches(Contract, Placed);
+            return;
+        }
         var ById = IndexPlaced(Placed);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Forward = Contract.Edges.Where(Edge => !Back.Contains(Edge)
@@ -512,6 +543,11 @@ public static partial class DiagramGridLayout
     private static void AlignDecisionDetours(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellDecisionDetours(Contract, Placed, Horizontal);
+            return;
+        }
         var Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
         foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))
@@ -645,6 +681,10 @@ public static partial class DiagramGridLayout
     private static void AlignSimpleDecisionMerges(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
+        // Preserve topology and branch ordering, but do not force symmetric
+        // lanes or place the merge on one child's line. Routed whole-cell
+        // candidates must earn those positions through lower cost.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         foreach (var (Decision, Left, Right, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
         {
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
@@ -694,6 +734,11 @@ public static partial class DiagramGridLayout
     internal static void CompactIndependentFanIn(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            // Empty strips compact elsewhere; fan symmetry is not a cell placement constraint.
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -738,6 +783,7 @@ public static partial class DiagramGridLayout
     /// <summary>Centres a shared fan between independent inputs and straightens its unbranched tails.</summary>
     internal static HashSet<string> AlignSharedFanSourcesAndTails(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
+        if (Placed.Any(Node => Node.CellNode != null)) return SelectCellSharedFanSources(Contract, Placed, Horizontal);
         var Aligned = new HashSet<string>(StringComparer.Ordinal);
         var ById = IndexPlaced(Placed);
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
@@ -829,6 +875,11 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed,
         FlowchartDirection Direction)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Placed, Direction);
+            return;
+        }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         List<FlowchartLayoutNodeBounds> Bounds = [];
         foreach (GridNode Node in Placed)
@@ -861,11 +912,13 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// Rulebook 2.4 / 2.10: when several same-rank parents fan into one child, centre the child on the middle parent.
     /// </summary>
-    private static void AlignFanInMergeColumn(
+    internal static void AlignFanInMergeColumn(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
     {
+        // A median source is an ordering input, never a forced merge position.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         if (Horizontal)
         {
             return;
@@ -910,7 +963,7 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// Rulebook 2.6 / decision 4: place the detour child beside the spine; the rejoin node stays on the spine.
     /// </summary>
-    private static void AlignBypassDetourColumns(
+    internal static void AlignBypassDetourColumns(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
@@ -1002,7 +1055,9 @@ public static partial class DiagramGridLayout
             IntermediateChild.Column = BranchIsLeft
                 ? DecisionParent.Column - 1
                 : DecisionParent.Column + 1;
-            Candidate.Column = DecisionParent.Column;
+            // Keep detour side order, but do not force a cell merge onto the
+            // decision's line before the routed scorer can compare positions.
+            if (Candidate.CellNode == null) Candidate.Column = DecisionParent.Column;
         }
 
         CascadeColumns(Placed);
@@ -1011,11 +1066,14 @@ public static partial class DiagramGridLayout
     /// <summary>
     /// B12b/B12c: for a three-way decision fan-out, the centre child keeps the parent column.
     /// </summary>
-    private static void AlignDecisionCentreChildColumn(
+    internal static void AlignDecisionCentreChildColumn(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
     {
+        // Native branch order remains available to the region producer. A
+        // chosen centre child must not prescribe the parent column for cells.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         if (Horizontal)
         {
             return;
@@ -1110,11 +1168,121 @@ public static partial class DiagramGridLayout
     }
 
     /// <summary>
+    /// Decision branch targets share one rank and one main-axis row, symmetric about the diamond unless hinted.
+    /// </summary>
+    internal static void AlignDecisionBranchTargetRow(
+        DiagramContract Contract,
+        List<GridNode> Placed,
+        bool Horizontal,
+        int CrossPitch)
+    {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            AlignCellDecisionBranchTargetRow(Contract, Placed, Horizontal);
+            return;
+        }
+
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        foreach (GridNode Parent in Placed.Where(Node => Node.IsDiamond))
+        {
+            List<GridNode> Children = [];
+            foreach (EdgeContract Edge in Visible)
+            {
+                if (BackEdges.Contains(Edge)
+                    || !string.Equals(Edge.SourceId, Parent.Id, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!ById.TryGetValue(Edge.TargetId, out GridNode? Child)
+                    || Child.Rank <= Parent.Rank
+                    || Child.PlacementHintLocked)
+                {
+                    continue;
+                }
+
+                Children.Add(Child);
+            }
+
+            if (Children.Count < 2)
+            {
+                continue;
+            }
+
+            bool AllTerminalBranches = Children.All(Child =>
+                !Visible.Any(Edge => Edge.SourceId == Child.Id)
+                && Visible.Count(Edge => Edge.TargetId == Child.Id) == 1);
+            if (!AllTerminalBranches)
+            {
+                continue;
+            }
+
+            int TargetRank = Children
+                .GroupBy(Child => Child.Rank)
+                .OrderByDescending(Group => Group.Count())
+                .ThenByDescending(Group => Group.Max(Child => Math.Abs(
+                    Main(Child, Horizontal, Old: false) - Main(Parent, Horizontal, Old: false))))
+                .First()
+                .Key;
+
+            List<GridNode> RankChildren = Children.Where(Child => Child.Rank == TargetRank).ToList();
+            double SharedMain = RankChildren.Count > 0
+                ? RankChildren.Average(Child => Main(Child, Horizontal, Old: false))
+                : Children.Average(Child => Main(Child, Horizontal, Old: false));
+
+            foreach (GridNode Child in Children)
+            {
+                Child.Rank = TargetRank;
+                SetMain(Child, (int)Math.Round(SharedMain), Horizontal);
+            }
+
+            if (Children.Count < 3)
+            {
+                continue;
+            }
+
+            double ParentCross = Cross(Parent, Horizontal, Old: false);
+            GridNode CentreChild = Children
+                .OrderBy(Child => Math.Abs(Cross(Child, Horizontal, Old: true) - ParentCross))
+                .First();
+            List<GridNode> LeftChildren = Children
+                .Where(Child => Child != CentreChild
+                    && Cross(Child, Horizontal, Old: true) < Cross(CentreChild, Horizontal, Old: true) - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                .OrderBy(Child => Cross(Child, Horizontal, Old: true))
+                .ToList();
+            List<GridNode> RightChildren = Children
+                .Where(Child => Child != CentreChild
+                    && Cross(Child, Horizontal, Old: true) > Cross(CentreChild, Horizontal, Old: true) + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
+                .OrderBy(Child => Cross(Child, Horizontal, Old: true))
+                .ToList();
+
+            SetCross(CentreChild, (int)Math.Round(ParentCross), Horizontal);
+            int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.PITCH_X_PX);
+            for (int Index = 0; Index < LeftChildren.Count; Index++)
+            {
+                SetCross(LeftChildren[Index], (int)Math.Round(ParentCross - ((Index + 1) * Pitch)), Horizontal);
+            }
+
+            for (int Index = 0; Index < RightChildren.Count; Index++)
+            {
+                SetCross(RightChildren[Index], (int)Math.Round(ParentCross + ((Index + 1) * Pitch)), Horizontal);
+            }
+        }
+    }
+
+    /// <summary>
     /// Rules A3/A5: when a parent and child sit in different columns, any same-rank node
     /// that shares the parent column blocks their vertical chord and swaps aside.
     /// </summary>
-    private static void ResolveVerticalChordBlockers(DiagramContract Contract, List<GridNode> Placed)
+    internal static void ResolveVerticalChordBlockers(DiagramContract Contract, List<GridNode> Placed)
     {
+        // This swap only prescribes a straight parent/child column. Actual
+        // cell occupancy, legality and bend cost decide swaps after routing.
+        if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         Dictionary<string, int> ParentCount = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -1182,6 +1350,12 @@ public static partial class DiagramGridLayout
         FlowchartLayoutResult Copy,
         DiagramContract Contract)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            if (!FlowchartCellInitialPlacement.TryAssign(Placed, Horizontal))
+                throw new InvalidOperationException("Initial whole-cell placement could not publish its complete region plan.");
+            return;
+        }
         int RankCount = 0;
         foreach (GridNode Node in Placed)
         {
@@ -1302,6 +1476,8 @@ public static partial class DiagramGridLayout
     private static void GrowParallelRelationshipSides(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
         var ById = IndexPlaced(Placed);
+        bool Cells = Placed.Any(Node => Node.CellNode != null);
+        var Minimums = new Dictionary<string, (double Width, double Height)>(StringComparer.Ordinal);
         var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Options = FlowchartRenderOptions.FromContract(Contract);
         foreach (var Group in Contract.Edges.Where(Edge => Edge.SourceId != Edge.TargetId
@@ -1319,10 +1495,23 @@ public static partial class DiagramGridLayout
                     .DefaultIfEmpty(0).Max();
                 return (Horizontal ? Size.Height : WordWidth) + 12;
             });
-            int Needed = DiagramGridMetrics.CeilToGrid(Group.Count() * Pitch + 30);
+            int Needed = DiagramGridMetrics.CeilToGrid(Math.Max(
+                DiagramGridMetrics.MinSideLengthForPorts(Group.Count()),
+                (int)Math.Ceiling(Group.Count() * Pitch + 30)));
+            if (Cells)
+            {
+                foreach (var Node in new[] { Source, Target })
+                {
+                    var Previous = Minimums.GetValueOrDefault(Node.Id, (Width: (double)Node.Width, Height: (double)Node.Height));
+                    Minimums[Node.Id] = (Horizontal ? Previous.Width : Math.Max(Previous.Width, Needed),
+                        Horizontal ? Math.Max(Previous.Height, Needed) : Previous.Height);
+                }
+                continue;
+            }
             if (Horizontal) Source.Height = Target.Height = Math.Max(Needed, Math.Max(Source.Height, Target.Height));
             else Source.Width = Target.Width = Math.Max(Needed, Math.Max(Source.Width, Target.Width));
         }
+        if (Cells) GrowCellMinimumExtents(Placed, Minimums);
     }
 
     internal static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
@@ -1419,13 +1608,13 @@ public static partial class DiagramGridLayout
                     ? HintSide(Edge.RoutingHint.Enter.Value) : Route.EntrySide);
         }
 
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            GrowCellCrowdedSides(Placed, Counts, BoxWidth, BoxHeight);
+            return;
+        }
         foreach (KeyValuePair<string, int> Pair in Counts)
         {
-            if (Pair.Value <= DiagramGridMetrics.TRACKS_PER_GAP)
-            {
-                continue;
-            }
-
             string[] Parts = Pair.Key.Split('|');
             if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out GridNode? Node))
             {
@@ -1433,8 +1622,13 @@ public static partial class DiagramGridLayout
             }
 
             bool AlongWidth = Parts[1] == "top" || Parts[1] == "bottom";
-            int MinPitch = AlongWidth ? Math.Max(1, BoxWidth / DiagramGridMetrics.TRACKS_PER_GAP) : Math.Max(1, BoxHeight / DiagramGridMetrics.TRACKS_PER_GAP);
-            int Needed = DiagramGridMetrics.CeilToGrid(Pair.Value * MinPitch);
+            int SideLength = AlongWidth ? Math.Max(Node.Width, BoxWidth) : Math.Max(Node.Height, BoxHeight);
+            if (Pair.Value <= DiagramGridMetrics.MaxPortsOnSide(SideLength))
+            {
+                continue;
+            }
+
+            int Needed = DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.MinSideLengthForPorts(Pair.Value));
             if (AlongWidth)
             {
                 Node.Width = Math.Max(Node.Width, Needed);
@@ -1464,6 +1658,15 @@ public static partial class DiagramGridLayout
 
     private static void SeparateOverlaps(List<GridNode> Placed, bool Horizontal)
     {
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            // Each complete cell assignment already rejects shared occupancy;
+            // rectangular bodies fill their regions and diamonds fit inside
+            // theirs. Legacy rank metadata must not push disjoint regions (or
+            // undo a same-row hint) merely to separate their pixel rank bands.
+            _ = FlowchartCellRepair.Capture(Placed);
+            return;
+        }
         HashSet<string> SeenStates = new(StringComparer.Ordinal) { PositionSignature(Placed) };
         bool Moved;
         do

@@ -6,12 +6,18 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Closes unused space beside junctions while preserving branch order and aligned chains.</summary>
-internal static class FlowchartJunctionBranchCompaction
+internal static partial class FlowchartJunctionBranchCompaction
 {
     internal static void Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
         // Grouped branches need frame clearance as well as body clearance.
         if (Contract.Groups.Count > 0) return;
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            // Cell branch proposals compete in the complete routed score.
+            // Placement does not force a junction or collector alignment.
+            return;
+        }
         var ById = Nodes.ToDictionary(Node => Node.Id);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge)

@@ -15,7 +15,7 @@ public static partial class DiagramGridLayout
         List<FlowchartLayoutEdgeRoute> Routes = new List<FlowchartLayoutEdgeRoute>();
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
-            if (Route.Points.Count >= 3)
+            if (Route.Points.Count >= 2)
             {
                 Routes.Add(Route);
             }
@@ -43,7 +43,8 @@ public static partial class DiagramGridLayout
 
     private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract)
     {
-        for (int Index = 1; Index < Mover.Points.Count - 2; Index++)
+        if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true) return;
+        for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
         {
             FlowchartLayoutPoint Start = Mover.Points[Index];
             FlowchartLayoutPoint End = Mover.Points[Index + 1];
@@ -53,7 +54,7 @@ public static partial class DiagramGridLayout
             {
                 continue;
             }
-            double TrackSeparation = 6;
+            double TrackSeparation = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
             if (Contract != null)
             {
                 var Options = FlowchartRenderOptions.FromContract(Contract);
@@ -64,7 +65,8 @@ public static partial class DiagramGridLayout
                     var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label, Options, Options.EdgeLabelFontSizePx);
                     return (Vertical ? Size.Width : Size.Height) / 2;
                 }
-                TrackSeparation = Math.Max(6, CaptionHalf(Stay) + CaptionHalf(Mover) + 6);
+                TrackSeparation = DiagramGridMetrics.CeilToGrid((int)Math.Ceiling(Math.Max(
+                    FlowchartLayoutRules.LineSpacing, CaptionHalf(Stay) + CaptionHalf(Mover) + 6)));
             }
 
             for (int OtherIndex = 1; OtherIndex < Stay.Points.Count; OtherIndex++)
@@ -131,7 +133,15 @@ public static partial class DiagramGridLayout
             End.Y += Offset;
         }
 
-        bool Clear = true;
+        // Translating a track must not reverse or erase either terminal run.
+        // The endpoint itself stays fixed, so crossing it would create a hook.
+        double BeforeRun = Vertical ? Start.X - Before.X : Start.Y - Before.Y;
+        double AfterRun = Vertical ? End.X - After.X : End.Y - After.Y;
+        double OldBeforeRun = OldStart - (Vertical ? Before.X : Before.Y);
+        double OldAfterRun = OldEnd - (Vertical ? After.X : After.Y);
+        bool Clear = BeforeRun * OldBeforeRun > 0 && AfterRun * OldAfterRun > 0
+            && Math.Abs(BeforeRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX
+            && Math.Abs(AfterRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX;
         for (int Segment = Index; Segment <= Index + 2 && Clear; Segment++)
         {
             foreach (GridNode Node in Placed)
@@ -265,7 +275,8 @@ public static partial class DiagramGridLayout
                 CenterX = Node.X,
                 CenterY = Node.Y,
                 Width = Node.Width,
-                Height = Node.Height
+                Height = Node.Height,
+                Geometry = Node.GeometryProvider?.Create(Node.Width, Node.Height)
             };
         }
 
@@ -417,14 +428,24 @@ public static partial class DiagramGridLayout
             }
         }
 
-        if (Source.CenterY <= Target.CenterY)
+        if (Source.CenterY < Target.CenterY)
         {
-            return false;
+            // Y grows toward the layout's top. Support the reverse aligned pair
+            // as well: a lower source exits its top and an upper target enters
+            // its bottom.
+            ExitSide = "top";
+            EntrySide = "bottom";
+            return true;
         }
 
-        ExitSide = "bottom";
-        EntrySide = "top";
-        return true;
+        if (Source.CenterY > Target.CenterY)
+        {
+            ExitSide = "bottom";
+            EntrySide = "top";
+            return true;
+        }
+
+        return false;
     }
 
     private static string ChooseElbowExitSide(

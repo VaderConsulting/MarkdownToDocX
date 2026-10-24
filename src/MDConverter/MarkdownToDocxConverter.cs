@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using MDConverter.Model;
@@ -15,6 +16,7 @@ namespace MDConverter;
 /// </remarks>
 public sealed class MarkdownToDocxConverter(MarkdownToDocxOptions Options, IConversionProgressReporter? ProgressReporter)
 {
+    internal static Action<string, double>? ConversionStageTimingObserver { get; set; }
     private static readonly Encoding UTF8_NO_BOM = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private readonly MarkdownToDocxOptions _Options = Options ?? throw new ArgumentNullException(nameof(Options));
@@ -72,11 +74,19 @@ public sealed class MarkdownToDocxConverter(MarkdownToDocxOptions Options, IConv
 
         _ProgressReporter?.Report(5, "Parsing Markdown");
         MarkdownToDocModelBuilder Builder = new MarkdownToDocModelBuilder(Effective.Markdown);
+        ConversionStageTimingObserver?.Invoke("markdown-model-build", -1);
+        Stopwatch ModelTimer = Stopwatch.StartNew();
         DocModel Model = Builder.Build(Markdown ?? string.Empty, EffectiveBasePath);
+        ModelTimer.Stop();
+        ConversionStageTimingObserver?.Invoke("markdown-model-build", ModelTimer.Elapsed.TotalMilliseconds);
 
         _ProgressReporter?.Report(15, "Writing DOCX");
         DocxWriter Writer = new DocxWriter(Effective, _ProgressReporter);
+        ConversionStageTimingObserver?.Invoke("docx-write", -1);
+        Stopwatch WriterTimer = Stopwatch.StartNew();
         Writer.Write(Model, OutputStream);
+        WriterTimer.Stop();
+        ConversionStageTimingObserver?.Invoke("docx-write", WriterTimer.Elapsed.TotalMilliseconds);
         _ProgressReporter?.Report(95, "Finalising document");
     }
 

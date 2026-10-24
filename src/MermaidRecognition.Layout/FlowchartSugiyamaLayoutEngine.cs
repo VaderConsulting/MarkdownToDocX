@@ -30,6 +30,7 @@ public static class FlowchartSugiyamaLayoutEngine
         FlowchartRenderContext RenderContext,
         out FlowchartLayoutResult Result)
     {
+        RenderContext.RejectedCellPixelWritesMutable.Clear();
         Result = new FlowchartLayoutResult { RenderContext = RenderContext };
         if (Contract == null || Contract.Nodes.Count == 0)
         {

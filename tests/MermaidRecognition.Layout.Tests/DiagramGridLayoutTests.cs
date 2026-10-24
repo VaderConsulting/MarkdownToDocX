@@ -14,11 +14,16 @@ public sealed class DiagramGridLayoutTests
     [Test]
     public void EqualCentres_StandardBox_UsesTheFiveSlotPattern()
     {
+        // Ports sit line_spacing (15 px) inset from each corner: n ports need (n + 1) x 15 px.
+        // The 150 px width fits five; the 60 px height fits only three (15, 30, 45), not five on the corners.
         int[] Horizontal = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_WIDTH_PX, DiagramGridMetrics.TRACKS_PER_GAP);
-        int[] Vertical = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_HEIGHT_PX, DiagramGridMetrics.TRACKS_PER_GAP);
+        int[] VerticalThree = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_HEIGHT_PX, 3);
+        int[] VerticalFiveGrown = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.MinSideLengthForPorts(5), 5);
 
-        Assert.That(Horizontal, Is.EqualTo(new[] { 15, 45, 75, 105, 135 }));
-        Assert.That(Vertical, Is.EqualTo(new[] { 6, 18, 30, 42, 54 }));
+        Assert.That(Horizontal, Is.EqualTo(new[] { 45, 60, 75, 90, 105 }));
+        Assert.That(VerticalThree, Is.EqualTo(new[] { 15, 30, 45 }));
+        Assert.That(VerticalFiveGrown, Is.EqualTo(new[] { 15, 30, 45, 60, 75 }));
+        Assert.That(DiagramGridMetrics.MaxPortsOnSide(DiagramGridMetrics.NODE_HEIGHT_PX), Is.EqualTo(3));
     }
 
     [Test]
@@ -49,9 +54,9 @@ public sealed class DiagramGridLayoutTests
     public void TrackOffsets_FollowTheCentreOutwardPattern()
     {
         Assert.That(DiagramGridMetrics.TrackOffsets(1, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 9, 21 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(3, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 9, 15, 21 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(5, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 3, 9, 15, 21, 27 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(3, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30, 45 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(5, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30, 45, 60, 75 }));
     }
 
     [Test]
@@ -92,14 +97,11 @@ public sealed class DiagramGridLayoutTests
             Check --> Done[Done]
             """);
 
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        FlowchartLayoutNodeBounds Check = Find(Layout, "Check");
-        FlowchartLayoutNodeBounds Start = Find(Layout, "Start");
-
-        Assert.That(Start.Width, Is.EqualTo(DiagramGridMetrics.NODE_WIDTH_PX));
-        Assert.That(Start.Height, Is.EqualTo(DiagramGridMetrics.NODE_HEIGHT_PX));
-        Assert.That(Check.Width, Is.EqualTo(DiagramGridMetrics.NODE_WIDTH_PX));
-        Assert.That(Check.Height, Is.EqualTo(DiagramGridMetrics.NODE_HEIGHT_PX * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR));
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartCellRegion Check = Layout.CellNodes!.Single(Node => Node.Id == "Check").CellNode!.Region;
+        Assert.That(Check.ColumnSpan, Is.EqualTo(1));
+        Assert.That(Check.RowSpan, Is.EqualTo(2));
     }
 
     [Test]

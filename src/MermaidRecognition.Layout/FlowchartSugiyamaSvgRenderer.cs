@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -18,6 +19,9 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartSugiyamaSvgRenderer
 {
+    internal static Action<string, double>? StageTimingObserver { get; set; }
+    internal static Action<string>? RenderedSvgObserver { get; set; }
+
     private const double FLOWCHART_MULTILINE_LINE_HEIGHT_FACTOR = 1.5;
 
     private const double ARROWHEAD_LENGTH_PX = 10.0;
@@ -74,6 +78,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
         using IDisposable ContextScope = FlowchartRenderContext.Activate(Layout.RenderContext);
         Layout.RenderContext.BeginRender();
+        FlowchartEdgeLabelClearanceHelper.ResetOperationCounts();
         FlowchartRenderOptions RenderOptions = FlowchartRenderOptions.FromContract(Contract);
         double DiagramPaddingPx = RenderOptions.DiagramPaddingPx;
 
@@ -136,24 +141,27 @@ public static class FlowchartSugiyamaSvgRenderer
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
-        List<FlowchartResolvedGuide> ResolvedGuides = FlowchartEdgeRouteResolver.ResolveAllVisibleGuidePoints(
-            Contract,
-            Layout,
-            BoundsById,
-            NodeById,
-            Direction,
-            Layout.RenderContext);
+        List<FlowchartResolvedGuide> ResolvedGuides = Layout.ResolvedEdgeGuides ?? [];
         Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
             new Dictionary<EdgeContract, FlowchartResolvedGuide>();
         foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
         {
             GuideByEdge[Guide.Edge] = Guide;
         }
+        if (!string.Equals(Environment.GetEnvironmentVariable("MD2DOCX_USE_LEGACY_LABEL_ROUTES"), "1", StringComparison.Ordinal))
+        {
+            Layout.RenderContext.CachedSvgRenderGuides = ResolvedGuides.Select(Guide =>
+            {
+                List<(double X, double Y)> RenderPoints = Guide.Points.Select(Point => (Point.X, -Point.Y)).ToList();
+                return (Guide.Edge, (IReadOnlyList<(double X, double Y)>)RenderPoints);
+            }).ToList();
+            Layout.RenderContext.CachedLabelSpatialIndex = BuildLabelSpatialIndex(ResolvedGuides, BoundsById, NodeById);
+        }
 
-        Dictionary<string, string> RouteClassByEdgeKey =
-            FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction);
+        Dictionary<string, string> RouteClassByEdgeKey = Measure("svg-route-classification", () =>
+            FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction));
 
-        ExpandLayoutBoundsForEdgeLabels(
+        Measure("svg-label-and-bounds", () => ExpandLayoutBoundsForEdgeLabels(
             Contract,
             RenderOptions,
             BoundsById,
@@ -163,7 +171,7 @@ public static class FlowchartSugiyamaSvgRenderer
             ref MinLeft,
             ref MinBottom,
             ref MaxRight,
-            ref MaxTop);
+            ref MaxTop));
 
         ExpandLayoutBoundsForRetryLoops(
             Contract,
@@ -266,6 +274,9 @@ public static class FlowchartSugiyamaSvgRenderer
 
         Dictionary<string, Queue<FlowchartLayoutEdgeRoute>> DagreRoutes = IndexDagreRoutes(Layout);
         int DagreEdgeIndex = 0;
+        Layout.RenderContext.IsSvgEdgePainting = true;
+        Stopwatch EdgePaintTimer = Stopwatch.StartNew();
+        StageTimingObserver?.Invoke("svg-edge-paint", -1);
         foreach (EdgeContract Edge in Contract.Edges)
         {
             string DagreEdgeId = string.IsNullOrEmpty(Edge.Id)
@@ -279,6 +290,28 @@ public static class FlowchartSugiyamaSvgRenderer
 
             string? RouteClass = TryResolveRouteClassName(Edge, RouteClassByEdgeKey);
             FlowchartResolvedStyle EdgeStyle = RenderOptions.ResolveEdgeStyle(Edge);
+
+            // Painting consumes the route finalized by the layout model. Missing routes are
+            // diagnostics and are never reconstructed from node centres or painter heuristics.
+            if (!GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? ModelGuide)
+                || ModelGuide.Points.Count < 2
+                || !BoundsById.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds ModelSource)
+                || !BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds ModelTarget))
+            {
+                Layout.RenderContext.LayoutStageViolations.Add(new FlowchartLayoutQualityFailure(
+                    "MissingRoute", $"Painter received no model route for '{Edge.SourceId}->{Edge.TargetId}'.",
+                    [Edge.Id ?? Edge.SourceId, Edge.TargetId], null));
+                continue;
+            }
+
+            string? ModelSourceShape = NodeById.TryGetValue(Edge.SourceId, out NodeContract? ModelSourceNode)
+                ? ModelSourceNode.Shape : null;
+            FlowchartRenderContext.ReportOperationCount("paint-guide-lookups", 1);
+            RenderResolvedEdgeRoute(
+                Builder, Edge, Contract, BoundsById, ModelSource, ModelTarget, ModelSourceShape,
+                ModelGuide.Points, ModelGuide.RouteKind, Direction, RouteClass,
+                MinLeft, MaxTop, DiagramPaddingPx, EdgeStyle, RenderOptions);
+            continue;
 
             if (TryTakeDagreRoute(DagreRoutes, DagreEdgeId, out FlowchartLayoutEdgeRoute? DagreRoute)
                 && DagreRoute.Points.Count >= 2
@@ -298,6 +331,7 @@ public static class FlowchartSugiyamaSvgRenderer
                         DagreTarget,
                         DagreSourceShape,
                         DagreTargetShape)
+                    && CountPaintAttempt("paint-retry-loop-route-build")
                     && TryBuildRetryLoopLayoutPoints(
                         Edge,
                         Contract,
@@ -330,6 +364,7 @@ public static class FlowchartSugiyamaSvgRenderer
                     continue;
                 }
 
+                FlowchartRenderContext.ReportOperationCount("paint-guide-lookups", 1);
                 if (Layout.UsesGridRoutes
                     && GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? GridGuide)
                     && GridGuide.Points.Count >= 2
@@ -379,6 +414,7 @@ public static class FlowchartSugiyamaSvgRenderer
             bool TargetIsGroup = FlowchartCompoundEndpointHelper.IsGroupId(Contract, Edge.TargetId);
             if (SourceIsGroup || TargetIsGroup)
             {
+                FlowchartRenderContext.ReportOperationCount("paint-guide-lookups", 1);
                 if (GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? CompoundGuide)
                     && CompoundGuide.Points.Count >= 2)
                 {
@@ -435,6 +471,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 TargetShape);
 
             if (IsRetryLoop
+                && CountPaintAttempt("paint-retry-loop-route-build")
                 && TryBuildRetryLoopLayoutPoints(Edge, Contract, BoundsById, NodeById, Layout.NodeBounds, Direction, out List<(double X, double Y)> LayoutPoints))
             {
                 List<(double X, double Y)> SvgPoints = [];
@@ -504,6 +541,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            FlowchartRenderContext.ReportOperationCount("paint-guide-lookups", 1);
             if (GuideByEdge.TryGetValue(Edge, out FlowchartResolvedGuide? RoutedGuide)
                 && RoutedGuide.Points.Count >= 2)
             {
@@ -529,6 +567,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            CountPaintAttempt("paint-ordinary-fan-out-route-build");
             if (FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
                     Edge,
                     Contract,
@@ -562,6 +601,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            CountPaintAttempt("paint-fan-out-route-build");
             if (FlowchartFanOutPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,
@@ -634,6 +674,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            CountPaintAttempt("paint-fan-in-route-build");
             if (FlowchartFanInPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,
@@ -706,6 +747,7 @@ public static class FlowchartSugiyamaSvgRenderer
                 continue;
             }
 
+            CountPaintAttempt("paint-terminal-collector-route-build");
             if (FlowchartTerminalCollectorPortAllocator.TryResolveEdgeRoute(
                     Edge,
                     Contract,
@@ -737,7 +779,12 @@ public static class FlowchartSugiyamaSvgRenderer
                     RenderOptions);
             }
         }
+        EdgePaintTimer.Stop();
+        StageTimingObserver?.Invoke("svg-edge-paint", EdgePaintTimer.Elapsed.TotalMilliseconds);
+        Layout.RenderContext.IsSvgEdgePainting = false;
 
+        Stopwatch NodeShapeTimer = Stopwatch.StartNew();
+        StageTimingObserver?.Invoke("svg-node-shapes", -1);
         foreach (NodeContract Node in NodesInPaintOrder)
         {
             if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
@@ -758,9 +805,13 @@ public static class FlowchartSugiyamaSvgRenderer
             FlowchartResolvedStyle NodeStyle = RenderOptions.ResolveNodeStyle(Node);
             AppendNodeShape(Builder, Node, NodeLayout.Left, NodeLayout.Top, NodeLayout.Width, NodeLayout.Height, NodeStyle);
         }
+        NodeShapeTimer.Stop();
+        StageTimingObserver?.Invoke("svg-node-shapes", NodeShapeTimer.Elapsed.TotalMilliseconds);
 
         RenderSession.FlushDeferredMarkers(Builder);
 
+        Stopwatch NodeLabelTimer = Stopwatch.StartNew();
+        StageTimingObserver?.Invoke("svg-node-labels", -1);
         foreach (NodeContract Node in NodesInPaintOrder)
         {
             if (FlowchartCompoundEndpointHelper.IsGroupId(Contract, Node.Id))
@@ -801,14 +852,75 @@ public static class FlowchartSugiyamaSvgRenderer
                 RenderOptions,
                 SourceLabel);
         }
+        NodeLabelTimer.Stop();
+        StageTimingObserver?.Invoke("svg-node-labels", NodeLabelTimer.Elapsed.TotalMilliseconds);
 
         Builder.Append("</svg>");
-        return FlowchartSvgLineJump.Apply(Builder.ToString());
+        string FinalSvg = Measure("svg-line-jumps", () => FlowchartSvgLineJump.Apply(Builder.ToString()));
+        FlowchartEdgeLabelClearanceHelper.FlushOperationCounts();
+        RenderedSvgObserver?.Invoke(FinalSvg);
+        return FinalSvg;
         }
         finally
         {
             ActiveRenderSession = null;
         }
+    }
+
+    private static void Measure(string Name, Action Operation)
+    {
+        Action<string, double>? Observer = StageTimingObserver;
+        if (Observer == null) { Operation(); return; }
+        Observer(Name, -1);
+        Stopwatch Timer = Stopwatch.StartNew();
+        try { Operation(); }
+        finally { Timer.Stop(); Observer(Name, Timer.Elapsed.TotalMilliseconds); }
+    }
+
+    private static T Measure<T>(string Name, Func<T> Operation)
+    {
+        Action<string, double>? Observer = StageTimingObserver;
+        if (Observer == null) return Operation();
+        Observer(Name, -1);
+        Stopwatch Timer = Stopwatch.StartNew();
+        try { return Operation(); }
+        finally { Timer.Stop(); Observer(Name, Timer.Elapsed.TotalMilliseconds); }
+    }
+
+    private static bool CountPaintAttempt(string Name)
+    {
+        FlowchartRenderContext.ReportOperationCount(Name, 1);
+        return true;
+    }
+
+    private static FlowchartSvgSpatialIndex BuildLabelSpatialIndex(
+        IReadOnlyList<FlowchartResolvedGuide> Guides,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
+        IReadOnlyDictionary<string, NodeContract> NodeById)
+    {
+        FlowchartSvgSpatialIndex Index = new();
+        foreach (FlowchartResolvedGuide Guide in Guides)
+        {
+            List<(double X, double Y)> RenderPoints = Guide.Points.Select(Point => (Point.X, -Point.Y)).ToList();
+            foreach ((double X, double Y) Point in FlowchartEdgeLabelClearanceHelper.SampleConnector(RenderPoints))
+                Index.AddPoint(Point.X, Point.Y);
+        }
+
+        List<FlowchartSvgRect> NodeRects = [];
+        HashSet<string> DiamondIds = new(NodeById.Values.Where(Node => IsDecisionShape(Node.Shape)).Select(Node => Node.Id), StringComparer.Ordinal);
+        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        {
+            if (DiamondIds.Contains(Bounds.NodeId))
+            {
+                AppendDiamondRenderStrips(NodeRects, Bounds);
+                continue;
+            }
+            NodeRects.Add(new FlowchartSvgRect(
+                Bounds.CenterX - (Bounds.Width / 2.0), -(Bounds.CenterY + (Bounds.Height / 2.0)),
+                Bounds.CenterX + (Bounds.Width / 2.0), -(Bounds.CenterY - (Bounds.Height / 2.0))));
+        }
+        foreach (FlowchartSvgRect Rect in NodeRects) Index.AddRectangle(Rect);
+        return Index;
     }
 
     private sealed class FlowchartSvgRenderSession
@@ -1233,11 +1345,8 @@ public static class FlowchartSugiyamaSvgRenderer
             DiagramPaddingPx,
             RenderOptions);
 
-        bool StraightIsAxisAligned = RouteKind == FlowchartEdgeRouteKind.Straight
-            && GuideSvgPoints.Count >= 2
-            && (Math.Abs(GuideSvgPoints[0].X - GuideSvgPoints[GuideSvgPoints.Count - 1].X) <= 0.6
-                || Math.Abs(GuideSvgPoints[0].Y - GuideSvgPoints[GuideSvgPoints.Count - 1].Y) <= 0.6);
-        if (StraightIsAxisAligned)
+        bool StraightChord = RouteKind == FlowchartEdgeRouteKind.Straight && GuideSvgPoints.Count >= 2;
+        if (StraightChord)
         {
             (double LayoutBoundaryX, double LayoutBoundaryY) = LayoutPoints[0];
             (double LayoutTipX, double LayoutTipY) = LayoutPoints[LayoutPoints.Count - 1];
@@ -1586,10 +1695,10 @@ public static class FlowchartSugiyamaSvgRenderer
             Direction);
         if (RenderedSamples.Count >= 2
             && (FlowchartSharedRouteQualityHelper.LooksLikeOrthogonalCorridor(LayoutPoints)
-                || IsAxisAlignedPolyline(LayoutPoints))
-            && !string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal))
+                || IsAxisAlignedPolyline(LayoutPoints)
+                || FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(RenderedSamples)))
         {
-            return FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
+            (double SegmentLabelX, double SegmentLabelY) = FlowchartSharedRouteQualityHelper.ResolveLabelOnOwnEdge(
                 RenderedSamples,
                 LabelDimensions.Width,
                 LabelHeight,
@@ -1597,6 +1706,12 @@ public static class FlowchartSugiyamaSvgRenderer
                 Edge.SourceId,
                 Edge.TargetId,
                 0.0);
+            if (!string.Equals(RouteClass, "LocalDecisionBranch", StringComparison.Ordinal)
+                || FlowchartSharedRouteQualityHelper.DistanceFromPointToPolyline(
+                    SegmentLabelX, SegmentLabelY, RenderedSamples) <= 6.5)
+            {
+                return (SegmentLabelX, SegmentLabelY);
+            }
         }
 
         if (RenderedSamples.Count >= 2
@@ -1704,23 +1819,29 @@ public static class FlowchartSugiyamaSvgRenderer
             GuideRenderPoints.Add((LayoutX, -LayoutY));
         }
 
-        List<IReadOnlyList<(double X, double Y)>> OtherRenderPoints = CollectOtherEdgeRenderGuidePoints(Edge, Contract, BoundsById, Direction);
+        FlowchartSvgSpatialIndex? SpatialIndex = FlowchartRenderContext.Current.CachedLabelSpatialIndex;
+        List<IReadOnlyList<(double X, double Y)>> OtherRenderPoints = SpatialIndex == null
+            ? CollectOtherEdgeRenderGuidePoints(Edge, Contract, BoundsById, Direction)
+            : [];
 
-        HashSet<string> DiamondIds = new HashSet<string>(Contract.Nodes.Where(Node => IsDecisionShape(Node.Shape)).Select(Node => Node.Id), StringComparer.Ordinal);
         List<FlowchartSvgRect> NodeRects = [];
-        foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
+        if (SpatialIndex == null)
         {
-            if (DiamondIds.Contains(Bounds.NodeId))
+            HashSet<string> DiamondIds = new HashSet<string>(Contract.Nodes.Where(Node => IsDecisionShape(Node.Shape)).Select(Node => Node.Id), StringComparer.Ordinal);
+            foreach (FlowchartLayoutNodeBounds Bounds in BoundsById.Values)
             {
-                AppendDiamondRenderStrips(NodeRects, Bounds);
-                continue;
-            }
+                if (DiamondIds.Contains(Bounds.NodeId))
+                {
+                    AppendDiamondRenderStrips(NodeRects, Bounds);
+                    continue;
+                }
 
-            NodeRects.Add(new FlowchartSvgRect(Bounds.CenterX - (Bounds.Width / 2.0), -(Bounds.CenterY + (Bounds.Height / 2.0)), Bounds.CenterX + (Bounds.Width / 2.0), -(Bounds.CenterY - (Bounds.Height / 2.0))));
+                NodeRects.Add(new FlowchartSvgRect(Bounds.CenterX - (Bounds.Width / 2.0), -(Bounds.CenterY + (Bounds.Height / 2.0)), Bounds.CenterX + (Bounds.Width / 2.0), -(Bounds.CenterY - (Bounds.Height / 2.0))));
+            }
         }
 
         double PreferredSign = ResolveLabelClearanceSign(SourceBounds, TargetBounds, Direction);
-        (double RenderX, double RenderY) = FlowchartEdgeLabelClearanceHelper.MoveClearOfConnector(LabelX, -LabelY, LabelWidth, LabelHeight, GuideRenderPoints, Direction, NodeRects, PreferredSign, OtherRenderPoints);
+        (double RenderX, double RenderY) = FlowchartEdgeLabelClearanceHelper.MoveClearOfConnector(LabelX, -LabelY, LabelWidth, LabelHeight, GuideRenderPoints, Direction, NodeRects, PreferredSign, OtherRenderPoints, SpatialIndex);
         return (RenderX, -RenderY);
     }
 
@@ -1771,6 +1892,18 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartDirection Direction)
     {
         List<IReadOnlyList<(double X, double Y)>> Result = [];
+        List<(EdgeContract Edge, IReadOnlyList<(double X, double Y)> Points)>? Cached = FlowchartRenderContext.Current.CachedSvgRenderGuides;
+        if (Cached != null)
+        {
+            foreach ((EdgeContract CachedEdge, IReadOnlyList<(double X, double Y)> Points) in Cached)
+                if (!ReferenceEquals(CachedEdge, Edge)) Result.Add(Points);
+            FlowchartRenderContext.ReportOperationCount("label-other-edge-collect-calls", 1);
+            FlowchartRenderContext.ReportOperationCount("label-other-edge-visits", Cached.Count);
+            FlowchartRenderContext.ReportOperationCount("label-other-guide-resolver-calls", 0);
+            return Result;
+        }
+        long Visited = 0;
+        long ResolverCalls = 0;
         Dictionary<string, NodeContract> NodeById = new Dictionary<string, NodeContract>(StringComparer.Ordinal);
         foreach (NodeContract Node in Contract.Nodes)
         {
@@ -1779,6 +1912,7 @@ public static class FlowchartSugiyamaSvgRenderer
 
         foreach (EdgeContract Other in Contract.Edges)
         {
+            Visited++;
             if (ReferenceEquals(Other, Edge) || string.Equals(Other.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -1793,8 +1927,10 @@ public static class FlowchartSugiyamaSvgRenderer
                     out List<(double X, double Y)> OtherPoints,
                     out FlowchartEdgeRouteKind _))
             {
+                ResolverCalls++;
                 continue;
             }
+            ResolverCalls++;
 
             List<(double X, double Y)> RenderPoints = [];
             foreach ((double LayoutX, double LayoutY) in OtherPoints)
@@ -1804,6 +1940,10 @@ public static class FlowchartSugiyamaSvgRenderer
 
             Result.Add(RenderPoints);
         }
+
+        FlowchartRenderContext.ReportOperationCount("label-other-edge-collect-calls", 1);
+        FlowchartRenderContext.ReportOperationCount("label-other-edge-visits", Visited);
+        FlowchartRenderContext.ReportOperationCount("label-other-guide-resolver-calls", ResolverCalls);
 
         return Result;
     }

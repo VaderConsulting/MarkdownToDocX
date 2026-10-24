@@ -7,7 +7,7 @@ using MermaidRecognition.Kinds.Flowchart;
 namespace MermaidRecognition.Layout.Tests;
 
 /// <summary>
-/// Compares dagre placement with mermaid-cli geometry for the flowchart catalogue.
+/// Compares raw Dagre placement with mermaid-cli geometry, deliberately before either cells-on or cells-off grid routing.
 /// </summary>
 [TestFixture]
 public sealed class FlowchartDagreSimilarityTests

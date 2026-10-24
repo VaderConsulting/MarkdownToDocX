@@ -335,7 +335,7 @@ public static class EnterpriseParser
         {
             Diagnostics.Add(CreateError(
                 LineNumber,
-                "unknown element type \"" + TypeToken + "\" (in scope: ArchiMate 3.2 Application, Technology, Physical, Business, Motivation, Strategy, Implementation, composite and junction elements)"));
+                "unknown element type \"" + TypeToken + "\" (in scope: Enterprise 3.2 Application, Technology, Physical, Business, Motivation, Strategy, Implementation, composite and junction elements)"));
             return;
         }
 
@@ -718,18 +718,26 @@ public static class EnterpriseParser
     {
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
-            if (!Document.Elements.ContainsKey(Relationship.SourceId))
+            bool MissingSource = !Document.Elements.ContainsKey(Relationship.SourceId);
+            bool MissingTarget = !Document.Elements.ContainsKey(Relationship.TargetId);
+            // Each undeclared endpoint is the source error. Reporting the
+            // consequent dropped relationship would duplicate that fault. Keep the
+            // relationship identity on the same visible line so rendering can
+            // explain exactly which connection cannot be drawn.
+            if (MissingSource)
             {
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
-                    "relationship source \"" + Relationship.SourceId + "\" is not a declared element"));
+                    "relationship source \"" + Relationship.SourceId + "\" is not a declared element ("
+                    + Relationship.SourceId + "->" + Relationship.TargetId + ")"));
             }
 
-            if (!Document.Elements.ContainsKey(Relationship.TargetId))
+            if (MissingTarget)
             {
                 Diagnostics.Add(CreateError(
                     Relationship.LineNumber,
-                    "relationship target \"" + Relationship.TargetId + "\" is not a declared element"));
+                    "relationship target \"" + Relationship.TargetId + "\" is not a declared element ("
+                    + Relationship.SourceId + "->" + Relationship.TargetId + ")"));
             }
         }
 

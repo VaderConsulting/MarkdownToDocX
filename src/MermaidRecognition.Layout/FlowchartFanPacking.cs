@@ -9,7 +9,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Wraps a simple many-side fan into a measured block beside its hub.</summary>
-internal static class FlowchartFanPacking
+internal static partial class FlowchartFanPacking
 {
     private const int MinimumFan = DiagramGridMetrics.TRACKS_PER_GAP + 1;
     private sealed record Plan(int Columns, int Rows, int ColumnPitch, int RowPitch,
@@ -47,7 +47,7 @@ internal static class FlowchartFanPacking
                     && Leaves.Contains(ById[Edge.TargetId])
                 || Edge.TargetId == Hub.Id && ById.ContainsKey(Edge.SourceId) && Leaves.Contains(ById[Edge.SourceId]))
                 .ToList();
-            double PortPitch = Math.Max(1, (Horizontal ? NodeHeight : NodeWidth) / DiagramGridMetrics.TRACKS_PER_GAP);
+            double PortPitch = FlowchartLayoutRules.LineSpacing;
             double LabelHeight = 0;
             double LabelTrackPitch = 6;
             foreach (EdgeContract Edge in FanEdges)
@@ -63,16 +63,24 @@ internal static class FlowchartFanPacking
                     FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(Label, Options.EdgeLabelFontSizePx));
             }
             int NeededSide = DiagramGridMetrics.CeilToGrid(
-                (int)Math.Ceiling(Leaves.Count * PortPitch + 2 * DiagramGridMetrics.NODE_GAP_PX));
-            if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
-            else Hub.Width = Math.Max(Hub.Width, NeededSide);
+                Math.Max(DiagramGridMetrics.MinSideLengthForPorts(Leaves.Count),
+                    (int)Math.Ceiling(Leaves.Count * PortPitch + 2 * DiagramGridMetrics.NODE_GAP_PX)));
+            if (Hub.CellNode == null)
+            {
+                if (Horizontal) Hub.Height = Math.Max(Hub.Height, NeededSide);
+                else Hub.Width = Math.Max(Hub.Width, NeededSide);
+            }
             int TrackGap = Math.Max(DiagramGridMetrics.NODE_GAP_PX,
-                ((Leaves.Count + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP)
-                    * DiagramGridMetrics.GRID_UNIT_PX);
+                DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.GapWidthForTracks(Leaves.Count)));
             if (LabelHeight > 0)
                 TrackGap = Math.Max(TrackGap, DiagramGridMetrics.CeilToGrid(
                     (int)Math.Ceiling(LabelHeight + 2 * FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(
                         Options.EdgeLabelFontSizePx))));
+            if (Hub.CellNode != null)
+            {
+                if (ApplyCellFan(Nodes, Hub, Leaves, FanOut, Horizontal, Reverse, TrackGap, LabelTrackPitch)) return true;
+                continue;
+            }
             Plan Best = Enumerable.Range(1, Leaves.Count).Select(Columns =>
                 Measure(Hub, Leaves.Count, Columns, NodeWidth, NodeHeight, TrackGap, LabelTrackPitch, Horizontal))
                 .OrderBy(Plan => Plan.Score).ThenBy(Plan => Plan.Columns).First();
@@ -112,9 +120,29 @@ internal static class FlowchartFanPacking
     private static bool SimpleComponent(DiagramGridLayout.GridNode Hub,
         IReadOnlyCollection<DiagramGridLayout.GridNode> Leaves, IReadOnlyCollection<EdgeContract> Edges)
     {
-        var Ids = Leaves.Select(Node => Node.Id).Append(Hub.Id).ToHashSet(StringComparer.Ordinal);
-        return Edges.All(Edge => Ids.Contains(Edge.SourceId) == Ids.Contains(Edge.TargetId))
-            && Leaves.All(Leaf => Edges.Count(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id) == 1);
+        var LeafIds = Leaves.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        var Ids = LeafIds.Append(Hub.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (DiagramGridLayout.GridNode Leaf in Leaves)
+        {
+            List<EdgeContract> LeafEdges = Edges.Where(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id).ToList();
+            if (LeafEdges.Count > 2) return false;
+            if (LeafEdges.Count == 2
+                && !LeafEdges.Any(Edge => Edge.SourceId == Hub.Id || Edge.TargetId == Hub.Id))
+            {
+                return false;
+            }
+        }
+
+        return Edges.All(Edge =>
+        {
+            bool SourceInside = Ids.Contains(Edge.SourceId);
+            bool TargetInside = Ids.Contains(Edge.TargetId);
+            if (SourceInside == TargetInside) return true;
+            string LeafId = SourceInside && LeafIds.Contains(Edge.SourceId) ? Edge.SourceId
+                : TargetInside && LeafIds.Contains(Edge.TargetId) ? Edge.TargetId : string.Empty;
+            return LeafId.Length > 0
+                && Edges.Count(Other => Other.SourceId == LeafId || Other.TargetId == LeafId) == 2;
+        });
     }
 
     private static Plan Measure(DiagramGridLayout.GridNode Hub, int Count, int Columns,

@@ -7,7 +7,7 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Packs disconnected top-level pieces in declared order using measured bounds.</summary>
-internal static class FlowchartDisconnectedPacking
+internal static partial class FlowchartDisconnectedPacking
 {
     private sealed record Piece(List<DiagramGridLayout.GridNode> Nodes, double Left, double Top,
         double Width, double Height, int Order);
@@ -16,39 +16,12 @@ internal static class FlowchartDisconnectedPacking
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
     {
         if (Nodes.Count < 2) return false;
+        if (Nodes.Any(Node => Node.CellNode != null)) return ApplyCells(Contract, Nodes);
         Dictionary<string, int> Declared = Contract.Nodes.Select((Node, Index) => (Node.Id, Index))
             .GroupBy(Item => Item.Id, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First().Index, StringComparer.Ordinal);
-        Dictionary<string, string> Roots = RootGroups(Contract, Nodes);
-        var Owner = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (DiagramGridLayout.GridNode Node in Nodes)
-            Owner[Node.Id] = Roots.TryGetValue(Node.Id, out string? Root) ? "g:" + Root : "n:" + Node.Id;
-        foreach (GroupContract Group in Contract.Groups)
-            Owner[Group.Id] = "g:" + RootGroup(Contract, Group.Id);
-
-        var Parent = Owner.Values.Distinct(StringComparer.Ordinal)
-            .ToDictionary(Key => Key, Key => Key, StringComparer.Ordinal);
-        string Find(string Key)
-        {
-            while (!string.Equals(Parent[Key], Key, StringComparison.Ordinal))
-            {
-                Parent[Key] = Parent[Parent[Key]];
-                Key = Parent[Key];
-            }
-            return Key;
-        }
-        void Union(string A, string B)
-        {
-            A = Find(A); B = Find(B);
-            if (!string.Equals(A, B, StringComparison.Ordinal)) Parent[B] = A;
-        }
-        foreach (EdgeContract Edge in Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
-            if (Owner.TryGetValue(Edge.SourceId, out string? Source)
-                && Owner.TryGetValue(Edge.TargetId, out string? Target)) Union(Source, Target);
-
-        List<Piece> Pieces = Nodes.GroupBy(Node => Find(Owner[Node.Id]), StringComparer.Ordinal)
-            .Select(Group => CreatePiece(Group.ToList(), Declared)).OrderBy(Piece => Piece.Order).ToList();
+        List<Piece> Pieces = FindComponents(Contract, Nodes)
+            .Select(Members => CreatePiece(Members, Declared)).OrderBy(Piece => Piece.Order).ToList();
         if (Pieces.Count < 2) return false;
 
         int Gap = DiagramGridMetrics.NODE_GAP_PX;
@@ -84,6 +57,43 @@ internal static class FlowchartDisconnectedPacking
             }
         }
         return true;
+    }
+
+    /// <summary>Finds graph-connected top-level units independently of drawing or cell geometry.</summary>
+    /// <param name="Contract">Visible graph and nested group ownership.</param>
+    /// <param name="Nodes">Present layout nodes.</param>
+    /// <returns>Complete member sets; root group members always stay together.</returns>
+    private static List<List<DiagramGridLayout.GridNode>> FindComponents(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
+    {
+        Dictionary<string, string> Roots = RootGroups(Contract, Nodes);
+        var Owner = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+            Owner[Node.Id] = Roots.TryGetValue(Node.Id, out string? Root) ? "g:" + Root : "n:" + Node.Id;
+        foreach (GroupContract Group in Contract.Groups)
+            Owner[Group.Id] = "g:" + RootGroup(Contract, Group.Id);
+
+        var Parent = Owner.Values.Distinct(StringComparer.Ordinal)
+            .ToDictionary(Key => Key, Key => Key, StringComparer.Ordinal);
+        string Find(string Key)
+        {
+            while (!string.Equals(Parent[Key], Key, StringComparison.Ordinal))
+            {
+                Parent[Key] = Parent[Parent[Key]];
+                Key = Parent[Key];
+            }
+            return Key;
+        }
+        void Union(string A, string B)
+        {
+            A = Find(A); B = Find(B);
+            if (!string.Equals(A, B, StringComparison.Ordinal)) Parent[B] = A;
+        }
+        foreach (EdgeContract Edge in Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
+            if (Owner.TryGetValue(Edge.SourceId, out string? Source)
+                && Owner.TryGetValue(Edge.TargetId, out string? Target)) Union(Source, Target);
+
+        return Nodes.GroupBy(Node => Find(Owner[Node.Id]), StringComparer.Ordinal).Select(Group => Group.ToList()).ToList();
     }
 
     private static Piece CreatePiece(List<DiagramGridLayout.GridNode> Nodes,

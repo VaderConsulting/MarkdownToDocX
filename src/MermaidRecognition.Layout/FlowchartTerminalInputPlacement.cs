@@ -6,11 +6,16 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Places independent inputs beside a terminal collector's outer side.</summary>
-internal static class FlowchartTerminalInputPlacement
+internal static partial class FlowchartTerminalInputPlacement
 {
     internal static void Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         bool Horizontal, int CrossPitch)
     {
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            ApplyCells(Contract, Nodes, Horizontal, CrossPitch);
+            return;
+        }
         var ById = Nodes.ToDictionary(Node => Node.Id);
         var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();

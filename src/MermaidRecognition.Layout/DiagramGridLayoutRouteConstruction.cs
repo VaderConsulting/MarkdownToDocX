@@ -16,12 +16,18 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed,
         List<GridFrame> Frames,
         Dictionary<string, NodeContract> Nodes,
-        FlowchartDirection Direction)
+        FlowchartDirection Direction,
+        IReadOnlySet<string>? SourceIds = null)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
+            if (SourceIds != null && !SourceIds.Contains(Route.SourceId))
+            {
+                continue;
+            }
+
             if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 || FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
             {
@@ -35,6 +41,18 @@ public static partial class DiagramGridLayout
                     Direction,
                     BoundsById))
             {
+                continue;
+            }
+
+            if (!FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(
+                    Direction, out string AllocatedFlowExit, out string AllocatedFlowEntry)
+                || !string.Equals(Route.ExitSide, AllocatedFlowExit, StringComparison.Ordinal)
+                || !string.Equals(Route.EntrySide, AllocatedFlowEntry, StringComparison.Ordinal))
+            {
+                // Joint allocation owns endpoint sides. This specialized path
+                // only applies to rank-forward ports; never rewrite a port to
+                // the flow side after allocation when endpoint geometry chose
+                // a different side.
                 continue;
             }
 
@@ -70,12 +88,6 @@ public static partial class DiagramGridLayout
                 continue;
             }
 
-            if (FlowchartOrdinaryFanOutRouteBuilder.TryGetFlowSides(Direction, out string ExitSide, out string EntrySide))
-            {
-                Route.ExitSide = ExitSide;
-                Route.EntrySide = EntrySide;
-            }
-
             // Keep the preallocated endpoints, including a centre port already
             // reserved by a straight continuation. The route builder supplies
             // the rank-gap track between those jointly selected ports.
@@ -102,6 +114,11 @@ public static partial class DiagramGridLayout
                 LayoutPoints.Add((End.X, End.Y));
             }
 
+            // A fan template is only a candidate. It may not replace a valid
+            // obstacle-aware route with a midpoint track through another node
+            // or a protected frame title.
+            if (!DiagramGridRouteBuilder.PathIsValid(LayoutPoints, BoundsById,
+                    Route.SourceId, Route.TargetId, Contract, MaxCorners: int.MaxValue)) continue;
             Route.Points.Clear();
             foreach ((double PointX, double PointY) in LayoutPoints)
             {
@@ -153,7 +170,7 @@ public static partial class DiagramGridLayout
             List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
             if (!AlignedAndSymmetric(Edges, Outgoing: true)
                 || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
-                || IsEnterpriseJunction(Hub)
+                || string.Equals(Hub.Shape, "circle", StringComparison.OrdinalIgnoreCase)
                 || !FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
                     Contract, Group.Key, Hub.Shape, Direction, Bounds)) continue;
             foreach (EdgeContract Edge in Edges)
@@ -175,7 +192,7 @@ public static partial class DiagramGridLayout
             List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
             if (!AlignedAndSymmetric(Edges, Outgoing: false)
                 || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
-                || IsEnterpriseJunction(Hub)
+                || string.Equals(Hub.Shape, "circle", StringComparison.OrdinalIgnoreCase)
                 || FlowchartSharedPortAllocator.IsDecisionShape(Hub.Shape)) continue;
             foreach (EdgeContract Edge in Edges)
             {
@@ -192,20 +209,17 @@ public static partial class DiagramGridLayout
         }
     }
 
-    private static bool IsEnterpriseJunction(NodeContract Node) =>
-        Node.Metadata.TryGetValue("enterpriseElementType", out MermaidMetadataValue? Metadata)
-        && Metadata is RawMetadata Raw
-        && string.Equals(Raw.RawValue, "Junction", StringComparison.Ordinal);
-
     /// <summary>
     /// B15: keeps the forward main chain in one column; back edges never pull nodes sideways.
     /// </summary>
-    private static void AlignForwardMainChainColumn(
+    internal static void AlignForwardMainChainColumn(
         DiagramContract Contract,
         List<GridNode> Placed,
         bool Horizontal)
     {
-        if (Horizontal || Placed.Count == 0)
+        // Initial logical ordering must not smuggle a forced spine alignment
+        // into the region producer. Whole-cell straightening is scored later.
+        if (Placed.Any(Node => Node.CellNode != null) || Horizontal || Placed.Count == 0)
         {
             return;
         }
@@ -436,6 +450,13 @@ public static partial class DiagramGridLayout
             {
                 continue;
             }
+            if (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9
+                || Math.Abs(Route.EntryNormalX) > 1e-9 || Math.Abs(Route.EntryNormalY) > 1e-9)
+            {
+                // The final model route stage rebuilds these from their allocated
+                // slanted-edge normals; legacy loop templates use cardinal vertices.
+                continue;
+            }
 
             string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
@@ -637,6 +658,14 @@ public static partial class DiagramGridLayout
                 continue;
             }
 
+            bool ForceCompassPorts = FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label)
+                || FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label);
+            if (!ForceCompassPorts
+                && (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9))
+            {
+                continue;
+            }
+
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode)
                 ? TargetNode.Shape
                 : null;
@@ -723,6 +752,17 @@ public static partial class DiagramGridLayout
     {
         double Dx = To.CenterX - From.CenterX;
         double Dy = To.CenterY - From.CenterY;
+        double Tolerance = DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
+        if (Math.Abs(Dx) <= Tolerance && Math.Abs(Dy) > Tolerance)
+        {
+            return Dy >= 0 ? "top" : "bottom";
+        }
+
+        if (Math.Abs(Dy) <= Tolerance && Math.Abs(Dx) > Tolerance)
+        {
+            return Dx >= 0 ? "right" : "left";
+        }
+
         if (Math.Abs(Dx) >= Math.Abs(Dy))
         {
             return Dx >= 0 ? "right" : "left";

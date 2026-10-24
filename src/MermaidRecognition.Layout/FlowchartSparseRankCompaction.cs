@@ -6,13 +6,18 @@ using MermaidRecognition.Contract;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Reuses columns across disjoint ranks in wide, sparsely occupied grids.</summary>
-internal static class FlowchartSparseRankCompaction
+internal static partial class FlowchartSparseRankCompaction
 {
     internal static void Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
         // Decisions and junctions already own deliberate branch/detour columns.
         if (Contract.Groups.Count > 0 || Nodes.Count == 0 || Nodes.Any(Node => Node.IsDiamond
             || Node.Shape is not (null or "" or "rect" or "rounded" or "round"))) return;
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            ApplyCells(Contract, Nodes, Horizontal);
+            return;
+        }
         double Cross(DiagramGridLayout.GridNode Node) => Horizontal ? Node.Y : Node.X;
         double Main(DiagramGridLayout.GridNode Node) => Horizontal ? Node.X : Node.Y;
         double HalfCross(DiagramGridLayout.GridNode Node) => (Horizontal ? Node.Height : Node.Width) / 2.0;

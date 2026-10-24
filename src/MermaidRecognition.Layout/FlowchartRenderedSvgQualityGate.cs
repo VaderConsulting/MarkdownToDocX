@@ -675,7 +675,7 @@ public static class FlowchartRenderedSvgQualityGate
                 else if (Crossings >= 1
                     && !CrossingIsPerpendicular
                     && InteriorLength > 48.0
-                    && !IsArchiMateOrthogonalStroke(Profile, Stroke))
+                    && !IsEnterpriseOrthogonalStroke(Profile, Stroke))
                 {
                     Violations.Add(new FlowchartLayoutQualityFailure(
                         "GroupBorderDiagonal",
@@ -2524,7 +2524,7 @@ public static class FlowchartRenderedSvgQualityGate
         return Corners >= 2;
     }
 
-    private static bool IsArchiMateOrthogonalStroke(
+    private static bool IsEnterpriseOrthogonalStroke(
         FlowchartQualityGateProfile Profile,
         ParsedEdgeStroke Stroke)
     {

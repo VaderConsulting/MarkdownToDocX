@@ -112,18 +112,32 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
     [Test]
     public void AnalyzeEdgeRoute_SyntheticLongDiagonalCrossing_DetectsSpineColumnViolation()
     {
-        DiagramContract Contract = MermaidRecognizer.Parse(F58_FLOWCHART);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nA[Input] --> M[Middle] --> Z[Output]\nA --> Z");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
+
+        // Declare a straight three-rank spine atomically. Automatic fan-side
+        // placement may legitimately put the skip edge's ends in one row.
+        var Owners = Layout.CellNodes!;
+        int Pitch = Owners.Max(Node => Node.CellNode!.Region.RowSpan);
+        Assert.That(FlowchartCellRepair.TryAssign(Owners, new Dictionary<string, FlowchartCellRegion>
+        {
+            ["A"] = new(0, 0, Pitch, 1), ["M"] = new(Pitch, 0, Pitch, 1), ["Z"] = new(2 * Pitch, 0, Pitch, 1)
+        }), Is.True);
+        Layout.NodeBoundsMutable.Clear();
+        Layout.NodeBoundsMutable.AddRange(Owners.Select(Node => Node.CellNode!.Bounds(Node.GeometryProvider)));
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         EdgeContract ValidateRejectEdge = Contract.Edges.First(
-            Edge => Edge.SourceId == "Validate" && Edge.TargetId == "Reject");
+            Edge => Edge.SourceId == "A" && Edge.TargetId == "Z");
+        var Middle = Layout.NodeBounds.Single(Box => Box.NodeId == "M");
 
         List<(double X, double Y)> BadDiagonalRoute =
         [
-            (344.8, 1570.1),
-            (308.3, 1028.3),
-            (4.4, 486.9)
+            // Cross the actual cell-owned middle body, independent of the
+            // historical F58 pixel positions or its changed branch ranks.
+            (Middle.CenterX + Middle.Width, Middle.CenterY + Middle.Height),
+            (Middle.CenterX - Middle.Width, Middle.CenterY - Middle.Height)
         ];
 
         List<FlowchartEdgeRouteDiagnosticFinding> Findings = FlowchartEdgeRouteDiagnosticAnalyzer.AnalyzeEdgeRoute(
@@ -192,8 +206,8 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
 
         List<(double X, double Y)> ThroughBodyRoute =
         [
-            (ParseBounds.CenterX - 120.0, ParseBounds.CenterY),
-            (ParseBounds.CenterX + 120.0, ParseBounds.CenterY)
+            (ParseBounds.CenterX - ParseBounds.Width / 2 - DiagramGridMetrics.GRID_UNIT_PX, ParseBounds.CenterY),
+            (ParseBounds.CenterX + ParseBounds.Width / 2 + DiagramGridMetrics.GRID_UNIT_PX, ParseBounds.CenterY)
         ];
 
         List<FlowchartEdgeRouteDiagnosticFinding> Findings = FlowchartEdgeRouteDiagnosticAnalyzer.AnalyzeEdgeRoute(

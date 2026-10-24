@@ -77,9 +77,11 @@ public sealed class F125NodesFirstDiamondRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> PathBPoints,
-            out _);
+            out _,
+            Layout: Layout);
         Assert.That(PathBResolved, Is.True);
-        Assert.That(PathBPoints.Count, Is.EqualTo(2), "Path B should remain a straight vertical connector");
+        Assert.That(PathBPoints.Count, Is.GreaterThan(2),
+            "The diamond edge-centre port is offset from Path B, so the allocated ports do not align for a straight line");
 
         bool PathAResolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
             Contract.Edges.First(Edge => Edge.SourceId == "PA" && Edge.TargetId == "D"),
@@ -88,7 +90,8 @@ public sealed class F125NodesFirstDiamondRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> PathAPoints,
-            out _);
+            out _,
+            Layout: Layout);
         bool PathCResolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
             Contract.Edges.First(Edge => Edge.SourceId == "PC" && Edge.TargetId == "D"),
             Contract,
@@ -96,10 +99,13 @@ public sealed class F125NodesFirstDiamondRenderTests
             NodeById,
             Direction,
             out List<(double X, double Y)> PathCPoints,
-            out _);
+            out _,
+            Layout: Layout);
 
         Assert.That(PathAResolved, Is.True);
         Assert.That(PathCResolved, Is.True);
+
+        AssertDiamondPortRules(Contract, Layout, "D");
         Assert.That(
             PathAPoints[PathAPoints.Count - 1].X,
             Is.LessThan(BoundsById["D"].CenterX),
@@ -114,11 +120,108 @@ public sealed class F125NodesFirstDiamondRenderTests
         Assert.That(
             PathAGuideX,
             Is.EqualTo(PathAPoints[0].X).Within(1.0),
-            "Path A guide mirrors yes/no via swapped decision-branch attach (source-column corridor)");
+            "Path A keeps its source-column track until the normal approach to its allocated diamond port");
         Assert.That(
             PathCGuideX,
             Is.EqualTo(PathCPoints[0].X).Within(1.0),
-            "Path C guide mirrors no/yes via swapped decision-branch attach (source-column corridor)");
+            "Path C keeps its source-column track until the normal approach to its allocated diamond port");
+    }
+
+    private static void AssertDiamondPortRules(DiagramContract Contract, FlowchartLayoutResult Layout, string DiamondId)
+    {
+        FlowchartLayoutNodeBounds diamond = Layout.NodeBounds.Single(box => box.NodeId == DiamondId);
+        double halfWidth = diamond.Width / 2, halfHeight = diamond.Height / 2;
+        List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route, bool Source, FlowchartLayoutPoint Port)> ports = [];
+        foreach (EdgeContract edge in Contract.Edges.Where(edge => edge.SourceId == DiamondId || edge.TargetId == DiamondId))
+        {
+            FlowchartLayoutEdgeRoute route = Layout.EdgeRoutes.Single(route => route.EdgeId == edge.Id);
+            bool source = edge.SourceId == DiamondId;
+            FlowchartLayoutPoint port = source ? route.Points[0] : route.Points[^1];
+            double outline = Math.Abs((port.X - diamond.CenterX) / halfWidth)
+                + Math.Abs((port.Y - diamond.CenterY) / halfHeight);
+            Assert.That(outline, Is.EqualTo(1).Within(0.02), $"{edge.Id} ends on the drawn diamond outline");
+            double normalX = source ? route.ExitNormalX : route.EntryNormalX;
+            double normalY = source ? route.ExitNormalY : route.EntryNormalY;
+            Assert.That(Math.Abs(normalX) + Math.Abs(normalY), Is.GreaterThan(0), $"{edge.Id} has an edge-normal port");
+            FlowchartLayoutPoint adjacent = source ? route.Points[1] : route.Points[^2];
+            double vx = adjacent.X - port.X, vy = adjacent.Y - port.Y;
+            double normalMagnitude = Math.Sqrt(normalX * normalX + normalY * normalY);
+            Assert.That(Math.Abs(vx * normalY - vy * normalX) / normalMagnitude, Is.LessThan(1.5),
+                $"{edge.Id} leaves the slanted edge square-on");
+            Assert.That(vx * normalX + vy * normalY, Is.GreaterThan(0),
+                $"{edge.Id} departs outward from the diamond");
+            ports.Add((edge, route, source, port));
+        }
+
+        foreach (var group in ports.GroupBy(item => DiamondEdge(item.Port, diamond)))
+        {
+            var ordered = group.OrderBy(item => EdgeFraction(item.Port, diamond, group.Key)).ToArray();
+            double[] fractions = ordered.Select(item => EdgeFraction(item.Port, diamond, group.Key)).ToArray();
+            for (int i = 0; i < fractions.Length; i++)
+                Assert.That(fractions[i], Is.EqualTo((i + 1.0) / (fractions.Length + 1)).Within(0.02),
+                    $"{group.Key} diamond ports use symmetric k/(n+1) slots");
+            for (int i = 1; i < ordered.Length; i++)
+            {
+                string peerId = ordered[i].Source ? ordered[i].Edge.TargetId : ordered[i].Edge.SourceId;
+                string priorPeerId = ordered[i - 1].Source ? ordered[i - 1].Edge.TargetId : ordered[i - 1].Edge.SourceId;
+                FlowchartLayoutNodeBounds peer = Layout.NodeBounds.Single(box => box.NodeId == peerId);
+                FlowchartLayoutNodeBounds priorPeer = Layout.NodeBounds.Single(box => box.NodeId == priorPeerId);
+                Assert.That(PeerFraction(peer, diamond, group.Key), Is.GreaterThanOrEqualTo(PeerFraction(priorPeer, diamond, group.Key)),
+                    $"{group.Key} ports follow the relative ordering of their peer nodes");
+            }
+        }
+
+        foreach (var item in ports)
+        {
+            FlowchartLayoutEdgeRoute route = item.Route;
+            FlowchartLayoutPoint start = route.Points[0], end = route.Points[^1];
+            bool aligned = Math.Abs(start.X - end.X) <= 0.5 || Math.Abs(start.Y - end.Y) <= 0.5;
+            Assert.That(aligned && route.Points.Count == 2, Is.False,
+                "These allocated ports do not align, so 4.2 does not force a straight line");
+        }
+
+        double originX = Layout.NodeBounds[0].CenterX, originY = Layout.NodeBounds[0].CenterY;
+        foreach (FlowchartLayoutNodeBounds node in Layout.NodeBounds)
+        {
+            Assert.That(Math.Abs((node.CenterX - originX) / DiagramGridMetrics.GRID_UNIT_PX
+                - Math.Round((node.CenterX - originX) / DiagramGridMetrics.GRID_UNIT_PX)), Is.LessThan(0.01),
+                $"{node.NodeId} uses the common horizontal grid");
+            Assert.That(Math.Abs((node.CenterY - originY) / DiagramGridMetrics.GRID_UNIT_PX
+                - Math.Round((node.CenterY - originY) / DiagramGridMetrics.GRID_UNIT_PX)), Is.LessThan(0.01),
+                $"{node.NodeId} uses the common vertical grid");
+        }
+    }
+
+    private static FlowchartDiamondEdge DiamondEdge(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box)
+    {
+        double x = point.X - box.CenterX, y = point.Y - box.CenterY;
+        if (x >= 0) return y >= 0 ? FlowchartDiamondEdge.TopRight : FlowchartDiamondEdge.BottomRight;
+        return y >= 0 ? FlowchartDiamondEdge.TopLeft : FlowchartDiamondEdge.BottomLeft;
+    }
+
+    private static double EdgeFraction(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box, FlowchartDiamondEdge edge)
+    {
+        double x = point.X - box.CenterX, y = point.Y - box.CenterY;
+        double halfWidth = box.Width / 2, halfHeight = box.Height / 2;
+        return edge switch
+        {
+            FlowchartDiamondEdge.TopRight => x / halfWidth,
+            FlowchartDiamondEdge.BottomRight => (halfWidth - x) / halfWidth,
+            FlowchartDiamondEdge.BottomLeft => -x / halfWidth,
+            _ => (halfWidth + x) / halfWidth
+        };
+    }
+
+    private static double PeerFraction(FlowchartLayoutNodeBounds peer, FlowchartLayoutNodeBounds diamond, FlowchartDiamondEdge edge)
+    {
+        double x = peer.CenterX - diamond.CenterX, halfWidth = diamond.Width / 2;
+        return edge switch
+        {
+            FlowchartDiamondEdge.TopRight => x / halfWidth,
+            FlowchartDiamondEdge.BottomRight => (halfWidth - x) / halfWidth,
+            FlowchartDiamondEdge.BottomLeft => -x / halfWidth,
+            _ => (halfWidth + x) / halfWidth
+        };
     }
 
     [Test]

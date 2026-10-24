@@ -20,6 +20,44 @@ public sealed class FlowchartRoutingIntentTests
 
     private const string RULESET_FILE = "RoutingIntent/ruleset.json";
 
+    [Test]
+    public void RenderRouteClassMap_MatchesFullIntentAnalysis()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse("""
+            flowchart TD
+            Start --> Decide{Ready?}
+            Decide -->|yes| Left[Left path]
+            Decide -->|no| Right[Right path]
+            Left --> Join[Join]
+            Right --> Join
+            Join --> End[Done]
+            """);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartRoutingIntentDiagramResult Intent = FlowchartEdgeRoutingIntentAnalyzer.Analyze(
+            Contract, Layout, Direction, "test");
+
+        Dictionary<string, string> RouteClasses = FlowchartEdgeRoutingIntentAnalyzer
+            .BuildRouteClassNamesByEdgeKey(Contract, Layout, Direction);
+
+        foreach (FlowchartEdgeRoutingIntentRecord Edge in Intent.Edges)
+        {
+            string Expected = Edge.RouteClass switch
+            {
+                FlowchartRoutingIntentRouteClass.CentreSpine => "CentreSpine",
+                FlowchartRoutingIntentRouteClass.ShortAdjacent => "ShortAdjacent",
+                FlowchartRoutingIntentRouteClass.LocalDecisionBranch => "LocalDecisionBranch",
+                FlowchartRoutingIntentRouteClass.MultiInputMerge => "FanIn",
+                FlowchartRoutingIntentRouteClass.MergeBack => "MergeBack",
+                FlowchartRoutingIntentRouteClass.LongExceptionBypass or FlowchartRoutingIntentRouteClass.SkipBypass => "LongBypass",
+                FlowchartRoutingIntentRouteClass.ReturnBackward => "CycleOrReturn",
+                FlowchartRoutingIntentRouteClass.CrossLane or FlowchartRoutingIntentRouteClass.ObstacleAvoidance => "CrossLane",
+                _ => "Unknown"
+            };
+            Assert.That(RouteClasses[Edge.EdgeId], Is.EqualTo(Expected), Edge.EdgeId);
+        }
+    }
+
     private const string F58_FLOWCHART = """
         flowchart TD
         Start([Start]) --> Ingest[Ingest file]

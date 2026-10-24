@@ -27,6 +27,7 @@ namespace MDConverter.Pipeline;
 /// </summary>
 public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressReporter? ProgressReporter)
 {
+    internal static Action<string, double>? ConversionStageTimingObserver { get; set; }
     private const float MermaidRasterScale = 4.0f;
     private const double FlowchartRasterArrowLengthPx = 8.0;
     private const double FlowchartRasterArrowHalfWidthPx = 5.0;
@@ -702,25 +703,47 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         Paragraph Paragraph = new Paragraph(Properties);
         try
         {
+            ConversionStageTimingObserver?.Invoke("mermaid-svg-render", -1);
+            Stopwatch RenderTimer = Stopwatch.StartNew();
             string Svg = RenderMermaidSvg(MermaidBlock.Source);
+            RenderTimer.Stop();
+            ConversionStageTimingObserver?.Invoke("mermaid-svg-render", RenderTimer.Elapsed.TotalMilliseconds);
+            if (string.IsNullOrWhiteSpace(Svg))
+            {
+                string EmptyMessage = "Mermaid render returned empty SVG.";
+                _ProgressReporter?.Report(0, EmptyMessage);
+                AppendMermaidFallback(Paragraph, EmptyMessage, MermaidBlock.Source);
+                return Paragraph;
+            }
+
             MermaidImageAccessibility Accessibility = MermaidAccessibilityResolver.Resolve(
                 MermaidBlock.Source,
                 _Options.Mermaid.UseFlowchartRecognitionParser);
+            ConversionStageTimingObserver?.Invoke("docx-raster-or-svg-embed", -1);
+            Stopwatch EmbedTimer = Stopwatch.StartNew();
             if (TryAppendRasterizedSvg(Paragraph, Svg, Accessibility))
             {
+                EmbedTimer.Stop();
+                ConversionStageTimingObserver?.Invoke("docx-raster-or-svg-embed", EmbedTimer.Elapsed.TotalMilliseconds);
                 return Paragraph;
             }
 
             if (TryAppendSvg(Paragraph, Svg, Accessibility))
             {
+                EmbedTimer.Stop();
+                ConversionStageTimingObserver?.Invoke("docx-raster-or-svg-embed", EmbedTimer.Elapsed.TotalMilliseconds);
                 return Paragraph;
             }
+            EmbedTimer.Stop();
+            ConversionStageTimingObserver?.Invoke("docx-raster-or-svg-embed", EmbedTimer.Elapsed.TotalMilliseconds);
 
             AppendMermaidFallback(Paragraph, "Mermaid diagram could not be embedded as SVG.", MermaidBlock.Source);
         }
         catch (Exception Ex)
         {
-            AppendMermaidFallback(Paragraph, "Mermaid render failed: " + Ex.Message, MermaidBlock.Source);
+            string FailureMessage = "Mermaid render failed: " + Ex.Message;
+            _ProgressReporter?.Report(0, FailureMessage);
+            AppendMermaidFallback(Paragraph, FailureMessage, MermaidBlock.Source);
         }
 
         return Paragraph;
@@ -1174,7 +1197,11 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             return false;
         }
 
+        ConversionStageTimingObserver?.Invoke("svg-rasterization", -1);
+        Stopwatch RasterTimer = Stopwatch.StartNew();
         byte[]? PngBytes = TryRasterizeSvgToPng(Svg);
+        RasterTimer.Stop();
+        ConversionStageTimingObserver?.Invoke("svg-rasterization", RasterTimer.Elapsed.TotalMilliseconds);
         if (PngBytes == null || PngBytes.Length == 0)
         {
             return false;

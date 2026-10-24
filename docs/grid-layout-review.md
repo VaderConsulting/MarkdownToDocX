@@ -523,7 +523,7 @@ or replacing PR #9's routing with its older code. Native Enterprise paths use
 rounded bends, break visible strokes around labels and include junction
 captions in canvas bounds. Accessibility metadata reaches SVG and DOCX.
 Imported tests were adapted to generic structural fixtures rather than
-assertions keyed to a sample name. Complete ArchiMate conformance is not claimed.
+assertions keyed to a sample name. Complete Enterprise conformance is not claimed.
 
 The pie adapter consumes the recognition contract. It preserves declaration
 order, first duplicate values, original-total percentages and legends for tiny

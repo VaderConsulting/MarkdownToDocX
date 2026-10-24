@@ -11,6 +11,11 @@ internal static class FlowchartIntergroupNodePlacement
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         List<DiagramGridLayout.GridFrame> Frames, bool Horizontal)
     {
+        // Legacy anchor-centre/clamped-pixel placement cannot assign cell
+        // ownership. The cell frame fitter retains mandatory group clearance;
+        // complete whole-cell endpoint/group candidates provide route-cost
+        // placement, including outside connectors, after routing.
+        if (Nodes.Any(Node => Node.CellNode != null)) return false;
         var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
         var Roots = Frames.Where(Frame => !Contract.Groups.Any(Group => Group.Id != Frame.Id
             && FlowchartCompoundEndpointHelper.Contains(Contract, Group.Id, Frame.Id))).ToList();

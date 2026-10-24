@@ -53,10 +53,11 @@ public sealed record UnnecessaryBendViolation(
     char Check,
     int RoutedCorners,
     double RoutedLength,
-    IReadOnlyList<BendPoint> BetterRoute);
+    IReadOnlyList<BendPoint> BetterRoute,
+    string? Detail = null);
 
 /// <summary>Compares routed orthogonal lines with legal routes using the same ports and endpoint sides.</summary>
-public static class UnnecessaryBendChecker
+public static partial class UnnecessaryBendChecker
 {
     private const double Epsilon = 0.001;
 
@@ -130,6 +131,7 @@ public static class UnnecessaryBendChecker
             UnnecessaryBendViolation? Finding = CheckRoute(DiagramId, Input, Obstacles, OtherLines);
             if (Finding != null) Result.Add(Finding);
         }
+        Result.AddRange(CheckLayoutAlternatives(DiagramId, Contract, Layout));
         return Result;
     }
 

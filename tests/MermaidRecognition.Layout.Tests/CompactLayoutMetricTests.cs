@@ -8,27 +8,25 @@ using MermaidRecognition.Layout.Enterprise;
 namespace MermaidRecognition.Layout.Tests;
 
 [TestFixture]
-public sealed class CompactLayoutMetricTests
+public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
 {
-    [TestCase("F", 151)]
-    [TestCase("F", 152)]
-    [TestCase("F", 153)]
-    [TestCase("A", 64)]
-    [TestCase("A", 104)]
-    [TestCase("A", 109)]
-    [TestCase("A", 110)]
-    [TestCase("A", 114)]
-    [TestCase("A", 117)]
-    [TestCase("A", 142)]
-    [TestCase("A", 163)]
-    [TestCase("A", 168)]
+    /// <summary>Retains the original compact-metric cases and assigns the shared test-only watchdog without changing their names or assertions.</summary>
+    /// <returns>Original catalogue arguments with discovery-visible watchdog descriptions.</returns>
+    public static IEnumerable<TestCaseData> CompactMetricCases()
+    {
+        foreach (var Item in new[] { ("F", 151), ("F", 152), ("F", 153), ("A", 64), ("A", 104), ("A", 109),
+            ("A", 110), ("A", 114), ("A", 117), ("A", 142), ("A", 163), ("A", 168) })
+            yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Item.Item1, Item.Item2), Item.Item1 + Item.Item2.ToString("00"));
+    }
+
+    [TestCaseSource(nameof(CompactMetricCases))]
     public void CatalogueDiagram_ReportsCompactLayoutMetrics(string Catalogue, int Number)
     {
         string Source = ReadScenario(Catalogue, Number);
         DiagramContract Contract = Catalogue == "A"
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document)
             : MermaidRecognizer.Parse(Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         if (Number >= 154)
@@ -51,7 +49,7 @@ public sealed class CompactLayoutMetricTests
     {
         string Source = ReadScenario("A", Number);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         Assert.That(Metrics.Disconnections, Is.Zero,
             $"A{Number} has {Metrics.Disconnections} line endpoints detached from their source or target.");
@@ -67,7 +65,7 @@ public sealed class CompactLayoutMetricTests
     {
         string Source = ReadScenario("A", 64);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         List<FlowchartLayoutNodeBounds> Members = Layout.NodeBounds.Where(Box => Box.NodeId.StartsWith("a", StringComparison.Ordinal)).ToList();
         Assert.Multiple(() =>
@@ -83,7 +81,7 @@ public sealed class CompactLayoutMetricTests
     {
         string Source = ReadScenario("A", 117);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         Assert.That(Metrics.Score, Is.Not.Null,
             string.Join("; ", Metrics.Violations.Select(Failure => Failure.Kind + ": " + Failure.Description)));
@@ -249,7 +247,7 @@ public sealed class CompactLayoutMetricTests
     {
         Contract = EnterpriseFlowchartContractMapper.Build(
             EnterpriseValidator.Analyze(ReadScenario("A", Number)).Document);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         return Layout;
     }
 
@@ -261,7 +259,7 @@ public sealed class CompactLayoutMetricTests
     {
         string Source = ReadScenario("A", 110);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
         Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).ForcedMinimum, Is.EqualTo(243));
     }
 

@@ -9,16 +9,16 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout;
 
 /// <summary>Measures a routed layout using rules 2.13 and 2.14.</summary>
-internal static class FlowchartLayoutScore
+internal static partial class FlowchartLayoutScore
 {
     internal static double BEND_PENALTY => FlowchartLayoutRules.BendScore;
 
     internal sealed record Result(double Width, double Height, int Overlaps, int Crossings, int ForcedMinimum,
         int Bends, int Disconnections, int HintsHonoured, int HintsTotal, double EmptyShare, double? Score,
-        double OptimizationScore, IReadOnlyList<FlowchartLayoutQualityFailure> Violations);
+        double OptimizationScore, IReadOnlyList<FlowchartLayoutQualityFailure> Violations, ComparisonCost Cost);
 
     internal readonly record struct CandidateMeasurement(double? Score, double OptimizationScore,
-        int Overlaps, int Crossings, int RejectingFaults);
+        int Overlaps, int Crossings, int RejectingFaults, ComparisonCost Cost);
 
     internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout,
         bool IncludeArrangementCheck = true)
@@ -28,7 +28,7 @@ internal static class FlowchartLayoutScore
         bool IncludeArrangementCheck, int? Crossings, int? Bends,
         IReadOnlyList<FlowchartLayoutQualityFailure>? CachedViolations = null,
         int? ForcedMinimumOverride = null, int? DisconnectionsOverride = null,
-        int? SharedEndpointCrossings = null)
+        int? SharedEndpointCrossings = null, double? RouteLength = null)
     {
         (double Width, double Height) = Bounds(Layout);
         var Violations = CachedViolations == null
@@ -51,9 +51,15 @@ internal static class FlowchartLayoutScore
             + SharedEndpointCrossingCount * FlowchartLayoutRules.CrossingScore
             + BendCount * FlowchartLayoutRules.BendScore
             + Disconnections * FlowchartLayoutRules.DisconnectedEndScore + HintScore;
+        var Cost = new ComparisonCost(OptimizationScore,
+            (RouteLength ?? Layout.EdgeRoutes.Sum(Route => DrawnLength(Route.Points)))
+                / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight,
+            BendCount, (Math.Max(0, CrossingCount - ForcedMinimum) + SharedEndpointCrossingCount)
+                * FlowchartLayoutRules.CrossingScore);
+        OptimizationScore = Cost;
         double? Score = Rejected ? null : OptimizationScore;
         return new(Width, Height, Overlaps, CrossingCount, ForcedMinimum, BendCount, Disconnections,
-            HintsHonoured, HintsTotal, EmptyShare, Score, OptimizationScore, Violations);
+            HintsHonoured, HintsTotal, EmptyShare, Score, OptimizationScore, Violations, Cost);
     }
 
     /// <summary>
@@ -96,6 +102,8 @@ internal static class FlowchartLayoutScore
         private int _sharedEndpointCrossings;
         private int _bends;
         private int _disconnections;
+        private readonly double[] _routeLengths;
+        private double _totalLength;
 
         internal IncrementalContext(DiagramContract Contract, FlowchartLayoutResult Layout,
             bool IncludeArrangementCheck = true)
@@ -104,6 +112,8 @@ internal static class FlowchartLayoutScore
             _layout = Layout;
             _includeArrangementCheck = IncludeArrangementCheck;
             _routes = Layout.EdgeRoutes.ToArray();
+            _routeLengths = _routes.Select(Route => DrawnLength(Route.Points)).ToArray();
+            _totalLength = _routeLengths.Sum();
             _routeIndexes = _routes.Select((Route, Index) => (Route, Index))
                 .ToDictionary(Item => Item.Route, Item => Item.Index);
             _routePoints = _routes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
@@ -190,7 +200,8 @@ internal static class FlowchartLayoutScore
             if (_includeArrangementCheck)
                 return MeasureCore(_contract, _layout, true, CandidateCrossings, CandidateBends,
                     ForcedMinimumOverride: _forcedMinimum, DisconnectionsOverride: CandidateDisconnections,
-                    SharedEndpointCrossings: CandidateSharedEndpointCrossings);
+                    SharedEndpointCrossings: CandidateSharedEndpointCrossings,
+                    RouteLength: _totalLength - _routeLengths[Index] + DrawnLength(ChangedRoute.Points));
 
             var Violations = new List<FlowchartLayoutQualityFailure>(_staticViolations);
             for (int RouteIndex = 0; RouteIndex < _routes.Length; RouteIndex++)
@@ -202,7 +213,8 @@ internal static class FlowchartLayoutScore
             }
             return MeasureCore(_contract, _layout, _includeArrangementCheck,
                 CandidateCrossings, CandidateBends, Violations, _forcedMinimum, CandidateDisconnections,
-                CandidateSharedEndpointCrossings);
+                CandidateSharedEndpointCrossings,
+                _totalLength - _routeLengths[Index] + DrawnLength(ChangedRoute.Points));
         }
 
         internal CandidateMeasurement MeasureCandidateSummary(FlowchartLayoutEdgeRoute ChangedRoute,
@@ -225,13 +237,26 @@ internal static class FlowchartLayoutScore
                 + CandidateViolations.Count(Failure => Failure.Kind != "ArrangementKept");
             bool Rejected = _staticRejected || _otherRejectedRoutes - (_routeRejected[Index] ? 1 : 0) > 0
                 || CandidateViolations.Any(Failure => Rejects(Failure, _contract, _layout, _backEdges));
+            // Route cells contribute to empty-area cost. They are not static:
+            // moving a track or extending a diagonal terminal changes occupancy.
+            // Keep the cached pair counts, but measure occupancy on the candidate
+            // currently installed in the layout, just as MeasureCore does.
+            double CandidateEmptyShare = EmptyAreaShare(_layout, _width, _height);
             double OptimizationScore = _staticScore
+                + Calculate(_width, _height, _forcedMinimum, _forcedMinimum, CandidateEmptyShare)
+                - Calculate(_width, _height, _forcedMinimum, _forcedMinimum, _emptyShare)
                 + Math.Max(0, CandidateCrossings - _forcedMinimum) * FlowchartLayoutRules.CrossingScore
                 + CandidateSharedEndpointCrossings * FlowchartLayoutRules.CrossingScore
                 + CandidateBends * FlowchartLayoutRules.BendScore
                 + CandidateDisconnections * FlowchartLayoutRules.DisconnectedEndScore;
+            var Cost = new ComparisonCost(OptimizationScore,
+                (_totalLength - _routeLengths[Index] + DrawnLength(ChangedRoute.Points))
+                    / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight,
+                CandidateBends, (Math.Max(0, CandidateCrossings - _forcedMinimum) + CandidateSharedEndpointCrossings)
+                    * FlowchartLayoutRules.CrossingScore);
+            OptimizationScore = Cost;
             return new(Rejected ? null : OptimizationScore, OptimizationScore, _staticOverlaps,
-                CandidateCrossings, Faults);
+                CandidateCrossings, Faults, Cost);
         }
 
         internal void CommitCurrent(FlowchartLayoutEdgeRoute ChangedRoute)
@@ -266,6 +291,9 @@ internal static class FlowchartLayoutScore
             _routeCrossings[Index] = NewRouteCrossings;
             _routeSharedEndpointCrossings[Index] = NewRouteSharedEndpointCrossings;
             _routePoints[Index] = ChangedPoints;
+            double UpdatedLength = DrawnLength(ChangedRoute.Points);
+            _totalLength += UpdatedLength - _routeLengths[Index];
+            _routeLengths[Index] = UpdatedLength;
             _bends += CountCorners(ChangedRoute.Points) - _routeBends[Index];
             _routeBends[Index] = CountCorners(ChangedRoute.Points);
             int NewDisconnections = CountRouteDisconnections(ChangedRoute,
@@ -386,22 +414,34 @@ internal static class FlowchartLayoutScore
         return Corners > 3;
     }
 
+    /// <summary>Scores complete pre-routing node and frame geometry using raster empty-space terms.</summary>
+    /// <param name="Layout">Projected candidate bounds, including every frame; no route has yet been selected.</param>
+    /// <returns>The unchanged placement terms of the layout score, with no invented route penalties.</returns>
+    internal static double MeasurePlacement(FlowchartLayoutResult Layout)
+    {
+        var (Width, Height) = Bounds(Layout);
+        return Calculate(Width, Height, 0, EmptyAreaShare(Layout, Width, Height));
+    }
+
+    internal static double PlacementWidth(FlowchartLayoutResult Layout) => Bounds(Layout).Width;
+
     internal static double Calculate(double Width, double Height, int Crossings, double EmptyShare)
         => Calculate(Width, Height, Crossings, 0, EmptyShare);
 
     internal static double Calculate(double Width, double Height, int Crossings, int ForcedMinimum, double EmptyShare)
     {
-        double TargetRatio = FlowchartLayoutRules.TargetAspectWidth / FlowchartLayoutRules.TargetAspectHeight;
-        double ShapePercent = Math.Abs((Width / Math.Max(1.0, Height)) - TargetRatio) / TargetRatio * 100.0;
-        double Shape = ShapePercent / FlowchartLayoutRules.ShapeStep * FlowchartLayoutRules.ShapePoints;
+        const double EmptyScoreStepPercent = 5.0;
         double EmptyPercent = EmptyShare * 100.0;
-        double EmptyLowRate = FlowchartLayoutRules.EmptyPointsLow / FlowchartLayoutRules.ShapeStep;
-        double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / FlowchartLayoutRules.ShapeStep;
+        double EmptyLowRate = FlowchartLayoutRules.EmptyPointsLow / EmptyScoreStepPercent;
+        double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / EmptyScoreStepPercent;
         double Empty = EmptyPercent <= FlowchartLayoutRules.EmptyThreshold
             ? EmptyPercent * EmptyLowRate
             : FlowchartLayoutRules.EmptyThreshold * EmptyLowRate
                 + (EmptyPercent - FlowchartLayoutRules.EmptyThreshold) * EmptyHighRate;
-        return Shape + Empty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
+        double OverWidthPx = Math.Max(0.0, Width - FlowchartLayoutRules.DiagramUsableWidthPx);
+        double OverWidthPercent = OverWidthPx / Math.Max(1.0, FlowchartLayoutRules.DiagramUsableWidthPx) * 100.0;
+        double WrapWidthPenalty = OverWidthPercent / EmptyScoreStepPercent * 2.0;
+        return Empty + WrapWidthPenalty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
     }
 
     internal static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)
@@ -584,14 +624,19 @@ internal static class FlowchartLayoutScore
             && Math.Abs(Endpoint.Y - ExpectedY) <= Tolerance;
     }
 
-    private static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
+    /// <summary>Counts direction changes, including permitted sloping diamond terminal runs.</summary>
+    /// <param name="Points">The complete routed polyline in layout coordinates.</param>
+    /// <returns>The bend count used by both full and incremental candidate scoring.</returns>
+    internal static int CountCorners(IReadOnlyList<FlowchartLayoutPoint> Points)
     {
         int Result = 0;
         for (int Index = 1; Index < Points.Count - 1; Index++)
         {
-            bool BeforeHorizontal = Math.Abs(Points[Index].Y - Points[Index - 1].Y) < 0.5;
-            bool AfterHorizontal = Math.Abs(Points[Index + 1].Y - Points[Index].Y) < 0.5;
-            if (BeforeHorizontal != AfterHorizontal) Result++;
+            double BeforeX = Points[Index].X - Points[Index - 1].X;
+            double BeforeY = Points[Index].Y - Points[Index - 1].Y;
+            double AfterX = Points[Index + 1].X - Points[Index].X;
+            double AfterY = Points[Index + 1].Y - Points[Index].Y;
+            if (Math.Abs(BeforeX * AfterY - BeforeY * AfterX) > 0.001) Result++;
         }
         return Result;
     }
@@ -647,17 +692,15 @@ internal static class FlowchartLayoutScore
             .Min(Box => Box.CenterY - Box.Height / 2.0);
         int Columns = Math.Max(1, (int)Math.Ceiling(Width / Cell));
         int Rows = Math.Max(1, (int)Math.Ceiling(Height / Cell));
-        var Used = new HashSet<(int Column, int Row)>();
+        var Rectangles = new List<(int Left, int Right, int Bottom, int Top)>();
         void Mark(double MinX, double MinY, double MaxX, double MaxY)
         {
-            int FirstColumn = (int)Math.Floor((MinX - Left) / Cell);
-            int LastColumn = (int)Math.Floor((MaxX - Left) / Cell);
-            int FirstRow = (int)Math.Floor((MinY - Bottom) / Cell);
-            int LastRow = (int)Math.Floor((MaxY - Bottom) / Cell);
-            for (int Column = FirstColumn; Column <= LastColumn; Column++)
-            for (int Row = FirstRow; Row <= LastRow; Row++)
-                if (Column >= 0 && Column < Columns && Row >= 0 && Row < Rows)
-                    Used.Add((Column, Row));
+            int FirstColumn = Math.Max(0, (int)Math.Floor((MinX - Left) / Cell));
+            int LastColumn = Math.Min(Columns - 1, (int)Math.Floor((MaxX - Left) / Cell));
+            int FirstRow = Math.Max(0, (int)Math.Floor((MinY - Bottom) / Cell));
+            int LastRow = Math.Min(Rows - 1, (int)Math.Floor((MaxY - Bottom) / Cell));
+            if (FirstColumn <= LastColumn && FirstRow <= LastRow)
+                Rectangles.Add((FirstColumn, LastColumn + 1, FirstRow, LastRow + 1));
         }
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Concat(Layout.ClusterBounds))
             Mark(Box.CenterX - Box.Width / 2.0, Box.CenterY - Box.Height / 2.0,
@@ -669,6 +712,32 @@ internal static class FlowchartLayoutScore
             Mark(Math.Min(A.X, B.X) - Cell / 2.0, Math.Min(A.Y, B.Y) - Cell / 2.0,
                 Math.Max(A.X, B.X) + Cell / 2.0, Math.Max(A.Y, B.Y) + Cell / 2.0);
         }
-        return 1.0 - Used.Count / (double)(Columns * Rows);
+        // Count the same occupied grid cells by sweeping rectangle boundaries.
+        // A long route or large frame must not require visiting every cell for
+        // every candidate score. Half-open integer intervals preserve the
+        // previous inclusive-cell marking, including cells on an outline.
+        int[] Boundaries = Rectangles.SelectMany(Rectangle => new[] { Rectangle.Left, Rectangle.Right })
+            .Distinct().OrderBy(Value => Value).ToArray();
+        long Used = 0;
+        for (int Index = 1; Index < Boundaries.Length; Index++)
+        {
+            int LeftColumn = Boundaries[Index - 1], RightColumn = Boundaries[Index];
+            var Intervals = Rectangles.Where(Rectangle => Rectangle.Left < RightColumn && Rectangle.Right > LeftColumn)
+                .OrderBy(Rectangle => Rectangle.Bottom).ThenBy(Rectangle => Rectangle.Top);
+            int BottomRow = 0, TopRow = 0, OccupiedRows = 0;
+            foreach (var Rectangle in Intervals)
+            {
+                if (Rectangle.Bottom > TopRow)
+                {
+                    OccupiedRows += TopRow - BottomRow;
+                    BottomRow = Rectangle.Bottom;
+                    TopRow = Rectangle.Top;
+                }
+                else TopRow = Math.Max(TopRow, Rectangle.Top);
+            }
+            OccupiedRows += TopRow - BottomRow;
+            Used += (long)(RightColumn - LeftColumn) * OccupiedRows;
+        }
+        return 1.0 - Used / ((double)Columns * Rows);
     }
 }

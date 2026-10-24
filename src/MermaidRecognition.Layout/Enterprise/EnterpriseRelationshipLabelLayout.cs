@@ -12,9 +12,15 @@ internal static class EnterpriseRelationshipLabelLayout
     private const double FontSize = 12;
     private const double Clearance = 6;
 
+    /// <summary>Places wrapped labels on clear straight segments, preferring isolated fan leaf runs when requested.</summary>
+    /// <param name="Edges">Completed painted paths whose label bounds and breaks are updated.</param>
+    /// <param name="Nodes">Fixed painted node bounds used for label clearance.</param>
+    /// <param name="PreferFanLeafRuns">Whether production-cell fans reserve the leaf-side run before trying other segments.</param>
     internal static void Place(List<EnterpriseRoutedEdge> Edges,
-        Dictionary<string, EnterpriseLayoutNode> Nodes)
+        Dictionary<string, EnterpriseLayoutNode> Nodes, bool PreferFanLeafRuns = false)
     {
+        var Degree = Edges.SelectMany(Edge => new[] { Edge.Relationship.SourceId, Edge.Relationship.TargetId })
+            .GroupBy(Id => Id).ToDictionary(Group => Group.Key, Group => Group.Count(), StringComparer.Ordinal);
         foreach (var Edge in Edges)
         {
             Edge.LabelLines = Wrap(Edge.Label);
@@ -37,8 +43,10 @@ internal static class EnterpriseRelationshipLabelLayout
                 var Dimensions = new FlowchartLabelDimensions { DisplayText = string.Join("\n", Edge.LabelLines),
                     Width = Edge.LabelWidth, Height = Edge.LabelHeight };
                 FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(Edge.SvgPoints, Dimensions, FontSize, out Preferred);
-                var Segments = Enumerable.Range(0, Edge.SvgPoints.Count - 1)
-                    .OrderByDescending(Index => Distance(Edge.SvgPoints[Index], Edge.SvgPoints[Index + 1]));
+                int LeafSegment = PreferFanLeafRuns && Degree[Edge.Relationship.SourceId] == 1 && Degree[Edge.Relationship.TargetId] >= 3 ? 0
+                    : PreferFanLeafRuns && Degree[Edge.Relationship.TargetId] == 1 && Degree[Edge.Relationship.SourceId] >= 3 ? Edge.SvgPoints.Count - 2 : -1;
+                var Segments = Enumerable.Range(0, Edge.SvgPoints.Count - 1).OrderBy(Index => Index == LeafSegment ? 0 : 1)
+                    .ThenByDescending(Index => Distance(Edge.SvgPoints[Index], Edge.SvgPoints[Index + 1]));
                 foreach (int Index in Segments)
                 {
                     var A = Edge.SvgPoints[Index];

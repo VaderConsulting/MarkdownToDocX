@@ -186,7 +186,7 @@ public static class EnterpriseValidator
         Builder.Append(EnterpriseElementCatalog.GetSpecName(Target.ElementType));
         Builder.Append(" \"");
         Builder.Append(Target.Label);
-        Builder.Append("\" is not allowed in ArchiMate ");
+        Builder.Append("\" is not allowed in Enterprise ");
         Builder.Append(Version);
         Builder.Append(". Allowed: ");
         Builder.Append(FormatAllowedList(AllowedLetters));

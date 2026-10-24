@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Layout;
 
@@ -8,7 +9,8 @@ namespace MermaidRecognition.Layout;
 internal static class FlowchartExteriorCrossingRepair
 {
     internal static void Apply(FlowchartLayoutResult Layout,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        DiagramContract? Contract = null)
     {
         if (Layout.EdgeRoutes.Count < 2 || Bounds.Count == 0) return;
         double Left = Bounds.Values.Min(Box => Box.CenterX - Box.Width / 2.0) - DiagramGridMetrics.GRID_UNIT_PX;
@@ -16,12 +18,17 @@ internal static class FlowchartExteriorCrossingRepair
         double Bottom = Bounds.Values.Min(Box => Box.CenterY - Box.Height / 2.0) - DiagramGridMetrics.GRID_UNIT_PX;
         double Top = Bounds.Values.Max(Box => Box.CenterY + Box.Height / 2.0) + DiagramGridMetrics.GRID_UNIT_PX;
 
+        int routeOrdinal = 0;
         bool Moved;
         do
         {
             Moved = false;
             foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
             {
+                int laneOrdinal = routeOrdinal++;
+                if (Contract != null
+                    && DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
+                    continue;
                 int Before = Score(Route.Points, Route, Layout.EdgeRoutes);
                 if (Before == 0 || Route.Points.Count < 2) continue;
                 FlowchartLayoutPoint Start = Route.Points[0], End = Route.Points[^1];
@@ -46,7 +53,41 @@ internal static class FlowchartExteriorCrossingRepair
                     ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "right", Bottom),
                     ExteriorTurn(Bounds[Route.SourceId], Bounds[Route.TargetId], "right", Top)
                 ];
-                var Best = Candidates.Where(Candidate => Clear(Candidate.Points, Route, Bounds))
+                // Backward lines get private perimeter tracks. They keep their
+                // allocated endpoint sides and never take a shortcut through the
+                // centre of a diagram just because that path is shorter.
+                double LaneStep = DiagramGridMetrics.GRID_UNIT_PX;
+                foreach (double Lane in new[]
+                {
+                    Left - laneOrdinal * LaneStep,
+                    Right + laneOrdinal * LaneStep,
+                    Bottom - laneOrdinal * LaneStep,
+                    Top + laneOrdinal * LaneStep
+                })
+                {
+                    Candidates.Add((Simplify([(Start.X, Start.Y), StartStub,
+                        (Lane, StartStub.Y), (Lane, EndStub.Y), EndStub, (End.X, End.Y)]), null));
+                }
+                foreach (double Lane in new[]
+                {
+                    Top + (laneOrdinal + 1) * LaneStep,
+                    Bottom - (laneOrdinal + 1) * LaneStep
+                })
+                {
+                    Candidates.Add((Simplify([(Start.X, Start.Y), StartStub,
+                        (StartStub.X, Lane), (EndStub.X, Lane), EndStub, (End.X, End.Y)]), null));
+                }
+                foreach (double Lane in new[]
+                {
+                    Left - (laneOrdinal + 1) * LaneStep,
+                    Right + (laneOrdinal + 1) * LaneStep
+                })
+                {
+                    Candidates.Add((Simplify([(Start.X, Start.Y), StartStub,
+                        (Lane, StartStub.Y), (Lane, EndStub.Y), EndStub, (End.X, End.Y)]), null));
+                }
+                var Best = Candidates.Where(Candidate => Candidate.Side == null
+                        && Clear(Candidate.Points, Route, Bounds))
                     .Select(Candidate => (Candidate.Points, Candidate.Side, Score: Score(Candidate.Points, Route, Layout.EdgeRoutes),
                         Length: Length(Candidate.Points)))
                     .Where(Candidate => Candidate.Score < Before)

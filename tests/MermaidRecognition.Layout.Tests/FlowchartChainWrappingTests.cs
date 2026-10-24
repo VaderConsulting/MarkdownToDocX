@@ -18,14 +18,17 @@ public sealed class FlowchartChainWrappingTests
         for (int Index = 1; Index < NodeCount; Index++)
             Source.AppendLine($"  n{Index}[Node {Index}] --> n{Index + 1}[Node {Index + 1}]");
         var Contract = MermaidRecognizer.Parse(Source.ToString());
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
-        (int NodeWidth, int NodeHeight) = DiagramGridLayout.ResolveStandardBox(Contract);
-        int ColumnGap = Direction == "LR"
-            ? Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX)
-            : DiagramGridMetrics.NODE_GAP_PX;
+        FlowchartCellNode Cell = Layout.CellNodes![0].CellNode!;
+        FlowchartLogicalGridConfiguration Configuration = Cell.Grid.Configuration;
+        var Size = Cell.Grid.Measure(Cell.Region);
+        Assert.That(Layout.CellNodes.All(Node => Node.CellNode!.Region.RowSpan == Cell.Region.RowSpan
+            && Node.CellNode.Region.ColumnSpan == Cell.Region.ColumnSpan), Is.True);
         FlowchartWrapPlan.Plan Expected = FlowchartWrapPlan.Choose(
-            NodeCount, NodeWidth, NodeHeight, ColumnGap, DiagramGridMetrics.NODE_GAP_PX, Direction == "LR");
+            NodeCount, (int)Size.Width, (int)Size.Height,
+            (int)Configuration.ColumnGap, (int)Configuration.RowGap, Direction == "LR");
         double Width = Layout.NodeBounds.Max(Node => Node.CenterX + Node.Width / 2.0)
             - Layout.NodeBounds.Min(Node => Node.CenterX - Node.Width / 2.0);
         double Height = Layout.NodeBounds.Max(Node => Node.CenterY + Node.Height / 2.0)
@@ -33,8 +36,10 @@ public sealed class FlowchartChainWrappingTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(Width, Is.EqualTo(Expected.Width).Within(DiagramGridMetrics.GRID_UNIT_PX));
-            Assert.That(Height, Is.EqualTo(Expected.Height).Within(DiagramGridMetrics.GRID_UNIT_PX));
+            Assert.That(Width / Configuration.CellWidth,
+                Is.EqualTo(Expected.Width / Configuration.CellWidth).Within(DiagramGridMetrics.GRID_UNIT_PX / Configuration.CellWidth));
+            Assert.That(Height / Configuration.CellHeight,
+                Is.EqualTo(Expected.Height / Configuration.CellHeight).Within(DiagramGridMetrics.GRID_UNIT_PX / Configuration.CellHeight));
             Assert.That(HasOverlap(Layout), Is.False);
         });
     }

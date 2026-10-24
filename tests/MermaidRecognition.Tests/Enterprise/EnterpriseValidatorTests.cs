@@ -15,19 +15,19 @@ public sealed class EnterpriseValidatorTests
         Assert.That(Result.Errors.Select(Item => Item.LineNumber).ToArray(), Is.EqualTo(new[] { 12, 13, 14, 15, 16 }));
         Assert.That(
             Result.Errors[0].Message,
-            Is.EqualTo("line 12: serving from DataObject \"Order\" to ApplicationComponent \"Web Shop\" is not allowed in ArchiMate 3.2. Allowed: association."));
+            Is.EqualTo("line 12: serving from DataObject \"Order\" to ApplicationComponent \"Web Shop\" is not allowed in Enterprise 3.2. Allowed: association."));
         Assert.That(
             Result.Errors[1].Message,
-            Is.EqualTo("line 13: composition from ApplicationService \"Online Ordering\" to ApplicationComponent \"Web Shop\" is not allowed in ArchiMate 3.2. Allowed: flow, association, triggering, serving."));
+            Is.EqualTo("line 13: composition from ApplicationService \"Online Ordering\" to ApplicationComponent \"Web Shop\" is not allowed in Enterprise 3.2. Allowed: flow, association, triggering, serving."));
         Assert.That(
             Result.Errors[2].Message,
-            Is.EqualTo("line 14: realization from ApplicationComponent \"Web Shop\" to Node \"App Server Node\" is not allowed in ArchiMate 3.2. Allowed: flow, association, triggering, serving."));
+            Is.EqualTo("line 14: realization from ApplicationComponent \"Web Shop\" to Node \"App Server Node\" is not allowed in Enterprise 3.2. Allowed: flow, association, triggering, serving."));
         Assert.That(
             Result.Errors[3].Message,
-            Is.EqualTo("line 15: assignment from Artifact \"shop.war\" to ApplicationComponent \"Web Shop\" is not allowed in ArchiMate 3.2. Allowed: association, realization."));
+            Is.EqualTo("line 15: assignment from Artifact \"shop.war\" to ApplicationComponent \"Web Shop\" is not allowed in Enterprise 3.2. Allowed: association, realization."));
         Assert.That(
             Result.Errors[4].Message,
-            Is.EqualTo("line 16: access from TechnologyService \"Hosting\" to Node \"App Server Node\" is not allowed in ArchiMate 3.2. Allowed: flow, association, triggering, serving."));
+            Is.EqualTo("line 16: access from TechnologyService \"Hosting\" to Node \"App Server Node\" is not allowed in Enterprise 3.2. Allowed: flow, association, triggering, serving."));
     }
 
     [Test]
@@ -38,7 +38,7 @@ public sealed class EnterpriseValidatorTests
 
         Assert.That(Result.Errors, Has.Count.EqualTo(1), string.Join(Environment.NewLine, Result.Errors.Select(Item => Item.Message)));
         Assert.That(Result.Errors[0].LineNumber, Is.EqualTo(6));
-        Assert.That(Result.Errors[0].Message, Does.Contain("realization from Device \"Rack Server\" to Node \"Web Node\" is not allowed in ArchiMate 3.2."));
+        Assert.That(Result.Errors[0].Message, Does.Contain("realization from Device \"Rack Server\" to Node \"Web Node\" is not allowed in Enterprise 3.2."));
         Assert.That(Result.Errors[0].Message, Does.Contain("Allowed: flow, association, triggering, serving."));
         Assert.That(Result.Errors[0].Message, Does.Contain(EnterpriseValidator.PROVISIONAL_NOTE));
     }

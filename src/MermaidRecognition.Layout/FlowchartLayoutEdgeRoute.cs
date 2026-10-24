@@ -32,6 +32,18 @@ public sealed class FlowchartLayoutEdgeRoute
     /// </summary>
     public string EntrySide { get; set; } = string.Empty;
 
+    /// <summary>Outward normal at the source port, when the endpoint is on a slanted outline.</summary>
+    public double ExitNormalX { get; set; }
+
+    /// <summary>Outward normal at the source port, when the endpoint is on a slanted outline.</summary>
+    public double ExitNormalY { get; set; }
+
+    /// <summary>Outward normal at the target port, when the endpoint is on a slanted outline.</summary>
+    public double EntryNormalX { get; set; }
+
+    /// <summary>Outward normal at the target port, when the endpoint is on a slanted outline.</summary>
+    public double EntryNormalY { get; set; }
+
     /// <summary>
     /// Polyline vertices, including the points on the source and target outlines.
     /// </summary>

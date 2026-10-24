@@ -26,4 +26,9 @@
     <ProjectReference Include="..\..\src\MermaidRecognition\MermaidRecognition.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\ProductionCatalogueTestFixture.cs" Link="ProductionCatalogueTestFixture.cs" />
+    <Compile Include="..\CatalogueScenarioPolicy.cs" Link="CatalogueScenarioPolicy.cs" />
+    <None Include="..\CatalogueScenarioPolicy.json" Link="CatalogueScenarioPolicy.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
