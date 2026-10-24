@@ -28,6 +28,38 @@ public sealed class F125NodesFirstDiamondRenderTests
         """;
 
     [Test]
+    public void TryResolveEdgeRoute_F125_YesBranch_UsesCompassSouthPortWithGuidePoints()
+    {
+        DiagramContract Contract = MermaidRecognizer.Parse(F125_SOURCE);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
+
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds
+            .ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
+        EdgeContract Edge = Contract.Edges.First(
+            Candidate => Candidate.SourceId == "D" && Candidate.TargetId == "E");
+        NodeContract SourceNode = Contract.Nodes.First(Node => Node.Id == "D");
+        NodeContract TargetNode = Contract.Nodes.First(Node => Node.Id == "E");
+        FlowchartLayoutNodeBounds Diamond = BoundsById["D"];
+
+        Assert.That(
+            FlowchartDecisionPortAllocator.TryResolveEdgeRoute(
+                Edge,
+                Contract,
+                BoundsById,
+                SourceNode.Shape,
+                TargetNode.Shape,
+                Direction,
+                out List<(double X, double Y)> Points),
+            Is.True);
+        Assert.That(Points.Count, Is.GreaterThan(2), "Yes branch should curve from the south vertex to Continue");
+        Assert.That(
+            IsSouthCompassVertex(Points[0], Diamond),
+            Is.True,
+            "Yes branch must leave the merge diamond at the south compass vertex (rule 3.11)");
+    }
+
+    [Test]
     public void TryLayout_F125_MergeDecisionCentredUnderMiddlePath()
     {
         DiagramContract Contract = MermaidRecognizer.Parse(F125_SOURCE);
@@ -80,8 +112,8 @@ public sealed class F125NodesFirstDiamondRenderTests
             out _,
             Layout: Layout);
         Assert.That(PathBResolved, Is.True);
-        Assert.That(PathBPoints.Count, Is.GreaterThan(2),
-            "The diamond edge-centre port is offset from Path B, so the allocated ports do not align for a straight line");
+        Assert.That(PathBPoints.Count, Is.EqualTo(2),
+            "Path B enters the north vertex and stays straight down to the centre source");
 
         bool PathAResolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
             Contract.Edges.First(Edge => Edge.SourceId == "PA" && Edge.TargetId == "D"),
@@ -115,8 +147,20 @@ public sealed class F125NodesFirstDiamondRenderTests
             Is.GreaterThan(BoundsById["D"].CenterX),
             "Path C should enter the diamond upper-right perimeter");
 
-        (double PathAGuideX, _) = PathAPoints[2];
-        (double PathCGuideX, _) = PathCPoints[2];
+        Assert.That(PathAPoints.Count, Is.GreaterThanOrEqualTo(3), "Path A needs a guide point after the source stub");
+        Assert.That(PathCPoints.Count, Is.GreaterThanOrEqualTo(3), "Path C needs a guide point after the source stub");
+        int PathAGuideIndex = Math.Min(2, Math.Max(0, PathAPoints.Count - 2));
+        int PathCGuideIndex = Math.Min(2, Math.Max(0, PathCPoints.Count - 2));
+        (double PathAGuideX, _) = PathAPoints[PathAGuideIndex];
+        (double PathCGuideX, _) = PathCPoints[PathCGuideIndex];
+        Assert.That(
+            PathAPoints[0].X,
+            Is.EqualTo(BoundsById["PA"].CenterX).Within(1.0),
+            "Path A leaves from the bottom centre of its source box");
+        Assert.That(
+            PathCPoints[0].X,
+            Is.EqualTo(BoundsById["PC"].CenterX).Within(1.0),
+            "Path C leaves from the bottom centre of its source box");
         Assert.That(
             PathAGuideX,
             Is.EqualTo(PathAPoints[0].X).Within(1.0),
@@ -125,6 +169,15 @@ public sealed class F125NodesFirstDiamondRenderTests
             PathCGuideX,
             Is.EqualTo(PathCPoints[0].X).Within(1.0),
             "Path C keeps its source-column track until the normal approach to its allocated diamond port");
+        FlowchartLayoutNodeBounds MergeDiamond = BoundsById["D"];
+        Assert.That(
+            PathAPoints[^1].X,
+            Is.LessThan(MergeDiamond.CenterX),
+            "Path A enters the west compass vertex of the merge diamond");
+        Assert.That(
+            PathCPoints[^1].X,
+            Is.GreaterThan(MergeDiamond.CenterX),
+            "Path C enters the east compass vertex of the merge diamond");
     }
 
     private static void AssertDiamondPortRules(DiagramContract Contract, FlowchartLayoutResult Layout, string DiamondId)
@@ -140,9 +193,21 @@ public sealed class F125NodesFirstDiamondRenderTests
             double outline = Math.Abs((port.X - diamond.CenterX) / halfWidth)
                 + Math.Abs((port.Y - diamond.CenterY) / halfHeight);
             Assert.That(outline, Is.EqualTo(1).Within(0.02), $"{edge.Id} ends on the drawn diamond outline");
-            double normalX = source ? route.ExitNormalX : route.EntryNormalX;
-            double normalY = source ? route.ExitNormalY : route.EntryNormalY;
-            Assert.That(Math.Abs(normalX) + Math.Abs(normalY), Is.GreaterThan(0), $"{edge.Id} has an edge-normal port");
+            double normalX;
+            double normalY;
+            if (IsCompassVertexPort(port, diamond))
+            {
+                Assert.That(
+                    FlowchartDiamondAttachHelper.TryResolveOutwardNormal(diamond, port.X, port.Y, out normalX, out normalY),
+                    Is.True,
+                    $"{edge.Id} uses a compass vertex port");
+            }
+            else
+            {
+                normalX = source ? route.ExitNormalX : route.EntryNormalX;
+                normalY = source ? route.ExitNormalY : route.EntryNormalY;
+                Assert.That(Math.Abs(normalX) + Math.Abs(normalY), Is.GreaterThan(0), $"{edge.Id} has an edge-normal port");
+            }
             FlowchartLayoutPoint adjacent = source ? route.Points[1] : route.Points[^2];
             double vx = adjacent.X - port.X, vy = adjacent.Y - port.Y;
             double normalMagnitude = Math.Sqrt(normalX * normalX + normalY * normalY);
@@ -155,6 +220,11 @@ public sealed class F125NodesFirstDiamondRenderTests
 
         foreach (var group in ports.GroupBy(item => DiamondEdge(item.Port, diamond)))
         {
+            if (group.Any(item => IsCompassVertexPort(item.Port, diamond)))
+            {
+                continue;
+            }
+
             var ordered = group.OrderBy(item => EdgeFraction(item.Port, diamond, group.Key)).ToArray();
             double[] fractions = ordered.Select(item => EdgeFraction(item.Port, diamond, group.Key)).ToArray();
             for (int i = 0; i < fractions.Length; i++)
@@ -171,13 +241,41 @@ public sealed class F125NodesFirstDiamondRenderTests
             }
         }
 
+        int UnlabeledIncomingCount = Contract.Edges.Count(
+            Candidate => string.Equals(Candidate.TargetId, DiamondId, StringComparison.Ordinal)
+                && string.IsNullOrWhiteSpace(Candidate.Label));
         foreach (var item in ports)
         {
             FlowchartLayoutEdgeRoute route = item.Route;
             FlowchartLayoutPoint start = route.Points[0], end = route.Points[^1];
             bool aligned = Math.Abs(start.X - end.X) <= 0.5 || Math.Abs(start.Y - end.Y) <= 0.5;
+            if (route.Points.Count == 2 && aligned)
+            {
+                if (!item.Source
+                    && UnlabeledIncomingCount >= 3
+                    && IsNorthCompassVertex(item.Port, diamond))
+                {
+                    continue;
+                }
+
+                if (item.Source
+                    && FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(item.Edge.Label)
+                    && IsSouthCompassVertex((item.Port.X, item.Port.Y), diamond))
+                {
+                    continue;
+                }
+
+                if (item.Source
+                    && FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(item.Edge.Label)
+                    && IsEastCompassVertex(item.Port, diamond))
+                {
+                    continue;
+                }
+            }
+
             Assert.That(aligned && route.Points.Count == 2, Is.False,
-                "These allocated ports do not align, so 4.2 does not force a straight line");
+                item.Edge.SourceId + "->" + item.Edge.TargetId
+                    + ": these allocated ports do not align, so 4.2 does not force a straight line");
         }
 
         double originX = Layout.NodeBounds[0].CenterX, originY = Layout.NodeBounds[0].CenterY;
@@ -190,6 +288,42 @@ public sealed class F125NodesFirstDiamondRenderTests
                 - Math.Round((node.CenterY - originY) / DiagramGridMetrics.GRID_UNIT_PX)), Is.LessThan(0.01),
                 $"{node.NodeId} uses the common vertical grid");
         }
+    }
+
+    private static bool IsCompassVertexPort(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box)
+    {
+        double halfWidth = box.Width / 2;
+        double halfHeight = box.Height / 2;
+        double x = point.X - box.CenterX;
+        double y = point.Y - box.CenterY;
+        return Math.Abs(y - halfHeight) <= 0.75 && Math.Abs(x) <= 0.75
+            || Math.Abs(y + halfHeight) <= 0.75 && Math.Abs(x) <= 0.75
+            || Math.Abs(x - halfWidth) <= 0.75 && Math.Abs(y) <= 0.75
+            || Math.Abs(x + halfWidth) <= 0.75 && Math.Abs(y) <= 0.75;
+    }
+
+    private static bool IsSouthCompassVertex((double X, double Y) point, FlowchartLayoutNodeBounds box)
+    {
+        double halfHeight = box.Height / 2;
+        double x = point.X - box.CenterX;
+        double y = point.Y - box.CenterY;
+        return Math.Abs(y + halfHeight) <= 0.75 && Math.Abs(x) <= 0.75;
+    }
+
+    private static bool IsNorthCompassVertex(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box)
+    {
+        double halfHeight = box.Height / 2;
+        double x = point.X - box.CenterX;
+        double y = point.Y - box.CenterY;
+        return Math.Abs(y - halfHeight) <= 0.75 && Math.Abs(x) <= 0.75;
+    }
+
+    private static bool IsEastCompassVertex(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box)
+    {
+        double halfWidth = box.Width / 2;
+        double x = point.X - box.CenterX;
+        double y = point.Y - box.CenterY;
+        return Math.Abs(x - halfWidth) <= 0.75 && Math.Abs(y) <= 0.75;
     }
 
     private static FlowchartDiamondEdge DiamondEdge(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box)

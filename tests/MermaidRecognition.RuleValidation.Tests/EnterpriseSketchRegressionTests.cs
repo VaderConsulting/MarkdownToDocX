@@ -6,8 +6,8 @@ using NUnit.Framework;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
-/// <summary>Dave sketch regressions for enterprise catalogue A23, A26, A29, A33, A38, A40.</summary>
-[TestFixture, NonParallelizable, Explicit("Dave sketch targets; enable while iterating enterprise layout rules 2.24/2.25.")]
+/// <summary>Enterprise catalogue sketch regressions for A23, A26, A29, A33, A38, and A40.</summary>
+[TestFixture, NonParallelizable, Explicit("Enterprise sketch targets; enable while iterating enterprise layout rules 2.24/2.25.")]
 public sealed class EnterpriseSketchRegressionTests
 {
     [Test]

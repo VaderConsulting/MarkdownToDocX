@@ -7,7 +7,7 @@ using MermaidRecognition.Render;
 namespace MermaidRecognition.Layout.Tests;
 
 /// <summary>
-/// Dave-approved F53 layout at commit 964a3a56. Later engine changes must preserve this geometry.
+/// Protected reference layout for the F53 flowchart fixture. Later engine changes must preserve this geometry.
 /// </summary>
 [TestFixture]
 public sealed class F53ProtectedLayoutReferenceTests
