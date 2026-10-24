@@ -39,6 +39,23 @@ public static class MermaidDiagramExport
     public static byte[]? TryRasterizeSvg(string Svg) => DocxWriter.TryRasterizeSvgToPng(Svg);
 
     /// <summary>
+    /// Renders the SVG that the preview raster is drawn from.
+    /// </summary>
+    /// <param name="MermaidSource">Diagram source.</param>
+    /// <param name="Svg">Rendered SVG when the method returns true.</param>
+    /// <returns>True when an SVG document was produced.</returns>
+    public static bool TryRenderPreviewSvg(string MermaidSource, out string Svg)
+    {
+        if (string.IsNullOrWhiteSpace(MermaidSource))
+        {
+            Svg = string.Empty;
+            return false;
+        }
+
+        return DocxWriter.TryRenderDiagramSvg(MermaidSource, out Svg);
+    }
+
+    /// <summary>
     /// Renders Mermaid diagram source to PNG bytes (flowchart markers inlined for Skia).
     /// </summary>
     public static byte[]? TryRenderPng(string MermaidSource)

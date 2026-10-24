@@ -10,6 +10,7 @@
     <Project Path="src/MermaidRecognition.RuleValidation/MermaidRecognition.RuleValidation.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/LiveEditor.Tests/LiveEditor.Tests.csproj" />
     <Project Path="tests/MDConverter.Tests/MDConverter.Tests.csproj" />
     <Project Path="tests/MermaidRecognition.Tests/MermaidRecognition.Tests.csproj" />
     <Project Path="tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj" />

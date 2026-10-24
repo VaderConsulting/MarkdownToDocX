@@ -1351,28 +1351,36 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
     /// </summary>
     internal static byte[]? TryRasterizeMermaidSourceToPng(string MermaidSource)
     {
-        RenderOptions RenderOptions = RenderOptions.Default;
+        if (!TryRenderDiagramSvg(MermaidSource, out string Svg))
+        {
+            return null;
+        }
 
-        string Svg;
+        return TryRasterizeSvgToPng(Svg);
+    }
+
+    internal static bool TryRenderDiagramSvg(string MermaidSource, out string Svg)
+    {
+        RenderOptions RenderOptions = RenderOptions.Default;
         if (MermaidRecognition.Layout.NativeDiagramRenderBridge.TryRenderSvg(
                 MermaidSource, out string NativeSvg))
         {
             Svg = NativeSvg;
+            return true;
         }
-        else if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
+
+        if (FlowchartRecognitionRenderBridge.TryRenderFlowchartSvg(
                 MermaidSource,
                 RenderOptions,
                 UseNativeSugiyamaRenderer: true,
                 out string RecognitionSvg))
         {
             Svg = RecognitionSvg;
-        }
-        else
-        {
-            Svg = Mermaid.Render(MermaidSource, RenderOptions);
+            return true;
         }
 
-        return TryRasterizeSvgToPng(Svg);
+        Svg = Mermaid.Render(MermaidSource, RenderOptions);
+        return true;
     }
 
     internal static byte[]? TryRasterizeSvgToPng(string Svg)
