@@ -274,14 +274,21 @@ internal static class FlowchartRoutingHints
                 : Group.OrderBy(End => End.Other.CenterX).ThenBy(End => End.Route.EdgeId, StringComparer.Ordinal).ToArray();
             bool vertical = Group.Key.Side is "left" or "right";
             double Length = vertical ? Ordered[0].Box.Height : Ordered[0].Box.Width;
+            Nodes.TryGetValue(Group.Key.NodeId, out NodeContract? node);
             bool circle = !frameIds.Contains(Group.Key.NodeId)
-                && Nodes.TryGetValue(Group.Key.NodeId, out NodeContract? node)
+                && node != null
                 && (string.Equals(node.Shape, "circle", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(node.Shape, "doublecircle", StringComparison.OrdinalIgnoreCase));
+            INodeConnectionBoundary? Boundary = node?.GeometryProvider?.Create(Ordered[0].Box.Width, Ordered[0].Box.Height).ConnectionBoundary;
+            double[] GridFractions = circle
+                ? []
+                : ConnectionPointGrid.FractionsOnGrid(Boundary, Group.Key.Side, Length, Ordered.Length);
             for (int Index = 0; Index < Ordered.Length; Index++)
             {
                 var End = Ordered[Index];
-                double Fraction = (Index + 1.0) / (Ordered.Length + 1.0);
+                double Fraction = GridFractions.Length == Ordered.Length
+                    ? GridFractions[Index]
+                    : (Index + 1.0) / (Ordered.Length + 1.0);
                 if (Nodes.GetValueOrDefault(End.Box.NodeId)?.GeometryProvider is { } Provider)
                 {
                     if (Provider.Create(End.Box.Width, End.Box.Height).ConnectionBoundary.TryPort(End.Side, Fraction, out var BodyPort))
@@ -302,9 +309,8 @@ internal static class FlowchartRoutingHints
                         End.Box.CenterY + Radius * Math.Sin(Angle));
                     continue;
                 }
-                // A routing hint selects the side. Its endpoint still uses the same
-                // exact k/(n+1) slot as every unhinted line on that side. Rounding
-                // slots to integer track centres here used to displace hinted ports.
+                // A routing hint selects the side. The point on that side is still a
+                // centre-out grid point, the same point an unhinted line would use.
                 double Along = Fraction * Length;
                 (double X, double Y) Port = End.Side switch
                 {
@@ -317,10 +323,175 @@ internal static class FlowchartRoutingHints
             }
         }
 
+        ReserveAlignedTravelPorts(Layout, Contract, Bounds, Result);
         return Result;
 
         bool IsDiamond(string Id) => Nodes.TryGetValue(Id, out NodeContract? Node)
             && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
+    }
+
+    /// <summary>
+    /// A straight travel hint takes the grid points that share one coordinate before the other lines keep the centre-out points.
+    /// </summary>
+    private static void ReserveAlignedTravelPorts(
+        FlowchartLayoutResult Layout,
+        DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
+        Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> Ports)
+    {
+        const double SAME_POINT_PX = 0.5;
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
+            RoutingHintContract? Hint = Edge?.RoutingHint;
+            if (Hint?.IsActive != true || !Hint.Leave.HasValue || !Hint.Enter.HasValue || !Hint.Travel.HasValue)
+            {
+                continue;
+            }
+
+            string Exit = DiagramGridLayout.HintSide(Hint.Leave.Value);
+            string Entry = DiagramGridLayout.HintSide(Hint.Enter.Value);
+            if (!TravelRunsStraight(Hint.Travel.Value, Exit, Entry)
+                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+                || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
+            {
+                continue;
+            }
+
+            List<(double X, double Y)> SourcePoints = SideGridPorts(Source, Exit);
+            List<(double X, double Y)> TargetPoints = SideGridPorts(Target, Entry);
+            bool Horizontal = Exit is "left" or "right";
+            (double X, double Y)? BestSource = null;
+            (double X, double Y)? BestTarget = null;
+            double BestDistance = double.PositiveInfinity;
+            foreach ((double X, double Y) SourcePoint in SourcePoints)
+            {
+                foreach ((double X, double Y) TargetPoint in TargetPoints)
+                {
+                    double SourceAxis = Horizontal ? SourcePoint.Y : SourcePoint.X;
+                    double TargetAxis = Horizontal ? TargetPoint.Y : TargetPoint.X;
+                    if (Math.Abs(SourceAxis - TargetAxis) > SAME_POINT_PX)
+                    {
+                        continue;
+                    }
+
+                    double Distance = Horizontal
+                        ? Math.Abs(SourceAxis - Source.CenterY) + Math.Abs(TargetAxis - Target.CenterY)
+                        : Math.Abs(SourceAxis - Source.CenterX) + Math.Abs(TargetAxis - Target.CenterX);
+                    if (Distance >= BestDistance)
+                    {
+                        continue;
+                    }
+
+                    BestDistance = Distance;
+                    BestSource = SourcePoint;
+                    BestTarget = TargetPoint;
+                }
+            }
+
+            if (BestSource == null || BestTarget == null)
+            {
+                continue;
+            }
+
+            MoveOccupiedPort(Ports, Route, true, Source, Exit, BestSource.Value);
+            MoveOccupiedPort(Ports, Route, false, Target, Entry, BestTarget.Value);
+            Ports[(Route, true)] = BestSource.Value;
+            Ports[(Route, false)] = BestTarget.Value;
+        }
+    }
+
+    /// <summary>Whether leave, travel and enter describe one straight run.</summary>
+    private static bool TravelRunsStraight(LayoutHintDirection Travel, string Exit, string Entry)
+    {
+        if (Travel == LayoutHintDirection.East)
+        {
+            return Exit == "right" && Entry == "left";
+        }
+
+        if (Travel == LayoutHintDirection.West)
+        {
+            return Exit == "left" && Entry == "right";
+        }
+
+        if (Travel == LayoutHintDirection.North)
+        {
+            return Exit == "top" && Entry == "bottom";
+        }
+
+        return Travel == LayoutHintDirection.South && Exit == "bottom" && Entry == "top";
+    }
+
+    /// <summary>Grid points on a rectangular side, using the same corner the port allocator measures from.</summary>
+    private static List<(double X, double Y)> SideGridPorts(FlowchartLayoutNodeBounds Box, string Side)
+    {
+        double Length = Side is "left" or "right" ? Box.Height : Box.Width;
+        double[] Offsets = DiagramGridMetrics.SideGridOffsets(Length);
+        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        foreach (double Offset in Offsets)
+        {
+            (double X, double Y) Point = Side switch
+            {
+                "left" => (Box.CenterX - Box.Width / 2.0, Box.CenterY + Box.Height / 2.0 - Offset),
+                "right" => (Box.CenterX + Box.Width / 2.0, Box.CenterY + Box.Height / 2.0 - Offset),
+                "top" => (Box.CenterX - Box.Width / 2.0 + Offset, Box.CenterY + Box.Height / 2.0),
+                _ => (Box.CenterX - Box.Width / 2.0 + Offset, Box.CenterY - Box.Height / 2.0)
+            };
+            Points.Add(Point);
+        }
+
+        return Points;
+    }
+
+    /// <summary>Slides a line that already occupies the reserved straight-run point onto the nearest free grid point.</summary>
+    private static void MoveOccupiedPort(
+        Dictionary<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> Ports,
+        FlowchartLayoutEdgeRoute Owner,
+        bool AtSource,
+        FlowchartLayoutNodeBounds Box,
+        string Side,
+        (double X, double Y) Reserved)
+    {
+        const double SAME_POINT_PX = 0.5;
+        List<(double X, double Y)> Points = SideGridPorts(Box, Side);
+        List<KeyValuePair<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)>> Occupants = Ports.Where(Pair =>
+            Pair.Key.Route != Owner
+            && (AtSource ? Pair.Key.Route.SourceId : Pair.Key.Route.TargetId) == Box.NodeId
+            && Math.Abs(Pair.Value.X - Reserved.X) <= SAME_POINT_PX
+            && Math.Abs(Pair.Value.Y - Reserved.Y) <= SAME_POINT_PX).ToList();
+        foreach (KeyValuePair<(FlowchartLayoutEdgeRoute Route, bool Source), (double X, double Y)> Occupant in Occupants)
+        {
+            (double X, double Y) Replacement = default;
+            double Best = double.PositiveInfinity;
+            foreach ((double X, double Y) Point in Points)
+            {
+                bool Taken = Ports.Any(Pair =>
+                    (Pair.Key.Route != Occupant.Key.Route || Pair.Key.Source != Occupant.Key.Source)
+                    && (AtSource ? Pair.Key.Route.SourceId : Pair.Key.Route.TargetId) == Box.NodeId
+                    && Math.Abs(Pair.Value.X - Point.X) <= SAME_POINT_PX
+                    && Math.Abs(Pair.Value.Y - Point.Y) <= SAME_POINT_PX);
+                if (Taken)
+                {
+                    continue;
+                }
+
+                double Distance = Math.Abs(Point.X - Occupant.Value.X) + Math.Abs(Point.Y - Occupant.Value.Y);
+                if (Distance >= Best)
+                {
+                    continue;
+                }
+
+                Best = Distance;
+                Replacement = Point;
+            }
+
+            if (Best == double.PositiveInfinity)
+            {
+                continue;
+            }
+
+            Ports[Occupant.Key] = Replacement;
+        }
     }
 
     private static void SlideTerminalTrack(List<(double X, double Y)> Path, bool AtStart,

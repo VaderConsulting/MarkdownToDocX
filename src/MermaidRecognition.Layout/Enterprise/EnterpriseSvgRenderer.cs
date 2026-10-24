@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 
 using MermaidRecognition.Kinds.Enterprise;
@@ -19,6 +20,12 @@ public static class EnterpriseSvgRenderer
 
     private const double LINE_HEIGHT = 15;
 
+    private static readonly object _GeometryCacheGate = new object();
+
+    private static string? _CachedGeometryKey;
+
+    private static string? _CachedUnstyledSvg;
+
     /// <summary>
     /// Renders SVG for a document that has already been validated (hidden-by-nesting flags applied).
     /// </summary>
@@ -29,6 +36,18 @@ public static class EnterpriseSvgRenderer
         if (Document == null)
         {
             throw new ArgumentNullException(nameof(Document));
+        }
+
+        string GeometryKey = GeometrySignature(Document);
+        string? CachedUnstyled;
+        lock (_GeometryCacheGate)
+        {
+            CachedUnstyled = string.Equals(GeometryKey, _CachedGeometryKey, StringComparison.Ordinal) ? _CachedUnstyledSvg : null;
+        }
+
+        if (CachedUnstyled != null)
+        {
+            return Finish(Document, CachedUnstyled);
         }
 
         EnterpriseLayoutResult Layout = Measure("enterprise-layout", () => EnterpriseLayoutEngine.Layout(Document));
@@ -126,10 +145,107 @@ public static class EnterpriseSvgRenderer
         Builder.Append("</g></svg>");
         SvgBuildTimer.Stop();
         StageTimingObserver?.Invoke("enterprise-svg-build", SvgBuildTimer.Elapsed.TotalMilliseconds);
+        string Unstyled = FlowchartSvgLineJump.Apply(Builder.ToString());
+        lock (_GeometryCacheGate)
+        {
+            _CachedGeometryKey = GeometryKey;
+            _CachedUnstyledSvg = Unstyled;
+        }
+
+        return Finish(Document, Unstyled);
+    }
+
+    /// <summary>
+    /// Applies styles to a geometry drawing. A later edit that only changes colour reuses that drawing.
+    /// </summary>
+    /// <param name="Document">Document whose styles should be painted.</param>
+    /// <param name="Unstyled">SVG before element and line styles are applied.</param>
+    /// <returns>SVG ready to show.</returns>
+    private static string Finish(EnterpriseDocument Document, string Unstyled)
+    {
         string FinalSvg = Measure("enterprise-svg-postprocess", () => EnterpriseSvgConfiguration.Apply(EnterpriseMarkdownSvg.Apply(
-            EnterpriseStyleSvg.Apply(FlowchartSvgLineJump.Apply(Builder.ToString()), Document), Document), Document));
+            EnterpriseStyleSvg.Apply(Unstyled, Document), Document), Document));
         RenderedSvgObserver?.Invoke(FinalSvg);
         return FinalSvg;
+    }
+
+    /// <summary>
+    /// Describes everything that changes where nodes and lines are drawn. Styles are left out.
+    /// </summary>
+    /// <param name="Document">Parsed diagram.</param>
+    /// <returns>A signature that stays the same when only colours change.</returns>
+    private static string GeometrySignature(EnterpriseDocument Document)
+    {
+        StringBuilder Key = new StringBuilder();
+        Key.Append(Document.LayoutMode).Append('\u001f').Append(Document.Version).Append('\u001f');
+        Key.Append(Document.Direction).Append('\u001f').Append(Document.Title).Append('\u001f');
+        Key.Append(Document.AccessibilityTitle).Append('\u001f').Append(Document.AccessibilityDescription).Append('\u001f');
+        foreach (KeyValuePair<string, string> Setting in Document.Configuration.OrderBy(Pair => Pair.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            Key.Append(Setting.Key).Append('=').Append(Setting.Value).Append('\u001f');
+        }
+
+        foreach (EnterpriseElement Element in Document.Elements.Values)
+        {
+            Key.Append("e|").Append(Element.Id).Append('|').Append(Element.ElementType).Append('|').Append(Element.Label);
+            Key.Append('|').Append(Element.IsMarkdownLabel).Append('|').Append(Element.ParentId).Append('|').Append(Element.JunctionKind).Append('|');
+            AppendPlacement(Key, Element.PlacementHint);
+        }
+
+        foreach (EnterpriseGroup Group in Document.Groups.Values)
+        {
+            Key.Append("g|").Append(Group.Id).Append('|').Append(Group.Label).Append('|').Append(Group.IsMarkdownLabel);
+            Key.Append('|').Append(Group.ParentId).Append('|').Append(Group.Direction).Append('|');
+            AppendPlacement(Key, Group.PlacementHint);
+        }
+
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            Key.Append("n|").Append(Note.Id).Append('|').Append(Note.Label).Append('|').Append(Note.IsMarkdownLabel);
+            Key.Append('|').Append(Note.ParentId).Append('|');
+            AppendPlacement(Key, Note.PlacementHint);
+        }
+
+        foreach (EnterpriseRelationship Relationship in Document.Relationships)
+        {
+            Key.Append("r|").Append(Relationship.SourceId).Append('|').Append(Relationship.TargetId).Append('|').Append(Relationship.Kind);
+            Key.Append('|').Append(Relationship.Label).Append('|').Append(Relationship.IsMarkdownLabel).Append('|').Append(Relationship.AccessKind);
+            Key.Append('|').Append(Relationship.InfluenceStrength).Append('|').Append(Relationship.DirectedAssociation);
+            Key.Append('|').Append(Relationship.HiddenByNesting).Append('|');
+            AppendRouting(Key, Relationship.RoutingHint);
+        }
+
+        foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
+        {
+            Key.Append("p|").Append(Connection.SourceId).Append('|').Append(Connection.TargetId).Append('|');
+            AppendRouting(Key, Connection.RoutingHint);
+        }
+
+        return Key.ToString();
+    }
+
+    private static void AppendPlacement(StringBuilder Key, MermaidRecognition.Contract.PlacementHintContract? Hint)
+    {
+        if (Hint == null)
+        {
+            Key.Append('-').Append('\u001f');
+            return;
+        }
+
+        Key.Append(Hint.Kind).Append('|').Append(Hint.PeerId).Append('|').Append(Hint.Offset).Append('|');
+        Key.Append(Hint.Direction).Append('|').Append(Hint.IsActive).Append('\u001f');
+    }
+
+    private static void AppendRouting(StringBuilder Key, MermaidRecognition.Contract.RoutingHintContract? Hint)
+    {
+        if (Hint == null)
+        {
+            Key.Append('-').Append('\u001f');
+            return;
+        }
+
+        Key.Append(Hint.Leave).Append('|').Append(Hint.Enter).Append('|').Append(Hint.Travel).Append('|');
+        Key.Append(Hint.IsActive).Append('\u001f');
     }
 
     private static T Measure<T>(string Name, Func<T> Operation)

@@ -89,14 +89,15 @@ public static partial class DiagramGridLayout
         {
             var Bounds = Node.CellNode!.Bounds(Candidate, Node.GeometryProvider);
             var Boundary = (Node.GeometryProvider?.Create(Bounds.Width, Bounds.Height) ?? NodeGeometry.Rectangle(Bounds.Width, Bounds.Height)).ConnectionBoundary;
-            var Ports = new List<NodeGeometryPort>();
-            for (int Index = 1; Index <= Count; Index++)
+            // Capacity is the side's centre-out grid (rule 3.2): grow until the default pattern fits.
+            if (!Boundary.TryPort(Side, 0.5, out _)) return false;
+            if (ConnectionPointGrid.TryCentreOutFractions(Boundary, Side, Width ? Bounds.Width : Bounds.Height, Count, out var Fractions))
             {
-                if (!Boundary.TryPort(Side, Index / (Count + 1d), out var Port)) break;
-                Ports.Add(Port);
+                var Ports = new List<NodeGeometryPort>();
+                foreach (double Fraction in Fractions)
+                    if (Boundary.TryPort(Side, Fraction, out var Port)) Ports.Add(Port);
+                if (Ports.Count == Count && FlowchartPortCapacity.Shortfall(Ports, Pitch) <= 0) return true;
             }
-            if (Ports.Count != Count) return false;
-            if (FlowchartPortCapacity.Shortfall(Ports, Pitch) <= 0) return true;
             Candidate = new(Candidate.StartRow, Candidate.StartColumn, checked(Candidate.RowSpan + (Width ? 0 : 1)),
                 checked(Candidate.ColumnSpan + (Width ? 1 : 0)));
         }

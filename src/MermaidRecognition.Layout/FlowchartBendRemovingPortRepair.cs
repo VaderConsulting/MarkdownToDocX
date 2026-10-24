@@ -122,6 +122,181 @@ internal static class FlowchartBendRemovingPortRepair
         return Removed;
     }
 
+    /// <summary>
+    /// Swaps two ports on the same side when that removes a crossing and does not add a bend.
+    /// A hinted line keeps its port. A straight line is left alone when the swap would bend it.
+    /// </summary>
+    /// <param name="Contract">Original links and immutable hint declarations.</param>
+    /// <param name="Layout">Finished model; only an accepted swap changes its routes.</param>
+    /// <returns>Crossings removed.</returns>
+    internal static int ApplyCrossingSwaps(DiagramContract Contract, FlowchartLayoutResult Layout)
+    {
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
+            .GroupBy(Box => Box.NodeId)
+            .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        HashSet<string?> Hinted = Layout.EdgeRoutes
+            .Where(Route => DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
+            .Select(Route => (string?)Route.EdgeId)
+            .ToHashSet();
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        bool HorizontalFlow = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
+        int Removed = 0;
+        bool Progress = true;
+        while (Progress)
+        {
+            Progress = false;
+            foreach (string Id in Bounds.Keys.OrderBy(Key => Key, StringComparer.Ordinal))
+            {
+                End[] Ends = Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).SelectMany(Route =>
+                    (Route.SourceId == Id ? new[] { new End(Route, true) } : Array.Empty<End>())
+                    .Concat(Route.TargetId == Id ? new[] { new End(Route, false) } : Array.Empty<End>())).ToArray();
+                if (Ends.Length < 2 || Ends.Select(End => End.Route).Distinct().Count() > FlowchartLayoutRules.RepairChainLines)
+                {
+                    continue;
+                }
+
+                Saved[]? Best = null;
+                int BestDrop = 0;
+                IReadOnlyList<FlowchartRouteRuleChecker.Finding>? InitialFindings = null;
+                for (int First = 0; First < Ends.Length; First++)
+                {
+                    for (int Second = First + 1; Second < Ends.Length; Second++)
+                    {
+                        End A = Ends[First];
+                        End B = Ends[Second];
+                        if (A.Side != B.Side || Hinted.Contains(A.Route.EdgeId) || Hinted.Contains(B.Route.EdgeId))
+                        {
+                            continue;
+                        }
+
+                        Saved[] Original = Save(new[] { A.Route, B.Route });
+                        (double X, double Y)[] APoints = Original[0].Points;
+                        (double X, double Y)[] BPoints = Original[1].Points;
+                        if (FlowchartBranchRouteOrder.Intersections(APoints, BPoints).Crossings == 0)
+                        {
+                            continue;
+                        }
+
+                        int BeforeBends = Corners(APoints) + Corners(BPoints);
+                        int BeforeCrossings = PairCrossings(Layout, A.Route, APoints, B.Route, BPoints);
+                        InitialFindings ??= FlowchartRouteRuleChecker.Check(Contract, Layout);
+                        (double X, double Y) AP = (A.Point.X, A.Point.Y);
+                        (double X, double Y) BP = (B.Point.X, B.Point.Y);
+                        Put(A, BP, A.Side, Bounds[Id], Nodes.GetValueOrDefault(Id));
+                        Put(B, AP, B.Side, Bounds[Id], Nodes.GetValueOrDefault(Id));
+                        if (!Rebuild(A.Route) || !Rebuild(B.Route) || !Separated(Ends))
+                        {
+                            Restore(Original);
+                            continue;
+                        }
+
+                        (double X, double Y)[] AAfter = A.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                        (double X, double Y)[] BAfter = B.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                        int AfterBends = Corners(AAfter) + Corners(BAfter);
+                        int AfterCrossings = PairCrossings(Layout, A.Route, AAfter, B.Route, BAfter);
+                        int Drop = BeforeCrossings - AfterCrossings;
+                        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+                        bool NewFinding = Findings.Any(Finding => !InitialFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject));
+                        if (Drop <= BestDrop || AfterBends > BeforeBends || NewFinding || InteractionsGrew(Layout, A.Route, APoints, AAfter, B.Route, BPoints, BAfter))
+                        {
+                            Restore(Original);
+                            continue;
+                        }
+
+                        BestDrop = Drop;
+                        Best = Save(new[] { A.Route, B.Route });
+                        Restore(Original);
+                    }
+                }
+
+                if (Best == null)
+                {
+                    continue;
+                }
+
+                Restore(Best);
+                Removed += BestDrop;
+                Progress = true;
+            }
+        }
+
+        return Removed;
+
+        bool Rebuild(FlowchartLayoutEdgeRoute Route)
+        {
+            FlowchartLayoutPoint A = Route.Points[0];
+            FlowchartLayoutPoint B = Route.Points[^1];
+            Nodes.TryGetValue(Route.SourceId, out NodeContract? Source);
+            Nodes.TryGetValue(Route.TargetId, out NodeContract? Target);
+            List<(double X, double Y)> Path = DiagramGridRouteBuilder.BuildRoute(A.X, A.Y, Bounds[Route.SourceId], Source?.Shape, Route.ExitSide,
+                B.X, B.Y, Bounds[Route.TargetId], Target?.Shape, Route.EntrySide, Bounds, Route.SourceId, Route.TargetId,
+                Contract, Direction, HorizontalFlow, RequireLegal: true,
+                ExitNormal: (Route.ExitNormalX, Route.ExitNormalY), EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
+            if (!FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route, Path))
+            {
+                return false;
+            }
+
+            Route.Points.Clear();
+            Route.Points.AddRange(Path.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
+            return true;
+        }
+    }
+
+    /// <summary>True when a swap adds a crossing or a shared stretch with any line.</summary>
+    private static bool InteractionsGrew(FlowchartLayoutResult Layout, FlowchartLayoutEdgeRoute First, (double X, double Y)[] FirstBefore,
+        (double X, double Y)[] FirstAfter, FlowchartLayoutEdgeRoute Second, (double X, double Y)[] SecondBefore, (double X, double Y)[] SecondAfter)
+    {
+        if (Grew(FirstBefore, SecondBefore, FirstAfter, SecondAfter))
+        {
+            return true;
+        }
+
+        foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes)
+        {
+            if (Other == First || Other == Second || Other.Points.Count < 2)
+            {
+                continue;
+            }
+
+            (double X, double Y)[] OtherPoints = Other.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            if (Grew(FirstBefore, OtherPoints, FirstAfter, OtherPoints) || Grew(SecondBefore, OtherPoints, SecondAfter, OtherPoints))
+            {
+                return true;
+            }
+        }
+
+        return false;
+
+        static bool Grew((double X, double Y)[] BeforeA, (double X, double Y)[] BeforeB, (double X, double Y)[] AfterA, (double X, double Y)[] AfterB)
+        {
+            (int Crossings, double Overlap) Before = FlowchartBranchRouteOrder.Intersections(BeforeA, BeforeB);
+            (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(AfterA, AfterB);
+            return After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + 0.001;
+        }
+    }
+
+    /// <summary>Counts crossings of two routes with each other and with every other route.</summary>
+    private static int PairCrossings(FlowchartLayoutResult Layout, FlowchartLayoutEdgeRoute First, (double X, double Y)[] FirstPoints,
+        FlowchartLayoutEdgeRoute Second, (double X, double Y)[] SecondPoints)
+    {
+        int Count = FlowchartBranchRouteOrder.Intersections(FirstPoints, SecondPoints).Crossings;
+        foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes)
+        {
+            if (Other == First || Other == Second || Other.Points.Count < 2)
+            {
+                continue;
+            }
+
+            (double X, double Y)[] OtherPoints = Other.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            Count += FlowchartBranchRouteOrder.Intersections(FirstPoints, OtherPoints).Crossings;
+            Count += FlowchartBranchRouteOrder.Intersections(SecondPoints, OtherPoints).Crossings;
+        }
+
+        return Count;
+    }
+
     /// <summary>Runs the same legal joint search on independent route state so a checker can identify allocation-caused bends.</summary>
     /// <param name="Contract">Unchanged source and honoured hints.</param>
     /// <param name="Layout">Read-only completed production layout.</param>

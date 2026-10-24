@@ -716,22 +716,20 @@ public static class DiagramGridRouteBuilder
         double OuterMaxX = BoundsById.Values.Max(Bounds => Bounds.CenterX + Bounds.Width / 2.0) + Step;
         double OuterMinY = BoundsById.Values.Min(Bounds => Bounds.CenterY - Bounds.Height / 2.0) - Step;
         double OuterMaxY = BoundsById.Values.Max(Bounds => Bounds.CenterY + Bounds.Height / 2.0) + Step;
+        // The travel run connects the two stubs. The diagram-wide run is only a fallback when every
+        // direct lane is blocked. A straight line in the travel direction is a valid middle run.
+        (double From, double To)[] Spans = Travel switch
+        {
+            LayoutHintDirection.East => [(Math.Min(SourceStubX, TargetStubX), Math.Max(SourceStubX, TargetStubX)), (OuterMinX, OuterMaxX)],
+            LayoutHintDirection.West => [(Math.Max(SourceStubX, TargetStubX), Math.Min(SourceStubX, TargetStubX)), (OuterMaxX, OuterMinX)],
+            LayoutHintDirection.North => [(Math.Min(SourceStubY, TargetStubY), Math.Max(SourceStubY, TargetStubY)), (OuterMinY, OuterMaxY)],
+            _ => [(Math.Max(SourceStubY, TargetStubY), Math.Min(SourceStubY, TargetStubY)), (OuterMaxY, OuterMinY)]
+        };
+        foreach ((double From, double To) in Spans)
         foreach (double Lane in Lanes)
         {
-            (double X, double Y) A = Travel switch
-            {
-                LayoutHintDirection.West => (OuterMaxX, Lane),
-                LayoutHintDirection.East => (OuterMinX, Lane),
-                LayoutHintDirection.North => (Lane, OuterMinY),
-                _ => (Lane, OuterMaxY)
-            };
-            (double X, double Y) B = Travel switch
-            {
-                LayoutHintDirection.West => (OuterMinX, Lane),
-                LayoutHintDirection.East => (OuterMaxX, Lane),
-                LayoutHintDirection.North => (Lane, OuterMaxY),
-                _ => (Lane, OuterMinY)
-            };
+            (double X, double Y) A = HorizontalTravel ? (From, Lane) : (Lane, From);
+            (double X, double Y) B = HorizontalTravel ? (To, Lane) : (Lane, To);
             foreach (bool SourceHorizontalFirst in new[] { HorizontalTravel, !HorizontalTravel })
             foreach (bool TargetHorizontalFirst in new[] { HorizontalTravel, !HorizontalTravel })
             {
@@ -778,8 +776,8 @@ public static class DiagramGridRouteBuilder
         IReadOnlyList<(double X, double Y)> Path,
         LayoutHintDirection Direction)
     {
-        if (Path.Count < 4) return false;
-        for (int Segment = 1; Segment < Path.Count - 2; Segment++)
+        if (Path.Count < 2) return false;
+        for (int Segment = 0; Segment < Path.Count - 1; Segment++)
         {
             double Dx = Path[Segment + 1].X - Path[Segment].X;
             double Dy = Path[Segment + 1].Y - Path[Segment].Y;

@@ -30,6 +30,11 @@ public static partial class DiagramGridLayout
         /// <returns>Whole-cell endpoint or group options, without pixel positions as inputs.</returns>
         private static IEnumerable<CellRepairOption> MoveCellOptions(GridLayoutState State)
         {
+            foreach (CellRepairOption Option in AlignTravelCellOptions(State))
+            {
+                yield return Option;
+            }
+
             var Units = State.Copy.EdgeRoutes.Where(Route => Route.Points.Count < 2
                     || FlowchartLayoutScore.CountCorners(Route.Points) > 0)
                 .SelectMany(Route => new[] { Route.SourceId, Route.TargetId }).Distinct(StringComparer.Ordinal).ToArray();
@@ -56,6 +61,147 @@ public static partial class DiagramGridLayout
                 }
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Offers a one-axis whole-cell move that lets a straight travel hint share a grid point.
+        /// A placement hint that does not lock this axis can move; the other endpoint is the alternative.
+        /// </summary>
+        private static IEnumerable<CellRepairOption> AlignTravelCellOptions(GridLayoutState State)
+        {
+            const double SAME_POINT_PX = 0.5;
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds = State.Copy.NodeBounds
+                .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+            List<FlowchartLayoutEdgeRoute> Routes = State.Copy.EdgeRoutes.ToList();
+            foreach (FlowchartLayoutEdgeRoute Route in Routes)
+            {
+                EdgeContract? Edge = FindContractEdge(State.Contract, Route);
+                RoutingHintContract? Hint = Edge?.RoutingHint;
+                if (Hint?.IsActive != true || !Hint.Leave.HasValue || !Hint.Enter.HasValue || !Hint.Travel.HasValue)
+                {
+                    continue;
+                }
+
+                string Exit = HintSide(Hint.Leave.Value);
+                string Entry = HintSide(Hint.Enter.Value);
+                if (!StraightTravel(Hint.Travel.Value, Exit, Entry))
+                {
+                    continue;
+                }
+
+                if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? SourceBounds)
+                    || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? TargetBounds)
+                    || SidesShareGridPoint(SourceBounds, Exit, TargetBounds, Entry, SAME_POINT_PX))
+                {
+                    continue;
+                }
+
+                GridNode? Source = State.Placed.FirstOrDefault(Node => Node.Id == Route.SourceId);
+                GridNode? Target = State.Placed.FirstOrDefault(Node => Node.Id == Route.TargetId);
+                if (Source?.CellNode == null || Target?.CellNode == null)
+                {
+                    continue;
+                }
+
+                bool Horizontal = Exit is "left" or "right";
+                int SourceCross = Horizontal ? Source.CellNode.Region.StartRow : Source.CellNode.Region.StartColumn;
+                int TargetCross = Horizontal ? Target.CellNode.Region.StartRow : Target.CellNode.Region.StartColumn;
+                int Delta = TargetCross - SourceCross;
+                if (Delta == 0)
+                {
+                    continue;
+                }
+
+                CellRepairOption? TowardTarget = TravelAlignment(State, Source, Horizontal ? Delta : 0, Horizontal ? 0 : Delta);
+                if (TowardTarget != null)
+                {
+                    yield return TowardTarget;
+                }
+
+                CellRepairOption? TowardSource = TravelAlignment(State, Target, Horizontal ? -Delta : 0, Horizontal ? 0 : -Delta);
+                if (TowardSource != null)
+                {
+                    yield return TowardSource;
+                }
+            }
+        }
+
+        /// <summary>Whether leave, travel and enter name one straight run.</summary>
+        private static bool StraightTravel(LayoutHintDirection Travel, string Exit, string Entry)
+        {
+            if (Travel == LayoutHintDirection.East)
+            {
+                return Exit == "right" && Entry == "left";
+            }
+
+            if (Travel == LayoutHintDirection.West)
+            {
+                return Exit == "left" && Entry == "right";
+            }
+
+            if (Travel == LayoutHintDirection.North)
+            {
+                return Exit == "top" && Entry == "bottom";
+            }
+
+            return Travel == LayoutHintDirection.South && Exit == "bottom" && Entry == "top";
+        }
+
+        /// <summary>Whether the two facing sides already have a connection point on one straight line.</summary>
+        private static bool SidesShareGridPoint(FlowchartLayoutNodeBounds Source, string Exit, FlowchartLayoutNodeBounds Target, string Entry, double Tolerance)
+        {
+            bool VerticalSide = Exit is "left" or "right";
+            double[] SourceOffsets = DiagramGridMetrics.SideGridOffsets(VerticalSide ? Source.Height : Source.Width);
+            double[] TargetOffsets = DiagramGridMetrics.SideGridOffsets(VerticalSide ? Target.Height : Target.Width);
+            foreach (double SourceOffset in SourceOffsets)
+            {
+                double SourceCoordinate = GridCoordinate(Source, Exit, SourceOffset);
+                foreach (double TargetOffset in TargetOffsets)
+                {
+                    if (Math.Abs(SourceCoordinate - GridCoordinate(Target, Entry, TargetOffset)) <= Tolerance)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>The layout coordinate of one centre-out grid point.</summary>
+        private static double GridCoordinate(FlowchartLayoutNodeBounds Box, string Side, double Offset)
+        {
+            if (Side is "left" or "right")
+            {
+                return Box.CenterY + (Box.Height / 2.0) - Offset;
+            }
+
+            return Box.CenterX - (Box.Width / 2.0) + Offset;
+        }
+
+        /// <summary>Plans one endpoint's move onto the other endpoint's row or column when that endpoint is free to move.</summary>
+        private static CellRepairOption? TravelAlignment(GridLayoutState State, GridNode Node, int Rows, int Columns)
+        {
+            if (Node.CellNode == null || Rows == 0 && Columns == 0)
+            {
+                return null;
+            }
+
+            GridNode[] Moving = [Node];
+            Dictionary<string, FlowchartCellRegion> Target = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal)
+            {
+                [Node.Id] = FlowchartCellRepair.Translate(Node.CellNode.Region, Rows, Columns)
+            };
+            FlowchartCellRepair.Assignment? Plan = Node.PlacementHintLocked
+                ? FlowchartCellRepair.PlanAssignment(Moving, Target, AllowHintedRegionRepair: true)
+                : FlowchartCellRepair.PlanMove(Moving, Rows, Columns)
+                    ?? FlowchartCellRepair.PlanDisplacement(State.Placed, Moving, Rows, Columns);
+            if (Plan == null)
+            {
+                return null;
+            }
+
+            return new CellRepairOption("align|" + Node.Id + "|" + Rows + "," + Columns, Node.Id, Plan);
         }
 
         /// <summary>Orders joint options by a concrete straight-line opportunity without deriving or changing any region from pixels.</summary>
@@ -468,10 +614,12 @@ public static partial class DiagramGridLayout
                 SeenBandRejections = CandidateGrid.RegionConventionRejections;
                 if (Examined >= CandidateLimit) break;
                 var Participants = Option.Assignment.Nodes;
-                if (Participants.Count == 0 || Participants.Any(Node => Node.PlacementHintLocked
+                if (Participants.Count == 0 || Participants.Any(Node =>
+                    (!Option.Key.StartsWith("align|", StringComparison.Ordinal) && Node.PlacementHintLocked)
                     || HasHintedContainingGroup(State.Contract, Node.Id)))
                 { if (Option.Key.StartsWith("gap|", StringComparison.Ordinal)) FlowchartTerminalTrackRepair.Observer?.Invoke("gap-rejected", Option.Key, "hint/empty"); continue; }
-                if (HasExternalCellHintDependent(State.Contract, Option.Subject, Participants.ToArray())) continue;
+                if (!Option.Key.StartsWith("align|", StringComparison.Ordinal)
+                    && HasExternalCellHintDependent(State.Contract, Option.Subject, Participants.ToArray())) continue;
                 var Ids = Participants.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
                 if (State.Copy.EdgeRoutes.Count(Route => Ids.Contains(Route.SourceId) || Ids.Contains(Route.TargetId))
                     > FlowchartLayoutRules.RepairChainLines)

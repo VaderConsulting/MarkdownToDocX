@@ -9,6 +9,35 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 public sealed class EnterpriseRenderTests
 {
     [Test]
+    public void StyleOnlyEdit_RepaintsTheSameGeometry()
+    {
+        string Plain = "enterprise\n data-object order \"Order\"\n application-component shop \"Web Shop\"\n";
+        string Styled = Plain + " classDef emphasis fill:#fff3cd,stroke:#333333\n style order fill:#eef\n class shop emphasis\n";
+        string First = EnterpriseRenderBridge.RenderEnterpriseSvg(Plain);
+        string Second = EnterpriseRenderBridge.RenderEnterpriseSvg(Styled);
+        string Third = EnterpriseRenderBridge.RenderEnterpriseSvg(Plain);
+        XElement FirstOrder = NodeShape(First, "order");
+        XElement SecondOrder = NodeShape(Second, "order");
+        XElement ThirdOrder = NodeShape(Third, "order");
+        XElement SecondShop = NodeShape(Second, "shop");
+        Assert.Multiple(() =>
+        {
+            Assert.That(FirstOrder.Attribute("x")!.Value, Is.EqualTo(SecondOrder.Attribute("x")!.Value));
+            Assert.That(FirstOrder.Attribute("y")!.Value, Is.EqualTo(SecondOrder.Attribute("y")!.Value));
+            Assert.That(SecondOrder.Attribute("fill")!.Value, Is.EqualTo("#eef"));
+            Assert.That(SecondShop.Attribute("fill")!.Value, Is.EqualTo("#fff3cd"));
+            Assert.That(ThirdOrder.Attribute("fill")!.Value, Is.EqualTo(FirstOrder.Attribute("fill")!.Value));
+        });
+    }
+
+    private static XElement NodeShape(string Svg, string Id)
+    {
+        XElement Group = XDocument.Parse(Svg).Descendants().First(Element =>
+            Element.Name.LocalName == "g" && (string?)Element.Attribute("data-id") == Id);
+        return Group.Descendants().First(Element => Element.Name.LocalName == "rect");
+    }
+
+    [Test]
     public void LabelledStraightRelationship_HasTwoVisibleStrokeFragments()
     {
         string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg("enterprise\n application-component a \"Input\"\n application-component b \"Output\"\n a -flow-> b \"transfer\"");

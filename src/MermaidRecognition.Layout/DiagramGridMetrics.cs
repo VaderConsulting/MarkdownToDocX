@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace MermaidRecognition.Layout;
 
@@ -174,18 +176,112 @@ public static class DiagramGridMetrics
     }
 
     /// <summary>
-    /// Maximum ports that fit on one box side while keeping line_spacing clearance from each corner.
+    /// Maximum ports that fit on one box side: the number of connection points on its centre-out grid.
     /// </summary>
     /// <param name="SideLengthPx">Visible side length in pixels.</param>
-    /// <returns>Geometric maximum from rules 3.2 and term Track.</returns>
-    public static int MaxPortsOnSide(int SideLengthPx) => MaxTracksInGap(SideLengthPx);
+    /// <returns>Geometric maximum from rule 3.2 and term Port.</returns>
+    public static int MaxPortsOnSide(int SideLengthPx) => SideGridOffsets(SideLengthPx).Length;
 
     /// <summary>
-    /// Minimum side length that holds the requested port count with line_spacing insets.
+    /// Minimum side length whose centre-out grid holds the requested port count in the default pattern.
+    /// An odd count uses the centre and needs (n + 1) line_spacing; an even count leaves the centre empty and
+    /// needs (n + 2) line_spacing.
     /// </summary>
     /// <param name="PortCount">Jointly allocated ports on one side.</param>
     /// <returns>Required side span in pixels.</returns>
-    public static int MinSideLengthForPorts(int PortCount) => GapWidthForTracks(PortCount);
+    public static int MinSideLengthForPorts(int PortCount)
+    {
+        if (PortCount < 1)
+        {
+            return 0;
+        }
+
+        int Spacings = PortCount % 2 == 1 ? PortCount + 1 : PortCount + 2;
+        return Spacings * (int)Math.Round(FlowchartLayoutRules.LineSpacing);
+    }
+
+    /// <summary>
+    /// Connection points on one side, counted out from its centre: the midpoint, then every line_spacing either
+    /// side of it, keeping only those at least line_spacing from both corners (term Port, rule 3.2).
+    /// </summary>
+    /// <param name="LengthPx">Side or connection-segment length.</param>
+    /// <returns>Distances from the start of the side in ascending order; empty when the side is too short.</returns>
+    public static double[] SideGridOffsets(double LengthPx)
+    {
+        double Spacing = FlowchartLayoutRules.LineSpacing;
+        double Middle = LengthPx / 2.0;
+        if (Spacing <= 0 || !double.IsFinite(LengthPx) || Middle < Spacing - PORT_GRID_TOLERANCE_PX)
+        {
+            return [];
+        }
+
+        int Steps = (int)Math.Floor(((Middle - Spacing) + PORT_GRID_TOLERANCE_PX) / Spacing);
+        double[] Offsets = new double[(2 * Steps) + 1];
+        for (int Step = -Steps; Step <= Steps; Step++)
+        {
+            Offsets[Step + Steps] = Middle + (Step * Spacing);
+        }
+
+        return Offsets;
+    }
+
+    /// <summary>
+    /// Default connection points for lines sharing one side (rule 3.2): an odd count takes the centre and then
+    /// one line_spacing step either side in turn; an even count takes the steps either side and leaves the
+    /// centre empty.
+    /// </summary>
+    /// <param name="PortCount">Lines sharing the side.</param>
+    /// <param name="LengthPx">Side or connection-segment length.</param>
+    /// <returns>Offsets from the start of the side in ascending order; fewer than requested when the side is too short.</returns>
+    public static double[] CentreOutPortOffsets(int PortCount, double LengthPx)
+    {
+        double[] Grid = SideGridOffsets(LengthPx);
+        int[] Indexes = CentreOutGridIndexes(Grid, LengthPx, PortCount);
+        double[] Offsets = new double[Indexes.Length];
+        for (int Index = 0; Index < Indexes.Length; Index++)
+        {
+            Offsets[Index] = Grid[Indexes[Index]];
+        }
+
+        return Offsets;
+    }
+
+    /// <summary>
+    /// Chooses the default centre-out pattern from any set of usable grid points on a side.
+    /// </summary>
+    /// <param name="Grid">Usable grid offsets in ascending order.</param>
+    /// <param name="LengthPx">Full side length; its midpoint is the side centre.</param>
+    /// <param name="PortCount">Lines sharing the side.</param>
+    /// <returns>Indexes into <paramref name="Grid"/> in ascending order.</returns>
+    public static int[] CentreOutGridIndexes(IReadOnlyList<double> Grid, double LengthPx, int PortCount)
+    {
+        if (PortCount < 1 || Grid.Count == 0)
+        {
+            return [];
+        }
+
+        double Middle = LengthPx / 2.0;
+        List<int> Ranked = new List<int>(Grid.Count);
+        for (int Index = 0; Index < Grid.Count; Index++)
+        {
+            Ranked.Add(Index);
+        }
+
+        Ranked.Sort((Left, Right) =>
+        {
+            int Order = Math.Abs(Grid[Left] - Middle).CompareTo(Math.Abs(Grid[Right] - Middle));
+            return Order != 0 ? Order : Left.CompareTo(Right);
+        });
+        int Skip = PortCount % 2 == 0
+            && Grid.Count > PortCount
+            && Math.Abs(Grid[Ranked[0]] - Middle) <= PORT_GRID_TOLERANCE_PX ? 1 : 0;
+        int[] Chosen = Ranked.Skip(Skip).Take(PortCount).ToArray();
+        Array.Sort(Chosen);
+        return Chosen;
+    }
+
+    /// <summary>Tolerance used when testing whether a distance reaches a corner clearance, in pixels.</summary>
+    public const double PORT_GRID_TOLERANCE_PX = 0.01;
 
     /// <summary>
     /// Equal slot or track centres along a side or gap, symmetrical about the centre.

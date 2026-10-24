@@ -148,7 +148,8 @@ public static partial class DiagramGridLayout
             Context.BendReassignmentRemoved = 0;
             if (!Context.UseCellRegions || Context.DisableExpandedBendRepairsForTests) return;
             Context.BendReassignmentRemoved = FlowchartBendRemovingPortRepair.Apply(Contract, Current.Copy);
-            if (Context.BendReassignmentRemoved > 0) RouteRepairStage.PublishFinal(Current);
+            int CrossingSwaps = FlowchartBendRemovingPortRepair.ApplyCrossingSwaps(Contract, Current.Copy);
+            if (Context.BendReassignmentRemoved > 0 || CrossingSwaps > 0) RouteRepairStage.PublishFinal(Current);
         });
         return State.Copy;
 

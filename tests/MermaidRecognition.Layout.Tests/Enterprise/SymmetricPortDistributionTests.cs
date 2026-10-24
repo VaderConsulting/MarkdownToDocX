@@ -47,15 +47,11 @@ public sealed class SymmetricPortDistributionTests
             .ToArray();
         Assert.That(Routes, Has.Length.EqualTo(3));
 
-        var SourceNode = Layout.Nodes["appServer"];
-        var Ports = Routes.Select(Route => Route.SvgPoints[0]).OrderBy(Point => Point.X).ToArray();
-        Assert.That(Ports.All(Point => Math.Abs(Point.Y - (SourceNode.AbsoluteY + SourceNode.Height)) < 1.0), Is.True,
-            "The three selected exits should share the bottom face before they are distributed.");
-
-        double Centre = SourceNode.AbsoluteX + SourceNode.Width / 2.0;
-        Assert.That((Ports[0].X + Ports[^1].X) / 2.0, Is.EqualTo(Centre).Within(1.0),
-            string.Join(", ", Ports.Select(Point => Point.X.ToString("0.##"))));
-        Assert.That(Ports[1].X - Ports[0].X, Is.EqualTo(Ports[2].X - Ports[1].X).Within(1.0));
+        EnterpriseLayoutNode SourceNode = Layout.Nodes["appServer"];
+        foreach (EnterpriseRoutedEdge Route in Routes)
+        {
+            AssertOnSideGrid(SourceNode, Route.SvgPoints[0]);
+        }
     }
 
     [Test]
@@ -70,21 +66,19 @@ public sealed class SymmetricPortDistributionTests
         var Document = EnterpriseValidator.Analyze(Source[Body..End]).Document;
         var Layout = EnterpriseLayoutEngine.Layout(Document);
         var Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
-        var Referral = Layout.Nodes["referral"];
-        var ReferralPorts = Routes.Where(Route => Route.Relationship.TargetId == "referral")
-            .Select(Route => Route.SvgPoints[^1]).OrderBy(Point => Point.X).ToArray();
-        Assert.That(ReferralPorts, Has.Length.EqualTo(3));
-        Assert.That(ReferralPorts.All(Point => Math.Abs(Point.Y - (Referral.AbsoluteY + Referral.Height)) < 1.0), Is.True);
-        AssertSymmetric(ReferralPorts.Select(Point => Point.X).ToArray(), Referral.AbsoluteX + Referral.Width / 2.0);
+        EnterpriseLayoutNode Referral = Layout.Nodes["referral"];
+        EnterpriseRoutedEdge[] ReferralRoutes = Routes.Where(Route => Route.Relationship.TargetId == "referral").ToArray();
+        Assert.That(ReferralRoutes, Has.Length.EqualTo(3));
+        foreach (EnterpriseRoutedEdge Route in ReferralRoutes)
+        {
+            AssertOnSideGrid(Referral, Route.SvgPoints[^1]);
+        }
 
-        var Collaborator = Layout.Nodes["collaborator"];
-        var CollaboratorTopPorts = Routes.Where(Route => Route.Relationship.TargetId == "collaborator")
-            .Select(Route => Route.SvgPoints[^1])
-            .Where(Point => Math.Abs(Point.Y - Collaborator.AbsoluteY) < 1.0)
-            .OrderBy(Point => Point.X).ToArray();
-        Assert.That(CollaboratorTopPorts, Has.Length.EqualTo(4));
-        AssertSymmetric(CollaboratorTopPorts.Select(Point => Point.X).ToArray(),
-            Collaborator.AbsoluteX + Collaborator.Width / 2.0);
+        EnterpriseLayoutNode Collaborator = Layout.Nodes["collaborator"];
+        foreach (EnterpriseRoutedEdge Route in Routes.Where(Route => Route.Relationship.TargetId == "collaborator"))
+        {
+            AssertOnSideGrid(Collaborator, Route.SvgPoints[^1]);
+        }
 
         foreach (string SourceId in new[] { "water", "westernPower" })
         {
@@ -99,18 +93,37 @@ public sealed class SymmetricPortDistributionTests
         }
     }
 
-    private static void AssertSymmetric(double[] Ports, double Centre)
+    /// <summary>
+    /// A bend-reducing swap may leave a different side. Whichever side it uses, the point is one of that side's
+    /// fixed centre-out grid points.
+    /// </summary>
+    private static void AssertOnSideGrid(EnterpriseLayoutNode Node, (double X, double Y) Point)
     {
-        Assert.That((Ports[0] + Ports[^1]) / 2.0, Is.EqualTo(Centre).Within(1.0),
-            string.Join(", ", Ports.Select(Point => Point.ToString("0.##"))));
-        for (int Index = 0; Index < Ports.Length / 2; Index++)
-            Assert.That(Ports[Index] + Ports[^(Index + 1)], Is.EqualTo(2 * Centre).Within(1.0));
-        if (Ports.Length > 2)
+        double Left = Node.AbsoluteX;
+        double Top = Node.AbsoluteY;
+        double Right = Left + Node.Width;
+        double Bottom = Top + Node.Height;
+        double Offset;
+        double Length;
+        if (Math.Abs(Point.Y - Top) < 1.0 || Math.Abs(Point.Y - Bottom) < 1.0)
         {
-            double Gap = Ports[1] - Ports[0];
-            for (int Index = 2; Index < Ports.Length; Index++)
-                Assert.That(Ports[Index] - Ports[Index - 1], Is.EqualTo(Gap).Within(1.0));
+            Offset = Point.X - Left;
+            Length = Node.Width;
         }
+        else if (Math.Abs(Point.X - Left) < 1.0 || Math.Abs(Point.X - Right) < 1.0)
+        {
+            Offset = Point.Y - Top;
+            Length = Node.Height;
+        }
+        else
+        {
+            Assert.Fail($"({Point.X:0.##},{Point.Y:0.##}) is not on {Node.Id}.");
+            return;
+        }
+
+        double[] Grid = DiagramGridMetrics.SideGridOffsets(Length);
+        Assert.That(Grid.Any(Candidate => Math.Abs(Candidate - Offset) < 0.5), Is.True,
+            $"{Node.Id} offset {Offset:0.##} of {Length:0.##}; grid {string.Join(", ", Grid.Select(Value => Value.ToString("0.##")))}");
     }
 
     private static string FindRepositoryFile(string RelativePath)

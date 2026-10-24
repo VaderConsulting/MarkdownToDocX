@@ -382,28 +382,16 @@ public static partial class DiagramGridLayout
     /// <returns>Whether every allocated position belongs to an eligible connection segment.</returns>
     private static bool SupportsGeometrySide(BoxRef Box, string Side, int Count, Dictionary<string, NodeContract> Nodes)
     {
-        bool HasGeometry = Nodes.TryGetValue(Box.Id, out var Node) && Node.GeometryProvider != null;
-        if (FlowchartFallbackCorridorTracks.IsConstructionStage(FlowchartRenderContext.Current) && Count > 1)
+        Nodes.TryGetValue(Box.Id, out NodeContract? Node);
+        if (Node != null && (FlowchartDagrePresentation.IsDiamondShape(Node.Shape) || IsCircleShape(Node.Shape)))
         {
-            double Length = Side is "left" or "right" ? Box.Height : Box.Width;
-            if (!HasGeometry && Length / (Count + 1) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
-            if (HasGeometry)
-            {
-                var BoundaryForSpacing = Node!.GeometryProvider!.Create(Box.Width, Box.Height).ConnectionBoundary;
-                for (int I = 1; I < Count; I++)
-                {
-                    if (!BoundaryForSpacing.TryPort(Side, I / (Count + 1.0), out var A)
-                        || !BoundaryForSpacing.TryPort(Side, (I + 1) / (Count + 1.0), out var B)) return false;
-                    if (Math.Abs(A.NormalX - B.NormalX) < 0.001 && Math.Abs(A.NormalY - B.NormalY) < 0.001
-                        && Math.Sqrt(Math.Pow(A.X - B.X, 2) + Math.Pow(A.Y - B.Y, 2)) < FlowchartLayoutRules.LineSpacing - 0.001) return false;
-                }
-            }
+            return true;
         }
-        if (!HasGeometry) return true;
-        var Boundary = Node!.GeometryProvider!.Create(Box.Width, Box.Height).ConnectionBoundary;
-        for (int Index = 1; Index <= Count; Index++)
-            if (!Boundary.TryPort(Side, Index / (Count + 1.0), out _)) return false;
-        return true;
+
+        double Length = Side is "left" or "right" ? Box.Height : Box.Width;
+        INodeConnectionBoundary? Boundary = Node?.GeometryProvider?.Create(Box.Width, Box.Height).ConnectionBoundary;
+        // A rectangular side can take a line only when that line lands on the fixed centre-out grid (rule 3.2).
+        return ConnectionPointGrid.TryCentreOutFractions(Boundary, Side, Length, Count, out _);
     }
 
     /// <summary>Chooses the outside return channel from source position and occupied branch space.</summary>
@@ -538,10 +526,10 @@ public static partial class DiagramGridLayout
                         ByNode[Target.Box.Id].Count(End => !ReferenceEquals(End, Target) && End.Side == Entry) + 1, Nodes)) continue;
                 if (Examined >= FlowchartLayoutRules.RepairCandidateMoves) continue;
                 if (Exit == OriginalExit && Entry == OriginalEntry) continue;
-                // Sharing can be necessary; compare it with every available side
-                // instead of consuming an occupied centre without a comparison.
-                if (Exit != OriginalExit && ByNode[Source.Box.Id].Any(End => End != Source && End.Side == Exit)
-                    || Entry != OriginalEntry && ByNode[Target.Box.Id].Any(End => End != Target && End.Side == Entry)) continue;
+                // A line may take a port another line already uses when that swap
+                // lowers the bend count. The points stay on the centre-out grid.
+                bool SwapsOntoOccupiedSide = Exit != OriginalExit && ByNode[Source.Box.Id].Any(End => End != Source && End.Side == Exit)
+                    || Entry != OriginalEntry && ByNode[Target.Box.Id].Any(End => End != Target && End.Side == Entry);
                 Restore();
                 Source.Side = Exit; Target.Side = Entry;
                 Source.Route.ExitSide = Exit; Target.Route.EntrySide = Entry;
@@ -549,8 +537,9 @@ public static partial class DiagramGridLayout
                 Examined++;
                 FlowchartRenderContext.ReportOperationCount("port-side-assignment-candidates", 1);
                 var Candidate = Cost();
-                if (Candidate.Crossings <= MaximumCrossings && Candidate.AlignedDetours <= MaximumAlignedDetours
-                    && Candidate.CompareTo(Best) < 0)
+                bool FewerBends = Candidate.Bends < Best.Bends;
+                bool NoNewFault = Candidate.Crossings <= MaximumCrossings && Candidate.AlignedDetours <= MaximumAlignedDetours;
+                if (NoNewFault && (SwapsOntoOccupiedSide ? FewerBends : Candidate.CompareTo(Best) < 0))
                 {
                     Best = Candidate; BestExit = Exit; BestEntry = Entry;
                 }
@@ -933,7 +922,6 @@ public static partial class DiagramGridLayout
         }
 
         bool VerticalSide = Side == "left" || Side == "right";
-        int Length = (int)Math.Round(VerticalSide ? Box.Height : Box.Width);
         bool Circle = !Box.IsFrame && Nodes.TryGetValue(Box.Id, out NodeContract? CircleNode)
             && IsCircleShape(CircleNode.Shape);
         if (Circle)
@@ -959,28 +947,38 @@ public static partial class DiagramGridLayout
         }
 
         // Rounded rectangles still allocate over the complete declared edge.
-        // Reserving a corner inset here moves ports away from k/(n+1) and makes
-        // the slot pattern depend on the renderer's corner radius.
-        double AvailableLength = Length;
+        // Reserving a corner inset here moves the grid away from the side centre
+        // and makes the points depend on the renderer's corner radius.
+        double SideLength = VerticalSide ? Box.Height : Box.Width;
+        double[]? GridFractions = PlanGridFractions(Group, Nodes);
+        INodeConnectionBoundary? Boundary = Nodes.TryGetValue(Box.Id, out NodeContract? GridNode) && GridNode.GeometryProvider != null
+            ? GridNode.GeometryProvider.Create(Box.Width, Box.Height).ConnectionBoundary
+            : null;
+        double[] Fallback = GridFractions == null
+            ? ConnectionPointGrid.FractionsOnGrid(Boundary, Side, SideLength, Group.Count)
+            : [];
         for (int Index = 0; Index < Group.Count; Index++)
         {
             PortEnd End = Group[Index];
-            if (End.KeepsCentre && TrySetCenterPort(End, Nodes, Side, Box))
+            double Fraction;
+            double Along;
+            if (GridFractions != null)
             {
-                continue;
+                Fraction = GridFractions[Index];
+                Along = Fraction * SideLength;
+            }
+            else
+            {
+                // The fixed grid is shorter than the line count. Stay on those points.
+                // An even share of the side would sit somewhere new whenever the count changed.
+                Fraction = Fallback.Length == Group.Count ? Fallback[Index] : 0.5;
+                Along = Fraction * SideLength;
+                if (End.KeepsCentre && TrySetCenterPort(End, Nodes, Side, Box))
+                {
+                    continue;
+                }
             }
 
-            if (Group.Count == 1
-                && StraightCenterPortFits(End)
-                && TrySetCenterPort(End, Nodes, Side, Box))
-            {
-                continue;
-            }
-
-            double SlotSpacing = Math.Max(
-                FlowchartLayoutRules.LineSpacing,
-                AvailableLength / (Group.Count + 1.0));
-            double Along = SlotSpacing * (Index + 1.0);
             double X;
             double Y;
             int OutX = 0;
@@ -1013,7 +1011,7 @@ public static partial class DiagramGridLayout
             if (Nodes.TryGetValue(Box.Id, out var GeometryNode) && GeometryNode.GeometryProvider is { } Provider)
             {
                 if (Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(
-                    Side, (Index + 1.0) / (Group.Count + 1.0), out var Port))
+                    Side, Fraction, out var Port))
                     SetEnd(Group[Index], Box.CenterX + Port.X, Box.CenterY - Port.Y, Port.NormalX, -Port.NormalY);
                 continue;
             }
@@ -1030,7 +1028,7 @@ public static partial class DiagramGridLayout
                 // cardinal port still owns the exact side centre, including an
                 // open layout's fractional centre; rounding its along-side
                 // coordinate would turn a straight neighbour link into a jog.
-                if (Group.Count == 1)
+                if (Group.Count == 1 && Math.Abs(Fraction - 0.5) < 0.000001)
                 {
                     if (VerticalSide) Y = Box.CenterY;
                     else X = Box.CenterX;
