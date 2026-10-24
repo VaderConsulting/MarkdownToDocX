@@ -31,8 +31,11 @@ public sealed class NewDiagramTests
         Assert.That(Dialog.Controls.Find("Kind_enterprise", true).Length, Is.EqualTo(1));
         Assert.That(Dialog.Controls.Find("Kind_flowchart", true).Length, Is.EqualTo(1));
         Assert.That(Dialog.Controls.Find("Kind_sequence", true).Length, Is.EqualTo(1));
-        Assert.That(Dialog.Controls.Find("Kind_gantt", true).Length, Is.EqualTo(0));
-        Assert.That(Dialog.Controls.Find("Kind_class", true).Length, Is.EqualTo(0));
+        Assert.That(Dialog.Controls.Find("Kind_gantt", true).Length, Is.EqualTo(1));
+        Assert.That(Dialog.Controls.Find("Kind_class", true).Length, Is.EqualTo(1));
+        Assert.That(Dialog.Controls.Find("Kind_requirement", true).Length, Is.EqualTo(0));
+        Assert.That(Dialog.Controls.Find("Kind_kanban", true).Length, Is.EqualTo(0));
+        Assert.That(Dialog.Controls.Find("Kind_sankey", true).Length, Is.EqualTo(0));
         Assert.That(Dialog.SelectedKind, Is.Not.Null);
         Assert.That(Dialog.SelectedKind!.Id, Is.EqualTo("enterprise"));
 
@@ -65,7 +68,8 @@ public sealed class NewDiagramTests
 
         Palette.UpdateFromEditor("gantt\r\n  title Plan\r\n", 0);
         Application.DoEvents();
-        Assert.That(TabTexts(Tabs), Does.Contain("Gantt"));
+        Assert.That(TabTexts(Tabs), Does.Contain("Chart"));
+        Assert.That(Palette.Controls.Find("Tool_Title", true).Length, Is.EqualTo(1));
         Assert.That(Palette.Controls.Find("Tool_Diamond", true).Length, Is.EqualTo(0));
 
         Palette.UpdateFromEditor("enterprise\r\n  application-component webShop \"Web Shop\"\r\n", 20);

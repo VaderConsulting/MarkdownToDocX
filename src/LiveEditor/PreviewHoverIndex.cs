@@ -221,7 +221,7 @@ internal sealed class PreviewHoverIndex
                 continue;
             }
 
-            int Close = Svg.IndexOf("</g>", TagEnd, StringComparison.Ordinal);
+            int Close = FindGroupClose(Svg, TagEnd);
             if (Close < 0)
             {
                 break;
@@ -499,8 +499,56 @@ internal sealed class PreviewHoverIndex
         Bottom = double.MinValue;
         IncludeBoxes(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
         IncludeEllipses(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+        IncludeCircles(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+        IncludeLines(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+        IncludePolygons(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
         IncludePaths(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+        IncludeText(Body, ShiftX, ShiftY, ref Left, ref Top, ref Right, ref Bottom);
         return Right > Left && Bottom > Top;
+    }
+
+    private static int FindGroupClose(string Svg, int TagEnd)
+    {
+        int Depth = 1;
+        int Index = TagEnd + 1;
+        while (Index < Svg.Length && Depth > 0)
+        {
+            int NextOpen = Svg.IndexOf("<g", Index, StringComparison.Ordinal);
+            int NextClose = Svg.IndexOf("</g>", Index, StringComparison.Ordinal);
+            if (NextClose < 0)
+            {
+                return -1;
+            }
+
+            if (NextOpen >= 0 && NextOpen < NextClose && IsGroupOpen(Svg, NextOpen))
+            {
+                Depth++;
+                Index = NextOpen + 2;
+            }
+            else
+            {
+                Depth--;
+                if (Depth == 0)
+                {
+                    return NextClose;
+                }
+
+                Index = NextClose + 4;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool IsGroupOpen(string Svg, int Index)
+    {
+        if (Index + 2 >= Svg.Length)
+        {
+            return false;
+        }
+
+        char Next = Svg[Index + 2];
+        return Next == ' ' || Next == '>' || Next == '\r' || Next == '\n' || Next == '\t';
     }
 
     private static void IncludeBoxes(string Body, double ShiftX, double ShiftY, ref double Left, ref double Top, ref double Right, ref double Bottom)
@@ -556,6 +604,151 @@ internal sealed class PreviewHoverIndex
             Include(CentreX - RadiusX, CentreY - RadiusY, ref Left, ref Top, ref Right, ref Bottom);
             Include(CentreX + RadiusX, CentreY + RadiusY, ref Left, ref Top, ref Right, ref Bottom);
             Index = End + 1;
+        }
+    }
+
+    private static void IncludeCircles(string Body, double ShiftX, double ShiftY, ref double Left, ref double Top, ref double Right, ref double Bottom)
+    {
+        int Index = 0;
+        while (Index < Body.Length)
+        {
+            int Found = Body.IndexOf("<circle ", Index, StringComparison.Ordinal);
+            if (Found < 0)
+            {
+                break;
+            }
+
+            int End = Body.IndexOf('>', Found);
+            if (End < 0)
+            {
+                break;
+            }
+
+            string Tag = Body.Substring(Found, End - Found);
+            double CentreX = ReadAttribute(Tag, "cx") + ShiftX;
+            double CentreY = ReadAttribute(Tag, "cy") + ShiftY;
+            double Radius = ReadAttribute(Tag, "r");
+            Include(CentreX - Radius, CentreY - Radius, ref Left, ref Top, ref Right, ref Bottom);
+            Include(CentreX + Radius, CentreY + Radius, ref Left, ref Top, ref Right, ref Bottom);
+            Index = End + 1;
+        }
+    }
+
+    private static void IncludeLines(string Body, double ShiftX, double ShiftY, ref double Left, ref double Top, ref double Right, ref double Bottom)
+    {
+        int Index = 0;
+        while (Index < Body.Length)
+        {
+            int Found = Body.IndexOf("<line ", Index, StringComparison.Ordinal);
+            if (Found < 0)
+            {
+                break;
+            }
+
+            int End = Body.IndexOf('>', Found);
+            if (End < 0)
+            {
+                break;
+            }
+
+            string Tag = Body.Substring(Found, End - Found);
+            Include(ReadAttribute(Tag, "x1") + ShiftX, ReadAttribute(Tag, "y1") + ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+            Include(ReadAttribute(Tag, "x2") + ShiftX, ReadAttribute(Tag, "y2") + ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+            Index = End + 1;
+        }
+    }
+
+    private static void IncludePolygons(string Body, double ShiftX, double ShiftY, ref double Left, ref double Top, ref double Right, ref double Bottom)
+    {
+        int Index = 0;
+        while (Index < Body.Length)
+        {
+            int Found = Body.IndexOf("<polygon ", Index, StringComparison.Ordinal);
+            if (Found < 0)
+            {
+                break;
+            }
+
+            int End = Body.IndexOf('>', Found);
+            if (End < 0)
+            {
+                break;
+            }
+
+            string Points = ReadStringAttribute(Body.Substring(Found, End - Found), "points");
+            List<double> Numbers = new List<double>();
+            StringBuilder Number = new StringBuilder();
+            for (int CharacterIndex = 0; CharacterIndex < Points.Length; CharacterIndex++)
+            {
+                char Character = Points[CharacterIndex];
+                if (Character == ',' || char.IsWhiteSpace(Character))
+                {
+                    FlushNumber(Number, Numbers);
+                }
+                else
+                {
+                    Number.Append(Character);
+                }
+            }
+
+            FlushNumber(Number, Numbers);
+            for (int Point = 0; Point + 1 < Numbers.Count; Point += 2)
+            {
+                Include(Numbers[Point] + ShiftX, Numbers[Point + 1] + ShiftY, ref Left, ref Top, ref Right, ref Bottom);
+            }
+
+            Index = End + 1;
+        }
+    }
+
+    private static void IncludeText(string Body, double ShiftX, double ShiftY, ref double Left, ref double Top, ref double Right, ref double Bottom)
+    {
+        int Index = 0;
+        while (Index < Body.Length)
+        {
+            int Found = Body.IndexOf("<text ", Index, StringComparison.Ordinal);
+            if (Found < 0)
+            {
+                break;
+            }
+
+            int End = Body.IndexOf('>', Found);
+            if (End < 0)
+            {
+                break;
+            }
+
+            int ContentEnd = Body.IndexOf('<', End + 1);
+            if (ContentEnd < 0)
+            {
+                break;
+            }
+
+            string Tag = Body.Substring(Found, End - Found);
+            string Content = Unescape(Body.Substring(End + 1, ContentEnd - End - 1)).Trim();
+            double FontSize = ReadAttribute(Tag, "font-size");
+            if (FontSize <= 0)
+            {
+                FontSize = 12;
+            }
+
+            double Width = Math.Max(FontSize, Content.Length * FontSize * 0.6);
+            double X = ReadAttribute(Tag, "x") + ShiftX;
+            double Y = ReadAttribute(Tag, "y") + ShiftY;
+            string Anchor = ReadStringAttribute(Tag, "text-anchor");
+            double TextLeft = X;
+            if (Anchor == "middle")
+            {
+                TextLeft = X - (Width / 2.0);
+            }
+            else if (Anchor == "end")
+            {
+                TextLeft = X - Width;
+            }
+
+            Include(TextLeft, Y - FontSize, ref Left, ref Top, ref Right, ref Bottom);
+            Include(TextLeft + Width, Y + (FontSize * 0.25), ref Left, ref Top, ref Right, ref Bottom);
+            Index = ContentEnd + 1;
         }
     }
 
@@ -753,6 +946,22 @@ internal sealed class PreviewHoverIndex
                     CurrentY = Y;
                 }
             }
+            else if (Absolute == 'A')
+            {
+                while (Cursor + 6 < To)
+                {
+                    Take(Numbers, ref Cursor, false, 0);
+                    Take(Numbers, ref Cursor, false, 0);
+                    Take(Numbers, ref Cursor, false, 0);
+                    Take(Numbers, ref Cursor, false, 0);
+                    Take(Numbers, ref Cursor, false, 0);
+                    double X = Take(Numbers, ref Cursor, Relative, CurrentX);
+                    double Y = Take(Numbers, ref Cursor, Relative, CurrentY);
+                    AddSegment(CurrentX, CurrentY, X, Y, ShiftX, ShiftY, Segments);
+                    CurrentX = X;
+                    CurrentY = Y;
+                }
+            }
             else if (Absolute == 'Z')
             {
                 AddSegment(CurrentX, CurrentY, StartX, StartY, ShiftX, ShiftY, Segments);
@@ -765,7 +974,7 @@ internal sealed class PreviewHoverIndex
     private static bool IsCommand(char Character)
     {
         char Upper = char.ToUpperInvariant(Character);
-        return Upper == 'M' || Upper == 'L' || Upper == 'H' || Upper == 'V' || Upper == 'C' || Upper == 'S' || Upper == 'Q' || Upper == 'Z';
+        return Upper == 'M' || Upper == 'L' || Upper == 'H' || Upper == 'V' || Upper == 'C' || Upper == 'S' || Upper == 'Q' || Upper == 'A' || Upper == 'Z';
     }
 
     private static void FlushNumber(StringBuilder Number, List<double> Numbers)

@@ -463,88 +463,88 @@ internal static class DiagramKindCatalog
                 Item("Blocks", "Autonumber", "Numbers the messages.", "autonumber", false)
             }));
 
-        // These kinds are recognised, but the toolbar does not offer them yet.
-        // Remove the comment markers and Add the definition when that toolbar is ready.
-        //
-        // Kinds.Add(new DiagramKindDefinition("class", "Structure", "Class", "classDiagram\r\n", "Classes and relations.", new DiagramToolbarItem[]
-        // {
-        //     Item("Types", "Class", "Declares a class.", "class {id}~{label}~ {{}}", true),
-        //     Item("Types", "Namespace", "Groups classes until end.", "namespace Group", false),
-        //     Item("Types", "Note", "A note for a class.", "note for Class \"Note\"", false),
-        //     Item("Types", "Direction", "TB, TD, BT, LR, or RL.", "direction TB", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("state", "Structure", "State", "stateDiagram-v2\r\n", "States and transitions.", new DiagramToolbarItem[]
-        // {
-        //     Item("States", "State", "Declares a state.", "state \"{label}\" as {id}", true),
-        //     Item("States", "Start", "The start state.", "[*] --> State1", false),
-        //     Item("States", "Note", "A note on a state.", "note right of State1: Note", false),
-        //     Item("States", "Direction", "TB, TD, BT, LR, or RL.", "direction LR", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("er", "Structure", "Entity relationship", "erDiagram\r\n", "Entities and relationships.", new DiagramToolbarItem[]
-        // {
-        //     Item("Entities", "Entity", "An entity and one attribute.", "{id} {{\r\n  string name\r\n}}", true),
-        //     Item("Keys", "PK", "Primary key.", "string id PK", false),
-        //     Item("Keys", "FK", "Foreign key.", "string parentId FK", false),
-        //     Item("Keys", "UK", "Unique key.", "string code UK", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("gantt", "Charts", "Gantt", "gantt\r\n", "Tasks on a calendar.", new DiagramToolbarItem[]
-        // {
-        //     Item("Chart", "Title", "Title of the chart.", "title Plan", false),
-        //     Item("Chart", "Date format", "How dates are written.", "dateFormat YYYY-MM-DD", false),
-        //     Item("Chart", "Section", "A group of tasks.", "section Phase", false),
-        //     Item("Chart", "Excludes", "Days that are not working days.", "excludes weekends", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("pie", "Charts", "Pie", "pie\r\n", "Slices of a whole.", new DiagramToolbarItem[]
-        // {
-        //     Item("Chart", "Title", "Title of the pie.", "title Share", false),
-        //     Item("Chart", "Show data", "Prints the values beside the slices.", "showData", false),
-        //     Item("Chart", "Slice", "One labelled slice.", "\"{label}\" : 10", true)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("gitGraph", "Charts", "Git graph", "gitGraph\r\n", "Commits and branches.", new DiagramToolbarItem[]
-        // {
-        //     Item("Git", "Commit", "A commit on the current branch.", "commit", false),
-        //     Item("Git", "Branch", "Starts a branch.", "branch feature", false),
-        //     Item("Git", "Checkout", "Moves to a branch.", "checkout feature", false),
-        //     Item("Git", "Merge", "Merges a branch.", "merge feature", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("mindmap", "Notes", "Mindmap", "mindmap\r\n", "Indented topics.", new DiagramToolbarItem[]
-        // {
-        //     Item("Topics", "Root", "The root topic.", "root(({label}))", true),
-        //     Item("Topics", "Child", "An indented topic.", "  {label}", true)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("timeline", "Notes", "Timeline", "timeline\r\n", "Events in sections.", new DiagramToolbarItem[]
-        // {
-        //     Item("Events", "Title", "Title of the timeline.", "title History", false),
-        //     Item("Events", "Section", "A group of events.", "section Year", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("journey", "Notes", "Journey", "journey\r\n", "Tasks scored across sections.", new DiagramToolbarItem[]
-        // {
-        //     Item("Journey", "Title", "Title of the journey.", "title Visit", false),
-        //     Item("Journey", "Section", "A group of scored tasks.", "section Arrive", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("quadrantChart", "Charts", "Quadrant chart", "quadrantChart\r\n", "Points on two axes.", new DiagramToolbarItem[]
-        // {
-        //     Item("Chart", "Title", "Title of the chart.", "title Priority", false),
-        //     Item("Chart", "X axis", "The horizontal axis.", "x-axis Low --> High", false),
-        //     Item("Chart", "Y axis", "The vertical axis.", "y-axis Low --> High", false)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("xychart", "Charts", "XY chart", "xychart-beta\r\n", "Bars or a line on an x axis.", new DiagramToolbarItem[]
-        // {
-        //     Item("Chart", "Title", "Title of the chart.", "title Results", false),
-        //     Item("Chart", "X axis", "Category labels.", "x-axis [a, b, c]", false),
-        //     Item("Chart", "Bar", "Bar values.", "bar [1, 2, 3]", false)
-        // }));
+        // Requirement, kanban, and sankey do not render yet. The definitions stay below, commented out.
+
+
+        Kinds.Add(new DiagramKindDefinition("class", "Structure", "Class", "classDiagram\r\n", "Classes and relations.", new DiagramToolbarItem[]
+        {
+            Item("Types", "Class", "Declares a class.", "class {id}~{label}~ {{}}", true),
+            Item("Types", "Namespace", "Groups classes until end.", "namespace Group", false),
+            Item("Types", "Note", "A note for a class.", "note for Class \"Note\"", false),
+            Item("Types", "Direction", "TB, TD, BT, LR, or RL.", "direction TB", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("state", "Structure", "State", "stateDiagram-v2\r\n", "States and transitions.", new DiagramToolbarItem[]
+        {
+            Item("States", "State", "Declares a state.", "state \"{label}\" as {id}", true),
+            Item("States", "Start", "The start state.", "[*] --> State1", false),
+            Item("States", "Note", "A note on a state.", "note right of State1: Note", false),
+            Item("States", "Direction", "TB, TD, BT, LR, or RL.", "direction LR", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("er", "Structure", "Entity relationship", "erDiagram\r\n", "Entities and relationships.", new DiagramToolbarItem[]
+        {
+            Item("Entities", "Entity", "An entity and one attribute.", "{id} {{\r\n  string name\r\n}}", true),
+            Item("Keys", "PK", "Primary key.", "string id PK", false),
+            Item("Keys", "FK", "Foreign key.", "string parentId FK", false),
+            Item("Keys", "UK", "Unique key.", "string code UK", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("gantt", "Charts", "Gantt", "gantt\r\n", "Tasks on a calendar.", new DiagramToolbarItem[]
+        {
+            Item("Chart", "Title", "Title of the chart.", "title Plan", false),
+            Item("Chart", "Date format", "How dates are written.", "dateFormat YYYY-MM-DD", false),
+            Item("Chart", "Section", "A group of tasks.", "section Phase", false),
+            Item("Chart", "Excludes", "Days that are not working days.", "excludes weekends", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("pie", "Charts", "Pie", "pie\r\n", "Slices of a whole.", new DiagramToolbarItem[]
+        {
+            Item("Chart", "Title", "Title of the pie.", "title Share", false),
+            Item("Chart", "Show data", "Prints the values beside the slices.", "showData", false),
+            Item("Chart", "Slice", "One labelled slice.", "\"{label}\" : 10", true)
+        }));
+        Kinds.Add(new DiagramKindDefinition("gitGraph", "Charts", "Git graph", "gitGraph\r\n", "Commits and branches.", new DiagramToolbarItem[]
+        {
+            Item("Git", "Commit", "A commit on the current branch.", "commit", false),
+            Item("Git", "Branch", "Starts a branch.", "branch feature", false),
+            Item("Git", "Checkout", "Moves to a branch.", "checkout feature", false),
+            Item("Git", "Merge", "Merges a branch.", "merge feature", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("mindmap", "Notes", "Mindmap", "mindmap\r\n", "Indented topics.", new DiagramToolbarItem[]
+        {
+            Item("Topics", "Root", "The root topic.", "root(({label}))", true),
+            Item("Topics", "Child", "An indented topic.", "  {label}", true)
+        }));
+        Kinds.Add(new DiagramKindDefinition("timeline", "Notes", "Timeline", "timeline\r\n", "Events in sections.", new DiagramToolbarItem[]
+        {
+            Item("Events", "Title", "Title of the timeline.", "title History", false),
+            Item("Events", "Section", "A group of events.", "section Year", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("journey", "Notes", "Journey", "journey\r\n", "Tasks scored across sections.", new DiagramToolbarItem[]
+        {
+            Item("Journey", "Title", "Title of the journey.", "title Visit", false),
+            Item("Journey", "Section", "A group of scored tasks.", "section Arrive", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("quadrantChart", "Charts", "Quadrant chart", "quadrantChart\r\n", "Points on two axes.", new DiagramToolbarItem[]
+        {
+            Item("Chart", "Title", "Title of the chart.", "title Priority", false),
+            Item("Chart", "X axis", "The horizontal axis.", "x-axis Low --> High", false),
+            Item("Chart", "Y axis", "The vertical axis.", "y-axis Low --> High", false)
+        }));
+        Kinds.Add(new DiagramKindDefinition("xychart", "Charts", "XY chart", "xychart-beta\r\n", "Bars or a line on an x axis.", new DiagramToolbarItem[]
+        {
+            Item("Chart", "Title", "Title of the chart.", "title Results", false),
+            Item("Chart", "X axis", "Category labels.", "x-axis [a, b, c]", false),
+            Item("Chart", "Bar", "Bar values.", "bar [1, 2, 3]", false)
+        }));
         // Kinds.Add(new DiagramKindDefinition("requirement", "Structure", "Requirement", "requirementDiagram\r\n", "Requirements and elements.", new DiagramToolbarItem[]
         // {
         //     Item("Items", "Requirement", "A requirement.", "requirement {id} {{\r\n  id: 1\r\n  text: {label}\r\n}}", true),
         //     Item("Items", "Element", "An element that satisfies a requirement.", "element {id} {{\r\n  type: \"{label}\"\r\n}}", true)
         // }));
-        // Kinds.Add(new DiagramKindDefinition("architecture", "Model", "Architecture", "architecture-beta\r\n", "Groups, services, and junctions.", new DiagramToolbarItem[]
-        // {
-        //     Item("Items", "Group", "A named group.", "group {id}({label})", true),
-        //     Item("Items", "Service", "A service with a label.", "service {id}({label}) in group", true),
-        //     Item("Items", "Junction", "A junction between edges.", "junction {id}", true)
-        // }));
+        Kinds.Add(new DiagramKindDefinition("architecture", "Model", "Architecture", "architecture-beta\r\n", "Groups, services, and junctions.", new DiagramToolbarItem[]
+        {
+            Item("Items", "Group", "A named group.", "group {id}({label})", true),
+            Item("Items", "Service", "A service with a label.", "service {id}({label}) in group", true),
+            Item("Items", "Junction", "A junction between edges.", "junction {id}", true)
+        }));
         // Kinds.Add(new DiagramKindDefinition("kanban", "Charts", "Kanban", "kanban\r\n", "Cards in columns.", new DiagramToolbarItem[]
         // {
         //     Item("Board", "Column", "A column.", "{label}", true),
@@ -555,31 +555,31 @@ internal static class DiagramKindCatalog
         //     Item("Rows", "Header", "Column names.", "source,target,value", false),
         //     Item("Rows", "Flow", "One flow.", "A,B,10", false)
         // }));
-        // Kinds.Add(new DiagramKindDefinition("block", "Charts", "Block", "block-beta\r\n", "Blocks in columns.", new DiagramToolbarItem[]
-        // {
-        //     Item("Blocks", "Columns", "Starts a row of columns.", "columns 2", false),
-        //     Item("Blocks", "Block", "One block.", "{id}[\"{label}\"]", true)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("packet", "Charts", "Packet", "packet-beta\r\n", "Bits in a packet.", new DiagramToolbarItem[]
-        // {
-        //     Item("Fields", "Field", "A field and its bit width.", "0-7: \"{label}\"", true)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("radar", "Charts", "Radar", "radar-beta\r\n", "Scores around a centre.", new DiagramToolbarItem[]
-        // {
-        //     Item("Chart", "Title", "Title of the chart.", "title Skills", false),
-        //     Item("Chart", "Axis", "One spoke.", "axis {label}", true)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("treemap", "Charts", "Treemap", "treemap-beta\r\n", "Nested weighted areas.", new DiagramToolbarItem[]
-        // {
-        //     Item("Areas", "Title", "Title of the treemap.", "title Area", false),
-        //     Item("Areas", "Leaf", "A weighted leaf.", "{label}: 10", true)
-        // }));
-        // Kinds.Add(new DiagramKindDefinition("c4", "Model", "C4", "C4Context\r\n", "A C4 context, container, component, or deployment diagram.", new DiagramToolbarItem[]
-        // {
-        //     Item("Context", "Person", "A person.", "Person({id}, \"{label}\")", true),
-        //     Item("Context", "System", "A software system.", "System({id}, \"{label}\")", true),
-        //     Item("Context", "Relationship", "A relationship.", "Rel({id}, other, \"Uses\")", false)
-        // }));
+        Kinds.Add(new DiagramKindDefinition("block", "Charts", "Block", "block-beta\r\n", "Blocks in columns.", new DiagramToolbarItem[]
+        {
+            Item("Blocks", "Columns", "Starts a row of columns.", "columns 2", false),
+            Item("Blocks", "Block", "One block.", "{id}[\"{label}\"]", true)
+        }));
+        Kinds.Add(new DiagramKindDefinition("packet", "Charts", "Packet", "packet-beta\r\n", "Bits in a packet.", new DiagramToolbarItem[]
+        {
+            Item("Fields", "Field", "A field and its bit width.", "0-7: \"{label}\"", true)
+        }));
+        Kinds.Add(new DiagramKindDefinition("radar", "Charts", "Radar", "radar-beta\r\n", "Scores around a centre.", new DiagramToolbarItem[]
+        {
+            Item("Chart", "Title", "Title of the chart.", "title Skills", false),
+            Item("Chart", "Axis", "One spoke.", "axis {label}", true)
+        }));
+        Kinds.Add(new DiagramKindDefinition("treemap", "Charts", "Treemap", "treemap-beta\r\n", "Nested weighted areas.", new DiagramToolbarItem[]
+        {
+            Item("Areas", "Title", "Title of the treemap.", "title Area", false),
+            Item("Areas", "Leaf", "A weighted leaf.", "{label}: 10", true)
+        }));
+        Kinds.Add(new DiagramKindDefinition("c4", "Model", "C4", "C4Context\r\n", "A C4 context, container, component, or deployment diagram.", new DiagramToolbarItem[]
+        {
+            Item("Context", "Person", "A person.", "Person({id}, \"{label}\")", true),
+            Item("Context", "System", "A software system.", "System({id}, \"{label}\")", true),
+            Item("Context", "Relationship", "A relationship.", "Rel({id}, other, \"Uses\")", false)
+        }));
         return Kinds;
     }
 }

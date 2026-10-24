@@ -162,6 +162,11 @@ internal static class SampleCatalog
             + "  data-object audit \"Audit\"\r\n"
             + "  business-process rating \"Rating\"\r\n"
             + "  application-component partner \"Partner\"\r\n"
+            + "  goal ship \"Ship on time\"\r\n"
+            + "  outcome late \"Late orders\"\r\n"
+            + "  driver cost \"Cost\"\r\n"
+            + "  assessment risk \"Risk\"\r\n"
+            + "  requirement mustStore \"Must store\"\r\n"
             + "  note margin \"A note beside the order\" below order +2\r\n"
             + "  and-junction split \"Split\" above checkout\r\n"
             + "  or-junction choice \"Choice\" below checkout +1\r\n"
@@ -170,19 +175,19 @@ internal static class SampleCatalog
             + "  customer -assignment-> checkout \"Assigned\" [leave E, travel E, enter W]\r\n"
             + "  webShop -composition-> part\r\n"
             + "  webShop -aggregation-> shared\r\n"
-            + "  orderApi -realization-> contract\r\n"
+            + "  webShop -realization-> contract\r\n"
             + "  webShop -serving-> orderApi \"Serves\"\r\n"
             + "  orderApi -access(read)-> order\r\n"
             + "  orderApi -access(write)-> ledger\r\n"
             + "  orderApi -access(readwrite)-> audit\r\n"
             + "  orderApi -access(access)-> order\r\n"
-            + "  customer -influence(+)-> checkout\r\n"
-            + "  customer -influence(++)-> review\r\n"
-            + "  customer -influence(-)-> delay\r\n"
-            + "  customer -influence(--)-> cancel\r\n"
-            + "  customer -influence(2)-> rating\r\n"
+            + "  customer -influence(+)-> ship\r\n"
+            + "  customer -influence(++)-> late\r\n"
+            + "  customer -influence(-)-> cost\r\n"
+            + "  customer -influence(--)-> risk\r\n"
+            + "  customer -influence(2)-> mustStore\r\n"
             + "  webShop -triggering-> checkout \"Starts\"\r\n"
-            + "  orderApi -flow-> ledger \"Moves\"\r\n"
+            + "  orderApi -flow-> checkout \"Moves\"\r\n"
             + "  orderApi -specialization-> baseApi\r\n"
             + "  webShop -association-> neighbour\r\n"
             + "  webShop -association(directed)-> partner \"Directed\"\r\n"
@@ -231,13 +236,10 @@ internal static class SampleCatalog
             + "  S-->>C: Response\r\n",
             SampleTitle("Messages and blocks", false),
             "sequenceDiagram\r\n"
-            + "  accTitle: Request\r\n"
-            + "  accDescr: Participants, messages, and blocks\r\n"
+            + "  title Request\r\n"
             + "  autonumber\r\n"
-            + "  box Silver Group\r\n"
-            + "    participant C as Client\r\n"
-            + "    actor U as User\r\n"
-            + "  end\r\n"
+            + "  participant C as Client\r\n"
+            + "  actor U as User\r\n"
             + "  participant S as Service\r\n"
             + "  U->>C: Ask\r\n"
             + "  C->>+S: Request\r\n"
@@ -274,7 +276,6 @@ internal static class SampleCatalog
             SampleTitle("Members and relations", false),
             "classDiagram\r\n"
             + "  direction LR\r\n"
-            + "  accTitle: Types\r\n"
             + "  class Animal {\r\n"
             + "    +String name\r\n"
             + "    +eat()\r\n"
@@ -287,11 +288,7 @@ internal static class SampleCatalog
             + "  Farm *-- Animal : owns\r\n"
             + "  Farm o-- Duck : keeps\r\n"
             + "  Animal --> Duck : knows\r\n"
-            + "  Animal ..> Duck : uses\r\n"
-            + "  note for Animal \"A living thing\"\r\n"
-            + "  namespace Yard {\r\n"
-            + "    class Pond\r\n"
-            + "  }\r\n"));
+            + "  Animal ..> Duck : uses\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "state",
             "State",
@@ -299,18 +296,13 @@ internal static class SampleCatalog
             "stateDiagram-v2\r\n"
             + "  [*] --> Idle\r\n"
             + "  Idle --> [*]\r\n",
-            SampleTitle("Nested states", false),
+            SampleTitle("Direction and a note", false),
             "stateDiagram-v2\r\n"
-            + "  direction LR\r\n"
+            + "  direction TB\r\n"
             + "  accTitle: States\r\n"
             + "  [*] --> Idle\r\n"
             + "  Idle --> Running : start\r\n"
-            + "  Running --> Idle : stop\r\n"
             + "  Running --> [*]\r\n"
-            + "  state Running {\r\n"
-            + "    [*] --> Work\r\n"
-            + "    Work --> Work : tick\r\n"
-            + "  }\r\n"
             + "  note right of Idle : Waiting\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "er",
@@ -320,7 +312,6 @@ internal static class SampleCatalog
             + "  CUSTOMER ||--o{ ORDER : places\r\n",
             SampleTitle("Keys and cardinalities", false),
             "erDiagram\r\n"
-            + "  accTitle: Orders\r\n"
             + "  CUSTOMER ||--o{ ORDER : places\r\n"
             + "  ORDER ||--|{ LINE : contains\r\n"
             + "  CUSTOMER {\r\n"
@@ -345,12 +336,11 @@ internal static class SampleCatalog
             + "  dateFormat YYYY-MM-DD\r\n"
             + "  axisFormat %m-%d\r\n"
             + "  excludes weekends\r\n"
-            + "  todayMarker on\r\n"
             + "  section Phase\r\n"
             + "  Task :a1, 2026-01-05, 3d\r\n"
             + "  Next :after a1, 2d\r\n"
             + "  section Later\r\n"
-            + "  Review :2026-01-12, 1d\r\n"));
+            + "  Review :crit, 2026-01-12, 1d\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "pie",
             "Pie",
@@ -462,27 +452,28 @@ internal static class SampleCatalog
             + "  y-axis \"Count\" 0 --> 10\r\n"
             + "  bar [2, 5, 8]\r\n"
             + "  line [1, 4, 7]\r\n"));
-        Groups.Add(new DiagramSampleGroup(
-            "requirement",
-            "Requirement",
-            SampleTitle("One requirement", true),
-            "requirementDiagram\r\n"
-            + "  requirement req1 {\r\n"
-            + "    id: 1\r\n"
-            + "    text: the system stores orders\r\n"
-            + "  }\r\n",
-            SampleTitle("Requirement and element", false),
-            "requirementDiagram\r\n"
-            + "  requirement req1 {\r\n"
-            + "    id: 1\r\n"
-            + "    text: the system stores orders\r\n"
-            + "    risk: low\r\n"
-            + "    verifymethod: test\r\n"
-            + "  }\r\n"
-            + "  element orderApi {\r\n"
-            + "    type: service\r\n"
-            + "  }\r\n"
-            + "  orderApi - satisfies -> req1\r\n"));
+        // Requirement does not render yet, so it stays off the Samples menu.
+        // Groups.Add(new DiagramSampleGroup(
+        //     "requirement",
+        //     "Requirement",
+        //     SampleTitle("One requirement", true),
+        //     "requirementDiagram\r\n"
+        //     + "  requirement req1 {\r\n"
+        //     + "    id: 1\r\n"
+        //     + "    text: the system stores orders\r\n"
+        //     + "  }\r\n",
+        //     SampleTitle("Requirement and element", false),
+        //     "requirementDiagram\r\n"
+        //     + "  requirement req1 {\r\n"
+        //     + "    id: 1\r\n"
+        //     + "    text: the system stores orders\r\n"
+        //     + "    risk: low\r\n"
+        //     + "    verifymethod: test\r\n"
+        //     + "  }\r\n"
+        //     + "  element orderApi {\r\n"
+        //     + "    type: service\r\n"
+        //     + "  }\r\n"
+        //     + "  orderApi - satisfies -> req1\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "architecture",
             "Architecture",
@@ -496,36 +487,38 @@ internal static class SampleCatalog
             + "  service db(database)[DB] in shop\r\n"
             + "  junction join in shop\r\n"
             + "  api:R --> L:db\r\n"));
-        Groups.Add(new DiagramSampleGroup(
-            "kanban",
-            "Kanban",
-            SampleTitle("One card", true),
-            "kanban\r\n"
-            + "  Todo\r\n"
-            + "    [Write the brief]\r\n",
-            SampleTitle("Three columns", false),
-            "kanban\r\n"
-            + "  Todo\r\n"
-            + "    [Write the brief]\r\n"
-            + "    [Draw the flow]\r\n"
-            + "  Doing\r\n"
-            + "    [Build the shop]\r\n"
-            + "  Done\r\n"
-            + "    [Open the till]\r\n"));
-        Groups.Add(new DiagramSampleGroup(
-            "sankey",
-            "Sankey",
-            SampleTitle("One flow", true),
-            "sankey-beta\r\n"
-            + "source,target,value\r\n"
-            + "A,B,10\r\n",
-            SampleTitle("Several flows", false),
-            "sankey-beta\r\n"
-            + "source,target,value\r\n"
-            + "A,B,10\r\n"
-            + "A,C,4\r\n"
-            + "B,D,6\r\n"
-            + "C,D,4\r\n"));
+        // Kanban does not render yet, so it stays off the Samples menu.
+        // Groups.Add(new DiagramSampleGroup(
+        //     "kanban",
+        //     "Kanban",
+        //     SampleTitle("One card", true),
+        //     "kanban\r\n"
+        //     + "  Todo\r\n"
+        //     + "    [Write the brief]\r\n",
+        //     SampleTitle("Three columns", false),
+        //     "kanban\r\n"
+        //     + "  Todo\r\n"
+        //     + "    [Write the brief]\r\n"
+        //     + "    [Draw the flow]\r\n"
+        //     + "  Doing\r\n"
+        //     + "    [Build the shop]\r\n"
+        //     + "  Done\r\n"
+        //     + "    [Open the till]\r\n"));
+        // Sankey does not render yet, so it stays off the Samples menu.
+        // Groups.Add(new DiagramSampleGroup(
+        //     "sankey",
+        //     "Sankey",
+        //     SampleTitle("One flow", true),
+        //     "sankey-beta\r\n"
+        //     + "source,target,value\r\n"
+        //     + "A,B,10\r\n",
+        //     SampleTitle("Several flows", false),
+        //     "sankey-beta\r\n"
+        //     + "source,target,value\r\n"
+        //     + "A,B,10\r\n"
+        //     + "A,C,4\r\n"
+        //     + "B,D,6\r\n"
+        //     + "C,D,4\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "block",
             "Block",
@@ -559,8 +552,8 @@ internal static class SampleCatalog
             "radar-beta\r\n"
             + "  title Skills\r\n"
             + "  axis Design, Build, Test\r\n"
-            + "  curve Team[3, 4, 5]\r\n"
-            + "  curve Plan[2, 3, 4]\r\n"));
+            + "  curve Team{3, 4, 5}\r\n"
+            + "  curve Plan{2, 3, 4}\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "treemap",
             "Treemap",
@@ -570,10 +563,9 @@ internal static class SampleCatalog
             + "    \"Orders\": 40\r\n",
             SampleTitle("Two areas", false),
             "treemap-beta\r\n"
-            + "  title Area\r\n"
             + "  \"Shop\"\r\n"
             + "    \"Orders\": 40\r\n"
-            + "    \"Stock\": 60\r\n"));
+            + "    \"Stock\": 60:::emphasis\r\n"));
         Groups.Add(new DiagramSampleGroup(
             "c4",
             "C4",
@@ -588,9 +580,8 @@ internal static class SampleCatalog
             + "  Person(customer, \"Customer\", \"Places orders\")\r\n"
             + "  System(shop, \"Web shop\", \"Takes orders\")\r\n"
             + "  System_Ext(pay, \"Payments\", \"Takes payment\")\r\n"
-            + "  Rel(customer, shop, \"Orders\")\r\n"
-            + "  Rel(shop, pay, \"Charges\")\r\n"
-            + "  UpdateRelStyle(customer, shop, $textColor=\"black\")\r\n"));
+            + "  Rel_U(customer, shop, \"Orders\")\r\n"
+            + "  Rel(shop, pay, \"Charges\", \"HTTPS\")\r\n"));
         return Groups;
     }
 }

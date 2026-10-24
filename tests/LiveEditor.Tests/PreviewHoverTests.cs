@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using MDConverter;
+using MermaidRecognition.Kinds.Enterprise;
 using NUnit.Framework;
 
 namespace LiveEditor.Tests;
@@ -108,6 +112,88 @@ public sealed class PreviewHoverTests
         Assert.That(Find(Index, "Shop flows to Till"), Is.True);
     }
 
+    [Test]
+    public void EveryElementTypeHasHoverText()
+    {
+        StringBuilder Source = new StringBuilder();
+        Source.Append("enterprise\r\n");
+        Source.Append("direction TB\r\n");
+        Source.Append("group box \"Box\" {\r\n}\r\n");
+        Source.Append("note margin \"Note\" below box\r\n");
+        Dictionary<string, string> ExpectedById = new Dictionary<string, string>(StringComparer.Ordinal);
+        ExpectedById["box"] = "Box is a grouping";
+        ExpectedById["margin"] = "Note is a note";
+        string PreviousId = "margin";
+        int Number = 0;
+        foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
+        {
+            string Id = "n" + Number.ToString();
+            Number++;
+            if (Metadata.ElementType == EnterpriseElementType.Junction)
+            {
+                Source.Append("and-junction ").Append(Id).Append(" \"And\" below ").Append(PreviousId).Append("\r\n");
+                ExpectedById[Id] = "And is an and junction";
+                PreviousId = Id;
+                string OrId = "n" + Number.ToString();
+                Number++;
+                Source.Append("or-junction ").Append(OrId).Append(" \"Or\" below ").Append(PreviousId).Append("\r\n");
+                ExpectedById[OrId] = "Or is an or junction";
+                PreviousId = OrId;
+                continue;
+            }
+
+            string Label = Metadata.KebabName;
+            Source.Append(Metadata.KebabName).Append(' ').Append(Id).Append(" \"").Append(Label).Append("\" below ").Append(PreviousId).Append("\r\n");
+            PreviousId = Id;
+            string TypeName = Metadata.KebabName.Replace('-', ' ');
+            string Article = "a";
+            char First = TypeName[0];
+            if (First == 'a' || First == 'e' || First == 'i' || First == 'o' || First == 'u')
+            {
+                Article = "an";
+            }
+
+            ExpectedById[Id] = Label + " is " + Article + " " + TypeName;
+        }
+
+        string Svg;
+        bool Rendered = MermaidDiagramExport.TryRenderPreviewSvg(Source.ToString(), out Svg);
+        Assert.That(Rendered, Is.True, Svg);
+        PreviewHoverIndex Index = PreviewHoverIndex.Build(Svg, Source.ToString());
+        StringBuilder Missing = new StringBuilder();
+        int Search = 0;
+        while (Search < Svg.Length)
+        {
+            int Marker = Svg.IndexOf("data-id=\"", Search, StringComparison.Ordinal);
+            if (Marker < 0)
+            {
+                break;
+            }
+
+            int IdStart = Marker + "data-id=\"".Length;
+            int IdEnd = Svg.IndexOf('"', IdStart);
+            string Id = Svg.Substring(IdStart, IdEnd - IdStart);
+            int TagEnd = Svg.IndexOf('>', Marker);
+            int BodyEnd = MatchingClose(Svg, TagEnd);
+            string Body = Svg.Substring(TagEnd + 1, BodyEnd - TagEnd - 1);
+            Search = BodyEnd + 4;
+            if (!TryCentre(Body, out double CentreX, out double CentreY))
+            {
+                Missing.AppendLine(Id + " has no measured shape");
+                continue;
+            }
+
+            string? Text = Index.Hit(CentreX, CentreY);
+            string Wanted = ExpectedById.ContainsKey(Id) ? ExpectedById[Id] : Id;
+            if (!string.Equals(Text, Wanted, StringComparison.Ordinal))
+            {
+                Missing.AppendLine(Id + " -> " + (Text ?? "(none)") + " expected " + Wanted);
+            }
+        }
+
+        Assert.That(Missing.ToString(), Is.EqualTo(string.Empty));
+    }
+
     private static string Line(string Relationship, string Kind, string SourceId, string TargetId)
     {
         string Source = "enterprise\ndirection TB\napplication-component a \"A\"\napplication-component b \"B\"\napplication-component shop \"Shop\"\napplication-component cart \"Cart\"\n" + Relationship + "\n";
@@ -143,5 +229,108 @@ public sealed class PreviewHoverTests
         }
 
         return false;
+    }
+
+    private static int MatchingClose(string Svg, int TagEnd)
+    {
+        int Depth = 1;
+        int Index = TagEnd + 1;
+        while (Index < Svg.Length && Depth > 0)
+        {
+            int NextOpen = Svg.IndexOf("<g", Index, StringComparison.Ordinal);
+            int NextClose = Svg.IndexOf("</g>", Index, StringComparison.Ordinal);
+            if (NextClose < 0)
+            {
+                return Svg.Length;
+            }
+
+            if (NextOpen >= 0 && NextOpen < NextClose)
+            {
+                Depth++;
+                Index = NextOpen + 2;
+            }
+            else
+            {
+                Depth--;
+                if (Depth == 0)
+                {
+                    return NextClose;
+                }
+
+                Index = NextClose + 4;
+            }
+        }
+
+        return Svg.Length;
+    }
+
+    private static bool TryCentre(string Body, out double CentreX, out double CentreY)
+    {
+        CentreX = 0;
+        CentreY = 0;
+        int Rect = Body.IndexOf("<rect ", StringComparison.Ordinal);
+        if (Rect >= 0)
+        {
+            int End = Body.IndexOf('>', Rect);
+            string Tag = Body.Substring(Rect, End - Rect);
+            CentreX = Read(Tag, "x") + (Read(Tag, "width") / 2.0);
+            CentreY = Read(Tag, "y") + (Read(Tag, "height") / 2.0);
+            return true;
+        }
+
+        int Ellipse = Body.IndexOf("<ellipse ", StringComparison.Ordinal);
+        if (Ellipse >= 0)
+        {
+            int End = Body.IndexOf('>', Ellipse);
+            string Tag = Body.Substring(Ellipse, End - Ellipse);
+            CentreX = Read(Tag, "cx");
+            CentreY = Read(Tag, "cy");
+            return true;
+        }
+
+        int Circle = Body.IndexOf("<circle ", StringComparison.Ordinal);
+        if (Circle >= 0)
+        {
+            int End = Body.IndexOf('>', Circle);
+            string Tag = Body.Substring(Circle, End - Circle);
+            CentreX = Read(Tag, "cx");
+            CentreY = Read(Tag, "cy");
+            return true;
+        }
+
+        int Path = Body.IndexOf(" d=\"M", StringComparison.Ordinal);
+        if (Path >= 0)
+        {
+            int Start = Path + " d=\"M".Length;
+            int End = Body.IndexOf('"', Start);
+            string Data = Body.Substring(Start, End - Start);
+            string[] Parts = Data.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (Parts.Length >= 2)
+            {
+                double.TryParse(Parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out CentreX);
+                double.TryParse(Parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out CentreY);
+                CentreX += 12;
+                CentreY += 12;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static double Read(string Tag, string Name)
+    {
+        string Marker = Name + "=\"";
+        int Start = Tag.IndexOf(Marker, StringComparison.Ordinal);
+        if (Start < 0)
+        {
+            return 0;
+        }
+
+        Start += Marker.Length;
+        int End = Tag.IndexOf('"', Start);
+        double Value;
+        double.TryParse(Tag.Substring(Start, End - Start), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out Value);
+        return Value;
     }
 }
