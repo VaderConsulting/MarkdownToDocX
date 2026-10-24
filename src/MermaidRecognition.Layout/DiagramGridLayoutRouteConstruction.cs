@@ -698,7 +698,8 @@ public static partial class DiagramGridLayout
             int SameSide = Contract.Edges.Count(Candidate => Candidate.SourceId == Route.SourceId
                 && !BackEdges.Contains(Candidate) && BoundsById.TryGetValue(Candidate.TargetId, out var Other)
                 && Math.Sign(Cross(Other) - Cross(Source)) == Side);
-            if (Side != 0 && !Occupied && SameSide == 1
+            if (!ForceCompassPorts
+                && Side != 0 && !Occupied && SameSide == 1
                 && !FlowchartDagrePresentation.IsDiamondShape(TargetShape)
                 && Math.Abs(Cross(Target) - SourceCross) >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX
                 && (TargetMain - Main(Source)) * Flow >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
@@ -713,6 +714,21 @@ public static partial class DiagramGridLayout
                     SetRouteEndpointSides(Route, Source, Target, Direct, Horizontal);
                 }
             }
+            if (ForceCompassPorts
+                && LayoutPoints.Count == 2
+                && (Math.Abs(LayoutPoints[0].X - LayoutPoints[1].X) <= 0.5
+                    || Math.Abs(LayoutPoints[0].Y - LayoutPoints[1].Y) <= 0.5))
+            {
+                (double StartX, double StartY) = LayoutPoints[0];
+                (double EndX, double EndY) = LayoutPoints[1];
+                LayoutPoints =
+                [
+                    (StartX, StartY),
+                    (StartX, (StartY + EndY) / 2.0),
+                    (EndX, EndY),
+                ];
+            }
+
             if (LayoutPoints.Count < 2) continue;
 
             Route.Points.Clear();
