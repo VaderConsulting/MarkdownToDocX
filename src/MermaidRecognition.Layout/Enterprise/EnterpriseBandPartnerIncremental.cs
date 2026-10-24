@@ -20,8 +20,7 @@ internal static partial class EnterpriseBandPlacement
                 .Select(Item => Item.Band)
                 .ToHashSet();
             HashSet<int> LoggedBandSkips = [];
-            HashSet<string> PublishedNodes = new(StringComparer.Ordinal);
-            for (int Sweep = 0; Sweep < 1; Sweep++)
+            for (int Sweep = 0; Sweep < DagreLayoutEngine.OrderSweepPatience; Sweep++)
             {
                 bool Changed = false;
                 IGrouping<int, DiagramGridLayout.GridNode>[] Bands = Nodes.GroupBy(Node => Classes[Node.Id].Band)
@@ -60,11 +59,6 @@ internal static partial class EnterpriseBandPlacement
 
                     foreach (DiagramGridLayout.GridNode Node in Band.Where(Node => Node.GroupId == null && !Hinted.Contains(Node.Id)))
                     {
-                        if (PublishedNodes.Contains(Node.Id))
-                        {
-                            continue;
-                        }
-
                         string[] Partners = CrossBandMembers(Node.Id, Targets).ToArray();
                         double Pull = Band.Count() == 1 && Partners.Length > 0
                             ? MedianColumn(Partners, Targets)
@@ -160,7 +154,6 @@ internal static partial class EnterpriseBandPlacement
 
                             Log(Diagnostics, "applied", Node.Id, "completed-partner-column", Region, Candidate);
                             Targets[Node.Id] = Candidate;
-                            PublishedNodes.Add(Node.Id);
                             Changed = true;
                             Moved = true;
                             break;
