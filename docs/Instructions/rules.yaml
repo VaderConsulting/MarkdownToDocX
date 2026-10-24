@@ -38,7 +38,7 @@ version: "1.0"
 generated_from: "docs/Instructions/rules.yaml (canonical source; reconciled to LAYOUT-RULEBOOK.md on 14 Oct 2026)"
 built: "2026-10-14"
 render_file: "LAYOUT-RULEBOOK.md"
-line_ending: "CRLF"
+line_ending: "LF"
 sections:
   - id: "title"
     order: 1
