@@ -55,6 +55,12 @@ public partial class MainForm : Form
     private readonly PreviewHoverDismissFilter _PreviewHoverDismiss;
     private PreviewHoverIndex? _PreviewHover;
     private string? _PreviewHoverText;
+    private readonly PreviewFocusSink _PreviewFocusSink = new PreviewFocusSink();
+    private PreviewObject? _PreviewSelection;
+    private bool _SyncingSelectionFromPreview;
+    private int _EditorTextVersion;
+    private int _PreviewIndexTextVersion = -1;
+    private int _RenderTextVersion;
     private string? _CurrentSourcePath;
     private string? _CurrentCoArchiFolder;
     private string? _CoArchiDiskSnapshot;
@@ -261,6 +267,10 @@ public partial class MainForm : Form
         PreviewCanvas.Resize += PreviewCanvas_Resize;
         PreviewImage.MouseMove += PreviewImage_MouseMove;
         PreviewImage.MouseLeave += PreviewImage_MouseLeave;
+        PreviewImage.MouseDown += PreviewImage_MouseDown;
+        PreviewImage.Paint += PreviewImage_Paint;
+        _PreviewFocusSink.EscapePressed += PreviewFocusSink_EscapePressed;
+        PreviewHost.Controls.Add(_PreviewFocusSink);
         PreviewCanvas.MouseLeave += PreviewImage_MouseLeave;
         Deactivate += MainForm_Deactivate;
         Application.AddMessageFilter(_PreviewHoverDismiss);
@@ -413,6 +423,7 @@ public partial class MainForm : Form
             return;
         }
 
+        _EditorTextVersion++;
         _IsDirty = true;
         _SelectedOccurrences.Clear();
         UpdateTitle();
@@ -431,6 +442,7 @@ public partial class MainForm : Form
         UpdateSignatureHelp();
         UpdateCaretDiagnosticStatus();
         ElementToolbar.UpdateFromEditor(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
+        SyncPreviewSelectionFromCaret();
     }
 
     private void CodeView_ColoursRefreshing(object? Sender, EventArgs E)
@@ -602,6 +614,7 @@ public partial class MainForm : Form
         _RenderCancellation = new CancellationTokenSource();
         CancellationToken Token = _RenderCancellation.Token;
         int Generation = Interlocked.Increment(ref _RenderGeneration);
+        _RenderTextVersion = _EditorTextVersion;
         if (string.IsNullOrWhiteSpace(Source) || IsCommentOnly(Source))
         {
             _DiagramMetadata = DiagramMetadata.Empty(Generation);
@@ -695,6 +708,8 @@ public partial class MainForm : Form
             _LastPngBytes = (byte[])PngBytes.Clone();
             _LastSvg = Svg;
             _PreviewHover = PreviewHoverIndex.Build(Svg, CodeView.Editor.Text);
+            _PreviewIndexTextVersion = _RenderTextVersion;
+            RestorePreviewSelection();
             _BrokenSince = null;
             PreviewBanner.Visible = LegacyPreview;
             PreviewBanner.Height = LegacyPreview ? 28 : 0;
@@ -734,6 +749,7 @@ public partial class MainForm : Form
             }
 
             _PreviewHover = null;
+            _PreviewSelection = null;
             HidePreviewHover();
         }
 
@@ -843,6 +859,206 @@ public partial class MainForm : Form
     private void PreviewImage_MouseLeave(object? Sender, EventArgs E)
     {
         HidePreviewHover();
+    }
+
+    /// <summary>Gets the selected preview object, or null when nothing is selected.</summary>
+    internal PreviewObject? PreviewSelectionObject
+    {
+        get
+        {
+            return _PreviewSelection;
+        }
+    }
+
+    /// <summary>Gets the hit index for the picture in the preview.</summary>
+    internal PreviewHoverIndex? PreviewIndex
+    {
+        get
+        {
+            return _PreviewHover;
+        }
+    }
+
+    /// <summary>Gets whether the preview index was built from the text now in the editor.</summary>
+    internal bool PreviewIndexIsCurrent
+    {
+        get
+        {
+            return _PreviewHover != null && _PreviewIndexTextVersion == _EditorTextVersion;
+        }
+    }
+
+    /// <summary>
+    /// Selects a preview object and selects its declaration in the editor.
+    /// </summary>
+    /// <param name="Selected">Object to select, or null to clear the selection.</param>
+    internal void SelectPreviewObject(PreviewObject? Selected)
+    {
+        SelectPreviewObject(Selected, SyncEditor: true);
+    }
+
+    /// <summary>
+    /// Does what a left click at a point in the preview picture does.
+    /// </summary>
+    /// <param name="ClientPoint">Point in picture-box client pixels.</param>
+    internal void ClickPreview(Point ClientPoint)
+    {
+        if (_PreviewFocusSink.CanFocus)
+        {
+            _PreviewFocusSink.Focus();
+        }
+
+        SelectPreviewObject(HitPreviewObject(ClientPoint.X, ClientPoint.Y), SyncEditor: true);
+    }
+
+    /// <summary>
+    /// Does what Esc does while the preview has focus.
+    /// </summary>
+    internal void PressPreviewEscape()
+    {
+        _PreviewFocusSink.HandleKey(Keys.Escape);
+    }
+
+    /// <summary>
+    /// Returns the object under a point in the preview picture.
+    /// </summary>
+    /// <param name="ClientX">Pointer position in the picture box.</param>
+    /// <param name="ClientY">Pointer position in the picture box.</param>
+    /// <returns>The object, or null for empty space.</returns>
+    internal PreviewObject? HitPreviewObject(int ClientX, int ClientY)
+    {
+        if (!TryGetPreviewTransform(out double ScaleX, out double ScaleY, out double OffsetX, out double OffsetY) || _PreviewHover == null)
+        {
+            return null;
+        }
+
+        double SvgX = (ClientX - OffsetX) / ScaleX;
+        double SvgY = (ClientY - OffsetY) / ScaleY;
+        return _PreviewHover.HitObject(SvgX, SvgY, PreviewSelection.CLICK_TOLERANCE / Math.Min(ScaleX, ScaleY));
+    }
+
+    private bool TryGetPreviewTransform(out double ScaleX, out double ScaleY, out double OffsetX, out double OffsetY)
+    {
+        ScaleX = 0;
+        ScaleY = 0;
+        OffsetX = 0;
+        OffsetY = 0;
+        Image? Picture = PreviewImage.Image;
+        if (Picture == null || _PreviewHover == null)
+        {
+            return false;
+        }
+
+        return PreviewSelection.TryGetSvgToClient(
+            PreviewImage.ClientSize.Width,
+            PreviewImage.ClientSize.Height,
+            Picture.Width,
+            Picture.Height,
+            _PreviewHover.Width,
+            _PreviewHover.Height,
+            out ScaleX,
+            out ScaleY,
+            out OffsetX,
+            out OffsetY);
+    }
+
+    private void PreviewImage_MouseDown(object? Sender, MouseEventArgs E)
+    {
+        if (E.Button != MouseButtons.Left)
+        {
+            return;
+        }
+
+        ClickPreview(E.Location);
+    }
+
+    private void PreviewImage_Paint(object? Sender, PaintEventArgs E)
+    {
+        if (_PreviewSelection == null)
+        {
+            return;
+        }
+
+        if (TryGetPreviewTransform(out double ScaleX, out double ScaleY, out double OffsetX, out double OffsetY))
+        {
+            PreviewSelection.Paint(E.Graphics, _PreviewSelection, ScaleX, ScaleY, OffsetX, OffsetY);
+        }
+    }
+
+    private void PreviewFocusSink_EscapePressed(object? Sender, EventArgs E)
+    {
+        SelectPreviewObject(null, SyncEditor: false);
+    }
+
+    private void SelectPreviewObject(PreviewObject? Selected, bool SyncEditor)
+    {
+        _PreviewSelection = Selected;
+        PreviewImage.Invalidate();
+        if (!SyncEditor || Selected == null || Selected.LineNumber < 1 || !PreviewIndexIsCurrent)
+        {
+            return;
+        }
+
+        string Text = CodeView.Editor.Text;
+        if (!PreviewSelection.TryGetLineSelection(Text, Selected.LineNumber, out int Start, out int Length))
+        {
+            return;
+        }
+
+        _SyncingSelectionFromPreview = true;
+        try
+        {
+            CodeView.Editor.Select(Start, Length);
+            CodeView.Editor.ScrollToCaret();
+        }
+        finally
+        {
+            _SyncingSelectionFromPreview = false;
+        }
+    }
+
+    private PreviewObject? PreviewObjectAtCaret()
+    {
+        if (_PreviewHover == null)
+        {
+            return null;
+        }
+
+        int Line = PreviewSelection.LineNumberAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
+        return _PreviewHover.ObjectAtLine(Line);
+    }
+
+    private void SyncPreviewSelectionFromCaret()
+    {
+        if (_SyncingSelectionFromPreview || CodeView.IsApplyingFormatting || !PreviewIndexIsCurrent)
+        {
+            return;
+        }
+
+        PreviewObject? AtCaret = PreviewObjectAtCaret();
+        if (ReferenceEquals(AtCaret, _PreviewSelection))
+        {
+            return;
+        }
+
+        _PreviewSelection = AtCaret;
+        PreviewImage.Invalidate();
+    }
+
+    private void RestorePreviewSelection()
+    {
+        PreviewObject? Restored = _PreviewHover?.FindObject(_PreviewSelection?.Key);
+        if (CodeView.Editor.Focused)
+        {
+            PreviewObject? AtCaret = PreviewObjectAtCaret();
+            if (AtCaret != null)
+            {
+                Restored = AtCaret;
+            }
+        }
+
+        _PreviewSelection = Restored;
+        PreviewImage.Invalidate();
     }
 
     private void MainForm_Deactivate(object? Sender, EventArgs E)

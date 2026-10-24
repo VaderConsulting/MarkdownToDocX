@@ -9,7 +9,7 @@ namespace LiveEditor;
 /// <summary>
 /// Maps a point in the preview picture back to the node or relationship under it.
 /// </summary>
-internal sealed class PreviewHoverIndex
+internal sealed partial class PreviewHoverIndex
 {
     private const double EDGE_TOLERANCE = 8.0;
 
@@ -52,14 +52,22 @@ internal sealed class PreviewHoverIndex
     public static PreviewHoverIndex Build(string? Svg, string? Source)
     {
         PreviewHoverIndex Index = new PreviewHoverIndex();
-        if (string.IsNullOrWhiteSpace(Svg) || !EnterpriseParser.IsEnterpriseSource(Source))
+        if (string.IsNullOrWhiteSpace(Svg))
         {
+            return Index;
+        }
+
+        if (!EnterpriseParser.IsEnterpriseSource(Source))
+        {
+            Index.ReadSize(Svg);
+            Index.ReadEdgeObjects(Svg, Source ?? string.Empty);
             return Index;
         }
 
         EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
         Index.ReadSize(Svg);
         Index.ReadGeometry(Svg, Parsed.Document);
+        Index.FinishEnterpriseObjects(Parsed.Document);
         return Index;
     }
 
@@ -255,6 +263,8 @@ internal sealed class PreviewHoverIndex
         Shape.Bottom = Bottom;
         Shape.Text = ShapeSentence(Document, Id);
         _Shapes.Add(Shape);
+        bool IsGroup = ReadStringAttribute(Tag, "class").Equals("group", StringComparison.Ordinal);
+        AddShapeObject(Id, IsGroup, Body, ShiftX, ShiftY, Left, Top, Right, Bottom);
     }
 
     private void AddStroke(EnterpriseDocument Document, string Tag, string ClassName, string Body, double ShiftX, double ShiftY)
@@ -302,6 +312,7 @@ internal sealed class PreviewHoverIndex
         Stroke.Text = RelationshipSentence(Document, SourceId, TargetId, KindName);
         Stroke.Segments = Segments;
         _Strokes.Add(Stroke);
+        AddLineObject(SourceId, TargetId, KindName, ReadOutlines(Body, ShiftX, ShiftY));
     }
 
     private static string ShapeSentence(EnterpriseDocument Document, string Id)
