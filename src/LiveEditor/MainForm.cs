@@ -61,6 +61,7 @@ public partial class MainForm : Form
     private bool _IsDirty;
     private bool _SuppressWatcher;
     private int _RenderGeneration;
+    private DiagramMetadata _DiagramMetadata = DiagramMetadata.Empty(0);
     private double _PreviewZoom = 1.0;
     private DateTime? _BrokenSince;
 
@@ -603,6 +604,8 @@ public partial class MainForm : Form
         int Generation = Interlocked.Increment(ref _RenderGeneration);
         if (string.IsNullOrWhiteSpace(Source) || IsCommentOnly(Source))
         {
+            _DiagramMetadata = DiagramMetadata.Empty(Generation);
+            _DiagramMetadata.ReportProgress(0, "Idle");
             SetStatus("Idle");
             return;
         }
@@ -618,18 +621,24 @@ public partial class MainForm : Form
         try
         {
             Token.ThrowIfCancellationRequested();
+            DiagramMetadata Metadata = DiagramMetadata.Build(Source, Generation);
+            BeginInvoke(() => PublishDiagramMetadata(Metadata));
+            Token.ThrowIfCancellationRequested();
+            ReportRenderProgress(Generation, 10, "Laying out");
             string? Svg = null;
             byte[]? PngBytes;
             if (LegacyPreview)
             {
                 Svg = MermaidDiagramExport.RenderSvg(Source);
                 Token.ThrowIfCancellationRequested();
+                ReportRenderProgress(Generation, 80, "Drawing picture");
                 PngBytes = MermaidDiagramExport.TryRasterizeSvg(Svg);
             }
             else if (MermaidDiagramExport.TryRenderPreviewSvg(Source, out string PreviewSvg))
             {
                 Svg = PreviewSvg;
                 Token.ThrowIfCancellationRequested();
+                ReportRenderProgress(Generation, 80, "Drawing picture");
                 PngBytes = MermaidDiagramExport.TryRasterizeSvg(Svg);
             }
             else
@@ -639,6 +648,7 @@ public partial class MainForm : Form
 
             Token.ThrowIfCancellationRequested();
             Timer.Stop();
+            ReportRenderProgress(Generation, 95, "Showing picture");
             if (PngBytes == null || PngBytes.Length == 0)
             {
                 BeginInvoke(() => ApplyRenderFailure(Generation, "Incomplete diagram", Timer.ElapsedMilliseconds));
@@ -690,6 +700,7 @@ public partial class MainForm : Form
             PreviewBanner.Height = LegacyPreview ? 28 : 0;
             PreviewBanner.Text = LegacyPreview ? "Legacy Naiad preview" : string.Empty;
             ApplyPreviewZoom();
+            ReportRenderProgressNow(Generation, 100, "Done");
             SetStatus(CaretStatusOr("OK"));
             UpdateRenderTiming(ElapsedMilliseconds);
             UpdateCaretDiagnosticStatus();
@@ -705,6 +716,11 @@ public partial class MainForm : Form
         if (Generation != _RenderGeneration || IsDisposed)
         {
             return;
+        }
+
+        if (_DiagramMetadata.Generation == Generation)
+        {
+            _DiagramMetadata.ReportFailure(TruncateStatus(Message));
         }
 
         _BrokenSince ??= DateTime.Now;
@@ -728,6 +744,52 @@ public partial class MainForm : Form
         SetStatus(CaretStatusOr(TruncateStatus(Message)));
         UpdateRenderTiming(ElapsedMilliseconds);
         UpdateCaretDiagnosticStatus();
+    }
+
+    /// <summary>
+    /// Gets the metadata for the diagram in the editor: its type, nodes and relationships, and how far its render has got.
+    /// </summary>
+    internal DiagramMetadata DiagramMetadata
+    {
+        get
+        {
+            return _DiagramMetadata;
+        }
+    }
+
+    /// <summary>Raised on the UI thread when new diagram metadata replaces the old.</summary>
+    internal event EventHandler? DiagramMetadataChanged;
+
+    private void PublishDiagramMetadata(DiagramMetadata Metadata)
+    {
+        if (Metadata.Generation != _RenderGeneration || IsDisposed)
+        {
+            return;
+        }
+
+        _DiagramMetadata = Metadata;
+        Metadata.ReportProgress(5, "Parsed");
+        DiagramMetadataChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ReportRenderProgress(int Generation, int Percent, string Stage)
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+
+        BeginInvoke(() => ReportRenderProgressNow(Generation, Percent, Stage));
+    }
+
+    private void ReportRenderProgressNow(int Generation, int Percent, string Stage)
+    {
+        if (Generation != _RenderGeneration || _DiagramMetadata.Generation != Generation || IsDisposed)
+        {
+            return;
+        }
+
+        _DiagramMetadata.ReportProgress(Percent, Stage);
     }
 
     private void UpdateRenderTiming(long ElapsedMilliseconds)
