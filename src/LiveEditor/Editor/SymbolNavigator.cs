@@ -105,6 +105,97 @@ internal static class SymbolNavigator
         return Found;
     }
 
+    /// <summary>
+    /// Finds each whole-token use of an identifier. A longer token that only starts with the same letters is left out.
+    /// </summary>
+    /// <param name="Source">Editor text.</param>
+    /// <param name="Id">Identifier to find.</param>
+    /// <returns>Start index of each match.</returns>
+    public static List<int> FindExactIds(string Source, string Id)
+    {
+        List<int> Results = new List<int>();
+        if (string.IsNullOrEmpty(Source) || string.IsNullOrEmpty(Id))
+        {
+            return Results;
+        }
+
+        int From = 0;
+        while (From <= Source.Length - Id.Length)
+        {
+            int Found = Source.IndexOf(Id, From, StringComparison.Ordinal);
+            if (Found < 0)
+            {
+                break;
+            }
+
+            bool LeftBound = Found == 0 || !IsIdChar(Source[Found - 1]);
+            int End = Found + Id.Length;
+            bool RightBound = End >= Source.Length || !IsIdChar(Source[End]);
+            if (LeftBound && RightBound)
+            {
+                Results.Add(Found);
+            }
+
+            From = Found + Id.Length;
+        }
+
+        return Results;
+    }
+
+    /// <summary>
+    /// Returns true when the token is an element identifier rather than a type, keyword, or relationship name.
+    /// </summary>
+    /// <param name="Token">Selected token.</param>
+    /// <returns>True when other copies of this token should be marked.</returns>
+    public static bool IsReferenceIdentifier(string Token)
+    {
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            return false;
+        }
+
+        if (EnterpriseElementCatalog.TryResolveElementType(Token, out _))
+        {
+            return false;
+        }
+
+        if (Token.Length > 1 && EnterpriseElementCatalog.TryResolveRelationship(Token, out _))
+        {
+            return false;
+        }
+
+        if (ReservedWords.Contains(Token))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static readonly HashSet<string> ReservedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "enterprise",
+        "enterprise-beta",
+        "title",
+        "version",
+        "direction",
+        "group",
+        "note",
+        "in",
+        "end",
+        "class",
+        "classDef",
+        "style",
+        "linkStyle",
+        "accTitle",
+        "accDescr",
+        "TB",
+        "TD",
+        "BT",
+        "LR",
+        "RL"
+    };
+
     private static bool IsIdChar(char Character)
     {
         return char.IsLetterOrDigit(Character)

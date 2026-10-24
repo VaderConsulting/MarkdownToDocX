@@ -34,6 +34,10 @@ internal sealed class SessionSettings
 
     public bool VerticalSplit { get; set; } = true;
 
+    public bool WideToolbar { get; set; } = true;
+
+    public bool EditorOnLeft { get; set; } = true;
+
     public bool LegacyPreview { get; set; }
 
     public bool PreviewFitToWindow { get; set; } = true;

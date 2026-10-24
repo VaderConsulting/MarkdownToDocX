@@ -41,9 +41,9 @@ public partial class MainForm : Form
         + "  data-object order \"Order\"\r\n"
         + "  webShop -";
 
-    private readonly EnterpriseCompletionEngine _CompletionEngine = new EnterpriseCompletionEngine();
-    private readonly CompletionPopup _CompletionPopup = new CompletionPopup();
+    private readonly EditorIntelliSenseController _IntelliSense;
     private readonly bool _CapturePreviewOnShown;
+    private readonly bool _PersistSession;
     private readonly List<EnterpriseDiagnostic> _Diagnostics = new List<EnterpriseDiagnostic>();
     private readonly List<int> _SelectedOccurrences = new List<int>();
     private SessionSettings _Settings;
@@ -54,14 +54,21 @@ public partial class MainForm : Form
     private Image? _LastGoodPreview;
     private byte[]? _LastPngBytes;
     private string? _LastSvg;
+    private readonly PreviewHoverWindow _PreviewHoverWindow = new PreviewHoverWindow();
+    private readonly PreviewHoverDismissFilter _PreviewHoverDismiss;
+    private PreviewHoverIndex? _PreviewHover;
+    private string? _PreviewHoverText;
     private string? _CurrentSourcePath;
     private string? _CurrentCoArchiFolder;
     private string? _CoArchiDiskSnapshot;
     private bool _IsDirty;
-    private bool _SuppressCompletion;
     private bool _SuppressWatcher;
     private bool _SuppressCaretUi;
     private bool _IsApplyingEditorFormatting;
+    private string? _MarkedId;
+    private int _MarkedStart = -1;
+    private int _MarkedLength;
+    private readonly List<int> _MarkedStarts = new List<int>();
     private int _RenderGeneration;
     private double _PreviewZoom = 1.0;
     private DateTime? _BrokenSince;
@@ -79,10 +86,31 @@ public partial class MainForm : Form
     /// </summary>
     /// <param name="CapturePreviewOnShown">When true, captures the completion preview and closes the window.</param>
     public MainForm(bool CapturePreviewOnShown)
+        : this(CapturePreviewOnShown, LiveEditorFeatureGate.T_PersistentSession ? SessionSettings.Load() : new SessionSettings(), PersistSession: true)
+    {
+    }
+
+    /// <summary>
+    /// Creates the editor from a session that is not written back to disk.
+    /// </summary>
+    /// <param name="Settings">Session used for this window only.</param>
+    internal MainForm(SessionSettings Settings)
+        : this(CapturePreviewOnShown: false, Settings, PersistSession: false)
+    {
+    }
+
+    private MainForm(bool CapturePreviewOnShown, SessionSettings Settings, bool PersistSession)
     {
         _CapturePreviewOnShown = CapturePreviewOnShown;
-        _Settings = LiveEditorFeatureGate.T_PersistentSession ? SessionSettings.Load() : new SessionSettings();
+        _PersistSession = PersistSession;
+        _Settings = Settings;
         InitializeComponent();
+        _PreviewHoverDismiss = new PreviewHoverDismissFilter(this);
+        LineNumberColumn.Bind(SourceEditor);
+        _IntelliSense = new EditorIntelliSenseController(SourceEditor);
+        _IntelliSense.ListOpened += IntelliSense_ListOpened;
+        _IntelliSense.StatusChanged += IntelliSense_StatusChanged;
+        _IntelliSense.Accepted += CompletionPopup_ItemAccepted;
         _GhostText = LiveEditorFeatureGate.F_GhostText ? new GhostTextOverlay(SourceEditor) : null;
         WireEvents();
         ApplySettings();
@@ -114,7 +142,8 @@ public partial class MainForm : Form
         int MinimumPane = Math.Min(240, Math.Max(120, Span / 4));
         EditorSplit.Panel1MinSize = MinimumPane;
         EditorSplit.Panel2MinSize = MinimumPane;
-        int Preferred = (int)Math.Round(Span * 0.45);
+        int PreferredFraction = _Settings.EditorOnLeft ? 42 : 58;
+        int Preferred = (int)Math.Round(Span * PreferredFraction / 100.0);
         int Maximum = Math.Max(MinimumPane, Span - MinimumPane - EditorSplit.SplitterWidth);
         EditorSplit.SplitterDistance = Math.Max(MinimumPane, Math.Min(Maximum, Preferred));
     }
@@ -124,13 +153,12 @@ public partial class MainForm : Form
         EnsureEditorSplitLayout();
         SourceEditor.Focus();
         SourceEditor.SelectionStart = Math.Min(_Settings.CaretIndex, SourceEditor.TextLength);
-        RefreshCompletion(Force: true);
         if (!_CapturePreviewOnShown)
         {
             return;
         }
 
-        _SuppressCompletion = true;
+        _IntelliSense.Suppress = true;
         try
         {
             SourceEditor.Text = COMPLETION_DEMO_SOURCE;
@@ -138,11 +166,11 @@ public partial class MainForm : Form
         }
         finally
         {
-            _SuppressCompletion = false;
+            _IntelliSense.Suppress = false;
         }
 
         await Task.Delay(500).ConfigureAwait(true);
-        RefreshCompletion(Force: true);
+        _IntelliSense.Refresh(Force: true);
         await Task.Delay(300).ConfigureAwait(true);
         string OutputPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath) ?? Environment.CurrentDirectory, "liveeditor-completion-preview.png");
         try
@@ -160,7 +188,7 @@ public partial class MainForm : Form
 
     private void WriteCompletionPreviewBitmap(string OutputPath)
     {
-        CompletionContext Context = _CompletionEngine.Build(SourceEditor.Text, SourceEditor.SelectionStart);
+        CompletionContext Context = _IntelliSense.Assist.BuildMembers(SourceEditor.Text, SourceEditor.SelectionStart);
         using Bitmap FormBitmap = new Bitmap(ClientSize.Width, ClientSize.Height);
         DrawToBitmap(FormBitmap, new Rectangle(Point.Empty, ClientSize));
         int PopupWidth = 440;
@@ -220,16 +248,41 @@ public partial class MainForm : Form
         Canvas.Save(OutputPath, System.Drawing.Imaging.ImageFormat.Png);
     }
 
+    private void IntelliSense_ListOpened(object? Sender, EventArgs E)
+    {
+        _GhostContext = null;
+        _GhostText?.Hide();
+    }
+
+    private void IntelliSense_StatusChanged(object? Sender, string Message)
+    {
+        SetStatus(Message);
+    }
+
     private void WireEvents()
     {
+        _IntelliSense.Attach();
         SourceEditor.TextChanged += SourceEditor_TextChanged;
         SourceEditor.SelectionChanged += SourceEditor_SelectionChanged;
+        SourceEditor.MouseDoubleClick += SourceEditor_MouseDoubleClick;
         SourceEditor.KeyDown += SourceEditor_KeyDown;
         SourceEditor.PreviewKeyDown += SourceEditor_PreviewKeyDown;
-        SourceEditor.MouseDown += SourceEditor_MouseDown;
         SourceEditor.LostFocus += SourceEditor_LostFocus;
         PreviewCanvas.MouseWheel += PreviewCanvas_MouseWheel;
         PreviewCanvas.Resize += PreviewCanvas_Resize;
+        PreviewImage.MouseMove += PreviewImage_MouseMove;
+        PreviewImage.MouseLeave += PreviewImage_MouseLeave;
+        PreviewCanvas.MouseLeave += PreviewImage_MouseLeave;
+        Deactivate += MainForm_Deactivate;
+        Application.AddMessageFilter(_PreviewHoverDismiss);
+        PreviewHost.Resize += PreviewHost_Resize;
+        PreviewZoomInButton.Click += ZoomInMenuItem_Click;
+        PreviewZoomOutButton.Click += ZoomOutMenuItem_Click;
+        PreviewFitButton.Click += FitPreviewMenuItem_Click;
+        PreviewFitButton.Paint += PreviewFitButton_Paint;
+        ElementToolbar.BindSource(CurrentEditorText);
+        ElementToolbar.InsertRequested += ElementToolbar_InsertRequested;
+        ElementToolbar.PromptClosed += ElementToolbar_PromptClosed;
         DiagnosticsList.DoubleClick += DiagnosticsList_DoubleClick;
         RenderTimer.Tick += RenderTimer_Tick;
         HighlightTimer.Tick += HighlightTimer_Tick;
@@ -238,6 +291,9 @@ public partial class MainForm : Form
         SaveAsMenuItem.Click += SaveAsMenuItem_Click;
         ExitMenuItem.Click += ExitMenuItem_Click;
         CopySourceMenuItem.Click += CopySourceMenuItem_Click;
+        ListMembersMenuItem.Click += ListMembersMenuItem_Click;
+        ParameterInfoMenuItem.Click += ParameterInfoMenuItem_Click;
+        QuickInfoMenuItem.Click += QuickInfoMenuItem_Click;
         RenameSymbolMenuItem.Click += RenameSymbolMenuItem_Click;
         GoToDefinitionMenuItem.Click += GoToDefinitionMenuItem_Click;
         FindReferencesMenuItem.Click += FindReferencesMenuItem_Click;
@@ -263,7 +319,6 @@ public partial class MainForm : Form
         OpenCoArchiFolderMenuItem.Click += OpenCoArchiFolderMenuItem_Click;
         SaveCoArchiFolderMenuItem.Click += SaveCoArchiFolderMenuItem_Click;
         FormClosing += MainForm_FormClosing;
-        _CompletionPopup.ItemAccepted += CompletionPopup_ItemAccepted;
     }
 
     private void UpdateFeatureAvailability()
@@ -280,6 +335,9 @@ public partial class MainForm : Form
         ZoomOutMenuItem.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
         ZoomResetMenuItem.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
         FitPreviewMenuItem.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
+        PreviewZoomInButton.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
+        PreviewZoomOutButton.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
+        PreviewFitButton.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
         ToggleDiagnosticsMenuItem.Enabled = LiveEditorFeatureGate.X_DiagnosticsPanel;
         ToggleMinimapMenuItem.Enabled = LiveEditorFeatureGate.Y_Minimap;
         ToggleLegacyPreviewMenuItem.Enabled = LiveEditorFeatureGate.S_LegacyPreview;
@@ -309,6 +367,7 @@ public partial class MainForm : Form
         ToggleMinimapMenuItem.Checked = MinimapBox.Visible;
         ToggleThemeMenuItem.Checked = _Settings.DarkTheme;
         ApplyEditorPreferences();
+        ApplyWorkspaceLayout();
     }
 
     private void ApplyEditorPreferences()
@@ -355,14 +414,12 @@ public partial class MainForm : Form
 
         _IsDirty = true;
         _SelectedOccurrences.Clear();
+        ClearMarkedId();
         UpdateTitle();
         UpdateCoArchiDirtyBadge();
         QueueRender();
         QueueHighlight();
-        if (!_SuppressCompletion)
-        {
-            RefreshCompletion();
-        }
+        ElementToolbar.UpdateFromEditor(SourceEditor.Text, SourceEditor.SelectionStart);
     }
 
     private void SourceEditor_SelectionChanged(object? Sender, EventArgs E)
@@ -374,15 +431,124 @@ public partial class MainForm : Form
 
         UpdateSignatureHelp();
         UpdateCaretDiagnosticStatus();
-        if (_CompletionPopup.IsVisible)
+        ElementToolbar.UpdateFromEditor(SourceEditor.Text, SourceEditor.SelectionStart);
+        if (_MarkedId != null && !MarkedSelectionHeld())
         {
-            _CompletionPopup.Reposition();
+            List<int> Starts = new List<int>(_MarkedStarts);
+            int Length = _MarkedLength;
+            ClearMarkedId();
+            bool PreviousPause = _IntelliSense.Pause;
+            _IsApplyingEditorFormatting = true;
+            _IntelliSense.Pause = true;
+            try
+            {
+                MermaidSyntaxHighlighter.ClearOccurrenceMarks(SourceEditor, Starts, Length);
+            }
+            finally
+            {
+                _IsApplyingEditorFormatting = false;
+                _IntelliSense.Pause = PreviousPause;
+            }
+
+            ApplyEditorColours();
+        }
+    }
+
+    private void SourceEditor_MouseDoubleClick(object? Sender, MouseEventArgs E)
+    {
+        string Selected = SourceEditor.SelectedText;
+        if (Selected.Length == 0 || Selected.IndexOfAny(new char[] { '\r', '\n', ' ', '\t' }) >= 0)
+        {
+            return;
+        }
+
+        string? Id = SymbolNavigator.IdAt(SourceEditor.Text, SourceEditor.SelectionStart);
+        if (!string.Equals(Selected, Id, StringComparison.Ordinal) || !SymbolNavigator.IsReferenceIdentifier(Selected))
+        {
+            return;
+        }
+
+        _MarkedId = Selected;
+        _MarkedStart = SourceEditor.SelectionStart;
+        _MarkedLength = SourceEditor.SelectionLength;
+        ApplyIdMarks();
+    }
+
+    private bool MarkedSelectionHeld()
+    {
+        return _MarkedId != null
+            && SourceEditor.SelectionStart == _MarkedStart
+            && SourceEditor.SelectionLength == _MarkedLength
+            && string.Equals(SourceEditor.SelectedText, _MarkedId, StringComparison.Ordinal);
+    }
+
+    private void ClearMarkedId()
+    {
+        _MarkedId = null;
+        _MarkedStart = -1;
+        _MarkedLength = 0;
+        _MarkedStarts.Clear();
+    }
+
+    /// <summary>
+    /// True while a double-clicked identifier is still the selection.
+    /// </summary>
+    internal bool HasMarkedIdentifier
+    {
+        get
+        {
+            return _MarkedId != null;
+        }
+    }
+
+    /// <summary>
+    /// Screen position of the editor popup, used to check that it stays with the selected word.
+    /// </summary>
+    internal Point AssistPopupLocation
+    {
+        get
+        {
+            return _IntelliSense.Popup.WindowLocation;
+        }
+    }
+
+    /// <summary>
+    /// True when the editor popup is open.
+    /// </summary>
+    internal bool AssistPopupVisible
+    {
+        get
+        {
+            return _IntelliSense.Popup.IsVisible;
+        }
+    }
+
+    /// <summary>
+    /// Reads the background of one character without moving the visible selection.
+    /// </summary>
+    /// <param name="Index">Character index.</param>
+    /// <returns>Background colour at that character.</returns>
+    internal Color TextBackColorAt(int Index)
+    {
+        _SuppressCaretUi = true;
+        try
+        {
+            int Start = SourceEditor.SelectionStart;
+            int Length = SourceEditor.SelectionLength;
+            SourceEditor.Select(Math.Max(0, Index), 1);
+            Color Colour = SourceEditor.SelectionBackColor;
+            SourceEditor.Select(Start, Length);
+            return Colour;
+        }
+        finally
+        {
+            _SuppressCaretUi = false;
         }
     }
 
     private void SourceEditor_PreviewKeyDown(object? Sender, PreviewKeyDownEventArgs E)
     {
-        if ((_CompletionPopup.IsVisible || _GhostContext != null) && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Up || E.KeyCode == Keys.Down || E.KeyCode == Keys.Escape))
+        if ((_IntelliSense.Popup.IsVisible || _GhostContext != null) && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Up || E.KeyCode == Keys.Down || E.KeyCode == Keys.Escape))
         {
             E.IsInputKey = true;
         }
@@ -390,18 +556,14 @@ public partial class MainForm : Form
 
     private void SourceEditor_KeyDown(object? Sender, KeyEventArgs E)
     {
-        if (E.Control && E.KeyCode == Keys.Space)
+        if (E.Handled)
         {
-            RefreshCompletion(Force: true);
-            E.SuppressKeyPress = true;
-            E.Handled = true;
-            return;
-        }
+            if (E.KeyCode == Keys.Escape)
+            {
+                _GhostContext = null;
+                _GhostText?.Hide();
+            }
 
-        if (_CompletionPopup.TryHandleKey(E.KeyData))
-        {
-            E.SuppressKeyPress = true;
-            E.Handled = true;
             return;
         }
 
@@ -462,11 +624,6 @@ public partial class MainForm : Form
         return true;
     }
 
-    private void SourceEditor_MouseDown(object? Sender, MouseEventArgs E)
-    {
-        HideCompletion();
-    }
-
     private void SourceEditor_LostFocus(object? Sender, EventArgs E)
     {
         _GhostText?.Hide();
@@ -481,76 +638,6 @@ public partial class MainForm : Form
         QueueRender();
         QueueHighlight();
         SetStatus($"Inserted {Item.DisplayText}");
-        BeginInvoke(RefreshCompletion);
-    }
-
-    private void RefreshCompletion()
-    {
-        RefreshCompletion(Force: false);
-    }
-
-    private void RefreshCompletion(bool Force)
-    {
-        if (IsDisposed || (!SourceEditor.Focused && !Force))
-        {
-            return;
-        }
-
-        CompletionContext Context = _CompletionEngine.Build(SourceEditor.Text, SourceEditor.SelectionStart);
-        UpdateSignatureHelp();
-        if (Context.TokenKind == CompletionTokenKind.None)
-        {
-            HideCompletion();
-            if (Force && !string.IsNullOrWhiteSpace(Context.StatusMessage))
-            {
-                SetStatus(Context.StatusMessage);
-            }
-
-            return;
-        }
-
-        if (Context.Items.Count == 0)
-        {
-            HideCompletion();
-            if (!string.IsNullOrWhiteSpace(Context.StatusMessage))
-            {
-                SetStatus(TruncateStatus(Context.StatusMessage));
-            }
-
-            return;
-        }
-
-        if (!Force && IsCompletedCompletionToken(Context))
-        {
-            HideCompletion();
-            return;
-        }
-
-        // Prefer the list popup over RichTextBox ghost painting - Paint overlays on
-        // RichTextBox are unreliable and were drawing over real source text.
-        _GhostContext = null;
-        _GhostText?.Hide();
-        _CompletionPopup.Show(SourceEditor, Context);
-        SetStatus($"{Context.Items.Count.ToString(CultureInfo.InvariantCulture)} suggestion(s) - Tab/Enter to accept, Esc to dismiss");
-    }
-
-    private static bool IsCompletedCompletionToken(CompletionContext Context)
-    {
-        if (string.IsNullOrEmpty(Context.Prefix))
-        {
-            return false;
-        }
-
-        foreach (CompletionItem Item in Context.Items)
-        {
-            string Candidate = Item.InsertText.Trim();
-            if (Candidate.StartsWith(Context.Prefix, StringComparison.OrdinalIgnoreCase) && Candidate.Length > Context.Prefix.Length)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private bool TryAcceptGhostText()
@@ -564,7 +651,7 @@ public partial class MainForm : Form
         CompletionItem Item = Context.Items[0];
         int Start = Math.Max(0, Math.Min(Context.ReplaceStart, SourceEditor.TextLength));
         int End = Math.Max(Start, Math.Min(Context.ReplaceEnd, SourceEditor.TextLength));
-        _SuppressCompletion = true;
+        _IntelliSense.Suppress = true;
         try
         {
             SourceEditor.Select(Start, End - Start);
@@ -572,21 +659,31 @@ public partial class MainForm : Form
         }
         finally
         {
-            _SuppressCompletion = false;
+            _IntelliSense.Suppress = false;
         }
 
         _GhostContext = null;
         _GhostText?.Hide();
         SetStatus($"Inserted {Item.DisplayText}");
-        BeginInvoke(RefreshCompletion);
+        BeginInvoke(new Action(RefreshMembers));
         return true;
     }
 
     private void HideCompletion()
     {
-        _CompletionPopup.Hide();
+        _IntelliSense.Popup.Hide();
         _GhostContext = null;
         _GhostText?.Hide();
+    }
+
+    private void ShowQuickInfo(int CharIndex)
+    {
+        _IntelliSense.ShowQuickInfoAtCaret();
+    }
+
+    private void RefreshMembers()
+    {
+        _IntelliSense.Refresh(Force: false);
     }
 
     private void UpdateSignatureHelp()
@@ -597,7 +694,7 @@ public partial class MainForm : Form
             return;
         }
 
-        SignatureLabel.Text = _CompletionEngine.BuildSignatureHelp(SourceEditor.Text, SourceEditor.SelectionStart);
+        SignatureLabel.Text = _IntelliSense.Assist.BuildSignatureHelp(SourceEditor.Text, SourceEditor.SelectionStart);
     }
 
     private void QueueHighlight()
@@ -609,8 +706,23 @@ public partial class MainForm : Form
     private void HighlightTimer_Tick(object? Sender, EventArgs E)
     {
         HighlightTimer.Stop();
+        ApplyEditorColours();
+        if (_IntelliSense.Popup.IsVisible)
+        {
+            _IntelliSense.Popup.Reposition();
+        }
+    }
+
+    private void ApplyEditorColours()
+    {
+        if (SourceEditor.IsDisposed)
+        {
+            return;
+        }
+
         _SuppressCaretUi = true;
         _IsApplyingEditorFormatting = true;
+        _IntelliSense.Pause = true;
         try
         {
             if (LiveEditorFeatureGate.A_SyntaxHighlighting)
@@ -619,6 +731,7 @@ public partial class MainForm : Form
             }
 
             RefreshDiagnostics();
+            ApplyIdMarks();
             if (LiveEditorFeatureGate.Y_Minimap && MinimapBox.Visible)
             {
                 MinimapBox.Text = SourceEditor.Text;
@@ -630,11 +743,40 @@ public partial class MainForm : Form
         {
             _IsApplyingEditorFormatting = false;
             _SuppressCaretUi = false;
+            _IntelliSense.Pause = false;
+        }
+    }
+
+    private void ApplyIdMarks()
+    {
+        if (!MarkedSelectionHeld())
+        {
+            return;
         }
 
-        if (_CompletionPopup.IsVisible)
+        bool PreviousSuppress = _SuppressCaretUi;
+        bool PreviousFormatting = _IsApplyingEditorFormatting;
+        bool PreviousPause = _IntelliSense.Pause;
+        _SuppressCaretUi = true;
+        _IsApplyingEditorFormatting = true;
+        _IntelliSense.Pause = true;
+        try
         {
-            _CompletionPopup.Reposition();
+            List<int> Starts = SymbolNavigator.FindExactIds(SourceEditor.Text, _MarkedId ?? string.Empty);
+            _MarkedStarts.Clear();
+            _MarkedStarts.AddRange(Starts);
+            MermaidSyntaxHighlighter.MarkOtherOccurrences(SourceEditor, Starts, _MarkedLength, _MarkedStart, _Settings.DarkTheme);
+        }
+        finally
+        {
+            _SuppressCaretUi = PreviousSuppress;
+            _IsApplyingEditorFormatting = PreviousFormatting;
+            _IntelliSense.Pause = PreviousPause;
+        }
+
+        if (!PreviousPause && _IntelliSense.Popup.IsVisible)
+        {
+            _IntelliSense.Popup.Reposition();
         }
     }
 
@@ -671,9 +813,18 @@ public partial class MainForm : Form
 
     private void UpdateCaretDiagnosticStatus()
     {
+        string Message = CaretStatusOr(string.Empty);
+        if (Message.Length > 0)
+        {
+            SetStatus(Message);
+        }
+    }
+
+    private string CaretStatusOr(string Fallback)
+    {
         if (!LiveEditorFeatureGate.E_InlineDiagnostics || _Diagnostics.Count == 0)
         {
-            return;
+            return Fallback;
         }
 
         int LineNumber = SourceEditor.GetLineFromCharIndex(SourceEditor.SelectionStart) + 1;
@@ -681,10 +832,11 @@ public partial class MainForm : Form
         {
             if (Diagnostic.LineNumber == LineNumber)
             {
-                SetStatus(TruncateStatus(Diagnostic.Message));
-                return;
+                return TruncateStatus(Diagnostic.Message);
             }
         }
+
+        return Fallback;
     }
 
     private void DiagnosticsList_DoubleClick(object? Sender, EventArgs E)
@@ -722,7 +874,7 @@ public partial class MainForm : Form
             return;
         }
 
-        SetStatus("Rendering...");
+        SetStatus(CaretStatusOr("Rendering..."));
         bool LegacyPreview = LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview;
         Task.Run(() => RenderWorker(Source, Generation, LegacyPreview, Token), Token);
     }
@@ -741,9 +893,15 @@ public partial class MainForm : Form
                 Token.ThrowIfCancellationRequested();
                 PngBytes = MermaidDiagramExport.TryRasterizeSvg(Svg);
             }
+            else if (MermaidDiagramExport.TryRenderPreviewSvg(Source, out string PreviewSvg))
+            {
+                Svg = PreviewSvg;
+                Token.ThrowIfCancellationRequested();
+                PngBytes = MermaidDiagramExport.TryRasterizeSvg(Svg);
+            }
             else
             {
-                PngBytes = MermaidDiagramExport.TryRenderPng(Source);
+                PngBytes = null;
             }
 
             Token.ThrowIfCancellationRequested();
@@ -793,13 +951,15 @@ public partial class MainForm : Form
             _LastGoodPreview = NewImage;
             _LastPngBytes = (byte[])PngBytes.Clone();
             _LastSvg = Svg;
+            _PreviewHover = PreviewHoverIndex.Build(Svg, SourceEditor.Text);
             _BrokenSince = null;
             PreviewBanner.Visible = LegacyPreview;
             PreviewBanner.Height = LegacyPreview ? 28 : 0;
             PreviewBanner.Text = LegacyPreview ? "Legacy Naiad preview" : string.Empty;
             ApplyPreviewZoom();
-            SetStatus("OK");
+            SetStatus(CaretStatusOr("OK"));
             UpdateRenderTiming(ElapsedMilliseconds);
+            UpdateCaretDiagnosticStatus();
         }
         catch (Exception Ex)
         {
@@ -823,19 +983,118 @@ public partial class MainForm : Form
             {
                 Previous.Dispose();
             }
+
+            _PreviewHover = null;
+            HidePreviewHover();
         }
 
         PreviewBanner.Visible = true;
         PreviewBanner.Height = 32;
         string Time = _BrokenSince.Value.ToString("T", CultureInfo.CurrentCulture);
         PreviewBanner.Text = $"Broken since {Time}: {TruncateStatus(Message)}";
-        SetStatus(TruncateStatus(Message));
+        SetStatus(CaretStatusOr(TruncateStatus(Message)));
         UpdateRenderTiming(ElapsedMilliseconds);
+        UpdateCaretDiagnosticStatus();
     }
 
     private void UpdateRenderTiming(long ElapsedMilliseconds)
     {
         TimingLabel.Text = LiveEditorFeatureGate.R_RenderTiming ? $"{ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture)} ms" : string.Empty;
+    }
+
+    private void PreviewImage_MouseMove(object? Sender, MouseEventArgs E)
+    {
+        if (PreviewImage.Image == null || _PreviewHover == null)
+        {
+            HidePreviewHover();
+            return;
+        }
+
+        double SvgX;
+        double SvgY;
+        bool Mapped = PreviewHoverIndex.TryMapClientToSvg(
+            E.X,
+            E.Y,
+            PreviewImage.ClientSize.Width,
+            PreviewImage.ClientSize.Height,
+            PreviewImage.Image.Width,
+            PreviewImage.Image.Height,
+            _PreviewHover.Width,
+            _PreviewHover.Height,
+            out SvgX,
+            out SvgY);
+        if (!Mapped)
+        {
+            HidePreviewHover();
+            return;
+        }
+
+        string? Text = _PreviewHover.Hit(SvgX, SvgY);
+        if (string.IsNullOrEmpty(Text))
+        {
+            HidePreviewHover();
+            return;
+        }
+
+        if (string.Equals(Text, _PreviewHoverText, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _PreviewHoverText = Text;
+        _PreviewHoverWindow.ShowNear(this, Text, PreviewImage.PointToScreen(E.Location));
+    }
+
+    private void PreviewImage_MouseLeave(object? Sender, EventArgs E)
+    {
+        HidePreviewHover();
+    }
+
+    private void MainForm_Deactivate(object? Sender, EventArgs E)
+    {
+        HidePreviewHover();
+    }
+
+    private void DismissPreviewHoverIfPointerLeft()
+    {
+        if (!_PreviewHoverWindow.Visible || PreviewImage.IsDisposed)
+        {
+            return;
+        }
+
+        Rectangle Area = PreviewImage.RectangleToScreen(PreviewImage.ClientRectangle);
+        if (!Area.Contains(Cursor.Position))
+        {
+            HidePreviewHover();
+        }
+    }
+
+    private void HidePreviewHover()
+    {
+        _PreviewHoverText = null;
+        _PreviewHoverWindow.HideTip();
+    }
+
+    private sealed class PreviewHoverDismissFilter : IMessageFilter
+    {
+        private const int WM_MOUSEMOVE = 0x0200;
+
+        private readonly MainForm _Host;
+
+        public PreviewHoverDismissFilter(MainForm Host)
+        {
+            _Host = Host;
+        }
+
+        public bool PreFilterMessage(ref Message Message)
+        {
+            if (Message.Msg == WM_MOUSEMOVE)
+            {
+                _Host.DismissPreviewHoverIfPointerLeft();
+            }
+
+            return false;
+        }
     }
 
     private void PreviewCanvas_MouseWheel(object? Sender, MouseEventArgs E)
@@ -845,7 +1104,8 @@ public partial class MainForm : Form
             return;
         }
 
-        SetPreviewZoom(E.Delta > 0 ? _PreviewZoom * PREVIEW_ZOOM_STEP : _PreviewZoom / PREVIEW_ZOOM_STEP);
+        double CurrentZoom = CurrentPreviewZoom();
+        SetPreviewZoom(E.Delta > 0 ? CurrentZoom * PREVIEW_ZOOM_STEP : CurrentZoom / PREVIEW_ZOOM_STEP);
     }
 
     private void PreviewCanvas_Resize(object? Sender, EventArgs E)
@@ -868,6 +1128,28 @@ public partial class MainForm : Form
     private static double ClampZoom(double Zoom)
     {
         return Math.Max(MINIMUM_PREVIEW_ZOOM, Math.Min(MAXIMUM_PREVIEW_ZOOM, Zoom));
+    }
+
+    /// <summary>
+    /// Returns the zoom the preview is actually showing. Fit-to-window does not store that scale.
+    /// </summary>
+    private double CurrentPreviewZoom()
+    {
+        if (!_Settings.PreviewFitToWindow || PreviewImage.Image == null)
+        {
+            return _PreviewZoom;
+        }
+
+        int ImageWidth = PreviewImage.Image.Width;
+        int ImageHeight = PreviewImage.Image.Height;
+        Size Area = PreviewCanvas.ClientSize;
+        if (ImageWidth <= 0 || ImageHeight <= 0 || Area.Width <= 0 || Area.Height <= 0)
+        {
+            return _PreviewZoom;
+        }
+
+        double Fitted = Math.Min(Area.Width / (double)ImageWidth, Area.Height / (double)ImageHeight);
+        return ClampZoom(Fitted);
     }
 
     private void ApplyPreviewZoom()
@@ -903,13 +1185,197 @@ public partial class MainForm : Form
         PreviewImage.BringToFront();
         PreviewImage.Invalidate();
         PreviewCanvas.Invalidate();
+        PositionPreviewZoomButtons();
+    }
+
+    private void PreviewHost_Resize(object? Sender, EventArgs E)
+    {
+        PositionPreviewZoomButtons();
+    }
+
+    private void PositionPreviewZoomButtons()
+    {
+        const int BUTTON = 32;
+        const int GAP = 4;
+        const int MARGIN = 10;
+        int X = Math.Max(0, PreviewHost.ClientSize.Width - MARGIN - BUTTON);
+        int FitTop = Math.Max(0, PreviewHost.ClientSize.Height - MARGIN - BUTTON);
+        int OutTop = Math.Max(0, FitTop - GAP - BUTTON);
+        int InTop = Math.Max(0, OutTop - GAP - BUTTON);
+        PreviewZoomInButton.SetBounds(X, InTop, BUTTON, BUTTON);
+        PreviewZoomOutButton.SetBounds(X, OutTop, BUTTON, BUTTON);
+        PreviewFitButton.SetBounds(X, FitTop, BUTTON, BUTTON);
+        PreviewZoomInButton.BringToFront();
+        PreviewZoomOutButton.BringToFront();
+        PreviewFitButton.BringToFront();
+    }
+
+    /// <summary>
+    /// Keeps the line-number column and minimap in front of the fill order so the editor starts to their inside edge.
+    /// </summary>
+    private void PlaceEditorBesideLineNumbers(Control EditorParent)
+    {
+        if (ReferenceEquals(LineNumberColumn.Parent, EditorParent))
+        {
+            EditorParent.Controls.SetChildIndex(LineNumberColumn, EditorParent.Controls.Count - 1);
+        }
+
+        if (ReferenceEquals(MinimapBox.Parent, EditorParent))
+        {
+            EditorParent.Controls.SetChildIndex(MinimapBox, EditorParent.Controls.Count - 1);
+        }
+
+        if (ReferenceEquals(SourceEditor.Parent, EditorParent))
+        {
+            EditorParent.Controls.SetChildIndex(SourceEditor, 0);
+        }
+    }
+
+    private void PreviewFitButton_Paint(object? Sender, PaintEventArgs E)
+    {
+        Rectangle Box = new Rectangle(8, 8, 14, 14);
+        using Pen Outline = new Pen(PreviewFitButton.ForeColor, 1.6F);
+        E.Graphics.DrawRectangle(Outline, Box);
+    }
+
+    private void ApplyWorkspaceLayout()
+    {
+        ElementToolbar.Dock = DockStyle.Top;
+        EditorSplit.Dock = DockStyle.Fill;
+        PreviewHost.Dock = DockStyle.Fill;
+        Control EditorParent = _Settings.EditorOnLeft ? EditorSplit.Panel1 : EditorSplit.Panel2;
+        Control PreviewParent = _Settings.EditorOnLeft ? EditorSplit.Panel2 : EditorSplit.Panel1;
+        if (!ReferenceEquals(SourceEditor.Parent, EditorParent))
+        {
+            EditorParent.Controls.Add(SourceEditor);
+            EditorParent.Controls.Add(LineNumberColumn);
+            EditorParent.Controls.Add(MinimapBox);
+        }
+
+        PlaceEditorBesideLineNumbers(EditorParent);
+
+        if (!ReferenceEquals(PreviewHost.Parent, PreviewParent))
+        {
+            PreviewParent.Controls.Add(PreviewHost);
+        }
+
+        if (_Settings.WideToolbar)
+        {
+            if (!ReferenceEquals(ElementToolbar.Parent, BodySplit.Panel1))
+            {
+                BodySplit.Panel1.Controls.Add(ElementToolbar);
+            }
+
+            BodySplit.Panel1.Controls.SetChildIndex(EditorSplit, 0);
+            BodySplit.Panel1.Controls.SetChildIndex(ElementToolbar, BodySplit.Panel1.Controls.Count - 1);
+        }
+        else if (!ReferenceEquals(ElementToolbar.Parent, PreviewHost))
+        {
+            PreviewHost.Controls.Add(ElementToolbar);
+        }
+
+        ArrangePreviewChrome();
+        EnsureEditorSplitLayout();
+        PositionPreviewZoomButtons();
+    }
+
+    private void ArrangePreviewChrome()
+    {
+        List<Control> Order = new List<Control>();
+        if (ReferenceEquals(ElementToolbar.Parent, PreviewHost))
+        {
+            Order.Add(ElementToolbar);
+        }
+
+        Order.Add(PreviewBanner);
+        Order.Add(PreviewCanvas);
+        Order.Add(PreviewFitButton);
+        Order.Add(PreviewZoomOutButton);
+        Order.Add(PreviewZoomInButton);
+        for (int Index = Order.Count - 1; Index >= 0; Index--)
+        {
+            PreviewHost.Controls.SetChildIndex(Order[Index], PreviewHost.Controls.Count - 1);
+        }
+    }
+
+    private string CurrentEditorText()
+    {
+        return SourceEditor.Text;
+    }
+
+    private void ElementToolbar_InsertRequested(object? Sender, ElementInsertRequest Request)
+    {
+        string Text = SourceEditor.Text;
+        int Caret = Math.Max(0, Math.Min(SourceEditor.SelectionStart, Text.Length));
+        int LineStart = Caret;
+        while (LineStart > 0 && Text[LineStart - 1] != '\n')
+        {
+            LineStart--;
+        }
+
+        int LineEnd = Caret;
+        while (LineEnd < Text.Length && Text[LineEnd] != '\n' && Text[LineEnd] != '\r')
+        {
+            LineEnd++;
+        }
+
+        int IndentEnd = LineStart;
+        while (IndentEnd < LineEnd && (Text[IndentEnd] == ' ' || Text[IndentEnd] == '\t'))
+        {
+            IndentEnd++;
+        }
+
+        string Indent = Text.Substring(LineStart, IndentEnd - LineStart);
+        string Rest = Text.Substring(IndentEnd, LineEnd - IndentEnd).Trim();
+        string Declaration = Request.KebabName + " " + Request.Identifier + " \"" + Request.Label.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+        bool ReplaceLine = Rest.Length == 0 || Request.KebabName.StartsWith(Rest, StringComparison.OrdinalIgnoreCase);
+        _IntelliSense.Suppress = true;
+        try
+        {
+            if (ReplaceLine)
+            {
+                SourceEditor.Select(LineStart, LineEnd - LineStart);
+                SourceEditor.SelectedText = Indent + Declaration;
+            }
+            else
+            {
+                SourceEditor.Select(LineEnd, 0);
+                SourceEditor.SelectedText = Environment.NewLine + Indent + Declaration;
+            }
+        }
+        finally
+        {
+            _IntelliSense.Suppress = false;
+        }
+
+        _IsDirty = true;
+        UpdateTitle();
+        QueueRender();
+        QueueHighlight();
+        _IntelliSense.Refresh(Force: false);
+        ElementToolbar.UpdateFromEditor(SourceEditor.Text, SourceEditor.SelectionStart);
+        SetStatus("Inserted " + Request.Identifier);
+        BeginInvoke(new Action(FocusEditor));
+    }
+
+    private void ElementToolbar_PromptClosed(object? Sender, EventArgs E)
+    {
+        BeginInvoke(new Action(FocusEditor));
+    }
+
+    private void FocusEditor()
+    {
+        if (!IsDisposed && !SourceEditor.IsDisposed)
+        {
+            SourceEditor.Focus();
+        }
     }
 
     private void ZoomInMenuItem_Click(object? Sender, EventArgs E)
     {
         if (LiveEditorFeatureGate.L_ZoomPanPreview)
         {
-            SetPreviewZoom(_PreviewZoom * PREVIEW_ZOOM_STEP);
+            SetPreviewZoom(CurrentPreviewZoom() * PREVIEW_ZOOM_STEP);
         }
     }
 
@@ -917,7 +1383,7 @@ public partial class MainForm : Form
     {
         if (LiveEditorFeatureGate.L_ZoomPanPreview)
         {
-            SetPreviewZoom(_PreviewZoom / PREVIEW_ZOOM_STEP);
+            SetPreviewZoom(CurrentPreviewZoom() / PREVIEW_ZOOM_STEP);
         }
     }
 
@@ -1078,6 +1544,24 @@ public partial class MainForm : Form
         _Settings.LegacyPreview = !_Settings.LegacyPreview;
         ToggleLegacyPreviewMenuItem.Checked = _Settings.LegacyPreview;
         QueueRender();
+    }
+
+    private void ListMembersMenuItem_Click(object? Sender, EventArgs E)
+    {
+        SourceEditor.Focus();
+        _IntelliSense.Refresh(Force: true);
+    }
+
+    private void ParameterInfoMenuItem_Click(object? Sender, EventArgs E)
+    {
+        SourceEditor.Focus();
+        _IntelliSense.ShowParameter();
+    }
+
+    private void QuickInfoMenuItem_Click(object? Sender, EventArgs E)
+    {
+        SourceEditor.Focus();
+        ShowQuickInfo(SourceEditor.SelectionStart);
     }
 
     private void CopySourceMenuItem_Click(object? Sender, EventArgs E)
@@ -1247,6 +1731,7 @@ public partial class MainForm : Form
 
         Dialog.ApplyTo(_Settings);
         ApplyEditorPreferences();
+        ApplyWorkspaceLayout();
         _Settings.Save();
         QueueHighlight();
         QueueRender();
@@ -1559,7 +2044,10 @@ public partial class MainForm : Form
         RenderTimer.Stop();
         HighlightTimer.Stop();
         DisposeWatcher();
-        _CompletionPopup.Dispose();
+        Application.RemoveMessageFilter(_PreviewHoverDismiss);
+        HidePreviewHover();
+        _PreviewHoverWindow.Dispose();
+        _IntelliSense.Dispose();
         _GhostText?.Dispose();
         _GhostText = null;
         Image? Preview = PreviewImage.Image;
@@ -1575,7 +2063,7 @@ public partial class MainForm : Form
 
     private void SaveSession()
     {
-        if (!LiveEditorFeatureGate.T_PersistentSession)
+        if (!_PersistSession || !LiveEditorFeatureGate.T_PersistentSession)
         {
             return;
         }
@@ -1829,7 +2317,7 @@ public partial class MainForm : Form
 
     private void SetEditorContent(string Source, string? SourcePath, string? CoArchiFolder, bool IsDirty)
     {
-        _SuppressCompletion = true;
+        _IntelliSense.Suppress = true;
         try
         {
             SourceEditor.Text = Source;
@@ -1837,7 +2325,7 @@ public partial class MainForm : Form
         }
         finally
         {
-            _SuppressCompletion = false;
+            _IntelliSense.Suppress = false;
         }
 
         _CurrentSourcePath = SourcePath;
@@ -1871,7 +2359,7 @@ public partial class MainForm : Form
 
     private bool ConfirmDiscardChanges()
     {
-        if (!_IsDirty)
+        if (!_PersistSession || !_IsDirty)
         {
             return true;
         }

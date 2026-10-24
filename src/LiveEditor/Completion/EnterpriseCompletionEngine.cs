@@ -124,11 +124,40 @@ internal sealed class EnterpriseCompletionEngine
             return Context;
         }
 
+        Match DirectionMatch = Regex.Match(LinePrefix, @"^(?<indent>\s*)direction\s+(?<dir>[A-Za-z]*)$", RegexOptions.IgnoreCase);
+        if (DirectionMatch.Success)
+        {
+            FillDirectionSuggestions(Context, DirectionMatch, LineStart);
+            return Context;
+        }
+
+        Match PushMatch = Regex.Match(LinePrefix, @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+push\s+(?<dir>[NSEW]?)$", RegexOptions.IgnoreCase);
+        if (PushMatch.Success && IsKnownElementTypeToken(PushMatch.Groups["etype"].Value))
+        {
+            FillPushSuggestions(Context, PushMatch, LineStart);
+            return Context;
+        }
+
+        Match PeerMatch = Regex.Match(LinePrefix, @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+(?<hint>above|below|left-of|right-of)\s+(?<peer>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?$", RegexOptions.IgnoreCase);
+        if (PeerMatch.Success && IsKnownElementTypeToken(PeerMatch.Groups["etype"].Value))
+        {
+            FillPeerSuggestions(Context, _CachedDocument, PeerMatch, LineStart);
+            return Context;
+        }
+
+        Match ContainerMatch = Regex.Match(LinePrefix, @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?\s+in\s+(?<container>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?$", RegexOptions.IgnoreCase);
+        if (ContainerMatch.Success && IsKnownElementTypeToken(ContainerMatch.Groups["etype"].Value))
+        {
+            FillContainerSuggestions(Context, _CachedDocument, ContainerMatch, LineStart);
+            return Context;
+        }
+
         Match PlacementMatch = PlacementContextRegex.Match(LinePrefix);
         if (PlacementMatch.Success && LiveEditorFeatureGate.D_PlacementHintCompletion)
         {
+            string Hint = PlacementMatch.Groups["hint"].Value;
             string DeclaredType = PlacementMatch.Groups["etype"].Value;
-            if (!NonElementLineStarters.Contains(DeclaredType) && IsKnownElementTypeToken(DeclaredType))
+            if (Hint.Length > 0 && !NonElementLineStarters.Contains(DeclaredType) && IsKnownElementTypeToken(DeclaredType))
             {
                 FillPlacementSuggestions(Context, PlacementMatch, LineStart);
                 return Context;
@@ -144,6 +173,7 @@ internal sealed class EnterpriseCompletionEngine
             if (!string.IsNullOrEmpty(TypedType) && LiveEditorFeatureGate.B_ElementTypeCompletion)
             {
                 FillElementTypeSuggestions(Context, ElementTypeMatch, LineStart);
+                FillSourceSuggestions(Context, _CachedDocument, TypedType, LineStart, ElementTypeMatch.Groups["type"]);
             }
 
             if (Context.Items.Count == 0 && LiveEditorFeatureGate.J_Snippets && TypedType.StartsWith("snippet", StringComparison.OrdinalIgnoreCase))
@@ -218,6 +248,20 @@ internal sealed class EnterpriseCompletionEngine
         return Insert;
     }
 
+    /// <summary>Parameter Info for the statement under the caret.</summary>
+    public ParameterHelp? BuildParameterHelp(string Source, int CaretIndex)
+    {
+        RefreshDocument(Source);
+        return EnterpriseHelp.ParameterHelpFor(Source, CaretIndex, _CachedDocument);
+    }
+
+    /// <summary>Quick Info for the token under the caret.</summary>
+    public string? BuildQuickInfo(string Source, int CaretIndex)
+    {
+        RefreshDocument(Source);
+        return EnterpriseHelp.QuickInfoFor(Source, CaretIndex, _CachedDocument);
+    }
+
     /// <summary>Gets the cached enterprise document, if any.</summary>
     public EnterpriseDocument? CachedDocument
     {
@@ -243,7 +287,7 @@ internal sealed class EnterpriseCompletionEngine
                 continue;
             }
 
-            Context.Items.Add(new CompletionItem(Name + " ", Name, Pair.Value.SpecName));
+            Context.Items.Add(new CompletionItem(Name + " ", Name, "Element", EnterpriseHelp.ElementTypeDocumentation(Pair.Value)));
         }
 
         Context.Items.Sort(CompareItems);
@@ -272,7 +316,7 @@ internal sealed class EnterpriseCompletionEngine
                 continue;
             }
 
-            Context.Items.Add(new CompletionItem(Option + ")-> ", Option, Kind + " qualifier"));
+            Context.Items.Add(new CompletionItem(Option + ")-> ", Option, Kind + " qualifier", EnterpriseHelp.QualifierDocumentation(Kind, Option)));
         }
     }
 
@@ -292,8 +336,8 @@ internal sealed class EnterpriseCompletionEngine
                 continue;
             }
 
-            string Insert = Hint == "push" ? "push N" : Hint + " ";
-            Context.Items.Add(new CompletionItem(Insert, Hint, "placement hint"));
+            string Insert = Hint + " ";
+            Context.Items.Add(new CompletionItem(Insert, Hint, "Placement", EnterpriseHelp.PlacementDocumentation(Hint)));
         }
     }
 
@@ -322,6 +366,154 @@ internal sealed class EnterpriseCompletionEngine
             }
 
             Context.Items.Add(new CompletionItem(Insert, Name, Detail));
+        }
+    }
+
+    private static void FillDirectionSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.Direction;
+        string Prefix = Match.Groups["dir"].Value;
+        Context.Prefix = Prefix;
+        Group DirectionGroup = Match.Groups["dir"];
+        Context.ReplaceStart = LineStart + DirectionGroup.Index;
+        Context.ReplaceEnd = LineStart + DirectionGroup.Index + DirectionGroup.Length;
+        (string Name, string Meaning)[] Values =
+        {
+            ("TB", "Top to bottom."),
+            ("TD", "Top to bottom, same as TB."),
+            ("BT", "Bottom to top."),
+            ("LR", "Left to right."),
+            ("RL", "Right to left.")
+        };
+        foreach ((string Name, string Meaning) in Values)
+        {
+            if (!StartsWithPrefix(Name, Prefix))
+            {
+                continue;
+            }
+
+            Context.Items.Add(new CompletionItem(Name, Name + "    " + Meaning, "Direction", "direction " + Name + "\n\n" + Meaning));
+        }
+    }
+
+    private static void FillPushSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.PlacementHint;
+        string Prefix = Match.Groups["dir"].Value;
+        Context.Prefix = Prefix;
+        Group DirectionGroup = Match.Groups["dir"];
+        if (DirectionGroup.Success && DirectionGroup.Length > 0)
+        {
+            Context.ReplaceStart = LineStart + DirectionGroup.Index;
+            Context.ReplaceEnd = LineStart + DirectionGroup.Index + DirectionGroup.Length;
+        }
+        else
+        {
+            Context.ReplaceStart = LineStart + Match.Length;
+            Context.ReplaceEnd = Context.ReplaceStart;
+        }
+
+        (string Name, string Meaning)[] Values =
+        {
+            ("N", "Toward the top of the page."),
+            ("S", "Toward the bottom of the page."),
+            ("E", "Toward the right of the page."),
+            ("W", "Toward the left of the page.")
+        };
+        foreach ((string Name, string Meaning) in Values)
+        {
+            if (!StartsWithPrefix(Name, Prefix))
+            {
+                continue;
+            }
+
+            Context.Items.Add(new CompletionItem(Name, Name + "    " + Meaning, "Push", "push " + Name + "\n\n" + Meaning));
+        }
+    }
+
+    private static void FillPeerSuggestions(CompletionContext Context, EnterpriseDocument Document, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.PlacementHint;
+        string Self = Match.Groups["id"].Value;
+        string Hint = Match.Groups["hint"].Value.ToLowerInvariant();
+        Group PeerGroup = Match.Groups["peer"];
+        string Prefix = PeerGroup.Success ? PeerGroup.Value : string.Empty;
+        Context.Prefix = Prefix;
+        if (PeerGroup.Success && PeerGroup.Length > 0)
+        {
+            Context.ReplaceStart = LineStart + PeerGroup.Index;
+            Context.ReplaceEnd = LineStart + PeerGroup.Index + PeerGroup.Length;
+        }
+        else
+        {
+            Context.ReplaceStart = LineStart + Match.Length;
+            Context.ReplaceEnd = Context.ReplaceStart;
+        }
+
+        foreach (KeyValuePair<string, EnterpriseElement> Pair in Document.Elements)
+        {
+            if (string.Equals(Pair.Key, Self, StringComparison.Ordinal) || !StartsWithPrefix(Pair.Key, Prefix))
+            {
+                continue;
+            }
+
+            string Row = EnterpriseHelp.ElementRow(Pair.Value);
+            string Docs = "Place this element " + Hint + " " + Pair.Key + ".\n\n" + Pair.Value.Label + "\nThe peer must be in the same group.";
+            Context.Items.Add(new CompletionItem(Pair.Key, Row, "Peer", Docs));
+        }
+
+        Context.Items.Sort(CompareItems);
+    }
+
+    private static void FillContainerSuggestions(CompletionContext Context, EnterpriseDocument Document, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.ElementType;
+        string Self = Match.Groups["id"].Value;
+        Group ContainerGroup = Match.Groups["container"];
+        string Prefix = ContainerGroup.Success ? ContainerGroup.Value : string.Empty;
+        Context.Prefix = Prefix;
+        if (ContainerGroup.Success && ContainerGroup.Length > 0)
+        {
+            Context.ReplaceStart = LineStart + ContainerGroup.Index;
+            Context.ReplaceEnd = LineStart + ContainerGroup.Index + ContainerGroup.Length;
+        }
+        else
+        {
+            Context.ReplaceStart = LineStart + Match.Length;
+            Context.ReplaceEnd = Context.ReplaceStart;
+        }
+
+        foreach (KeyValuePair<string, EnterpriseElement> Pair in Document.Elements)
+        {
+            if (string.Equals(Pair.Key, Self, StringComparison.Ordinal) || !StartsWithPrefix(Pair.Key, Prefix))
+            {
+                continue;
+            }
+
+            string Docs = "Put this element in " + Pair.Key + " (" + Pair.Value.Label + ").";
+            Context.Items.Add(new CompletionItem(Pair.Key, EnterpriseHelp.ElementRow(Pair.Value), "Container", Docs));
+        }
+
+        Context.Items.Sort(CompareItems);
+    }
+
+    private static void FillSourceSuggestions(CompletionContext Context, EnterpriseDocument Document, string Prefix, int LineStart, Group TypeGroup)
+    {
+        foreach (KeyValuePair<string, EnterpriseElement> Pair in Document.Elements)
+        {
+            if (!StartsWithPrefix(Pair.Key, Prefix) && !StartsWithPrefix(Pair.Value.Label, Prefix))
+            {
+                continue;
+            }
+
+            string Docs = EnterpriseHelp.ElementRow(Pair.Value) + "\n\nExisting element. Accepting inserts the identifier and a relationship dash.\nF12 goes to the declaration.";
+            Context.Items.Add(new CompletionItem(Pair.Key + " -", EnterpriseHelp.ElementRow(Pair.Value), "Element", Docs));
+        }
+
+        if (TypeGroup.Success)
+        {
+            Context.ReplaceStart = LineStart + TypeGroup.Index;
+            Context.ReplaceEnd = LineStart + TypeGroup.Index + TypeGroup.Length;
         }
     }
 
@@ -368,8 +560,8 @@ internal sealed class EnterpriseCompletionEngine
             }
 
             string Insert = Name + "-> ";
-            string Detail = Pair.Value.Letter.ToString(CultureInfo.InvariantCulture) + " · from " + SourceType;
-            Items.Add(new CompletionItem(Insert, Name, Detail));
+            string Detail = Pair.Value.Letter.ToString(CultureInfo.InvariantCulture) + " from " + SourceType;
+            Items.Add(new CompletionItem(Insert, Name, Detail, EnterpriseHelp.RelationshipDocumentation(Pair.Value, SourceType)));
         }
 
         Items.Sort(CompareItems);
@@ -439,8 +631,20 @@ internal sealed class EnterpriseCompletionEngine
             }
 
             string Label = string.IsNullOrWhiteSpace(Pair.Value.Label) ? Pair.Key : Pair.Value.Label;
-            string Detail = TargetType + " · " + Label;
-            Items.Add(new CompletionItem(Pair.Key, Pair.Key, Detail));
+            string Row = Pair.Key + "    " + Label + "    " + TargetType;
+            string Connected = EnterpriseHelp.ConnectionNote(Document, SourceId, Pair.Key);
+            if (Connected.Length > 0)
+            {
+                Row = Row + "    " + Connected;
+            }
+
+            string Docs = Row + "\n\nLegal " + KindToken + " target for " + SourceId + ".";
+            if (Connected.Length > 0)
+            {
+                Docs = Docs + "\n" + Connected + ". A different qualifier is a separate relationship. The same type and qualifier is a duplicate.";
+            }
+
+            Items.Add(new CompletionItem(Pair.Key, Row, TargetType, Docs));
         }
 
         Items.Sort(CompareItems);

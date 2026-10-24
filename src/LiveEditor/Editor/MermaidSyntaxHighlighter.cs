@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using MermaidRecognition.Kinds.Enterprise;
@@ -48,9 +49,9 @@ internal static class MermaidSyntaxHighlighter
         using RichTextBoxPaintScope Scope = new RichTextBoxPaintScope(Editor);
         Editor.BackColor = Background;
         Editor.ForeColor = DefaultColour;
-        Editor.SelectAll();
+        Editor.Select(0, Editor.TextLength);
         Editor.SelectionColor = DefaultColour;
-        Editor.SelectionBackColor = Background;
+        ClearCharacterBackground(Editor);
         ColourMatches(Editor, CommentRegex, Text, DarkTheme ? Color.FromArgb(106, 153, 85) : Color.FromArgb(0, 128, 0));
         ColourMatches(Editor, StringRegex, Text, DarkTheme ? Color.FromArgb(206, 145, 120) : Color.FromArgb(163, 21, 21));
         ColourMatches(Editor, HeaderRegex, Text, DarkTheme ? Color.FromArgb(86, 156, 214) : Color.FromArgb(0, 0, 255));
@@ -99,6 +100,78 @@ internal static class MermaidSyntaxHighlighter
         }
     }
 
+    /// <summary>
+    /// Background used for copies of an identifier other than the one that is selected.
+    /// The selected copy keeps the Windows selection colours.
+    /// </summary>
+    /// <param name="DarkTheme">When true, uses a dark-theme gold.</param>
+    /// <returns>Mark colour.</returns>
+    public static Color OtherOccurrenceColour(bool DarkTheme)
+    {
+        if (DarkTheme)
+        {
+            return Color.FromArgb(120, 96, 40);
+        }
+
+        return Color.FromArgb(255, 230, 150);
+    }
+
+    /// <summary>
+    /// Paints every listed identifier except the selected one.
+    /// </summary>
+    /// <param name="Editor">Target editor.</param>
+    /// <param name="Starts">Start index of each identifier.</param>
+    /// <param name="Length">Identifier length.</param>
+    /// <param name="SelectedStart">Start of the Windows selection, which is left unchanged.</param>
+    /// <param name="DarkTheme">When true, uses the dark mark colour.</param>
+    public static void MarkOtherOccurrences(RichTextBox Editor, IReadOnlyList<int> Starts, int Length, int SelectedStart, bool DarkTheme)
+    {
+        if (Editor == null || Editor.IsDisposed || !Editor.IsHandleCreated || Starts == null || Length <= 0)
+        {
+            return;
+        }
+
+        Color Mark = OtherOccurrenceColour(DarkTheme);
+        using RichTextBoxPaintScope Scope = new RichTextBoxPaintScope(Editor);
+        foreach (int Start in Starts)
+        {
+            if (Start == SelectedStart || Start < 0 || Start + Length > Editor.TextLength)
+            {
+                continue;
+            }
+
+            Editor.Select(Start, Length);
+            Editor.SelectionBackColor = Mark;
+        }
+    }
+
+    /// <summary>
+    /// Removes the mark colour from each listed span so the editor background shows again.
+    /// </summary>
+    /// <param name="Editor">Target editor.</param>
+    /// <param name="Starts">Start index of each identifier.</param>
+    /// <param name="Length">Identifier length.</param>
+    public static void ClearOccurrenceMarks(RichTextBox Editor, IReadOnlyList<int> Starts, int Length)
+    {
+        if (Editor == null || Editor.IsDisposed || !Editor.IsHandleCreated || Starts == null || Length <= 0)
+        {
+            return;
+        }
+
+        using RichTextBoxPaintScope Scope = new RichTextBoxPaintScope(Editor);
+        foreach (int Start in Starts)
+        {
+            if (Start < 0 || Start + Length > Editor.TextLength)
+            {
+                continue;
+            }
+
+            Editor.Select(Start, Length);
+            Editor.SelectionBackColor = Editor.BackColor;
+            ClearCharacterBackground(Editor);
+        }
+    }
+
     private static Regex GetElementTypeRegex()
     {
         if (_ElementTypePattern != null)
@@ -131,5 +204,55 @@ internal static class MermaidSyntaxHighlighter
             Editor.Select(Match.Index, Match.Length);
             Editor.SelectionColor = Colour;
         }
+    }
+
+    /// <summary>
+    /// Removes character background so the editor background, and the Windows selection colour, show through.
+    /// Setting <see cref="RichTextBox.SelectionBackColor"/> to the editor background is ignored once a mark has been painted.
+    /// </summary>
+    /// <param name="Editor">Editor whose current selection is cleared.</param>
+    private static void ClearCharacterBackground(RichTextBox Editor)
+    {
+        CharacterFormat Format = new CharacterFormat();
+        Format.FaceName = string.Empty;
+        Format.Size = Marshal.SizeOf(Format);
+        Format.Mask = CFM_BACKCOLOR;
+        Format.Effects = CFE_AUTOBACKCOLOR;
+        SendMessage(Editor.Handle, EM_SETCHARFORMAT, (IntPtr)SCF_SELECTION, ref Format);
+    }
+
+    private const int WM_USER = 0x0400;
+    private const int EM_SETCHARFORMAT = WM_USER + 68;
+    private const int SCF_SELECTION = 1;
+    private const uint CFM_BACKCOLOR = 0x04000000;
+    private const uint CFE_AUTOBACKCOLOR = 0x04000000;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref CharacterFormat Format);
+
+    [StructLayout(LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
+    private struct CharacterFormat
+    {
+        public int Size;
+        public uint Mask;
+        public uint Effects;
+        public int Height;
+        public int Offset;
+        public int TextColour;
+        public byte CharacterSet;
+        public byte PitchAndFamily;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string FaceName;
+        public short Weight;
+        public short Spacing;
+        public int BackColour;
+        public int LocaleId;
+        public int Reserved;
+        public short Style;
+        public short Kerning;
+        public byte UnderlineType;
+        public byte Animation;
+        public byte RevisionAuthor;
+        public byte ReservedByte;
     }
 }

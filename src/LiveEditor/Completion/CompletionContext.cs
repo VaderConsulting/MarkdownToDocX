@@ -13,6 +13,7 @@ internal enum CompletionTokenKind
     ElementType,
     Qualifier,
     PlacementHint,
+    Direction,
     Snippet
 }
 

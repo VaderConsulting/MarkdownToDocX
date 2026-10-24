@@ -34,6 +34,12 @@ namespace LiveEditor
             RenderDelayNumeric = new NumericUpDown();
             HighlightDelayLabel = new Label();
             HighlightDelayNumeric = new NumericUpDown();
+            ToolbarGroup = new GroupBox();
+            WideToolbarRadio = new RadioButton();
+            NarrowToolbarRadio = new RadioButton();
+            EditorGroup = new GroupBox();
+            EditorLeftRadio = new RadioButton();
+            EditorRightRadio = new RadioButton();
             ButtonPanel = new FlowLayoutPanel();
             CancelSettingsButton = new Button();
             OkSettingsButton = new Button();
@@ -64,10 +70,14 @@ namespace LiveEditor
             SettingsLayout.Controls.Add(RenderDelayNumeric, 1, 5);
             SettingsLayout.Controls.Add(HighlightDelayLabel, 0, 6);
             SettingsLayout.Controls.Add(HighlightDelayNumeric, 1, 6);
+            SettingsLayout.Controls.Add(ToolbarGroup, 0, 7);
+            SettingsLayout.SetColumnSpan(ToolbarGroup, 2);
+            SettingsLayout.Controls.Add(EditorGroup, 0, 8);
+            SettingsLayout.SetColumnSpan(EditorGroup, 2);
             SettingsLayout.Dock = DockStyle.Fill;
             SettingsLayout.Location = new Point(12, 12);
             SettingsLayout.Name = "SettingsLayout";
-            SettingsLayout.RowCount = 8;
+            SettingsLayout.RowCount = 10;
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
@@ -75,8 +85,10 @@ namespace LiveEditor
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+            SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
+            SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
             SettingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            SettingsLayout.Size = new Size(476, 304);
+            SettingsLayout.Size = new Size(476, 408);
             SettingsLayout.TabIndex = 0;
             //
             // AutoIndentCheckBox
@@ -171,6 +183,64 @@ namespace LiveEditor
             HighlightDelayNumeric.TabIndex = 6;
             HighlightDelayNumeric.Value = 250;
             //
+            // ToolbarGroup
+            //
+            ToolbarGroup.Controls.Add(WideToolbarRadio);
+            ToolbarGroup.Controls.Add(NarrowToolbarRadio);
+            ToolbarGroup.Dock = DockStyle.Fill;
+            ToolbarGroup.Name = "ToolbarGroup";
+            ToolbarGroup.TabIndex = 7;
+            ToolbarGroup.Text = "Toolbar";
+            //
+            // WideToolbarRadio
+            //
+            WideToolbarRadio.AutoSize = true;
+            WideToolbarRadio.Checked = true;
+            WideToolbarRadio.Location = new Point(12, 22);
+            WideToolbarRadio.Name = "WideToolbarRadio";
+            WideToolbarRadio.TabIndex = 0;
+            WideToolbarRadio.TabStop = true;
+            WideToolbarRadio.Text = "Wide";
+            WideToolbarRadio.UseVisualStyleBackColor = true;
+            //
+            // NarrowToolbarRadio
+            //
+            NarrowToolbarRadio.AutoSize = true;
+            NarrowToolbarRadio.Location = new Point(90, 22);
+            NarrowToolbarRadio.Name = "NarrowToolbarRadio";
+            NarrowToolbarRadio.TabIndex = 1;
+            NarrowToolbarRadio.Text = "Narrow";
+            NarrowToolbarRadio.UseVisualStyleBackColor = true;
+            //
+            // EditorGroup
+            //
+            EditorGroup.Controls.Add(EditorLeftRadio);
+            EditorGroup.Controls.Add(EditorRightRadio);
+            EditorGroup.Dock = DockStyle.Fill;
+            EditorGroup.Name = "EditorGroup";
+            EditorGroup.TabIndex = 8;
+            EditorGroup.Text = "Editor";
+            //
+            // EditorLeftRadio
+            //
+            EditorLeftRadio.AutoSize = true;
+            EditorLeftRadio.Checked = true;
+            EditorLeftRadio.Location = new Point(12, 22);
+            EditorLeftRadio.Name = "EditorLeftRadio";
+            EditorLeftRadio.TabIndex = 0;
+            EditorLeftRadio.TabStop = true;
+            EditorLeftRadio.Text = "Left";
+            EditorLeftRadio.UseVisualStyleBackColor = true;
+            //
+            // EditorRightRadio
+            //
+            EditorRightRadio.AutoSize = true;
+            EditorRightRadio.Location = new Point(90, 22);
+            EditorRightRadio.Name = "EditorRightRadio";
+            EditorRightRadio.TabIndex = 1;
+            EditorRightRadio.Text = "Right";
+            EditorRightRadio.UseVisualStyleBackColor = true;
+            //
             // ButtonPanel
             //
             ButtonPanel.AutoSize = true;
@@ -178,7 +248,7 @@ namespace LiveEditor
             ButtonPanel.Controls.Add(OkSettingsButton);
             ButtonPanel.Dock = DockStyle.Bottom;
             ButtonPanel.FlowDirection = FlowDirection.RightToLeft;
-            ButtonPanel.Location = new Point(12, 316);
+            ButtonPanel.Location = new Point(12, 420);
             ButtonPanel.Name = "ButtonPanel";
             ButtonPanel.Padding = new Padding(0, 10, 0, 0);
             ButtonPanel.Size = new Size(476, 51);
@@ -208,7 +278,7 @@ namespace LiveEditor
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = CancelSettingsButton;
-            ClientSize = new Size(500, 379);
+            ClientSize = new Size(500, 483);
             Controls.Add(SettingsLayout);
             Controls.Add(ButtonPanel);
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -244,6 +314,12 @@ namespace LiveEditor
         private NumericUpDown RenderDelayNumeric;
         private Label HighlightDelayLabel;
         private NumericUpDown HighlightDelayNumeric;
+        private GroupBox ToolbarGroup;
+        private RadioButton WideToolbarRadio;
+        private RadioButton NarrowToolbarRadio;
+        private GroupBox EditorGroup;
+        private RadioButton EditorLeftRadio;
+        private RadioButton EditorRightRadio;
         private FlowLayoutPanel ButtonPanel;
         private Button CancelSettingsButton;
         private Button OkSettingsButton;

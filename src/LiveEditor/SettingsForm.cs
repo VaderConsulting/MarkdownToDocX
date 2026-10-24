@@ -20,6 +20,10 @@ internal partial class SettingsForm : Form
         FontSizeNumeric.Value = (decimal)Clamp(Settings.EditorFontSize, (float)FontSizeNumeric.Minimum, (float)FontSizeNumeric.Maximum);
         RenderDelayNumeric.Value = Clamp(Settings.RenderDelayMilliseconds, (int)RenderDelayNumeric.Minimum, (int)RenderDelayNumeric.Maximum);
         HighlightDelayNumeric.Value = Clamp(Settings.HighlightDelayMilliseconds, (int)HighlightDelayNumeric.Minimum, (int)HighlightDelayNumeric.Maximum);
+        WideToolbarRadio.Checked = Settings.WideToolbar;
+        NarrowToolbarRadio.Checked = !Settings.WideToolbar;
+        EditorLeftRadio.Checked = Settings.EditorOnLeft;
+        EditorRightRadio.Checked = !Settings.EditorOnLeft;
     }
 
     public void ApplyTo(SessionSettings Settings)
@@ -32,6 +36,8 @@ internal partial class SettingsForm : Form
         Settings.EditorFontSize = Decimal.ToSingle(FontSizeNumeric.Value);
         Settings.RenderDelayMilliseconds = Decimal.ToInt32(RenderDelayNumeric.Value);
         Settings.HighlightDelayMilliseconds = Decimal.ToInt32(HighlightDelayNumeric.Value);
+        Settings.WideToolbar = WideToolbarRadio.Checked;
+        Settings.EditorOnLeft = EditorLeftRadio.Checked;
     }
 
     private static int Clamp(int Value, int Minimum, int Maximum)
