@@ -11,16 +11,17 @@ namespace LiveEditor.Completion;
 /// </summary>
 internal sealed class EnterpriseCompletionEngine
 {
+    // The relationship dash is written after a space ("id -kind"). A dash inside a type name, as in "application-", is still part of that name.
     private static readonly Regex KindContextRegex = new Regex(
-        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s*-(?<kind>[A-Za-z]*)\s*$",
+        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s+-(?<kind>[A-Za-z]*)\s*$",
         RegexOptions.Compiled);
 
     private static readonly Regex TargetContextRegex = new Regex(
-        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s*-(?<kind>[A-Za-z]+)(?:\([^)]*\))?->\s*(?<tgt>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?\s*$",
+        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s+-(?<kind>[A-Za-z]+)(?:\([^)]*\))?->\s*(?<tgt>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?\s*$",
         RegexOptions.Compiled);
 
     private static readonly Regex QualifierContextRegex = new Regex(
-        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s*-(?<kind>access|influence|association)\((?<qual>[A-Za-z+-]*)$",
+        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s+-(?<kind>access|influence|association)\((?<qual>[A-Za-z+-]*)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex ElementTypeContextRegex = new Regex(
@@ -164,6 +165,16 @@ internal sealed class EnterpriseCompletionEngine
             }
         }
 
+        Match ClauseMatch = Regex.Match(
+            LinePrefix,
+            @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+$",
+            RegexOptions.IgnoreCase);
+        if (ClauseMatch.Success && IsKnownElementTypeToken(ClauseMatch.Groups["etype"].Value))
+        {
+            FillClauseSuggestions(Context, ClauseMatch, LineStart);
+            return Context;
+        }
+
         Match ElementTypeMatch = ElementTypeContextRegex.Match(LinePrefix);
         if (ElementTypeMatch.Success)
         {
@@ -288,6 +299,46 @@ internal sealed class EnterpriseCompletionEngine
             }
 
             Context.Items.Add(new CompletionItem(Name + " ", Name, "Element", EnterpriseHelp.ElementTypeDocumentation(Pair.Value)));
+        }
+
+        AddAliasType(Context, Prefix, "and-junction", EnterpriseElementType.Junction);
+        AddAliasType(Context, Prefix, "or-junction", EnterpriseElementType.Junction);
+        AddAliasType(Context, Prefix, "junction-and", EnterpriseElementType.Junction);
+        AddAliasType(Context, Prefix, "junction-or", EnterpriseElementType.Junction);
+        AddAliasType(Context, Prefix, "group", EnterpriseElementType.Grouping);
+        Context.Items.Sort(CompareItems);
+    }
+
+    private static void AddAliasType(CompletionContext Context, string Prefix, string Name, EnterpriseElementType ElementType)
+    {
+        if (!StartsWithPrefix(Name, Prefix))
+        {
+            return;
+        }
+
+        if (!EnterpriseElementCatalog.Elements.TryGetValue(ElementType, out EnterpriseElementMetadata? Metadata) || Metadata == null)
+        {
+            return;
+        }
+
+        Context.Items.Add(new CompletionItem(Name + " ", Name, "Element", EnterpriseHelp.ElementTypeDocumentation(Metadata, Name)));
+    }
+
+    private static void FillClauseSuggestions(CompletionContext Context, Match Match, int LineStart)
+    {
+        Context.TokenKind = CompletionTokenKind.PlacementHint;
+        Context.Prefix = string.Empty;
+        Context.ReplaceStart = LineStart + Match.Length;
+        Context.ReplaceEnd = Context.ReplaceStart;
+        if (!Match.Groups["parent"].Success)
+        {
+            Context.Items.Add(new CompletionItem("in ", "in", "Container", "in <container>\n\nOptional. Identifier of the containing group. The statement can end before this."));
+        }
+
+        string[] Hints = new string[] { "above", "below", "left-of", "right-of", "push" };
+        foreach (string Hint in Hints)
+        {
+            Context.Items.Add(new CompletionItem(Hint + " ", Hint, "Placement", EnterpriseHelp.PlacementDocumentation(Hint)));
         }
 
         Context.Items.Sort(CompareItems);
@@ -506,8 +557,8 @@ internal sealed class EnterpriseCompletionEngine
                 continue;
             }
 
-            string Docs = EnterpriseHelp.ElementRow(Pair.Value) + "\n\nExisting element. Accepting inserts the identifier and a relationship dash.\nF12 goes to the declaration.";
-            Context.Items.Add(new CompletionItem(Pair.Key + " -", EnterpriseHelp.ElementRow(Pair.Value), "Element", Docs));
+            string Docs = EnterpriseHelp.ElementRow(Pair.Value) + "\n\nExisting element. Accepting inserts the identifier only.\nF12 goes to the declaration.";
+            Context.Items.Add(new CompletionItem(Pair.Key, EnterpriseHelp.ElementRow(Pair.Value), "Element", Docs));
         }
 
         if (TypeGroup.Success)
@@ -658,14 +709,11 @@ internal sealed class EnterpriseCompletionEngine
     private static HashSet<char> CollectOutgoingLetters(EnterpriseDocument Document, string SourceType)
     {
         HashSet<char> Letters = new HashSet<char>();
-        EnterpriseRulesCatalog Rules = EnterpriseRulesCatalog.Instance;
-        foreach (KeyValuePair<string, EnterpriseElement> Pair in Document.Elements)
+        foreach (string Name in EnterpriseHelp.OutgoingRelationshipNames(Document.Version, SourceType))
         {
-            string TargetType = EnterpriseElementCatalog.GetKebabName(Pair.Value.ElementType);
-            string Allowed = Rules.GetAllowedLetters(Document.Version, SourceType, TargetType);
-            foreach (char Letter in Allowed)
+            if (EnterpriseElementCatalog.TryResolveRelationship(Name, out EnterpriseRelationshipKind Kind))
             {
-                Letters.Add(Letter);
+                Letters.Add(EnterpriseElementCatalog.GetLetter(Kind));
             }
         }
 
@@ -674,28 +722,7 @@ internal sealed class EnterpriseCompletionEngine
 
     private static bool IsKnownElementTypeToken(string Token)
     {
-        if (string.IsNullOrWhiteSpace(Token))
-        {
-            return false;
-        }
-
-        if (string.Equals(Token, "group", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Token, "and-junction", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Token, "or-junction", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Token, "junction", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        foreach (KeyValuePair<EnterpriseElementType, EnterpriseElementMetadata> Pair in EnterpriseElementCatalog.Elements)
-        {
-            if (string.Equals(Pair.Value.KebabName, Token, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return EnterpriseElementCatalog.TryResolveElementType(Token, out _);
     }
 
     private static bool StartsWithPrefix(string Value, string Prefix)

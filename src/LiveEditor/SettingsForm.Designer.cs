@@ -256,18 +256,18 @@ namespace LiveEditor
             //
             // CancelSettingsButton
             //
+            CancelSettingsButton.AutoSize = true;
             CancelSettingsButton.DialogResult = DialogResult.Cancel;
             CancelSettingsButton.Name = "CancelSettingsButton";
-            CancelSettingsButton.Size = new Size(100, 32);
             CancelSettingsButton.TabIndex = 1;
             CancelSettingsButton.Text = "Cancel";
             CancelSettingsButton.UseVisualStyleBackColor = true;
             //
             // OkSettingsButton
             //
+            OkSettingsButton.AutoSize = true;
             OkSettingsButton.DialogResult = DialogResult.OK;
             OkSettingsButton.Name = "OkSettingsButton";
-            OkSettingsButton.Size = new Size(100, 32);
             OkSettingsButton.TabIndex = 0;
             OkSettingsButton.Text = "OK";
             OkSettingsButton.UseVisualStyleBackColor = true;

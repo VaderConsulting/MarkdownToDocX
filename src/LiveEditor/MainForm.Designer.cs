@@ -1,6 +1,5 @@
 using System.Drawing;
 using System.Windows.Forms;
-using LiveEditor.Editor;
 
 namespace LiveEditor
 {
@@ -25,6 +24,7 @@ namespace LiveEditor
             components = new System.ComponentModel.Container();
             MainMenu = new MenuStrip();
             FileMenu = new ToolStripMenuItem();
+            NewMenuItem = new ToolStripMenuItem();
             OpenMenuItem = new ToolStripMenuItem();
             SaveMenuItem = new ToolStripMenuItem();
             SaveAsMenuItem = new ToolStripMenuItem();
@@ -32,6 +32,28 @@ namespace LiveEditor
             FileSeparator = new ToolStripSeparator();
             ExitMenuItem = new ToolStripMenuItem();
             EditMenu = new ToolStripMenuItem();
+            UndoMenuItem = new ToolStripMenuItem();
+            RedoMenuItem = new ToolStripMenuItem();
+            EditHistorySeparator = new ToolStripSeparator();
+            CutMenuItem = new ToolStripMenuItem();
+            CopyMenuItem = new ToolStripMenuItem();
+            PasteMenuItem = new ToolStripMenuItem();
+            ClipboardSeparator = new ToolStripSeparator();
+            FindMenuItem = new ToolStripMenuItem();
+            ReplaceMenuItem = new ToolStripMenuItem();
+            GoToLineMenuItem = new ToolStripMenuItem();
+            FindNextMenuItem = new ToolStripMenuItem();
+            FindPreviousMenuItem = new ToolStripMenuItem();
+            FindSeparator = new ToolStripSeparator();
+            CommentMenuItem = new ToolStripMenuItem();
+            UncommentMenuItem = new ToolStripMenuItem();
+            DuplicateLineMenuItem = new ToolStripMenuItem();
+            DeleteLineMenuItem = new ToolStripMenuItem();
+            IndentMenuItem = new ToolStripMenuItem();
+            OutdentMenuItem = new ToolStripMenuItem();
+            LineEditSeparator = new ToolStripSeparator();
+            NextErrorMenuItem = new ToolStripMenuItem();
+            PreviousErrorMenuItem = new ToolStripMenuItem();
             CopySourceMenuItem = new ToolStripMenuItem();
             ListMembersMenuItem = new ToolStripMenuItem();
             ParameterInfoMenuItem = new ToolStripMenuItem();
@@ -69,9 +91,7 @@ namespace LiveEditor
             SaveCoArchiFolderMenuItem = new ToolStripMenuItem();
             BodySplit = new SplitContainer();
             EditorSplit = new SplitContainer();
-            SourceEditor = new RichTextBox();
-            LineNumberColumn = new LineNumberGutter();
-            MinimapBox = new RichTextBox();
+            CodeView = new CodeEditor();
             ElementToolbar = new ElementPalette();
             PreviewHost = new Panel();
             PreviewCanvas = new Panel();
@@ -87,7 +107,6 @@ namespace LiveEditor
             TimingLabel = new ToolStripStatusLabel();
             CoArchiDirtyLabel = new ToolStripStatusLabel();
             RenderTimer = new Timer(components);
-            HighlightTimer = new Timer(components);
             MainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)BodySplit).BeginInit();
             BodySplit.Panel1.SuspendLayout();
@@ -115,10 +134,17 @@ namespace LiveEditor
             // 
             // FileMenu
             // 
-            FileMenu.DropDownItems.AddRange(new ToolStripItem[] { OpenMenuItem, SaveMenuItem, SaveAsMenuItem, RecentFilesMenuItem, FileSeparator, ExitMenuItem });
+            FileMenu.DropDownItems.AddRange(new ToolStripItem[] { NewMenuItem, OpenMenuItem, SaveMenuItem, SaveAsMenuItem, RecentFilesMenuItem, FileSeparator, ExitMenuItem });
             FileMenu.Name = "FileMenu";
             FileMenu.Size = new Size(46, 24);
             FileMenu.Text = "&File";
+            // 
+            // NewMenuItem
+            // 
+            NewMenuItem.Name = "NewMenuItem";
+            NewMenuItem.ShortcutKeys = Keys.Control | Keys.N;
+            NewMenuItem.Size = new Size(190, 26);
+            NewMenuItem.Text = "&New...";
             // 
             // OpenMenuItem
             // 
@@ -159,10 +185,156 @@ namespace LiveEditor
             // 
             // EditMenu
             // 
-            EditMenu.DropDownItems.AddRange(new ToolStripItem[] { CopySourceMenuItem, ListMembersMenuItem, ParameterInfoMenuItem, QuickInfoMenuItem, RenameSymbolMenuItem, GoToDefinitionMenuItem, FindReferencesMenuItem, SelectNextOccurrenceMenuItem, InsertArchiSnippetMenuItem, CommandPaletteMenuItem, SettingsSeparator, SettingsMenuItem });
+            EditMenu.DropDownItems.AddRange(new ToolStripItem[] { UndoMenuItem, RedoMenuItem, EditHistorySeparator, CutMenuItem, CopyMenuItem, PasteMenuItem, ClipboardSeparator, FindMenuItem, ReplaceMenuItem, GoToLineMenuItem, FindNextMenuItem, FindPreviousMenuItem, FindSeparator, CommentMenuItem, UncommentMenuItem, DuplicateLineMenuItem, DeleteLineMenuItem, IndentMenuItem, OutdentMenuItem, LineEditSeparator, NextErrorMenuItem, PreviousErrorMenuItem, CopySourceMenuItem, ListMembersMenuItem, ParameterInfoMenuItem, QuickInfoMenuItem, RenameSymbolMenuItem, GoToDefinitionMenuItem, FindReferencesMenuItem, SelectNextOccurrenceMenuItem, InsertArchiSnippetMenuItem, CommandPaletteMenuItem, SettingsSeparator, SettingsMenuItem });
             EditMenu.Name = "EditMenu";
             EditMenu.Size = new Size(49, 24);
             EditMenu.Text = "&Edit";
+            // 
+            // UndoMenuItem
+            // 
+            UndoMenuItem.Name = "UndoMenuItem";
+            UndoMenuItem.ShortcutKeyDisplayString = "Ctrl+Z";
+            UndoMenuItem.Size = new Size(328, 26);
+            UndoMenuItem.Text = "&Undo";
+            // 
+            // RedoMenuItem
+            // 
+            RedoMenuItem.Name = "RedoMenuItem";
+            RedoMenuItem.ShortcutKeyDisplayString = "Ctrl+Y";
+            RedoMenuItem.Size = new Size(328, 26);
+            RedoMenuItem.Text = "&Redo";
+            // 
+            // EditHistorySeparator
+            // 
+            EditHistorySeparator.Name = "EditHistorySeparator";
+            EditHistorySeparator.Size = new Size(325, 6);
+            // 
+            // CutMenuItem
+            // 
+            CutMenuItem.Name = "CutMenuItem";
+            CutMenuItem.ShortcutKeyDisplayString = "Ctrl+X";
+            CutMenuItem.Size = new Size(328, 26);
+            CutMenuItem.Text = "Cu&t";
+            // 
+            // CopyMenuItem
+            // 
+            CopyMenuItem.Name = "CopyMenuItem";
+            CopyMenuItem.ShortcutKeyDisplayString = "Ctrl+C";
+            CopyMenuItem.Size = new Size(328, 26);
+            CopyMenuItem.Text = "&Copy";
+            // 
+            // PasteMenuItem
+            // 
+            PasteMenuItem.Name = "PasteMenuItem";
+            PasteMenuItem.ShortcutKeyDisplayString = "Ctrl+V";
+            PasteMenuItem.Size = new Size(328, 26);
+            PasteMenuItem.Text = "&Paste";
+            // 
+            // ClipboardSeparator
+            // 
+            ClipboardSeparator.Name = "ClipboardSeparator";
+            ClipboardSeparator.Size = new Size(325, 6);
+            // 
+            // FindMenuItem
+            // 
+            FindMenuItem.Name = "FindMenuItem";
+            FindMenuItem.ShortcutKeys = Keys.Control | Keys.F;
+            FindMenuItem.Size = new Size(328, 26);
+            FindMenuItem.Text = "&Find...";
+            // 
+            // ReplaceMenuItem
+            // 
+            ReplaceMenuItem.Name = "ReplaceMenuItem";
+            ReplaceMenuItem.ShortcutKeys = Keys.Control | Keys.H;
+            ReplaceMenuItem.Size = new Size(328, 26);
+            ReplaceMenuItem.Text = "R&eplace...";
+            // 
+            // GoToLineMenuItem
+            // 
+            GoToLineMenuItem.Name = "GoToLineMenuItem";
+            GoToLineMenuItem.ShortcutKeys = Keys.Control | Keys.G;
+            GoToLineMenuItem.Size = new Size(328, 26);
+            GoToLineMenuItem.Text = "&Go to line...";
+            // 
+            // FindNextMenuItem
+            // 
+            FindNextMenuItem.Name = "FindNextMenuItem";
+            FindNextMenuItem.ShortcutKeys = Keys.F3;
+            FindNextMenuItem.Size = new Size(328, 26);
+            FindNextMenuItem.Text = "Find &next";
+            // 
+            // FindPreviousMenuItem
+            // 
+            FindPreviousMenuItem.Name = "FindPreviousMenuItem";
+            FindPreviousMenuItem.ShortcutKeys = Keys.Shift | Keys.F3;
+            FindPreviousMenuItem.Size = new Size(328, 26);
+            FindPreviousMenuItem.Text = "Find &previous";
+            // 
+            // FindSeparator
+            // 
+            FindSeparator.Name = "FindSeparator";
+            FindSeparator.Size = new Size(325, 6);
+            // 
+            // CommentMenuItem
+            // 
+            CommentMenuItem.Name = "CommentMenuItem";
+            CommentMenuItem.ShortcutKeyDisplayString = "Ctrl+K, Ctrl+C";
+            CommentMenuItem.Size = new Size(328, 26);
+            CommentMenuItem.Text = "Co&mment selection";
+            // 
+            // UncommentMenuItem
+            // 
+            UncommentMenuItem.Name = "UncommentMenuItem";
+            UncommentMenuItem.ShortcutKeyDisplayString = "Ctrl+K, Ctrl+U";
+            UncommentMenuItem.Size = new Size(328, 26);
+            UncommentMenuItem.Text = "Uncomment se&lection";
+            // 
+            // DuplicateLineMenuItem
+            // 
+            DuplicateLineMenuItem.Name = "DuplicateLineMenuItem";
+            DuplicateLineMenuItem.ShortcutKeyDisplayString = "Ctrl+E, V";
+            DuplicateLineMenuItem.Size = new Size(328, 26);
+            DuplicateLineMenuItem.Text = "D&uplicate line";
+            // 
+            // DeleteLineMenuItem
+            // 
+            DeleteLineMenuItem.Name = "DeleteLineMenuItem";
+            DeleteLineMenuItem.ShortcutKeys = Keys.Control | Keys.Shift | Keys.L;
+            DeleteLineMenuItem.Size = new Size(328, 26);
+            DeleteLineMenuItem.Text = "&Delete line";
+            // 
+            // IndentMenuItem
+            // 
+            IndentMenuItem.Name = "IndentMenuItem";
+            IndentMenuItem.ShortcutKeyDisplayString = "Tab";
+            IndentMenuItem.Size = new Size(328, 26);
+            IndentMenuItem.Text = "&Indent";
+            // 
+            // OutdentMenuItem
+            // 
+            OutdentMenuItem.Name = "OutdentMenuItem";
+            OutdentMenuItem.ShortcutKeyDisplayString = "Shift+Tab";
+            OutdentMenuItem.Size = new Size(328, 26);
+            OutdentMenuItem.Text = "O&utdent";
+            // 
+            // LineEditSeparator
+            // 
+            LineEditSeparator.Name = "LineEditSeparator";
+            LineEditSeparator.Size = new Size(325, 6);
+            // 
+            // NextErrorMenuItem
+            // 
+            NextErrorMenuItem.Name = "NextErrorMenuItem";
+            NextErrorMenuItem.ShortcutKeys = Keys.F8;
+            NextErrorMenuItem.Size = new Size(328, 26);
+            NextErrorMenuItem.Text = "Next &error";
+            // 
+            // PreviousErrorMenuItem
+            // 
+            PreviousErrorMenuItem.Name = "PreviousErrorMenuItem";
+            PreviousErrorMenuItem.ShortcutKeys = Keys.Shift | Keys.F8;
+            PreviousErrorMenuItem.Size = new Size(328, 26);
+            PreviousErrorMenuItem.Text = "Pre&vious error";
             // 
             // CopySourceMenuItem
             // 
@@ -268,21 +440,21 @@ namespace LiveEditor
             ZoomInMenuItem.Name = "ZoomInMenuItem";
             ZoomInMenuItem.ShortcutKeys = Keys.Control | Keys.Oemplus;
             ZoomInMenuItem.Size = new Size(285, 26);
-            ZoomInMenuItem.Text = "Zoom &in";
+            ZoomInMenuItem.Text = "Zoom editor &in";
             // 
             // ZoomOutMenuItem
             // 
             ZoomOutMenuItem.Name = "ZoomOutMenuItem";
             ZoomOutMenuItem.ShortcutKeys = Keys.Control | Keys.OemMinus;
             ZoomOutMenuItem.Size = new Size(285, 26);
-            ZoomOutMenuItem.Text = "Zoom &out";
+            ZoomOutMenuItem.Text = "Zoom editor &out";
             // 
             // ZoomResetMenuItem
             // 
             ZoomResetMenuItem.Name = "ZoomResetMenuItem";
             ZoomResetMenuItem.ShortcutKeys = Keys.Control | Keys.D0;
             ZoomResetMenuItem.Size = new Size(285, 26);
-            ZoomResetMenuItem.Text = "&Reset zoom";
+            ZoomResetMenuItem.Text = "&Reset editor zoom";
             // 
             // FitPreviewMenuItem
             // 
@@ -419,9 +591,7 @@ namespace LiveEditor
             // 
             // EditorSplit.Panel1
             // 
-            EditorSplit.Panel1.Controls.Add(SourceEditor);
-            EditorSplit.Panel1.Controls.Add(LineNumberColumn);
-            EditorSplit.Panel1.Controls.Add(MinimapBox);
+            EditorSplit.Panel1.Controls.Add(CodeView);
             EditorSplit.Panel1MinSize = 240;
             // 
             // EditorSplit.Panel2
@@ -433,44 +603,14 @@ namespace LiveEditor
             EditorSplit.SplitterWidth = 3;
             EditorSplit.TabIndex = 0;
             // 
-            // SourceEditor
+            // CodeView
             // 
-            SourceEditor.AcceptsTab = true;
-            SourceEditor.AccessibleName = "Mermaid source editor";
-            SourceEditor.DetectUrls = false;
-            SourceEditor.Dock = DockStyle.Fill;
-            SourceEditor.Font = new Font("Consolas", 8.8F);
-            SourceEditor.HideSelection = false;
-            SourceEditor.Location = new Point(0, 0);
-            SourceEditor.Margin = new Padding(2, 2, 2, 2);
-            SourceEditor.Name = "SourceEditor";
-            SourceEditor.Size = new Size(591, 406);
-            SourceEditor.TabIndex = 0;
-            SourceEditor.Text = "";
-            SourceEditor.WordWrap = false;
-            // 
-            // LineNumberColumn
-            // 
-            LineNumberColumn.AccessibleName = "Line numbers";
-            LineNumberColumn.Dock = DockStyle.Left;
-            LineNumberColumn.Name = "LineNumberColumn";
-            LineNumberColumn.TabStop = false;
-            // 
-            // MinimapBox
-            // 
-            MinimapBox.AccessibleName = "Source minimap";
-            MinimapBox.Dock = DockStyle.Right;
-            MinimapBox.Font = new Font("Consolas", 3.2F);
-            MinimapBox.Location = new Point(591, 0);
-            MinimapBox.Margin = new Padding(2, 2, 2, 2);
-            MinimapBox.Name = "MinimapBox";
-            MinimapBox.ReadOnly = true;
-            MinimapBox.ScrollBars = RichTextBoxScrollBars.None;
-            MinimapBox.Size = new Size(64, 406);
-            MinimapBox.TabIndex = 1;
-            MinimapBox.Text = "";
-            MinimapBox.Visible = false;
-            MinimapBox.WordWrap = false;
+            CodeView.Dock = DockStyle.Fill;
+            CodeView.Location = new Point(0, 0);
+            CodeView.Margin = new Padding(0);
+            CodeView.Name = "CodeView";
+            CodeView.Size = new Size(655, 406);
+            CodeView.TabIndex = 0;
             // 
             // PreviewHost
             // 
@@ -613,10 +753,6 @@ namespace LiveEditor
             // 
             RenderTimer.Interval = 350;
             // 
-            // HighlightTimer
-            // 
-            HighlightTimer.Interval = 250;
-            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -654,6 +790,7 @@ namespace LiveEditor
 
         private MenuStrip MainMenu;
         private ToolStripMenuItem FileMenu;
+        private ToolStripMenuItem NewMenuItem;
         private ToolStripMenuItem OpenMenuItem;
         private ToolStripMenuItem SaveMenuItem;
         private ToolStripMenuItem SaveAsMenuItem;
@@ -661,6 +798,28 @@ namespace LiveEditor
         private ToolStripSeparator FileSeparator;
         private ToolStripMenuItem ExitMenuItem;
         private ToolStripMenuItem EditMenu;
+        private ToolStripMenuItem UndoMenuItem;
+        private ToolStripMenuItem RedoMenuItem;
+        private ToolStripSeparator EditHistorySeparator;
+        private ToolStripMenuItem CutMenuItem;
+        private ToolStripMenuItem CopyMenuItem;
+        private ToolStripMenuItem PasteMenuItem;
+        private ToolStripSeparator ClipboardSeparator;
+        private ToolStripMenuItem FindMenuItem;
+        private ToolStripMenuItem ReplaceMenuItem;
+        private ToolStripMenuItem GoToLineMenuItem;
+        private ToolStripMenuItem FindNextMenuItem;
+        private ToolStripMenuItem FindPreviousMenuItem;
+        private ToolStripSeparator FindSeparator;
+        private ToolStripMenuItem CommentMenuItem;
+        private ToolStripMenuItem UncommentMenuItem;
+        private ToolStripMenuItem DuplicateLineMenuItem;
+        private ToolStripMenuItem DeleteLineMenuItem;
+        private ToolStripMenuItem IndentMenuItem;
+        private ToolStripMenuItem OutdentMenuItem;
+        private ToolStripSeparator LineEditSeparator;
+        private ToolStripMenuItem NextErrorMenuItem;
+        private ToolStripMenuItem PreviousErrorMenuItem;
         private ToolStripMenuItem CopySourceMenuItem;
         private ToolStripMenuItem ListMembersMenuItem;
         private ToolStripMenuItem ParameterInfoMenuItem;
@@ -698,9 +857,7 @@ namespace LiveEditor
         private ToolStripMenuItem SaveCoArchiFolderMenuItem;
         private SplitContainer BodySplit;
         private SplitContainer EditorSplit;
-        private RichTextBox SourceEditor;
-        private LineNumberGutter LineNumberColumn;
-        private RichTextBox MinimapBox;
+        private CodeEditor CodeView;
         private Panel PreviewHost;
         private Panel PreviewCanvas;
         private PictureBox PreviewImage;
@@ -712,7 +869,6 @@ namespace LiveEditor
         private ToolStripStatusLabel CoArchiDirtyLabel;
         private ToolStripStatusLabel SignatureLabel;
         private System.Windows.Forms.Timer RenderTimer;
-        private System.Windows.Forms.Timer HighlightTimer;
         private ElementPalette ElementToolbar;
         private Button PreviewZoomInButton;
         private Button PreviewZoomOutButton;

@@ -99,7 +99,8 @@ public sealed class EditorIntelliSenseTests
         SetSource("enterprise\r\n  direction T");
         Type("B");
 
-        Assert.That(_Controller.Popup.IsVisible, Is.False);
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("direction"));
 
         _Editor.RaiseKeyDown(new KeyEventArgs(Keys.Control | Keys.J));
         Application.DoEvents();
@@ -180,7 +181,8 @@ public sealed class EditorIntelliSenseTests
         Assert.That(Selected, Is.Not.Empty);
         Assert.That(_Editor.Text, Does.Contain(Selected));
         Assert.That(_Editor.Text, Is.Not.EqualTo(Before));
-        Assert.That(_Controller.Popup.IsVisible, Is.False);
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("required identifier"));
     }
 
     [Test]
@@ -312,6 +314,24 @@ public sealed class EditorIntelliSenseTests
     }
 
     [Test]
+    public void AFinishedLabelListsEveryOptionalClause()
+    {
+        SetSource("enterprise\r\n  application-service orderApi \"Order API\" ");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Members));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("in"));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("above"));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("below"));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("left-of"));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("right-of"));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("push"));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("[in <container>]"));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("[+n]"));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("<N|S|E|W>"));
+        Assert.That(_Editor.Focused, Is.True);
+    }
+
+    [Test]
     public void AStartedPlacementWordStillListsPlacement()
     {
         SetSource("enterprise\r\n  application-component comp ab");
@@ -320,6 +340,105 @@ public sealed class EditorIntelliSenseTests
         Assert.That(_Controller.Popup.MemberLabels, Does.Contain("above"));
         Assert.That(_Controller.Popup.MemberLabels, Does.Not.Contain("below"));
         Assert.That(_Editor.Focused, Is.True);
+    }
+
+    [Test]
+    public void HyphenInsideAnElementTypeKeepsTheListOpen()
+    {
+        SetSource("enterprise\r\n  ");
+        Type("application");
+
+        Assert.That(_Controller.Popup.IsVisible, Is.True);
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Members));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("application-interface"));
+
+        Type("-");
+
+        Assert.That(_Controller.Popup.IsVisible, Is.True);
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Members));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Contain("application-interface"));
+        Assert.That(_Controller.Popup.MemberLabels, Does.Not.Contain("business-actor"));
+        Assert.That(_Editor.Focused, Is.True);
+    }
+
+    [Test]
+    public void IdentifierAfterATypeShowsParameterHelp()
+    {
+        SetSource("enterprise\r\n  application-collaboration ");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("<id>"));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("required identifier"));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("case-sensitive"));
+        Assert.That(_Editor.Focused, Is.True);
+    }
+
+    [Test]
+    public void ARepeatedIdentifierIsExplainedWithoutChangingTheDeclaration()
+    {
+        SetSource("enterprise\r\n  application-service orderApi \"Order API\"\r\n  application-service orderApi");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("already in use"));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("application-service"));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("Order API"));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("F12"));
+    }
+
+    [Test]
+    public void MovingBackToTheIdentifierRetargetsParameterHelp()
+    {
+        SetSource("enterprise\r\n  application-collaboration ac \"");
+        int Identifier = _Editor.Text.LastIndexOf("ac", StringComparison.Ordinal);
+        _Editor.Select(Identifier + 1, 0);
+        Application.DoEvents();
+        _Controller.Refresh(Force: false);
+        Application.DoEvents();
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.DetailText, Does.Contain("required identifier"));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("<id>"));
+    }
+
+    [Test]
+    public void AccessQualifierExplainsTheModes()
+    {
+        SetSource("enterprise\r\n  application-service orderApi \"Order API\"\r\n  data-object order \"Order\"\r\n  orderApi -access(");
+
+        Assert.That(_Controller.Popup.IsVisible, Is.True);
+        string Notes = _Controller.Popup.DetailText + "\n" + _Controller.Popup.SignatureText;
+        Assert.That(Notes, Does.Contain("read"));
+        Assert.That(Notes, Does.Contain("write"));
+        Assert.That(Notes, Does.Contain("Default when omitted: write."));
+    }
+
+    [Test]
+    public void RelationshipTargetListsCompatibleElementsAndExistingConnections()
+    {
+        SetSource("enterprise\r\n  application-service orderApi \"Order API\"\r\n  data-object order \"Order\"\r\n  orderApi -access(read)-> order\r\n  orderApi -access(read)-> ");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Members));
+        Assert.That(string.Join("\n", _Controller.Popup.MemberLabels), Does.Contain("order"));
+        Assert.That(string.Join("\n", _Controller.Popup.MemberLabels), Does.Contain("Already connected: access(read)"));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("<target>"));
+    }
+
+    [Test]
+    public void AcceptingAnExistingElementInsertsOnlyItsIdentifier()
+    {
+        SetSource("enterprise\r\n  application-service orderApi \"Order API\"\r\n  ord");
+        for (int Step = 0; Step < 40 && _Controller.Popup.IsVisible && !_Controller.Popup.SelectedMemberLabel.Contains("orderApi", StringComparison.Ordinal); Step++)
+        {
+            _Editor.RaiseKeyDown(new KeyEventArgs(Keys.Down));
+            Application.DoEvents();
+        }
+
+        Assert.That(_Controller.Popup.SelectedMemberLabel, Does.Contain("orderApi"));
+        _Editor.RaiseKeyDown(new KeyEventArgs(Keys.Tab));
+        Application.DoEvents();
+
+        Assert.That(_Editor.Text, Does.EndWith("orderApi"));
+        Assert.That(_Editor.Text, Does.Not.Contain("orderApi -"));
     }
 
     [Test]

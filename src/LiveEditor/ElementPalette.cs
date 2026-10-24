@@ -31,6 +31,14 @@ internal sealed partial class ElementPalette : UserControl
 
     private readonly Dictionary<EnterpriseLayer, TabPage> _Pages = new Dictionary<EnterpriseLayer, TabPage>();
 
+    private readonly List<TabPage> _StatementPages = new List<TabPage>();
+
+    private readonly List<Button> _StatementButtons = new List<Button>();
+
+    private string _DiagramKind = "enterprise";
+
+    private string _Snippet = string.Empty;
+
     private Func<string>? _SourceText;
 
     private ElementGlyphButton? _LiveButton;
@@ -90,6 +98,19 @@ internal sealed partial class ElementPalette : UserControl
     {
         if (_IsUpdating || PromptPanel.Visible)
         {
+            return;
+        }
+
+        string Kind = DiagramKindCatalog.Detect(Source);
+        if (!string.Equals(Kind, _DiagramKind, StringComparison.OrdinalIgnoreCase))
+        {
+            _DiagramKind = Kind;
+            ShowPagesForKind();
+        }
+
+        if (!string.Equals(_DiagramKind, "enterprise", StringComparison.OrdinalIgnoreCase))
+        {
+            HighlightStatements(CurrentToken(Source, CaretIndex));
             return;
         }
 
@@ -168,6 +189,7 @@ internal sealed partial class ElementPalette : UserControl
     public void ClosePrompt()
     {
         _Chosen = null;
+        _Snippet = string.Empty;
         _IdEdited = false;
         PromptErrorLabel.Visible = false;
         PromptErrorLabel.Text = string.Empty;
@@ -413,6 +435,7 @@ internal sealed partial class ElementPalette : UserControl
     private void OpenPrompt(EnterpriseElementMetadata Metadata)
     {
         _Chosen = Metadata;
+        _Snippet = string.Empty;
         _IdEdited = false;
         PromptTypeLabel.Text = ElementShapePainter.DisplayName(Metadata.KebabName);
         PromptLabelBox.Text = string.Empty;
@@ -483,6 +506,7 @@ internal sealed partial class ElementPalette : UserControl
 
         if (VisibleButtons.Count == 0)
         {
+            ApplyToolbarHeight();
             return;
         }
 
@@ -635,22 +659,31 @@ internal sealed partial class ElementPalette : UserControl
 
     private void ApplyToolbarHeight()
     {
-        List<ElementGlyphButton> Visible = ButtonsOnSelectedLayer();
-        if (Visible.Count == 0)
+        if (LayerTabs.SelectedTab == null || LayerTabs.SelectedTab.Controls.Count == 0)
         {
             return;
         }
 
-        if (LayerTabs.SelectedTab == null || LayerTabs.SelectedTab.Controls.Count == 0 || LayerTabs.SelectedTab.Controls[0] is not FlowLayoutPanel Flow)
+        if (LayerTabs.SelectedTab.Controls[0] is not FlowLayoutPanel Flow)
         {
+            if (Height < 72)
+            {
+                Height = 72;
+            }
+
             return;
         }
 
         Flow.PerformLayout();
         int ContentBottom = 0;
-        foreach (ElementGlyphButton Button in Visible)
+        foreach (Control Child in Flow.Controls)
         {
-            int Bottom = Button.Bottom + Button.Margin.Bottom;
+            if (!Child.Visible)
+            {
+                continue;
+            }
+
+            int Bottom = Child.Bottom + Child.Margin.Bottom;
             if (Bottom > ContentBottom)
             {
                 ContentBottom = Bottom;
@@ -703,7 +736,7 @@ internal sealed partial class ElementPalette : UserControl
 
     private void InsertLineButton_Click(object? Sender, EventArgs E)
     {
-        if (_Chosen == null)
+        if (_Chosen == null && _Snippet.Length == 0)
         {
             return;
         }
@@ -741,7 +774,16 @@ internal sealed partial class ElementPalette : UserControl
             return;
         }
 
-        EnterpriseElementMetadata Chosen = _Chosen;
+        if (_Snippet.Length > 0)
+        {
+            string SafeLabel = Label.Replace("\"", string.Empty, StringComparison.Ordinal);
+            string Line = _Snippet.Replace("{id}", Identifier, StringComparison.Ordinal).Replace("{label}", SafeLabel, StringComparison.Ordinal);
+            ClosePrompt();
+            InsertRequested?.Invoke(this, new ElementInsertRequest(Line));
+            return;
+        }
+
+        EnterpriseElementMetadata Chosen = _Chosen!;
         ClosePrompt();
         InsertRequested?.Invoke(this, new ElementInsertRequest(Chosen.KebabName, Identifier, Label));
     }
@@ -861,6 +903,168 @@ internal sealed partial class ElementPalette : UserControl
         }
 
         return Base + Suffix.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private void ShowPagesForKind()
+    {
+        bool PreviousUpdating = _IsUpdating;
+        _IsUpdating = true;
+        try
+        {
+            while (LayerTabs.TabPages.Count > 0)
+            {
+                LayerTabs.TabPages.RemoveAt(0);
+            }
+
+            DisposeStatementPages();
+            if (string.Equals(_DiagramKind, "enterprise", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (EnterpriseLayer Layer in Enum.GetValues<EnterpriseLayer>())
+                {
+                    LayerTabs.TabPages.Add(_Pages[Layer]);
+                }
+
+                if (LayerTabs.TabPages.Count > 3)
+                {
+                    LayerTabs.SelectedIndex = 3;
+                }
+
+                return;
+            }
+
+            BuildStatementPages();
+            for (int Index = 0; Index < _StatementPages.Count; Index++)
+            {
+                LayerTabs.TabPages.Add(_StatementPages[Index]);
+            }
+        }
+        finally
+        {
+            _IsUpdating = PreviousUpdating;
+        }
+
+        LayoutGlyphs();
+    }
+
+    private void DisposeStatementPages()
+    {
+        for (int Index = 0; Index < _StatementPages.Count; Index++)
+        {
+            _StatementPages[Index].Dispose();
+        }
+
+        _StatementPages.Clear();
+        _StatementButtons.Clear();
+    }
+
+    private void BuildStatementPages()
+    {
+        DiagramKindDefinition? Kind = DiagramKindCatalog.Find(_DiagramKind);
+        if (Kind == null || Kind.Toolbar.Length == 0)
+        {
+            TabPage Missing = new TabPage(DiagramKindCatalog.TitleFor(_DiagramKind));
+            Label Note = new Label();
+            Note.Dock = DockStyle.Fill;
+            Note.TextAlign = ContentAlignment.MiddleCenter;
+            Note.Text = "This diagram type has no toolbar yet.";
+            Missing.Controls.Add(Note);
+            _StatementPages.Add(Missing);
+            return;
+        }
+
+        Dictionary<string, FlowLayoutPanel> Flows = new Dictionary<string, FlowLayoutPanel>(StringComparer.Ordinal);
+        for (int Index = 0; Index < Kind.Toolbar.Length; Index++)
+        {
+            DiagramToolbarItem Item = Kind.Toolbar[Index];
+            if (!Flows.TryGetValue(Item.Tab, out FlowLayoutPanel? Flow))
+            {
+                TabPage Page = new TabPage(Item.Tab);
+                Page.Padding = new Padding(0);
+                Flow = new FlowLayoutPanel();
+                Flow.AutoScroll = false;
+                Flow.Dock = DockStyle.Fill;
+                Flow.WrapContents = true;
+                Flow.Padding = new Padding(4, 2, 4, 2);
+                Flow.Resize += Flow_Resize;
+                Page.Controls.Add(Flow);
+                _StatementPages.Add(Page);
+                Flows[Item.Tab] = Flow;
+            }
+
+            Button Choice = new Button();
+            Choice.Name = "Tool_" + Item.Caption.Replace(" ", string.Empty, StringComparison.Ordinal);
+            Choice.AutoSize = true;
+            Choice.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            Choice.Margin = new Padding(3);
+            Choice.Text = Item.Caption;
+            Choice.Tag = Item;
+            Choice.UseVisualStyleBackColor = false;
+            ToolTip Tip = new ToolTip();
+            Tip.SetToolTip(Choice, Item.Tip);
+            Choice.Click += StatementButton_Click;
+            Flow.Controls.Add(Choice);
+            _StatementButtons.Add(Choice);
+        }
+    }
+
+    private void StatementButton_Click(object? Sender, EventArgs E)
+    {
+        Button? Choice = Sender as Button;
+        DiagramToolbarItem? Item = Choice == null ? null : Choice.Tag as DiagramToolbarItem;
+        if (Item == null)
+        {
+            return;
+        }
+
+        if (Item.AsksForName)
+        {
+            OpenSnippetPrompt(Item);
+            return;
+        }
+
+        InsertRequested?.Invoke(this, new ElementInsertRequest(Item.Snippet));
+    }
+
+    private void OpenSnippetPrompt(DiagramToolbarItem Item)
+    {
+        _Chosen = null;
+        _Snippet = Item.Snippet;
+        _IdEdited = false;
+        PromptTypeLabel.Text = Item.Caption;
+        PromptLabelBox.Text = string.Empty;
+        PromptIdBox.Text = string.Empty;
+        PromptErrorLabel.Visible = false;
+        PromptErrorLabel.Text = string.Empty;
+        PromptPanel.Visible = true;
+        ApplyToolbarHeight();
+        PromptGlyph.Invalidate();
+        PromptLabelBox.Focus();
+    }
+
+    private void HighlightStatements(string Prefix)
+    {
+        Button? Live = null;
+        int BestLength = -1;
+        for (int Index = 0; Index < _StatementButtons.Count; Index++)
+        {
+            DiagramToolbarItem? Item = _StatementButtons[Index].Tag as DiagramToolbarItem;
+            if (Item == null || Prefix.Length == 0 || !Item.Caption.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (Item.Caption.Length > BestLength)
+            {
+                BestLength = Item.Caption.Length;
+                Live = _StatementButtons[Index];
+            }
+        }
+
+        for (int Index = 0; Index < _StatementButtons.Count; Index++)
+        {
+            bool Selected = ReferenceEquals(_StatementButtons[Index], Live);
+            _StatementButtons[Index].BackColor = Selected ? Color.FromArgb(255, 230, 150) : SystemColors.Control;
+        }
     }
 
     private static string LayerName(EnterpriseLayer Layer)

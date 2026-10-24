@@ -41,14 +41,11 @@ public partial class MainForm : Form
         + "  data-object order \"Order\"\r\n"
         + "  webShop -";
 
-    private readonly EditorIntelliSenseController _IntelliSense;
     private readonly bool _CapturePreviewOnShown;
     private readonly bool _PersistSession;
     private readonly List<EnterpriseDiagnostic> _Diagnostics = new List<EnterpriseDiagnostic>();
     private readonly List<int> _SelectedOccurrences = new List<int>();
     private SessionSettings _Settings;
-    private GhostTextOverlay? _GhostText;
-    private CompletionContext? _GhostContext;
     private FileSystemWatcher? _Watcher;
     private CancellationTokenSource? _RenderCancellation;
     private Image? _LastGoodPreview;
@@ -63,12 +60,6 @@ public partial class MainForm : Form
     private string? _CoArchiDiskSnapshot;
     private bool _IsDirty;
     private bool _SuppressWatcher;
-    private bool _SuppressCaretUi;
-    private bool _IsApplyingEditorFormatting;
-    private string? _MarkedId;
-    private int _MarkedStart = -1;
-    private int _MarkedLength;
-    private readonly List<int> _MarkedStarts = new List<int>();
     private int _RenderGeneration;
     private double _PreviewZoom = 1.0;
     private DateTime? _BrokenSince;
@@ -106,12 +97,11 @@ public partial class MainForm : Form
         _Settings = Settings;
         InitializeComponent();
         _PreviewHoverDismiss = new PreviewHoverDismissFilter(this);
-        LineNumberColumn.Bind(SourceEditor);
-        _IntelliSense = new EditorIntelliSenseController(SourceEditor);
-        _IntelliSense.ListOpened += IntelliSense_ListOpened;
-        _IntelliSense.StatusChanged += IntelliSense_StatusChanged;
-        _IntelliSense.Accepted += CompletionPopup_ItemAccepted;
-        _GhostText = LiveEditorFeatureGate.F_GhostText ? new GhostTextOverlay(SourceEditor) : null;
+        CodeView.ColoursRefreshing += CodeView_ColoursRefreshing;
+        CodeView.StatusRequested += CodeView_StatusRequested;
+        CodeView.FontSizeChanged += CodeView_FontSizeChanged;
+        CodeView.IntelliSense.StatusChanged += IntelliSense_StatusChanged;
+        CodeView.IntelliSense.Accepted += CompletionPopup_ItemAccepted;
         WireEvents();
         ApplySettings();
         BuildSamplesMenu();
@@ -151,26 +141,26 @@ public partial class MainForm : Form
     private async void MainForm_Shown(object? Sender, EventArgs E)
     {
         EnsureEditorSplitLayout();
-        SourceEditor.Focus();
-        SourceEditor.SelectionStart = Math.Min(_Settings.CaretIndex, SourceEditor.TextLength);
+        CodeView.Editor.Focus();
+        CodeView.Editor.SelectionStart = Math.Min(_Settings.CaretIndex, CodeView.Editor.TextLength);
         if (!_CapturePreviewOnShown)
         {
             return;
         }
 
-        _IntelliSense.Suppress = true;
+        CodeView.IntelliSense.Suppress = true;
         try
         {
-            SourceEditor.Text = COMPLETION_DEMO_SOURCE;
-            SourceEditor.SelectionStart = SourceEditor.TextLength;
+            CodeView.Editor.Text = COMPLETION_DEMO_SOURCE;
+            CodeView.Editor.SelectionStart = CodeView.Editor.TextLength;
         }
         finally
         {
-            _IntelliSense.Suppress = false;
+            CodeView.IntelliSense.Suppress = false;
         }
 
         await Task.Delay(500).ConfigureAwait(true);
-        _IntelliSense.Refresh(Force: true);
+        CodeView.IntelliSense.Refresh(Force: true);
         await Task.Delay(300).ConfigureAwait(true);
         string OutputPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath) ?? Environment.CurrentDirectory, "liveeditor-completion-preview.png");
         try
@@ -188,18 +178,18 @@ public partial class MainForm : Form
 
     private void WriteCompletionPreviewBitmap(string OutputPath)
     {
-        CompletionContext Context = _IntelliSense.Assist.BuildMembers(SourceEditor.Text, SourceEditor.SelectionStart);
+        CompletionContext Context = CodeView.IntelliSense.Assist.BuildMembers(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
         using Bitmap FormBitmap = new Bitmap(ClientSize.Width, ClientSize.Height);
         DrawToBitmap(FormBitmap, new Rectangle(Point.Empty, ClientSize));
         int PopupWidth = 440;
         int RowHeight = 24;
         int VisibleRows = Math.Min(8, Math.Max(1, Context.Items.Count));
         int PopupHeight = 12 + (VisibleRows * RowHeight);
-        Point Caret = SourceEditor.GetPositionFromCharIndex(Math.Max(0, SourceEditor.SelectionStart - 1));
-        Point EditorOrigin = SourceEditor.PointToScreen(Point.Empty);
+        Point Caret = CodeView.Editor.GetPositionFromCharIndex(Math.Max(0, CodeView.Editor.SelectionStart - 1));
+        Point EditorOrigin = CodeView.Editor.PointToScreen(Point.Empty);
         Point FormOrigin = PointToScreen(Point.Empty);
         int PopupX = EditorOrigin.X - FormOrigin.X + Caret.X + 8;
-        int PopupY = EditorOrigin.Y - FormOrigin.Y + Caret.Y + SourceEditor.Font.Height + 4;
+        int PopupY = EditorOrigin.Y - FormOrigin.Y + Caret.Y + CodeView.Editor.Font.Height + 4;
         if (PopupX + PopupWidth > FormBitmap.Width - 8)
         {
             PopupX = FormBitmap.Width - PopupWidth - 8;
@@ -248,26 +238,24 @@ public partial class MainForm : Form
         Canvas.Save(OutputPath, System.Drawing.Imaging.ImageFormat.Png);
     }
 
-    private void IntelliSense_ListOpened(object? Sender, EventArgs E)
-    {
-        _GhostContext = null;
-        _GhostText?.Hide();
-    }
-
     private void IntelliSense_StatusChanged(object? Sender, string Message)
     {
         SetStatus(Message);
     }
 
+    private void CompletionPopup_ItemAccepted(object? Sender, CompletionItem Item)
+    {
+        _IsDirty = true;
+        UpdateTitle();
+        QueueRender();
+        QueueHighlight();
+        SetStatus($"Inserted {Item.DisplayText}");
+    }
+
     private void WireEvents()
     {
-        _IntelliSense.Attach();
-        SourceEditor.TextChanged += SourceEditor_TextChanged;
-        SourceEditor.SelectionChanged += SourceEditor_SelectionChanged;
-        SourceEditor.MouseDoubleClick += SourceEditor_MouseDoubleClick;
-        SourceEditor.KeyDown += SourceEditor_KeyDown;
-        SourceEditor.PreviewKeyDown += SourceEditor_PreviewKeyDown;
-        SourceEditor.LostFocus += SourceEditor_LostFocus;
+        CodeView.Editor.TextChanged += Editor_TextChanged;
+        CodeView.Editor.SelectionChanged += Editor_SelectionChanged;
         PreviewCanvas.MouseWheel += PreviewCanvas_MouseWheel;
         PreviewCanvas.Resize += PreviewCanvas_Resize;
         PreviewImage.MouseMove += PreviewImage_MouseMove;
@@ -276,8 +264,8 @@ public partial class MainForm : Form
         Deactivate += MainForm_Deactivate;
         Application.AddMessageFilter(_PreviewHoverDismiss);
         PreviewHost.Resize += PreviewHost_Resize;
-        PreviewZoomInButton.Click += ZoomInMenuItem_Click;
-        PreviewZoomOutButton.Click += ZoomOutMenuItem_Click;
+        PreviewZoomInButton.Click += PreviewZoomInButton_Click;
+        PreviewZoomOutButton.Click += PreviewZoomOutButton_Click;
         PreviewFitButton.Click += FitPreviewMenuItem_Click;
         PreviewFitButton.Paint += PreviewFitButton_Paint;
         ElementToolbar.BindSource(CurrentEditorText);
@@ -285,11 +273,29 @@ public partial class MainForm : Form
         ElementToolbar.PromptClosed += ElementToolbar_PromptClosed;
         DiagnosticsList.DoubleClick += DiagnosticsList_DoubleClick;
         RenderTimer.Tick += RenderTimer_Tick;
-        HighlightTimer.Tick += HighlightTimer_Tick;
+        NewMenuItem.Click += NewMenuItem_Click;
         OpenMenuItem.Click += OpenMenuItem_Click;
         SaveMenuItem.Click += SaveMenuItem_Click;
         SaveAsMenuItem.Click += SaveAsMenuItem_Click;
         ExitMenuItem.Click += ExitMenuItem_Click;
+        UndoMenuItem.Click += UndoMenuItem_Click;
+        RedoMenuItem.Click += RedoMenuItem_Click;
+        CutMenuItem.Click += CutMenuItem_Click;
+        CopyMenuItem.Click += CopyMenuItem_Click;
+        PasteMenuItem.Click += PasteMenuItem_Click;
+        FindMenuItem.Click += FindMenuItem_Click;
+        ReplaceMenuItem.Click += ReplaceMenuItem_Click;
+        GoToLineMenuItem.Click += GoToLineMenuItem_Click;
+        FindNextMenuItem.Click += FindNextMenuItem_Click;
+        FindPreviousMenuItem.Click += FindPreviousMenuItem_Click;
+        CommentMenuItem.Click += CommentMenuItem_Click;
+        UncommentMenuItem.Click += UncommentMenuItem_Click;
+        DuplicateLineMenuItem.Click += DuplicateLineMenuItem_Click;
+        DeleteLineMenuItem.Click += DeleteLineMenuItem_Click;
+        IndentMenuItem.Click += IndentMenuItem_Click;
+        OutdentMenuItem.Click += OutdentMenuItem_Click;
+        NextErrorMenuItem.Click += NextErrorMenuItem_Click;
+        PreviousErrorMenuItem.Click += PreviousErrorMenuItem_Click;
         CopySourceMenuItem.Click += CopySourceMenuItem_Click;
         ListMembersMenuItem.Click += ListMembersMenuItem_Click;
         ParameterInfoMenuItem.Click += ParameterInfoMenuItem_Click;
@@ -355,7 +361,7 @@ public partial class MainForm : Form
     {
         _PreviewZoom = ClampZoom(_Settings.PreviewZoom);
         BodySplit.Panel2Collapsed = !LiveEditorFeatureGate.X_DiagnosticsPanel || !_Settings.DiagnosticsVisible;
-        MinimapBox.Visible = LiveEditorFeatureGate.Y_Minimap && _Settings.MinimapVisible;
+        CodeView.MinimapVisible = LiveEditorFeatureGate.Y_Minimap && _Settings.MinimapVisible;
         Orientation DesiredOrientation = _Settings.VerticalSplit ? Orientation.Vertical : Orientation.Horizontal;
         if (EditorSplit.Orientation != DesiredOrientation)
         {
@@ -364,7 +370,7 @@ public partial class MainForm : Form
 
         ToggleLegacyPreviewMenuItem.Checked = LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview;
         ToggleDiagnosticsMenuItem.Checked = !BodySplit.Panel2Collapsed;
-        ToggleMinimapMenuItem.Checked = MinimapBox.Visible;
+        ToggleMinimapMenuItem.Checked = CodeView.MinimapVisible;
         ToggleThemeMenuItem.Checked = _Settings.DarkTheme;
         ApplyEditorPreferences();
         ApplyWorkspaceLayout();
@@ -372,18 +378,12 @@ public partial class MainForm : Form
 
     private void ApplyEditorPreferences()
     {
-        float FontSize = Math.Max(8F, Math.Min(32F, _Settings.EditorFontSize));
-        if (Math.Abs(SourceEditor.Font.Size - FontSize) > 0.01F)
-        {
-            Font PreviousFont = SourceEditor.Font;
-            SourceEditor.Font = new Font("Consolas", FontSize, FontStyle.Regular, GraphicsUnit.Point);
-            PreviousFont.Dispose();
-        }
-
-        SourceEditor.WordWrap = _Settings.EditorWordWrap;
-        SourceEditor.ScrollBars = _Settings.EditorWordWrap ? RichTextBoxScrollBars.Vertical : RichTextBoxScrollBars.Both;
+        CodeView.AutoIndent = _Settings.AutoIndent;
+        CodeView.InsertSpaces = _Settings.InsertSpaces;
+        CodeView.IndentSize = _Settings.IndentSize;
+        CodeView.ApplyFont(_Settings.EditorFontSize, _Settings.EditorWordWrap);
+        CodeView.HighlightDelayMilliseconds = _Settings.HighlightDelayMilliseconds;
         RenderTimer.Interval = Math.Max(50, Math.Min(5000, _Settings.RenderDelayMilliseconds));
-        HighlightTimer.Interval = Math.Max(50, Math.Min(5000, _Settings.HighlightDelayMilliseconds));
     }
 
     private void RestoreSessionContent()
@@ -400,94 +400,46 @@ public partial class MainForm : Form
             }
         }
 
-        SourceEditor.Text = DEFAULT_SOURCE;
-        SourceEditor.SelectionStart = SourceEditor.TextLength;
+        CodeView.Editor.Text = DEFAULT_SOURCE;
+        CodeView.Editor.SelectionStart = CodeView.Editor.TextLength;
         _IsDirty = false;
     }
 
-    private void SourceEditor_TextChanged(object? Sender, EventArgs E)
+    private void Editor_TextChanged(object? Sender, EventArgs E)
     {
-        if (_IsApplyingEditorFormatting)
+        if (CodeView.IsApplyingFormatting)
         {
             return;
         }
 
         _IsDirty = true;
         _SelectedOccurrences.Clear();
-        ClearMarkedId();
         UpdateTitle();
         UpdateCoArchiDirtyBadge();
         QueueRender();
-        QueueHighlight();
-        ElementToolbar.UpdateFromEditor(SourceEditor.Text, SourceEditor.SelectionStart);
+        ElementToolbar.UpdateFromEditor(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
     }
 
-    private void SourceEditor_SelectionChanged(object? Sender, EventArgs E)
+    private void Editor_SelectionChanged(object? Sender, EventArgs E)
     {
-        if (_SuppressCaretUi)
+        if (CodeView.SuppressCaretNotifications)
         {
             return;
         }
 
         UpdateSignatureHelp();
         UpdateCaretDiagnosticStatus();
-        ElementToolbar.UpdateFromEditor(SourceEditor.Text, SourceEditor.SelectionStart);
-        if (_MarkedId != null && !MarkedSelectionHeld())
-        {
-            List<int> Starts = new List<int>(_MarkedStarts);
-            int Length = _MarkedLength;
-            ClearMarkedId();
-            bool PreviousPause = _IntelliSense.Pause;
-            _IsApplyingEditorFormatting = true;
-            _IntelliSense.Pause = true;
-            try
-            {
-                MermaidSyntaxHighlighter.ClearOccurrenceMarks(SourceEditor, Starts, Length);
-            }
-            finally
-            {
-                _IsApplyingEditorFormatting = false;
-                _IntelliSense.Pause = PreviousPause;
-            }
-
-            ApplyEditorColours();
-        }
+        ElementToolbar.UpdateFromEditor(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
     }
 
-    private void SourceEditor_MouseDoubleClick(object? Sender, MouseEventArgs E)
+    private void CodeView_ColoursRefreshing(object? Sender, EventArgs E)
     {
-        string Selected = SourceEditor.SelectedText;
-        if (Selected.Length == 0 || Selected.IndexOfAny(new char[] { '\r', '\n', ' ', '\t' }) >= 0)
-        {
-            return;
-        }
-
-        string? Id = SymbolNavigator.IdAt(SourceEditor.Text, SourceEditor.SelectionStart);
-        if (!string.Equals(Selected, Id, StringComparison.Ordinal) || !SymbolNavigator.IsReferenceIdentifier(Selected))
-        {
-            return;
-        }
-
-        _MarkedId = Selected;
-        _MarkedStart = SourceEditor.SelectionStart;
-        _MarkedLength = SourceEditor.SelectionLength;
-        ApplyIdMarks();
+        RefreshDiagnostics();
     }
 
-    private bool MarkedSelectionHeld()
+    private void CodeView_StatusRequested(object? Sender, string Message)
     {
-        return _MarkedId != null
-            && SourceEditor.SelectionStart == _MarkedStart
-            && SourceEditor.SelectionLength == _MarkedLength
-            && string.Equals(SourceEditor.SelectedText, _MarkedId, StringComparison.Ordinal);
-    }
-
-    private void ClearMarkedId()
-    {
-        _MarkedId = null;
-        _MarkedStart = -1;
-        _MarkedLength = 0;
-        _MarkedStarts.Clear();
+        SetStatus(Message);
     }
 
     /// <summary>
@@ -497,18 +449,18 @@ public partial class MainForm : Form
     {
         get
         {
-            return _MarkedId != null;
+            return CodeView.HasMarkedIdentifier;
         }
     }
 
     /// <summary>
-    /// Screen position of the editor popup, used to check that it stays with the selected word.
+    /// Screen position of the editor popup.
     /// </summary>
     internal Point AssistPopupLocation
     {
         get
         {
-            return _IntelliSense.Popup.WindowLocation;
+            return CodeView.AssistPopupLocation;
         }
     }
 
@@ -519,7 +471,7 @@ public partial class MainForm : Form
     {
         get
         {
-            return _IntelliSense.Popup.IsVisible;
+            return CodeView.AssistPopupVisible;
         }
     }
 
@@ -530,160 +482,23 @@ public partial class MainForm : Form
     /// <returns>Background colour at that character.</returns>
     internal Color TextBackColorAt(int Index)
     {
-        _SuppressCaretUi = true;
-        try
-        {
-            int Start = SourceEditor.SelectionStart;
-            int Length = SourceEditor.SelectionLength;
-            SourceEditor.Select(Math.Max(0, Index), 1);
-            Color Colour = SourceEditor.SelectionBackColor;
-            SourceEditor.Select(Start, Length);
-            return Colour;
-        }
-        finally
-        {
-            _SuppressCaretUi = false;
-        }
+        return CodeView.TextBackColorAt(Index);
     }
 
-    private void SourceEditor_PreviewKeyDown(object? Sender, PreviewKeyDownEventArgs E)
-    {
-        if ((_IntelliSense.Popup.IsVisible || _GhostContext != null) && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Up || E.KeyCode == Keys.Down || E.KeyCode == Keys.Escape))
-        {
-            E.IsInputKey = true;
-        }
-    }
-
-    private void SourceEditor_KeyDown(object? Sender, KeyEventArgs E)
-    {
-        if (E.Handled)
-        {
-            if (E.KeyCode == Keys.Escape)
-            {
-                _GhostContext = null;
-                _GhostText?.Hide();
-            }
-
-            return;
-        }
-
-        if (E.KeyCode == Keys.Tab && TryAcceptGhostText())
-        {
-            E.SuppressKeyPress = true;
-            E.Handled = true;
-            return;
-        }
-
-        if (TryInsertNewLineIndent(E) || TryInsertIndentUnit(E))
-        {
-            E.SuppressKeyPress = true;
-            E.Handled = true;
-            return;
-        }
-
-        if (E.KeyCode == Keys.Escape)
-        {
-            HideCompletion();
-        }
-    }
-
-    private bool TryInsertNewLineIndent(KeyEventArgs E)
-    {
-        if (!_Settings.AutoIndent || E.KeyCode != Keys.Enter || E.Control || E.Alt)
-        {
-            return false;
-        }
-
-        int CaretIndex = SourceEditor.SelectionStart;
-        int LineStart = CaretIndex;
-        while (LineStart > 0 && SourceEditor.Text[LineStart - 1] != '\n')
-        {
-            LineStart--;
-        }
-
-        int IndentEnd = LineStart;
-        while (IndentEnd < CaretIndex && (SourceEditor.Text[IndentEnd] == ' ' || SourceEditor.Text[IndentEnd] == '\t'))
-        {
-            IndentEnd++;
-        }
-
-        string ExistingIndent = SourceEditor.Text.Substring(LineStart, IndentEnd - LineStart);
-        SourceEditor.SelectedText = Environment.NewLine + ExistingIndent;
-        return true;
-    }
-
-    private bool TryInsertIndentUnit(KeyEventArgs E)
-    {
-        if (E.KeyCode != Keys.Tab || E.Control || E.Alt || E.Shift || SourceEditor.SelectionLength != 0)
-        {
-            return false;
-        }
-
-        int IndentSize = Math.Max(1, Math.Min(16, _Settings.IndentSize));
-        SourceEditor.SelectedText = _Settings.InsertSpaces ? new string(' ', IndentSize) : "\t";
-        return true;
-    }
-
-    private void SourceEditor_LostFocus(object? Sender, EventArgs E)
-    {
-        _GhostText?.Hide();
-    }
-
-    private void CompletionPopup_ItemAccepted(object? Sender, CompletionItem Item)
-    {
-        _GhostContext = null;
-        _GhostText?.Hide();
-        _IsDirty = true;
-        UpdateTitle();
-        QueueRender();
-        QueueHighlight();
-        SetStatus($"Inserted {Item.DisplayText}");
-    }
-
-    private bool TryAcceptGhostText()
-    {
-        if (_GhostContext == null || _GhostContext.Items.Count != 1)
-        {
-            return false;
-        }
-
-        CompletionContext Context = _GhostContext;
-        CompletionItem Item = Context.Items[0];
-        int Start = Math.Max(0, Math.Min(Context.ReplaceStart, SourceEditor.TextLength));
-        int End = Math.Max(Start, Math.Min(Context.ReplaceEnd, SourceEditor.TextLength));
-        _IntelliSense.Suppress = true;
-        try
-        {
-            SourceEditor.Select(Start, End - Start);
-            SourceEditor.SelectedText = Item.InsertText;
-        }
-        finally
-        {
-            _IntelliSense.Suppress = false;
-        }
-
-        _GhostContext = null;
-        _GhostText?.Hide();
-        SetStatus($"Inserted {Item.DisplayText}");
-        BeginInvoke(new Action(RefreshMembers));
-        return true;
-    }
-
-    private void HideCompletion()
-    {
-        _IntelliSense.Popup.Hide();
-        _GhostContext = null;
-        _GhostText?.Hide();
-    }
 
     private void ShowQuickInfo(int CharIndex)
     {
-        _IntelliSense.ShowQuickInfoAtCaret();
+        CodeView.IntelliSense.ShowQuickInfoAtCaret();
     }
 
     private void RefreshMembers()
     {
-        _IntelliSense.Refresh(Force: false);
+        CodeView.IntelliSense.Refresh(Force: false);
+    }
+
+    private void QueueHighlight()
+    {
+        CodeView.QueueHighlight();
     }
 
     private void UpdateSignatureHelp()
@@ -694,99 +509,17 @@ public partial class MainForm : Form
             return;
         }
 
-        SignatureLabel.Text = _IntelliSense.Assist.BuildSignatureHelp(SourceEditor.Text, SourceEditor.SelectionStart);
+        SignatureLabel.Text = CodeView.IntelliSense.Assist.BuildSignatureHelp(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
     }
 
-    private void QueueHighlight()
-    {
-        HighlightTimer.Stop();
-        HighlightTimer.Start();
-    }
-
-    private void HighlightTimer_Tick(object? Sender, EventArgs E)
-    {
-        HighlightTimer.Stop();
-        ApplyEditorColours();
-        if (_IntelliSense.Popup.IsVisible)
-        {
-            _IntelliSense.Popup.Reposition();
-        }
-    }
-
-    private void ApplyEditorColours()
-    {
-        if (SourceEditor.IsDisposed)
-        {
-            return;
-        }
-
-        _SuppressCaretUi = true;
-        _IsApplyingEditorFormatting = true;
-        _IntelliSense.Pause = true;
-        try
-        {
-            if (LiveEditorFeatureGate.A_SyntaxHighlighting)
-            {
-                MermaidSyntaxHighlighter.Apply(SourceEditor, _Settings.DarkTheme);
-            }
-
-            RefreshDiagnostics();
-            ApplyIdMarks();
-            if (LiveEditorFeatureGate.Y_Minimap && MinimapBox.Visible)
-            {
-                MinimapBox.Text = SourceEditor.Text;
-                MinimapBox.BackColor = SourceEditor.BackColor;
-                MinimapBox.ForeColor = SourceEditor.ForeColor;
-            }
-        }
-        finally
-        {
-            _IsApplyingEditorFormatting = false;
-            _SuppressCaretUi = false;
-            _IntelliSense.Pause = false;
-        }
-    }
-
-    private void ApplyIdMarks()
-    {
-        if (!MarkedSelectionHeld())
-        {
-            return;
-        }
-
-        bool PreviousSuppress = _SuppressCaretUi;
-        bool PreviousFormatting = _IsApplyingEditorFormatting;
-        bool PreviousPause = _IntelliSense.Pause;
-        _SuppressCaretUi = true;
-        _IsApplyingEditorFormatting = true;
-        _IntelliSense.Pause = true;
-        try
-        {
-            List<int> Starts = SymbolNavigator.FindExactIds(SourceEditor.Text, _MarkedId ?? string.Empty);
-            _MarkedStarts.Clear();
-            _MarkedStarts.AddRange(Starts);
-            MermaidSyntaxHighlighter.MarkOtherOccurrences(SourceEditor, Starts, _MarkedLength, _MarkedStart, _Settings.DarkTheme);
-        }
-        finally
-        {
-            _SuppressCaretUi = PreviousSuppress;
-            _IsApplyingEditorFormatting = PreviousFormatting;
-            _IntelliSense.Pause = PreviousPause;
-        }
-
-        if (!PreviousPause && _IntelliSense.Popup.IsVisible)
-        {
-            _IntelliSense.Popup.Reposition();
-        }
-    }
 
     private void RefreshDiagnostics()
     {
         _Diagnostics.Clear();
         DiagnosticsList.Items.Clear();
-        if (EnterpriseParser.IsEnterpriseSource(SourceEditor.Text))
+        if (EnterpriseParser.IsEnterpriseSource(CodeView.Editor.Text))
         {
-            EnterpriseParseResult Result = EnterpriseParser.Parse(SourceEditor.Text);
+            EnterpriseParseResult Result = EnterpriseParser.Parse(CodeView.Editor.Text);
             foreach (EnterpriseDiagnostic Diagnostic in Result.Diagnostics)
             {
                 _Diagnostics.Add(Diagnostic);
@@ -805,7 +538,7 @@ public partial class MainForm : Form
                 }
             }
 
-            MermaidSyntaxHighlighter.TintLines(SourceEditor, ErrorLines, _Settings.DarkTheme);
+            CodeView.TintErrorLines(ErrorLines);
         }
 
         UpdateCaretDiagnosticStatus();
@@ -827,7 +560,7 @@ public partial class MainForm : Form
             return Fallback;
         }
 
-        int LineNumber = SourceEditor.GetLineFromCharIndex(SourceEditor.SelectionStart) + 1;
+        int LineNumber = CodeView.Editor.GetLineFromCharIndex(CodeView.Editor.SelectionStart) + 1;
         foreach (EnterpriseDiagnostic Diagnostic in _Diagnostics)
         {
             if (Diagnostic.LineNumber == LineNumber)
@@ -858,7 +591,7 @@ public partial class MainForm : Form
     private void RenderTimer_Tick(object? Sender, EventArgs E)
     {
         RenderTimer.Stop();
-        StartRender(SourceEditor.Text);
+        StartRender(CodeView.Editor.Text);
     }
 
     private void StartRender(string Source)
@@ -951,7 +684,7 @@ public partial class MainForm : Form
             _LastGoodPreview = NewImage;
             _LastPngBytes = (byte[])PngBytes.Clone();
             _LastSvg = Svg;
-            _PreviewHover = PreviewHoverIndex.Build(Svg, SourceEditor.Text);
+            _PreviewHover = PreviewHoverIndex.Build(Svg, CodeView.Editor.Text);
             _BrokenSince = null;
             PreviewBanner.Visible = LegacyPreview;
             PreviewBanner.Height = LegacyPreview ? 28 : 0;
@@ -1211,25 +944,6 @@ public partial class MainForm : Form
     }
 
     /// <summary>
-    /// Keeps the line-number column and minimap in front of the fill order so the editor starts to their inside edge.
-    /// </summary>
-    private void PlaceEditorBesideLineNumbers(Control EditorParent)
-    {
-        if (ReferenceEquals(LineNumberColumn.Parent, EditorParent))
-        {
-            EditorParent.Controls.SetChildIndex(LineNumberColumn, EditorParent.Controls.Count - 1);
-        }
-
-        if (ReferenceEquals(MinimapBox.Parent, EditorParent))
-        {
-            EditorParent.Controls.SetChildIndex(MinimapBox, EditorParent.Controls.Count - 1);
-        }
-
-        if (ReferenceEquals(SourceEditor.Parent, EditorParent))
-        {
-            EditorParent.Controls.SetChildIndex(SourceEditor, 0);
-        }
-    }
 
     private void PreviewFitButton_Paint(object? Sender, PaintEventArgs E)
     {
@@ -1245,14 +959,10 @@ public partial class MainForm : Form
         PreviewHost.Dock = DockStyle.Fill;
         Control EditorParent = _Settings.EditorOnLeft ? EditorSplit.Panel1 : EditorSplit.Panel2;
         Control PreviewParent = _Settings.EditorOnLeft ? EditorSplit.Panel2 : EditorSplit.Panel1;
-        if (!ReferenceEquals(SourceEditor.Parent, EditorParent))
+        if (!ReferenceEquals(CodeView.Parent, EditorParent))
         {
-            EditorParent.Controls.Add(SourceEditor);
-            EditorParent.Controls.Add(LineNumberColumn);
-            EditorParent.Controls.Add(MinimapBox);
+            EditorParent.Controls.Add(CodeView);
         }
-
-        PlaceEditorBesideLineNumbers(EditorParent);
 
         if (!ReferenceEquals(PreviewHost.Parent, PreviewParent))
         {
@@ -1300,13 +1010,13 @@ public partial class MainForm : Form
 
     private string CurrentEditorText()
     {
-        return SourceEditor.Text;
+        return CodeView.Editor.Text;
     }
 
     private void ElementToolbar_InsertRequested(object? Sender, ElementInsertRequest Request)
     {
-        string Text = SourceEditor.Text;
-        int Caret = Math.Max(0, Math.Min(SourceEditor.SelectionStart, Text.Length));
+        string Text = CodeView.Editor.Text;
+        int Caret = Math.Max(0, Math.Min(CodeView.Editor.SelectionStart, Text.Length));
         int LineStart = Caret;
         while (LineStart > 0 && Text[LineStart - 1] != '\n')
         {
@@ -1327,33 +1037,38 @@ public partial class MainForm : Form
 
         string Indent = Text.Substring(LineStart, IndentEnd - LineStart);
         string Rest = Text.Substring(IndentEnd, LineEnd - IndentEnd).Trim();
-        string Declaration = Request.KebabName + " " + Request.Identifier + " \"" + Request.Label.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
-        bool ReplaceLine = Rest.Length == 0 || Request.KebabName.StartsWith(Rest, StringComparison.OrdinalIgnoreCase);
-        _IntelliSense.Suppress = true;
+        string Declaration = Request.Snippet;
+        if (Declaration.Length == 0)
+        {
+            Declaration = Request.KebabName + " " + Request.Identifier + " \"" + Request.Label.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+        }
+
+        bool ReplaceLine = Rest.Length == 0 || (Request.KebabName.Length > 0 && Request.KebabName.StartsWith(Rest, StringComparison.OrdinalIgnoreCase));
+        CodeView.IntelliSense.Suppress = true;
         try
         {
             if (ReplaceLine)
             {
-                SourceEditor.Select(LineStart, LineEnd - LineStart);
-                SourceEditor.SelectedText = Indent + Declaration;
+                CodeView.Editor.Select(LineStart, LineEnd - LineStart);
+                CodeView.Editor.SelectedText = Indent + Declaration;
             }
             else
             {
-                SourceEditor.Select(LineEnd, 0);
-                SourceEditor.SelectedText = Environment.NewLine + Indent + Declaration;
+                CodeView.Editor.Select(LineEnd, 0);
+                CodeView.Editor.SelectedText = Environment.NewLine + Indent + Declaration;
             }
         }
         finally
         {
-            _IntelliSense.Suppress = false;
+            CodeView.IntelliSense.Suppress = false;
         }
 
         _IsDirty = true;
         UpdateTitle();
         QueueRender();
         QueueHighlight();
-        _IntelliSense.Refresh(Force: false);
-        ElementToolbar.UpdateFromEditor(SourceEditor.Text, SourceEditor.SelectionStart);
+        CodeView.IntelliSense.Refresh(Force: false);
+        ElementToolbar.UpdateFromEditor(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
         SetStatus("Inserted " + Request.Identifier);
         BeginInvoke(new Action(FocusEditor));
     }
@@ -1365,13 +1080,23 @@ public partial class MainForm : Form
 
     private void FocusEditor()
     {
-        if (!IsDisposed && !SourceEditor.IsDisposed)
+        if (!IsDisposed && !CodeView.Editor.IsDisposed)
         {
-            SourceEditor.Focus();
+            CodeView.Editor.Focus();
         }
     }
 
     private void ZoomInMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.ZoomIn();
+    }
+
+    private void ZoomOutMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.ZoomOut();
+    }
+
+    private void PreviewZoomInButton_Click(object? Sender, EventArgs E)
     {
         if (LiveEditorFeatureGate.L_ZoomPanPreview)
         {
@@ -1379,7 +1104,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void ZoomOutMenuItem_Click(object? Sender, EventArgs E)
+    private void PreviewZoomOutButton_Click(object? Sender, EventArgs E)
     {
         if (LiveEditorFeatureGate.L_ZoomPanPreview)
         {
@@ -1389,10 +1114,103 @@ public partial class MainForm : Form
 
     private void ZoomResetMenuItem_Click(object? Sender, EventArgs E)
     {
-        if (LiveEditorFeatureGate.L_ZoomPanPreview)
-        {
-            SetPreviewZoom(1.0);
-        }
+        CodeView.ResetZoom();
+    }
+
+    private void UndoMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.UndoEdit();
+    }
+
+    private void RedoMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.RedoEdit();
+    }
+
+    private void CutMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.CutSelection();
+    }
+
+    private void CopyMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.CopySelection();
+    }
+
+    private void PasteMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.PasteClipboard();
+    }
+
+    private void FindMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.ShowFind();
+    }
+
+    private void ReplaceMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.ShowReplace();
+    }
+
+    private void GoToLineMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.ShowGoToLine();
+    }
+
+    private void FindNextMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.FindNextMatch();
+    }
+
+    private void FindPreviousMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.FindPreviousMatch();
+    }
+
+    private void CommentMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.CommentLines();
+    }
+
+    private void UncommentMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.UncommentLines();
+    }
+
+    private void DuplicateLineMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.DuplicateLines();
+    }
+
+    private void DeleteLineMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.DeleteLines();
+    }
+
+    private void IndentMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.IndentLines();
+    }
+
+    private void OutdentMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.OutdentLines();
+    }
+
+    private void NextErrorMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.NextDiagnostic();
+    }
+
+    private void PreviousErrorMenuItem_Click(object? Sender, EventArgs E)
+    {
+        CodeView.PreviousDiagnostic();
+    }
+
+    private void CodeView_FontSizeChanged(object? Sender, float Size)
+    {
+        _Settings.EditorFontSize = Size;
+        SaveSession();
     }
 
     private void FitPreviewMenuItem_Click(object? Sender, EventArgs E)
@@ -1443,7 +1261,7 @@ public partial class MainForm : Form
 
         try
         {
-            string Svg = _LastSvg ?? MermaidDiagramExport.RenderSvg(SourceEditor.Text);
+            string Svg = _LastSvg ?? MermaidDiagramExport.RenderSvg(CodeView.Editor.Text);
             _LastSvg = Svg;
             using SaveFileDialog Dialog = new SaveFileDialog
             {
@@ -1481,10 +1299,7 @@ public partial class MainForm : Form
         Color Background = _Settings.DarkTheme ? Color.FromArgb(30, 30, 30) : Color.White;
         Color Foreground = _Settings.DarkTheme ? Color.Gainsboro : Color.Black;
         Color Panel = _Settings.DarkTheme ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
-        SourceEditor.BackColor = Background;
-        SourceEditor.ForeColor = Foreground;
-        MinimapBox.BackColor = Background;
-        MinimapBox.ForeColor = Foreground;
+        CodeView.ApplyChrome(_Settings.DarkTheme);
         DiagnosticsList.BackColor = Background;
         DiagnosticsList.ForeColor = Foreground;
         PreviewCanvas.BackColor = Background;
@@ -1525,13 +1340,9 @@ public partial class MainForm : Form
             return;
         }
 
-        MinimapBox.Visible = !MinimapBox.Visible;
-        _Settings.MinimapVisible = MinimapBox.Visible;
-        ToggleMinimapMenuItem.Checked = MinimapBox.Visible;
-        if (MinimapBox.Visible)
-        {
-            MinimapBox.Text = SourceEditor.Text;
-        }
+        CodeView.MinimapVisible = !CodeView.MinimapVisible;
+        _Settings.MinimapVisible = CodeView.MinimapVisible;
+        ToggleMinimapMenuItem.Checked = CodeView.MinimapVisible;
     }
 
     private void ToggleLegacyPreviewMenuItem_Click(object? Sender, EventArgs E)
@@ -1548,27 +1359,27 @@ public partial class MainForm : Form
 
     private void ListMembersMenuItem_Click(object? Sender, EventArgs E)
     {
-        SourceEditor.Focus();
-        _IntelliSense.Refresh(Force: true);
+        CodeView.Editor.Focus();
+        CodeView.IntelliSense.Refresh(Force: true);
     }
 
     private void ParameterInfoMenuItem_Click(object? Sender, EventArgs E)
     {
-        SourceEditor.Focus();
-        _IntelliSense.ShowParameter();
+        CodeView.Editor.Focus();
+        CodeView.IntelliSense.ShowParameter();
     }
 
     private void QuickInfoMenuItem_Click(object? Sender, EventArgs E)
     {
-        SourceEditor.Focus();
-        ShowQuickInfo(SourceEditor.SelectionStart);
+        CodeView.Editor.Focus();
+        ShowQuickInfo(CodeView.Editor.SelectionStart);
     }
 
     private void CopySourceMenuItem_Click(object? Sender, EventArgs E)
     {
-        if (LiveEditorFeatureGate.N_CopySource && !string.IsNullOrEmpty(SourceEditor.Text))
+        if (LiveEditorFeatureGate.N_CopySource && !string.IsNullOrEmpty(CodeView.Editor.Text))
         {
-            Clipboard.SetText(SourceEditor.Text);
+            Clipboard.SetText(CodeView.Editor.Text);
             SetStatus("Mermaid source copied");
         }
     }
@@ -1580,14 +1391,14 @@ public partial class MainForm : Form
             return;
         }
 
-        string? Id = SymbolNavigator.IdAt(SourceEditor.Text, SourceEditor.SelectionStart);
+        string? Id = SymbolNavigator.IdAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
         if (string.IsNullOrEmpty(Id))
         {
             SetStatus("Place the caret on a symbol");
             return;
         }
 
-        int Index = SymbolNavigator.FindDefinition(SourceEditor.Text, Id);
+        int Index = SymbolNavigator.FindDefinition(CodeView.Editor.Text, Id);
         if (Index < 0)
         {
             SetStatus($"Definition for '{Id}' was not found");
@@ -1604,7 +1415,7 @@ public partial class MainForm : Form
             return;
         }
 
-        string? OldId = SymbolNavigator.IdAt(SourceEditor.Text, SourceEditor.SelectionStart);
+        string? OldId = SymbolNavigator.IdAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
         if (string.IsNullOrEmpty(OldId))
         {
             SetStatus("Place the caret on a symbol");
@@ -1619,9 +1430,9 @@ public partial class MainForm : Form
 
         try
         {
-            int Caret = SourceEditor.SelectionStart;
-            SourceEditor.Text = SymbolNavigator.Rename(SourceEditor.Text, OldId, NewId.Trim());
-            SourceEditor.SelectionStart = Math.Min(Caret, SourceEditor.TextLength);
+            int Caret = CodeView.Editor.SelectionStart;
+            CodeView.Editor.Text = SymbolNavigator.Rename(CodeView.Editor.Text, OldId, NewId.Trim());
+            CodeView.Editor.SelectionStart = Math.Min(Caret, CodeView.Editor.TextLength);
             SetStatus($"Renamed '{OldId}' to '{NewId.Trim()}'");
         }
         catch (ArgumentException Ex)
@@ -1632,14 +1443,14 @@ public partial class MainForm : Form
 
     private void FindReferencesMenuItem_Click(object? Sender, EventArgs E)
     {
-        string? Id = SymbolNavigator.IdAt(SourceEditor.Text, SourceEditor.SelectionStart);
+        string? Id = SymbolNavigator.IdAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
         if (string.IsNullOrEmpty(Id))
         {
             SetStatus("Place the caret on a symbol");
             return;
         }
 
-        List<int> References = SymbolNavigator.FindReferences(SourceEditor.Text, Id);
+        List<int> References = SymbolNavigator.FindReferences(CodeView.Editor.Text, Id);
         if (References.Count == 0)
         {
             SetStatus($"No references to '{Id}'");
@@ -1657,10 +1468,10 @@ public partial class MainForm : Form
             return;
         }
 
-        string Token = SourceEditor.SelectedText;
+        string Token = CodeView.Editor.SelectedText;
         if (string.IsNullOrEmpty(Token))
         {
-            string? Id = SymbolNavigator.IdAt(SourceEditor.Text, SourceEditor.SelectionStart);
+            string? Id = SymbolNavigator.IdAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
             if (string.IsNullOrEmpty(Id))
             {
                 SetStatus("Select text or place the caret on a symbol");
@@ -1670,8 +1481,8 @@ public partial class MainForm : Form
             Token = Id;
         }
 
-        int FromIndex = SourceEditor.SelectionStart + Math.Max(1, SourceEditor.SelectionLength);
-        int Found = SymbolNavigator.FindNextOccurrence(SourceEditor.Text, Token, FromIndex);
+        int FromIndex = CodeView.Editor.SelectionStart + Math.Max(1, CodeView.Editor.SelectionLength);
+        int Found = SymbolNavigator.FindNextOccurrence(CodeView.Editor.Text, Token, FromIndex);
         if (Found < 0)
         {
             return;
@@ -1689,7 +1500,7 @@ public partial class MainForm : Form
             return;
         }
 
-        string Commands = "Open, Save, Copy source, Go to definition, Rename symbol, Settings, Toggle theme, Toggle diagnostics, Toggle minimap, Fit preview, Export PNG, Export SVG";
+        string Commands = "New, Open, Save, Undo, Redo, Cut, Copy, Paste, Find, Replace, Go to line, Comment, Uncomment, Duplicate line, Delete line, Next error, Copy source, Go to definition, Rename symbol, Settings, Toggle theme, Toggle diagnostics, Toggle minimap, Fit preview, Export PNG, Export SVG";
         string Command = Microsoft.VisualBasic.Interaction.InputBox($"Enter a command:\r\n{Commands}", "Command palette", string.Empty).Trim();
         if (Command.Length == 0)
         {
@@ -1698,8 +1509,22 @@ public partial class MainForm : Form
 
         Dictionary<string, ToolStripMenuItem> Items = new Dictionary<string, ToolStripMenuItem>(StringComparer.OrdinalIgnoreCase)
         {
+            ["New"] = NewMenuItem,
             ["Open"] = OpenMenuItem,
             ["Save"] = SaveMenuItem,
+            ["Undo"] = UndoMenuItem,
+            ["Redo"] = RedoMenuItem,
+            ["Cut"] = CutMenuItem,
+            ["Copy"] = CopyMenuItem,
+            ["Paste"] = PasteMenuItem,
+            ["Find"] = FindMenuItem,
+            ["Replace"] = ReplaceMenuItem,
+            ["Go to line"] = GoToLineMenuItem,
+            ["Comment"] = CommentMenuItem,
+            ["Uncomment"] = UncommentMenuItem,
+            ["Duplicate line"] = DuplicateLineMenuItem,
+            ["Delete line"] = DeleteLineMenuItem,
+            ["Next error"] = NextErrorMenuItem,
             ["Copy source"] = CopySourceMenuItem,
             ["Go to definition"] = GoToDefinitionMenuItem,
             ["Rename symbol"] = RenameSymbolMenuItem,
@@ -1735,7 +1560,7 @@ public partial class MainForm : Form
         _Settings.Save();
         QueueHighlight();
         QueueRender();
-        SourceEditor.Focus();
+        CodeView.Editor.Focus();
         SetStatus("Settings saved");
     }
 
@@ -1747,15 +1572,22 @@ public partial class MainForm : Form
             return;
         }
 
-        foreach ((string Title, string Source) Sample in SampleCatalog.All)
+        for (int Index = 0; Index < SampleCatalog.Groups.Count; Index++)
         {
-            ToolStripMenuItem Item = new ToolStripMenuItem(Sample.Title)
-            {
-                Tag = Sample.Source
-            };
-            Item.Click += SampleMenuItem_Click;
-            SamplesMenu.DropDownItems.Add(Item);
+            DiagramSampleGroup Group = SampleCatalog.Groups[Index];
+            ToolStripMenuItem Submenu = new ToolStripMenuItem(Group.MenuTitle);
+            Submenu.DropDownItems.Add(CreateSampleItem(Group.SimpleTitle, Group.SimpleSource));
+            Submenu.DropDownItems.Add(CreateSampleItem(Group.CompleteTitle, Group.FullSource));
+            SamplesMenu.DropDownItems.Add(Submenu);
         }
+    }
+
+    private ToolStripMenuItem CreateSampleItem(string Title, string Source)
+    {
+        ToolStripMenuItem Item = new ToolStripMenuItem(Title);
+        Item.Tag = Source;
+        Item.Click += SampleMenuItem_Click;
+        return Item;
     }
 
     private void SampleMenuItem_Click(object? Sender, EventArgs E)
@@ -1766,7 +1598,13 @@ public partial class MainForm : Form
         }
 
         SetEditorContent(Source, null, null, IsDirty: true);
-        SetStatus($"Loaded {Item.Text}");
+        string GroupTitle = string.Empty;
+        if (Item.OwnerItem is ToolStripMenuItem Parent)
+        {
+            GroupTitle = Parent.Text + " - ";
+        }
+
+        SetStatus("Loaded " + GroupTitle + Item.Text);
     }
 
     private void BuildRecentFilesMenu()
@@ -1809,6 +1647,25 @@ public partial class MainForm : Form
         {
             MessageBox.Show(this, Ex.Message, "Open failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void NewMenuItem_Click(object? Sender, EventArgs E)
+    {
+        if (!ConfirmDiscardChanges())
+        {
+            return;
+        }
+
+        using NewDiagramForm Dialog = new NewDiagramForm();
+        if (Dialog.ShowDialog(this) != DialogResult.OK || Dialog.SelectedKind == null)
+        {
+            return;
+        }
+
+        SetEditorContent(Dialog.SelectedKind.Starter, null, null, false);
+        ElementToolbar.UpdateFromEditor(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
+        FocusEditor();
+        SetStatus("New " + Dialog.SelectedKind.Title);
     }
 
     private void OpenMenuItem_Click(object? Sender, EventArgs E)
@@ -1881,7 +1738,7 @@ public partial class MainForm : Form
         try
         {
             _SuppressWatcher = true;
-            File.WriteAllText(SourcePath, SourceEditor.Text);
+            File.WriteAllText(SourcePath, CodeView.Editor.Text);
             _CurrentSourcePath = SourcePath;
             _CurrentCoArchiFolder = null;
             _IsDirty = false;
@@ -2042,14 +1899,11 @@ public partial class MainForm : Form
         _RenderCancellation?.Dispose();
         _RenderCancellation = null;
         RenderTimer.Stop();
-        HighlightTimer.Stop();
+        CodeView.StopHighlight();
         DisposeWatcher();
         Application.RemoveMessageFilter(_PreviewHoverDismiss);
         HidePreviewHover();
         _PreviewHoverWindow.Dispose();
-        _IntelliSense.Dispose();
-        _GhostText?.Dispose();
-        _GhostText = null;
         Image? Preview = PreviewImage.Image;
         PreviewImage.Image = null;
         Preview?.Dispose();
@@ -2068,13 +1922,13 @@ public partial class MainForm : Form
             return;
         }
 
-        _Settings.CaretIndex = SourceEditor.SelectionStart;
+        _Settings.CaretIndex = CodeView.Editor.SelectionStart;
         _Settings.PreviewZoom = _PreviewZoom;
         _Settings.LastFilePath = _CurrentSourcePath;
         _Settings.LastCoArchiFolder = _CurrentCoArchiFolder;
         _Settings.VerticalSplit = EditorSplit.Orientation == Orientation.Vertical;
         _Settings.DiagnosticsVisible = !BodySplit.Panel2Collapsed;
-        _Settings.MinimapVisible = MinimapBox.Visible;
+        _Settings.MinimapVisible = CodeView.MinimapVisible;
         try
         {
             _Settings.Save();
@@ -2152,9 +2006,9 @@ public partial class MainForm : Form
             return;
         }
 
-        int InsertAt = SourceEditor.SelectionStart;
-        SourceEditor.SelectedText = MermaidSource;
-        SourceEditor.SelectionStart = Math.Min(SourceEditor.TextLength, InsertAt + MermaidSource.Length);
+        int InsertAt = CodeView.Editor.SelectionStart;
+        CodeView.Editor.SelectedText = MermaidSource;
+        CodeView.Editor.SelectionStart = Math.Min(CodeView.Editor.TextLength, InsertAt + MermaidSource.Length);
         SetStatus(string.IsNullOrWhiteSpace(WarningSummary) ? "Inserted Archi source" : TruncateStatus(WarningSummary));
     }
 
@@ -2197,7 +2051,7 @@ public partial class MainForm : Form
             return;
         }
 
-        if (!ArchiInterop.TryExportExchangeXml(SourceEditor.Text, Dialog.FileName, out string WarningSummary, out string ErrorMessage))
+        if (!ArchiInterop.TryExportExchangeXml(CodeView.Editor.Text, Dialog.FileName, out string WarningSummary, out string ErrorMessage))
         {
             MessageBox.Show(this, ErrorMessage, "Export failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -2219,7 +2073,7 @@ public partial class MainForm : Form
             return;
         }
 
-        if (!ArchiInterop.TryExportArchimateFile(SourceEditor.Text, Dialog.FileName, out string WarningSummary, out string ErrorMessage))
+        if (!ArchiInterop.TryExportArchimateFile(CodeView.Editor.Text, Dialog.FileName, out string WarningSummary, out string ErrorMessage))
         {
             MessageBox.Show(this, ErrorMessage, "Export failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -2275,14 +2129,14 @@ public partial class MainForm : Form
             FolderPath = Dialog.SelectedPath;
         }
 
-        if (!ArchiInterop.TrySaveCoArchiFolder(SourceEditor.Text, FolderPath, out string WarningSummary, out string ErrorMessage))
+        if (!ArchiInterop.TrySaveCoArchiFolder(CodeView.Editor.Text, FolderPath, out string WarningSummary, out string ErrorMessage))
         {
             MessageBox.Show(this, ErrorMessage, "Save to coArchi folder failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
         _CurrentCoArchiFolder = FolderPath;
-        _CoArchiDiskSnapshot = SourceEditor.Text;
+        _CoArchiDiskSnapshot = CodeView.Editor.Text;
         _Settings.LastCoArchiFolder = FolderPath;
         UpdateCoArchiDirtyBadge();
         UpdateTitle();
@@ -2297,7 +2151,7 @@ public partial class MainForm : Form
             return;
         }
 
-        bool Changed = !string.Equals(SourceEditor.Text, _CoArchiDiskSnapshot, StringComparison.Ordinal);
+        bool Changed = !string.Equals(CodeView.Editor.Text, _CoArchiDiskSnapshot, StringComparison.Ordinal);
         CoArchiDirtyLabel.Text = Changed ? "coArchi modified" : "coArchi current";
         CoArchiDirtyLabel.ForeColor = Changed ? Color.DarkOrange : Color.ForestGreen;
     }
@@ -2317,15 +2171,15 @@ public partial class MainForm : Form
 
     private void SetEditorContent(string Source, string? SourcePath, string? CoArchiFolder, bool IsDirty)
     {
-        _IntelliSense.Suppress = true;
+        CodeView.IntelliSense.Suppress = true;
         try
         {
-            SourceEditor.Text = Source;
-            SourceEditor.SelectionStart = SourceEditor.TextLength;
+            CodeView.Editor.Text = Source;
+            CodeView.Editor.SelectionStart = CodeView.Editor.TextLength;
         }
         finally
         {
-            _IntelliSense.Suppress = false;
+            CodeView.IntelliSense.Suppress = false;
         }
 
         _CurrentSourcePath = SourcePath;
@@ -2341,18 +2195,18 @@ public partial class MainForm : Form
 
     private void JumpToIndex(int Index, int Length)
     {
-        SourceEditor.Focus();
-        SourceEditor.Select(Math.Max(0, Math.Min(Index, SourceEditor.TextLength)), Math.Max(0, Math.Min(Length, SourceEditor.TextLength - Index)));
-        SourceEditor.ScrollToCaret();
+        CodeView.Editor.Focus();
+        CodeView.Editor.Select(Math.Max(0, Math.Min(Index, CodeView.Editor.TextLength)), Math.Max(0, Math.Min(Length, CodeView.Editor.TextLength - Index)));
+        CodeView.Editor.ScrollToCaret();
     }
 
     private void JumpToLine(int LineNumber)
     {
         int LineIndex = Math.Max(0, LineNumber - 1);
-        int Index = SourceEditor.GetFirstCharIndexFromLine(LineIndex);
+        int Index = CodeView.Editor.GetFirstCharIndexFromLine(LineIndex);
         if (Index >= 0)
         {
-            int Length = LineIndex < SourceEditor.Lines.Length ? SourceEditor.Lines[LineIndex].Length : 0;
+            int Length = LineIndex < CodeView.Editor.Lines.Length ? CodeView.Editor.Lines[LineIndex].Length : 0;
             JumpToIndex(Index, Length);
         }
     }

@@ -76,10 +76,24 @@ internal sealed class LineNumberGutter : Panel
     protected override void OnMouseDown(MouseEventArgs E)
     {
         base.OnMouseDown(E);
-        if (_Editor != null && !_Editor.IsDisposed)
+        if (_Editor == null || _Editor.IsDisposed || !_Editor.IsHandleCreated)
+        {
+            return;
+        }
+
+        int Index = _Editor.GetCharIndexFromPosition(new Point(1, E.Y));
+        int Line = _Editor.GetLineFromCharIndex(Index);
+        int Start = _Editor.GetFirstCharIndexFromLine(Line);
+        if (Start < 0)
         {
             _Editor.Focus();
+            return;
         }
+
+        int Next = _Editor.GetFirstCharIndexFromLine(Line + 1);
+        int End = Next < 0 ? _Editor.TextLength : Next;
+        _Editor.Select(Start, Math.Max(0, End - Start));
+        _Editor.Focus();
     }
 
     /// <inheritdoc />

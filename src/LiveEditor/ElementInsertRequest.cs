@@ -13,6 +13,8 @@ internal sealed class ElementInsertRequest : EventArgs
 
     private readonly string _Label;
 
+    private readonly string _Snippet;
+
     /// <summary>
     /// Creates an insert request.
     /// </summary>
@@ -24,6 +26,17 @@ internal sealed class ElementInsertRequest : EventArgs
         _KebabName = KebabName ?? string.Empty;
         _Identifier = Identifier ?? string.Empty;
         _Label = Label ?? string.Empty;
+        _Snippet = string.Empty;
+    }
+
+    /// <summary>
+    /// Creates a request that inserts a finished line.
+    /// </summary>
+    /// <param name="Snippet">The line to insert.</param>
+    public ElementInsertRequest(string Snippet)
+        : this(string.Empty, string.Empty, string.Empty)
+    {
+        _Snippet = Snippet ?? string.Empty;
     }
 
     /// <summary>Gets the element type token.</summary>
@@ -50,6 +63,15 @@ internal sealed class ElementInsertRequest : EventArgs
         get
         {
             return _Label;
+        }
+    }
+
+    /// <summary>Gets a finished line to insert. Empty when the line is built from the type, id, and label.</summary>
+    public string Snippet
+    {
+        get
+        {
+            return _Snippet;
         }
     }
 }

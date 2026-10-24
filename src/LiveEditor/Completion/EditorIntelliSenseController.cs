@@ -478,12 +478,12 @@ internal sealed class EditorIntelliSenseController : IDisposable
         {
             if (!Force)
             {
-                ParameterHelp? Help = _Assist.BuildParameter(_Editor.Text, _Editor.SelectionStart);
-                if (Help != null && (CaretIsInsideParentheses() || IsLabelPrompt(Help)))
-                {
-                    _Popup.ShowParameter(_Editor, _Editor.SelectionStart, Help);
-                    return;
-                }
+            ParameterHelp? Help = _Assist.BuildParameter(_Editor.Text, _Editor.SelectionStart);
+            if (Help != null)
+            {
+                _Popup.ShowParameter(_Editor, _Editor.SelectionStart, Help);
+                return;
+            }
             }
 
             if (Force && !string.IsNullOrWhiteSpace(Context.StatusMessage))
@@ -557,37 +557,6 @@ internal sealed class EditorIntelliSenseController : IDisposable
         }
 
         return true;
-    }
-
-    private static bool IsLabelPrompt(ParameterHelp Help)
-    {
-        return Help.Heading.StartsWith("label", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool CaretIsInsideParentheses()
-    {
-        int Caret = _Editor.SelectionStart;
-        int LineStart = Caret;
-        string Text = _Editor.Text;
-        while (LineStart > 0 && Text[LineStart - 1] != '\n')
-        {
-            LineStart--;
-        }
-
-        int Depth = 0;
-        for (int Index = LineStart; Index < Caret && Index < Text.Length; Index++)
-        {
-            if (Text[Index] == '(')
-            {
-                Depth++;
-            }
-            else if (Text[Index] == ')' && Depth > 0)
-            {
-                Depth--;
-            }
-        }
-
-        return Depth > 0;
     }
 
     private static bool IsCompletedToken(CompletionContext Context)
