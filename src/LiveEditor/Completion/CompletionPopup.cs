@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
+using LiveEditor.Editor;
 
 namespace LiveEditor.Completion;
 
@@ -70,6 +71,21 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
 
     private string _ContentSignature = string.Empty;
 
+    /// <summary>Widest Parameter Info box in logical pixels, like the Visual Studio tooltip. Longer text wraps.</summary>
+    private const int PARAMETER_INFO_WIDTH = 560;
+
+    /// <summary>The editor's code font, used for every part of the popup as in Visual Studio.</summary>
+    private readonly Font _CodeFont = EditorFonts.Monospace(9F);
+
+    /// <summary>Same font for the Parameter Info description. Kept separate so the description can change on its own.</summary>
+    private readonly Font _ProseFont = EditorFonts.Monospace(9F);
+
+    /// <summary>Bold for the active parameter in the signature. Cascadia Mono has a true bold weight that stands out clearly.</summary>
+    private readonly Font _SignatureBoldFont = EditorFonts.Monospace(9F, FontStyle.Bold);
+
+    /// <summary>Font for the suggestion list.</summary>
+    private readonly Font _ListFont = EditorFonts.Monospace(10F);
+
     /// <summary>Creates the popup.</summary>
     public CompletionPopup()
     {
@@ -80,15 +96,15 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
             ScrollBars = RichTextBoxScrollBars.None,
             DetectUrls = false,
             TabStop = false,
-            Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point),
-            WordWrap = false,
+            Font = _ProseFont,
+            WordWrap = true,
             BackColor = SystemColors.Info,
             ForeColor = SystemColors.InfoText
         };
         _List = new ListBox
         {
             BorderStyle = BorderStyle.None,
-            Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point),
+            Font = _ListFont,
             IntegralHeight = false,
             HorizontalScrollbar = false,
             ItemHeight = 22,
@@ -100,7 +116,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         _Detail = new TextBox
         {
             BorderStyle = BorderStyle.None,
-            Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point),
+            Font = _CodeFont,
             Multiline = true,
             ReadOnly = true,
             WordWrap = false,
@@ -117,6 +133,10 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         _Window.Controls.Add(_Signature);
         _Window.Controls.Add(_List);
         _Window.Controls.Add(_Detail);
+
+        // Create the window handles now, while hidden, so the signature can be measured before the first show.
+        _ = _Window.Handle;
+        _ = _Signature.Handle;
     }
 
     /// <summary>Raised when the user accepts a suggestion.</summary>
@@ -186,7 +206,16 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
     {
         get
         {
-            return _Signature.Text;
+            return _Signature.Text.Replace('\u2011', '-');
+        }
+    }
+
+    /// <summary>Gets the height of the signature header in pixels.</summary>
+    internal int SignatureHeight
+    {
+        get
+        {
+            return _Signature.Height;
         }
     }
 
@@ -255,6 +284,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
             return;
         }
 
+        UseCodeNotes();
         string? SelectedInsert = (_List.SelectedItem as CompletionItem)?.InsertText;
         _UpdatingList = true;
         try
@@ -298,19 +328,25 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         _AnchorIndex = AnchorIndex;
         _PlaceAbove = true;
         Surface = AssistSurface.Parameter;
-        _ContentSignature = Help.Signature + "\u001F" + Help.Heading;
+        _ContentSignature = Help.Signature + "\u001F" + Help.Summary + "\u001F" + Help.Heading + "\u001F" + Help.Body;
         ApplySignature(Help);
-        _Detail.Text = Help.Heading.Length == 0 ? Help.Body : Help.Heading + Environment.NewLine + Environment.NewLine + Help.Body;
+
+        // Like Visual Studio: the signature on top, then the active parameter's name and description,
+        // in a box of limited width where long text wraps instead of running off the editor.
+        _Detail.Font = _ProseFont;
+        _Detail.WordWrap = true;
+        _Detail.Text = WithWindowsLineBreaks(ParameterText(Help));
         _List.Visible = false;
         _Detail.Visible = true;
         _Signature.Visible = true;
-        Size Body = MeasureBlock(_Detail.Text, _Detail.Font, AvailableWidth(Target));
-        int Width = Math.Max(Body.Width, MeasureSignatureWidth());
-        Width = Math.Min(Width, AvailableWidth(Target));
+        int Limit = Math.Min(AvailableWidth(Target), Target.LogicalToDeviceUnits(PARAMETER_INFO_WIDTH));
+        int Natural = Math.Max(MeasureSignatureWidth(), MeasureWrapped(_Detail.Text, _Detail.Font, int.MaxValue).Width + 16);
+        int Width = Math.Min(Natural, Limit);
         int Header = MeasureSignatureHeight(Width);
+        int BodyHeight = MeasureWrapped(_Detail.Text, _Detail.Font, Width - 16).Height + 10;
         _Signature.SetBounds(1, 1, Width, Header);
-        _Detail.SetBounds(1, Header + 1, Width, Body.Height);
-        _Window.ClientSize = new Size(Width + 2, Header + Body.Height + 2);
+        _Detail.SetBounds(1, Header + 1, Width, BodyHeight);
+        _Window.ClientSize = new Size(Width + 2, Header + BodyHeight + 2);
         Present(Target, KeepEditorFocus);
     }
 
@@ -333,7 +369,8 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         _Signature.Visible = false;
         _List.Visible = false;
         _Detail.Visible = true;
-        _Detail.Text = Text;
+        UseCodeNotes();
+        _Detail.Text = WithWindowsLineBreaks(Text);
         Size Body = MeasureBlock(Text, _Detail.Font, AvailableWidth(Target));
         _Detail.SetBounds(1, 1, Body.Width, Body.Height);
         _Window.ClientSize = new Size(Body.Width + 2, Body.Height + 2);
@@ -477,6 +514,10 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         _List.Click -= List_Click;
         _List.SelectedIndexChanged -= List_SelectedIndexChanged;
         _Window.Dispose();
+        _CodeFont.Dispose();
+        _ProseFont.Dispose();
+        _SignatureBoldFont.Dispose();
+        _ListFont.Dispose();
     }
 
     private void LayoutMembers(TextBoxBase Target)
@@ -492,7 +533,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         }
 
         int Width = ListWidth + Notes.Width;
-        int Header = _Signature.Visible ? MeasureSignatureHeight(Width) : 0;
+        int Header = MeasureSignatureHeight(Width);
         int BodyHeight = Math.Max(ListHeight, Notes.Height);
         _Signature.Visible = Header > 0;
         _Signature.SetBounds(1, 1, Width, Header);
@@ -558,19 +599,21 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
 
     private void PlaceCore(TextBoxBase Target)
     {
-        Point ClientPoint = GetCaretClientPoint(Target, _AnchorIndex);
-        Rectangle Editor = Target.RectangleToScreen(Target.ClientRectangle);
-        if (_PlaceAbove)
-        {
-            ClientPoint.Y -= _Window.Height + 4;
-        }
-        else
-        {
-            ClientPoint.Y += Target.Font.Height + 2;
-        }
-
-        Point ScreenPoint = Target.PointToScreen(ClientPoint);
+        Point Caret = Target.PointToScreen(GetCaretClientPoint(Target, _AnchorIndex));
         Rectangle Working = Screen.FromControl(Target).WorkingArea;
+        int BelowTop = Caret.Y + Target.Font.Height + 2;
+        int AboveTop = Caret.Y - _Window.Height - 4;
+        bool FitsBelow = BelowTop + _Window.Height <= Working.Bottom;
+        bool FitsAbove = AboveTop >= Working.Top;
+        bool MoreRoomAbove = Caret.Y - Working.Top > Working.Bottom - BelowTop;
+
+        // Keep the popup against the caret line. Use the preferred side when it fits,
+        // otherwise the other side, otherwise whichever side has more room.
+        bool Above = _PlaceAbove
+            ? FitsAbove || (!FitsBelow && MoreRoomAbove)
+            : !FitsBelow && (FitsAbove || MoreRoomAbove);
+
+        Point ScreenPoint = new Point(Caret.X, Above ? AboveTop : BelowTop);
         if (ScreenPoint.X + _Window.Width > Working.Right)
         {
             ScreenPoint.X = Math.Max(Working.Left, Working.Right - _Window.Width);
@@ -578,7 +621,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
 
         if (ScreenPoint.Y + _Window.Height > Working.Bottom)
         {
-            ScreenPoint.Y = Math.Max(Working.Top, Editor.Top - _Window.Height - 4);
+            ScreenPoint.Y = Working.Bottom - _Window.Height;
         }
 
         if (ScreenPoint.Y < Working.Top)
@@ -690,7 +733,10 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         }
 
         _Signature.Visible = true;
-        _Signature.Text = Help.Signature;
+
+        // A non-breaking hyphen keeps words such as left-of whole when the signature wraps. It is the same length,
+        // so the bold range still lines up.
+        _Signature.Text = Help.Signature.Replace('-', '\u2011');
         _Signature.SelectAll();
         _Signature.SelectionFont = _Signature.Font;
         _Signature.SelectionColor = _Signature.ForeColor;
@@ -698,26 +744,74 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         if (Help.BoldLength > 0 && Help.BoldStart >= 0 && Help.BoldStart + Help.BoldLength <= Help.Signature.Length)
         {
             _Signature.Select(Help.BoldStart, Help.BoldLength);
-            _Signature.SelectionFont = new Font(_Signature.Font, FontStyle.Bold);
+            _Signature.SelectionFont = _SignatureBoldFont;
             _Signature.Select(0, 0);
         }
     }
 
     private int MeasureSignatureWidth()
     {
-        Size Measured = TextRenderer.MeasureText(_Signature.Text, _Signature.Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+        Size Measured = TextRenderer.MeasureText(_Signature.Text, _SignatureBoldFont, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
         return Measured.Width + 16;
     }
 
     private int MeasureSignatureHeight(int Width)
     {
-        if (!_Signature.Visible || _Signature.Text.Length == 0)
+        // Visible reads false while the popup window itself is hidden, so the text decides instead.
+        if (_Signature.Text.Length == 0)
         {
             return 0;
         }
 
-        Size Measured = TextRenderer.MeasureText(_Signature.Text, _Signature.Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+        // Ask the box itself where its last character landed, because the bold parameter is wider
+        // than plain text and a plain measurement can miss a wrapped line.
+        _Signature.Width = Width;
+        if (_Signature.IsHandleCreated)
+        {
+            int First = _Signature.GetPositionFromCharIndex(0).Y;
+            int Last = _Signature.GetPositionFromCharIndex(_Signature.TextLength - 1).Y;
+            return (Last - First) + _SignatureBoldFont.Height + 8;
+        }
+
+        Size Measured = MeasureWrapped(_Signature.Text, _SignatureBoldFont, Width - 16);
         return Math.Max(_Signature.Font.Height + 8, Measured.Height + 8);
+    }
+
+    /// <summary>Size of text wrapped at word breaks to the given width, the way a wrapping text box lays it out.</summary>
+    private static Size MeasureWrapped(string Text, Font Font, int MaximumWidth)
+    {
+        if (string.IsNullOrEmpty(Text))
+        {
+            return new Size(0, Font.Height);
+        }
+
+        TextFormatFlags Flags = TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl | TextFormatFlags.NoPadding;
+        return TextRenderer.MeasureText(Text, Font, new Size(Math.Max(40, MaximumWidth), int.MaxValue), Flags);
+    }
+
+    /// <summary>Visual Studio's layout under the signature: what the statement does, then "name: description" for the active parameter.</summary>
+    private static string ParameterText(ParameterHelp Help)
+    {
+        List<string> Parts = new List<string>();
+        if (Help.Summary.Length > 0)
+        {
+            Parts.Add(Help.Summary);
+        }
+
+        string Parameter = Help.Heading.Length == 0 ? Help.Body : Help.Heading + ": " + Help.Body;
+        if (Parameter.Length > 0)
+        {
+            Parts.Add(Parameter);
+        }
+
+        return string.Join("\n", Parts);
+    }
+
+    /// <summary>The list notes and Quick Info are preformatted, so they use the code font and never wrap.</summary>
+    private void UseCodeNotes()
+    {
+        _Detail.Font = _CodeFont;
+        _Detail.WordWrap = false;
     }
 
     private int MeasureListWidth(TextBoxBase Target)
@@ -760,7 +854,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
     {
         if (_List.SelectedItem is CompletionItem Item)
         {
-            _Detail.Text = Item.Documentation;
+            _Detail.Text = WithWindowsLineBreaks(Item.Documentation);
         }
         else
         {
@@ -769,6 +863,19 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
 
     }
 
+    /// <summary>
+    /// Converts every line break to CR LF, because a multiline TextBox only starts a new line at CR LF.
+    /// Help text built with a bare LF would otherwise run together on one line.
+    /// </summary>
+    private static string WithWindowsLineBreaks(string? Text)
+    {
+        if (string.IsNullOrEmpty(Text))
+        {
+            return string.Empty;
+        }
+
+        return Text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
+    }
     /// <summary>Width and height of preformatted notes. Lines stay as written so columns remain aligned.</summary>
     private static Size MeasureBlock(string Text, Font Font, int MaximumWidth)
     {

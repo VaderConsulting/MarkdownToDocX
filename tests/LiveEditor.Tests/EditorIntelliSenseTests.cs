@@ -153,6 +153,45 @@ public sealed class EditorIntelliSenseTests
     }
 
     [Test]
+    public void QuickInfoForANoteShowsEachPartOnItsOwnLine()
+    {
+        SetSource("enterprise\r\n  note margin \"A note beside the order\"\r\n");
+        int Start = _Editor.Text.IndexOf("margin", StringComparison.Ordinal);
+        _Editor.Select(Start, "margin".Length);
+        Application.DoEvents();
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.QuickInfo));
+        string[] Lines = _Controller.Popup.DetailText.Split("\r\n");
+        Assert.That(Lines, Does.Contain("note margin"));
+        Assert.That(Lines, Does.Contain("A note beside the order"));
+        Assert.That(_Controller.Popup.DetailText.Replace("\r\n", string.Empty, StringComparison.Ordinal), Does.Not.Contain("\n"));
+    }
+
+    [Test]
+    public void ParameterInfoWrapsInsteadOfRunningOffTheEditor()
+    {
+        SetSource("enterprise\r\n  application-interface intf ");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("<N|S|E|W>"));
+        Assert.That(_Controller.Popup.WindowSize.Width, Is.LessThanOrEqualTo(_Editor.LogicalToDeviceUnits(560) + 2));
+        Assert.That(_Controller.Popup.ShowsScrollBar, Is.False);
+    }
+
+    [Test]
+    public void ParameterInfoShowsItsSignatureAndSitsJustAboveTheLine()
+    {
+        SetSource("enterprise\r\n  title Test\r\n  data-object order \"Order\"\r\n  data-object ledger \"Ledger\"\r\n  data-object audit \"Audit\"\r\n  application-interface ");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Parameter));
+        Assert.That(_Controller.Popup.SignatureHeight, Is.GreaterThan(0), "the signature needs room the first time the popup opens");
+        Point Caret = _Editor.PointToScreen(_Editor.GetPositionFromCharIndex(_Editor.SelectionStart));
+        int Bottom = _Controller.Popup.WindowLocation.Y + _Controller.Popup.WindowSize.Height;
+        Assert.That(Bottom, Is.LessThanOrEqualTo(Caret.Y), "the popup must not cover the line");
+        Assert.That(Bottom, Is.GreaterThanOrEqualTo(Caret.Y - 8), "the popup must sit right against the line");
+    }
+
+    [Test]
     public void QualifierInsideParenthesesShowsParameterHelp()
     {
         SetSource("enterprise\r\n  application-component webShop \"Web Shop\"\r\n  data-object order \"Order\"\r\n  webShop -access(");

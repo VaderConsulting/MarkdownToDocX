@@ -55,7 +55,7 @@ internal sealed class GhostTextOverlay : IDisposable
             return;
         }
 
-        using Font Font = new Font("Consolas", 11F, FontStyle.Italic, GraphicsUnit.Point);
+        using Font Font = EditorFonts.Monospace(11F, FontStyle.Italic);
         using SolidBrush Brush = new SolidBrush(Color.FromArgb(140, 140, 140));
         E.Graphics.DrawString(_Text, Font, Brush, _Location);
     }

@@ -298,10 +298,11 @@ internal sealed partial class CodeEditor : UserControl
     {
         float Size = Math.Max(8F, Math.Min(32F, FontSize));
         _SessionFontSize = Size;
-        if (Math.Abs(SourceEditor.Font.Size - Size) > 0.01F)
+        bool OtherFamily = !string.Equals(SourceEditor.Font.Name, EditorFonts.MonospaceFamily, StringComparison.OrdinalIgnoreCase);
+        if (OtherFamily || Math.Abs(SourceEditor.Font.Size - Size) > 0.01F)
         {
             Font PreviousFont = SourceEditor.Font;
-            SourceEditor.Font = new Font("Consolas", Size, FontStyle.Regular, GraphicsUnit.Point);
+            SourceEditor.Font = EditorFonts.Monospace(Size);
             PreviousFont.Dispose();
         }
 
@@ -1261,7 +1262,7 @@ internal sealed partial class CodeEditor : UserControl
         }
 
         Font PreviousFont = SourceEditor.Font;
-        SourceEditor.Font = new Font("Consolas", Limited, FontStyle.Regular, GraphicsUnit.Point);
+        SourceEditor.Font = EditorFonts.Monospace(Limited);
         PreviousFont.Dispose();
         FontSizeChanged?.Invoke(this, Limited);
         StatusRequested?.Invoke(this, "Editor font " + Limited.ToString("0") + " pt.");

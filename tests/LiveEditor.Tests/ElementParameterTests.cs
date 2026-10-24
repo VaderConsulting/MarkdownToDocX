@@ -45,8 +45,14 @@ public sealed class ElementParameterTests
                 Assert.That(Documentation, Does.Contain(Parameter), TypeName + " documentation is missing " + Parameter);
             }
 
-            HashSet<string> DocumentedRelationships = RelationshipLines(Documentation);
-            Assert.That(DocumentedRelationships, Is.EquivalentTo(ExpectedRelationships), TypeName + " relationship list");
+            Assert.That(RelationshipLines(Documentation), Is.Empty, TypeName + " documentation must not list relationships");
+            Assert.That(Documentation, Does.Contain("Tab to insert"), TypeName + " suggestion help keeps its keyboard hint");
+
+            string Hover = EnterpriseHelp.QuickInfoFor("enterprise\n  " + TypeName + " item", "enterprise\n  ".Length + 1, new EnterpriseDocument()) ?? string.Empty;
+            Assert.That(Hover, Does.Contain("<id>"), TypeName + " hover");
+            Assert.That(Hover, Does.Not.Contain("Tab to insert"), TypeName + " hover has no keyboard hint");
+            Assert.That(Hover, Does.Not.Contain("Example"), TypeName + " hover has no example");
+            Assert.That(RelationshipLines(Hover), Is.Empty, TypeName + " hover must not list relationships");
 
             string Typed = "enterprise\n  " + TypeName;
             bool FoundType = false;
@@ -78,8 +84,9 @@ public sealed class ElementParameterTests
             ParameterHelp? LabelHelp = Engine.BuildParameterHelp(BeforeLabel, BeforeLabel.Length);
             Assert.That(LabelHelp, Is.Not.Null, TypeName);
             Assert.That(LabelHelp!.Signature, Does.Contain("[\"label\"]"));
-            Assert.That(LabelHelp.Body, Does.Contain("above"));
-            Assert.That(LabelHelp.Body, Does.Contain("push"));
+            Assert.That(LabelHelp.Signature, Does.Contain("above"), TypeName + " label help shows the placement clauses");
+            Assert.That(LabelHelp.Signature, Does.Contain("push"), TypeName + " label help shows the push clause");
+            Assert.That(LabelHelp.Body, Does.Not.Contain("The statement can end"), TypeName + " label help has no filler");
 
             string Identifier = "enterprise\n  " + TypeName + " ";
             ParameterHelp? IdentifierHelp = Engine.BuildParameterHelp(Identifier, Identifier.Length);
