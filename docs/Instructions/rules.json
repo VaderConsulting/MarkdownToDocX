@@ -37,77 +37,76 @@
                      },
                      {
                          "id":  "S2",
-                         "order":  44,
+                         "order":  45,
                          "blank_before":  1,
                          "heading":  "## 2. Placement"
                      },
                      {
                          "id":  "S3",
-                         "order":  69,
+                         "order":  70,
                          "blank_before":  1,
                          "heading":  "## 3. Ports and diamonds"
                      },
                      {
                          "id":  "S4",
-                         "order":  80,
+                         "order":  82,
                          "blank_before":  1,
                          "heading":  "## 4. Line shape"
                      },
                      {
                          "id":  "S5",
-                         "order":  93,
+                         "order":  95,
                          "blank_before":  1,
                          "heading":  "## 5. Tracks and crossings"
                      },
                      {
                          "id":  "S6",
-                         "order":  104,
+                         "order":  106,
                          "blank_before":  1,
                          "heading":  "## 6. Labels"
                      },
                      {
                          "id":  "S7",
-                         "order":  108,
+                         "order":  110,
                          "blank_before":  1,
                          "heading":  "## 7. Groups and frames"
                      },
                      {
                          "id":  "S8",
-                         "order":  117,
+                         "order":  119,
                          "blank_before":  1,
                          "heading":  "## 8. Sequence diagrams"
                      },
                      {
                          "id":  "S9",
-                         "order":  119,
+                         "order":  121,
                          "blank_before":  1,
                          "heading":  "## 9. Precedence"
                      },
                      {
                          "id":  "S10",
-                         "order":  126,
+                         "order":  128,
                          "blank_before":  1,
                          "heading":  "## 10. Must never (normal candidates are rejected for these violations; a marked rule 5.7 fallback connector is excepted only when no legal route exists, remains a reported diagnostic, and is never synthesized by the painter from node centres)"
                      },
                      {
                          "id":  "routing-faults",
-                         "order":  138,
+                         "order":  140,
                          "blank_before":  1,
-                         "heading":  "## Routing faults (a candidate with one is rejected unless an applicable line hint expressly permits it, or an honoured node/group hint makes it unavoidable under 2.21; these are not hard legality)"
+                         "heading":  "## Routing faults (precedence level 3 under 9.1, below hard legality and honoured hints: a candidate with a non-exempt routing fault loses to any candidate with fewer; an applicable line hint may expressly permit one, or an honoured node/group hint may make it unavoidable under 2.21)"
                      },
                      {
                          "id":  "on-hold",
-                         "order":  140,
+                         "order":  142,
                          "blank_before":  1,
                          "heading":  "## On hold (do not build until Dave redefines them)"
                      },
                      {
                          "id":  "resolved-conflicts",
-                         "order":  142,
+                         "order":  144,
                          "blank_before":  1,
                          "heading":  "## Resolved conflicts"
-                     }
-                 ],
+                     },
     "terms":  [
                   {
                       "id":  "term.grid-step",
@@ -751,6 +750,24 @@
                                        ]
                        },
                        {
+                           "id":  "repair_extra_length_px",
+                           "value":  61,
+                           "unit":  "px of added route length",
+                           "source":  "Rule 5.10; bounds added route length (catalogue winning maximum: 60 px)",
+                           "used_by":  [
+                                           "5.10"
+                                       ]
+                       },
+                       {
+                           "id":  "repair_extra_bends",
+                           "value":  7,
+                           "unit":  "additional bends",
+                           "source":  "Rule 5.10; bounds bend growth (catalogue winning maximum: 6 bends)",
+                           "used_by":  [
+                                           "5.10"
+                                       ]
+                       },
+                       {
                            "id":  "frame_gap_growth",
                            "value":  1,
                            "unit":  "grid steps",
@@ -843,18 +860,20 @@
                                      ]
                        },
                        {
-                           "id":  "P4",
-                           "group":  "placement",
-                           "name":  "Multi-parent, branches, detours, chains, blocks (2.4 applies within this step)",
-                           "rules":  [
-                                         "2.4",
-                                         "2.5",
-                                         "2.6",
-                                         "2.8",
-                                         "2.9",
-                                         "2.10"
-                                     ]
-                       },
+                         "id":  "P4",
+                         "group":  "placement",
+                         "name":  "Multi-parent, branches, detours, chains, blocks (2.4 applies within this step)",
+                         "rules":  [
+                                   "2.4",
+                                   "2.5",
+                                   "2.6",
+                                   "2.8",
+                                   "2.9",
+                                   "2.10",
+                                   "2.24",
+                                   "2.25",
+                         ]
+                     },
                        {
                            "id":  "P5",
                            "group":  "placement",
@@ -879,19 +898,20 @@
                                      ]
                        },
                        {
-                           "id":  "R2",
-                           "group":  "routing",
-                           "name":  "Joint port allocation",
-                           "rules":  [
-                                         "3.1",
-                                         "3.2",
-                                         "3.3",
-                                         "3.6",
-                                         "3.10",
-                                         "4.7",
-                                         "4.9"
-                                     ]
-                       },
+                         "id":  "R2",
+                         "group":  "routing",
+                         "name":  "Joint port allocation",
+                         "rules":  [
+                                   "3.1",
+                                   "3.2",
+                                   "3.3",
+                                   "3.6",
+                                   "3.10",
+                                   "3.11",
+                                   "4.7",
+                                   "4.9",
+                         ]
+                     },
                        {
                            "id":  "R3",
                            "group":  "routing",
@@ -927,29 +947,30 @@
                                      ]
                        },
                        {
-                           "id":  "R5",
-                           "group":  "routing",
-                           "name":  "Avoidable crossings (within 4.3 and the line hints)",
-                           "rules":  [
-                                         "5.1",
-                                         "5.9"
-                                     ]
-                       },
+                         "id":  "R5",
+                         "group":  "routing",
+                         "name":  "Avoidable crossings (within 4.3 and the line hints)",
+                         "rules":  [
+                                   "5.1",
+                                   "5.9",
+                                   "5.11",
+                         ]
+                     },
                        {
-                           "id":  "V1",
-                           "group":  "legality",
-                           "name":  "Legality: section 10 and overlaps never broken; ties go to Mermaid order (9.5)",
-                           "rules":  [
-                                         "5.7",
-                                         "2.24",
-                                         "9.1",
-                                         "9.2",
-                                         "9.3",
-                                         "9.4",
-                                         "9.5",
-                                         "9.6"
-                                     ]
-                       },
+                         "id":  "V1",
+                         "group":  "legality",
+                         "name":  "Legality: section 10 and overlaps never broken; ties go to Mermaid order (9.5)",
+                         "rules":  [
+                                   "5.7",
+                                   "2.26",
+                                   "9.1",
+                                   "9.2",
+                                   "9.3",
+                                   "9.4",
+                                   "9.5",
+                                   "9.6",
+                         ]
+                     },
                        {
                            "id":  "P6",
                            "group":  "placement",
@@ -994,16 +1015,185 @@
                                      ]
                        },
                        {
-                           "id":  "P8",
-                           "group":  "placement",
-                           "name":  "Free direction picks among candidates by score (never overrides a declared direction)",
-                           "rules":  [
-                                         "2.13",
-                                         "2.14",
-                                         "2.19"
-                                     ]
-                       }
-                   ],
+                         "id":  "1.8",
+                         "title":  "Reading order",
+                         "title_in_text":  false,
+                         "section":  "S1",
+                         "kind":  "quality",
+                         "stage":  "P1",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "2.1",
+                                   "2.3",
+                                   "2.13",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+
+                                   ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  44,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Hard: every flowchart begins at the top of the page (the start node at diagram N). The main flow comprising normal sequence edges and Yes branches runs downward in top-to-bottom diagrams; rule 1.1 maps this start and downward main flow for other declared directions. When two legal placements tie on score and routing quality, keep the earlier node farther left; when horizontal position also ties, keep it higher.",
+                         ]
+                     },                     {
+                         "id":  "2.25",
+                         "title":  "Keep related nodes close",
+                         "title_in_text":  true,
+                         "section":  "S2",
+                         "kind":  "quality",
+                         "stage":  "P4",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "2.13",
+                                   "2.21",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+                                   "2.21",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  691,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Keep related nodes close. Preference: a node whose only lines go to one nearby node sits next to that node, not at the far edge with a long return line (for example, Lodge by the 21st under No Late Payments). This ranks below honoured hints and hard legality.",
+                         ]
+                     },                     {
+                         "id":  "2.26",
+                         "title":  "Diagnostics and error policy",
+                         "title_in_text":  true,
+                         "section":  "S2",
+                         "kind":  "legality",
+                         "stage":  "V1",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "5.7",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+
+                                   ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  692,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Diagnostics and error policy. A source that cannot be read as valid statements, or that breaks the model (unknown element type, an invalid relationship type, qualifier or rules-table cell, an unresolved endpoint or container, an unsupported Mermaid arrow or shape, an unclosed block, malformed hint syntax or a duplicate clause), is an error, and the diagram is not drawn. A hint that is read correctly but cannot be honoured, and an invalid or conflicting part of a line hint, is a warning: drop only that hint, axis or part, report it with its reason, and draw the diagram normally. A placement axis dropped by the repair process is reported as \"conflicting constraints\" only when the conflict is established, and otherwise as \"no legal candidate found within the permitted search\". A redeclaration that materially changes the effective placement hint is a warning, and an identical one is not. Every diagnostic names the line, the construct and, where one exists, the accepted form. Rule 5.7 applies only to input for which this rule reports no error.",
+                         ]
+                     },                     {
+                         "id":  "3.11",
+                         "title":  "Decision port compass",
+                         "title_in_text":  true,
+                         "section":  "S3",
+                         "kind":  "legality",
+                         "stage":  "R2",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "3.1",
+                                   "3.2",
+                                   "3.3",
+                                   "4.1",
+                                   "4.4",
+                                   "4.7",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+                                   "2.21",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  true,
+                         "order":  81,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Decision port compass. Hard: compass names are fixed on the diamond (N at the top vertex, E at the right vertex, S at the bottom vertex, W at the left vertex). Inputs: one incoming line uses the N vertex; several incoming lines use N for the centre source, then the NW and NE vertices for the left and right sources, ordered symmetrically. Outputs: the main flow (normal sequence edges and Yes branches) follows S in diagram compass (downward in TB; rule 1.1 maps this for other directions). Match branch labels without regard to letter case, after trimming the surrounding whitespace. The Yes branch is any label equal to Y or Yes (so Y, y, Yes, YES and yes all count), and it leaves at S. The No branch is any label equal to N or No (so N, n, No, NO and no all count), and it leaves at the E vertex only, never at NE or SE, and leads off to the right in TB. When a decision has extra outputs beyond Yes and No, those other branches may still use the SW and SE sloped-edge ports, but No is always E. When three or more outputs leave toward the bottom half-plane without Yes/No labels, use S for the centre branch and the SW and SE vertices for the side branches. A Yes/No decision with one input and two outputs takes its input at N and applies those Yes and No assignments. A line hint may override these preferences only within hard legality. This replaces the edge-facing-the-target preference in 3.6 and 3.8, which now allow vertex ports where 3.11 names them.",
+                         ]
+                     },                     {
+                         "id":  "5.11",
+                         "title":  "Use both outer channels",
+                         "title_in_text":  true,
+                         "section":  "S5",
+                         "kind":  "quality",
+                         "stage":  "R5",
+                         "status":  "active",
+                         "pointer":  "",
+                         "params":  [
+
+                                   ],
+                         "refs":  [
+                                   "5.1",
+                                   "5.9",
+                                   "4.2",
+                         ],
+                         "outranks":  [
+
+                                   ],
+                         "yields":  [
+                                   "2.21",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "hint_overridable":  false,
+                         "order":  1046,
+                         "blank_before":  1,
+                         "text":  [
+                                   "Use both outer channels. Preference: a line that skips a rank in a single column, or returns up it, leaves from a side port and runs down the outer channel. Lines going up take one side and lines going down the other, so lines never bundle, hop or cross in one gap. A line between neighbouring ranks is a straight vertical.",
+                         ]
+                     },                     {
+                         "id":  "routing-faults.1",
+                         "kind":  "routing-fault",
+                         "section":  "routing-faults",
+                         "refs":  [
+                                   "4.3",
+                                   "4.11",
+                                   "5.8",
+                                   "5.9",
+                                   "6.1",
+                         ],
+                         "pictures":  [
+
+                                   ],
+                         "order":  141,
+                         "blank_before":  1,
+                         "text":  [
+                                   "- A line bent, jogged or displaced solely for a label (6.1); a convergence line travelling along the gap above its target or S-jogging into its top (4.11); a fan line using the far side or going around its source, or sharing an overlapping track (5.8); any crossing removable by a legal reassignment or permitted extra corner (5.9). Reject these unless an applicable hint permits the fault under 2.21. The section 10 hard constraints still apply to normal connectors.",
+                         ]
+                     },
     "rules":  [
                   {
                       "id":  "1.1",
@@ -1709,7 +1899,7 @@
                       "order":  57,
                       "blank_before":  1,
                       "text":  [
-                                   "Layout score. Score each **legal, routing-fault-free (unless hinted)** candidate of the same diagram: shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per independently honoured placement-axis hint of an element, note or group, and -15 per fully honoured connection-level line hint, including plain note connections (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node\u0027s region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length divided by the base routing grid unit, w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Hints and all legality and routing-fault admission checks remain higher priority. The existing route-length and moved-line repair score terms under 5.10 remain separate. Added route length and bends are priced in the score, without added-length or added-bend caps."
+                                   "Layout score. Score each **legal, routing-fault-free (unless hinted)** candidate of the same diagram: shape + empty + crossings + bends + disconnected ends + hints; lower is better. Shape: 2 points per 5% deviation from 4:3, prorated; this is a small cost, never an admission condition or a hard limit. Empty: 10 points per 5% uncovered area through 30%, then 40 per 5% above 30%, prorated; measure against node boxes, group frame/title space, labels and occupied tracks. Crossings: 20 points per crossing **above a defensible forced minimum**, prorated only where meaningful. The forced minimum is the minimum under the permitted node/port/track orderings; do not assume a closed-form complete-bipartite formula applies to unrestricted orthogonal routing. Where it cannot be established, use zero as a conservative lower bound. Crossings up to that minimum are reported but unpenalised. Bends: 20 points per corner. Disconnected ends: 20 per unmatched drawn line end (but such ends are prohibited by section 10, so legal candidates normally have zero). Hints: -30 per independently honoured placement-axis hint of an element, note or group, and -15 per fully honoured connection-level line hint, including plain note connections (2.21). Tests calculate expected scores from the measured layout and never hard-code a pixel size. The score cannot legalise a forbidden crossing, routing fault or overlap; it is not a pass mark. Read all weights from this rules file. Score from final rendered sizes. Gaps inside a node\u0027s region count as occupied area, not empty space. A node that spans more than one cell earns no penalty for its span. Length. Add one bounded route-length term to each complete legal candidate. Let L be the total final route length divided by the base routing grid unit, w be score_route_length_per_grid_step, and B be the smaller of score_bend and score_crossing. The length term is wL / (1 + wL/B). Add it once for the whole layout, not once per line. It is nonnegative and strictly less than B for every finite route length, so length alone cannot outweigh one bend or crossing. Measure complete terminal runs as well as interior tracks. Compare length exactly when the bend-and-crossing costs tie; a fixed score epsilon must not discard a real length improvement. Hints and all legality and routing-fault admission checks remain higher priority. The existing added-length and moved-line repair terms and limits under 5.10 remain separate and unchanged."
                                ]
                   },
                   {
@@ -3137,7 +3327,9 @@
                                      "repair_candidate_moves",
                                      "repair_chain_depth",
                                      "repair_chain_lines",
-                                     "repair_chain_lines_fan_hub"
+                                     "repair_chain_lines_fan_hub",
+                                     "repair_extra_length_px",
+                                     "repair_extra_bends"
                                  ],
                       "refs":  [
                                    "1.2",
@@ -3165,7 +3357,7 @@
                       "order":  101,
                       "blank_before":  1,
                       "text":  [
-                                   "Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, add no legality or routing fault, and lower the score. For an atomic candidate that moves a fan hub and reroutes every declared line in that fan together, repair_chain_lines_fan_hub is the number of lines in that fan. Moving the hub necessarily changes every fan terminal, so the complete fan must be scored and restored as one assignment rather than truncated at the ordinary twelve-line bound. Every other candidate still uses repair_chain_lines (12). This exception permits no unrelated changed lines and does not raise the candidate-move or chain-depth limits. Route options obey named limits for candidate moves, chain depth and lines per chain; those values protect the 10 second per-diagram target and are set from catalogue measurements. If no move qualifies, route around it as normal. Report when a named limit prevents further candidates from being examined. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same candidate limits.",
+                                   "Move before detour. For every bent or detoured route, compare the legal options: move an unhinted endpoint or linked group by one or more whole cells, reroute either clashing line, or retain the current legal route. Include moves that straighten several relationships together, and compact empty rows and columns left by an accepted move. Reroutes may chain when one reroute creates another clash; score the whole chain as one option. Choose the option with the lowest overall repair score, counting added route length (5.10 length weight), each bend (2.13) and every line that must be rerouted (5.10 line weight). A move must obey hints (hints win), preserve the grid and group membership, add no legality or routing fault, and lower the score. For an atomic candidate that moves a fan hub and reroutes every declared line in that fan together, repair_chain_lines_fan_hub is the number of lines in that fan. Moving the hub necessarily changes every fan terminal, so the complete fan must be scored and restored as one assignment rather than truncated at the ordinary twelve-line bound. Every other candidate still uses repair_chain_lines (12). This exception permits no unrelated changed lines and does not raise the candidate-move, chain-depth, added-length or added-bend limits. Route options obey named limits for candidate moves, chain depth, lines per chain, added length and added bends; those values protect the 10 second per-diagram target and are set from catalogue measurements. If no move qualifies, route around it as normal. Report when a named limit prevents further candidates from being examined. Growing an endpoint by whole cells (1.3) is also a legal option where it resolves a measured port or routing problem; it counts against the same candidate limits.",
                                    "In the final repair pass only, after placement, fan nesting, routing and every other repair are complete, a candidate may introduce a new finding identity when the complete candidate, fully rerouted and re-checked, lowers the layout score, adds no legality, hard-gate or routing fault, adds no bends or crossings in that scenario, and does not raise that scenario\u0027s total finding count. Every earlier pass keeps the rule that no finding identity may increase."
                                ]
                   },

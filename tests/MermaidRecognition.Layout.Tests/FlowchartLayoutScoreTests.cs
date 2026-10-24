@@ -12,17 +12,14 @@ public sealed class FlowchartLayoutScoreTests
     }
 
     [Test]
-    public void ScoreWeightsAndShapeParametersComeFromCanonicalRulesYaml()
+    public void ScoreWeightsAndParametersComeFromCanonicalRulesYaml()
     {
         Assert.Multiple(() =>
         {
             Assert.That(FlowchartLayoutRules.BendScore, Is.EqualTo(10.0));
             Assert.That(FlowchartLayoutRules.CrossingScore, Is.EqualTo(20.0));
             Assert.That(FlowchartLayoutRules.DisconnectedEndScore, Is.EqualTo(20.0));
-            Assert.That(FlowchartLayoutRules.TargetAspectWidth, Is.EqualTo(4.0));
-            Assert.That(FlowchartLayoutRules.TargetAspectHeight, Is.EqualTo(3.0));
-            Assert.That(FlowchartLayoutRules.ShapePoints, Is.EqualTo(2.0));
-            Assert.That(FlowchartLayoutRules.ShapeStep, Is.EqualTo(5.0));
+            Assert.That(FlowchartLayoutRules.DiagramUsableWidthPx, Is.EqualTo(548.0));
             Assert.That(FlowchartLayoutRules.EmptyPointsLow, Is.EqualTo(10.0));
             Assert.That(FlowchartLayoutRules.EmptyThreshold, Is.EqualTo(30.0));
             Assert.That(FlowchartLayoutRules.EmptyPointsHigh, Is.EqualTo(40.0));

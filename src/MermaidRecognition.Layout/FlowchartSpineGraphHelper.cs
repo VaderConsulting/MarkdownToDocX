@@ -137,8 +137,8 @@ public static class FlowchartSpineGraphHelper
             return OutgoingEdges[0];
         }
 
-        EdgeContract? YesEdge = FindYesLabeledEdge(OutgoingEdges);
-        EdgeContract? NoEdge = FindNoLabeledEdge(OutgoingEdges);
+        EdgeContract? YesEdge = FlowchartDecisionBranchLabelHelper.FindYesLabeledEdge(OutgoingEdges);
+        EdgeContract? NoEdge = FlowchartDecisionBranchLabelHelper.FindNoLabeledEdge(OutgoingEdges);
         if (YesEdge is not null && NoEdge is not null)
         {
             if (HasDirectedPath(Contract, YesEdge.TargetId, NoEdge.TargetId))
@@ -238,16 +238,8 @@ public static class FlowchartSpineGraphHelper
         return CountVisibleOutgoing(Contract, Edge.SourceId) == 1;
     }
 
-    private static bool IsAffirmativeSpineColumnBranch(EdgeContract Edge)
-    {
-        if (string.IsNullOrWhiteSpace(Edge.Label))
-        {
-            return false;
-        }
-
-        string NormalisedLabel = Edge.Label.Trim();
-        return string.Equals(NormalisedLabel, "Yes", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsAffirmativeSpineColumnBranch(EdgeContract Edge) =>
+        FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label);
 
     /// <summary>
     /// Returns true when the source shape is a decision diamond with multiple visible outgoing edges.
@@ -411,33 +403,6 @@ public static class FlowchartSpineGraphHelper
         return OutgoingEdges;
     }
 
-    private static EdgeContract? FindYesLabeledEdge(IReadOnlyList<EdgeContract> OutgoingEdges)
-    {
-        foreach (EdgeContract Edge in OutgoingEdges)
-        {
-            if (string.Equals(Edge.Label, "Yes", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Edge.Label, "yes", StringComparison.OrdinalIgnoreCase))
-            {
-                return Edge;
-            }
-        }
-
-        return null;
-    }
-
-    private static EdgeContract? FindNoLabeledEdge(IReadOnlyList<EdgeContract> OutgoingEdges)
-    {
-        foreach (EdgeContract Edge in OutgoingEdges)
-        {
-            if (string.Equals(Edge.Label, "No", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Edge.Label, "no", StringComparison.OrdinalIgnoreCase))
-            {
-                return Edge;
-            }
-        }
-
-        return null;
-    }
 
     private static bool HasDirectedPath(DiagramContract Contract, string StartNodeId, string TargetNodeId)
     {

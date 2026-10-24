@@ -512,6 +512,17 @@ public static partial class DiagramGridLayout
         internal static string Facing(FlowchartLayoutNodeBounds From, FlowchartLayoutNodeBounds To)
         {
             double Dx = To.CenterX - From.CenterX, Dy = To.CenterY - From.CenterY;
+            double Tolerance = DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
+            if (Math.Abs(Dx) <= Tolerance && Math.Abs(Dy) > Tolerance)
+            {
+                return Dy >= 0 ? "top" : "bottom";
+            }
+
+            if (Math.Abs(Dy) <= Tolerance && Math.Abs(Dx) > Tolerance)
+            {
+                return Dx >= 0 ? "right" : "left";
+            }
+
             return Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
         }
 
@@ -611,10 +622,21 @@ public static partial class DiagramGridLayout
             {
                 RouteRepairStage.RepairCellChannelSpacing(State);
                 foreach (var Box in State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds)) Bounds[Box.NodeId] = Box;
+                FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds);
+                for (int Pass = 0; Pass < 4 && FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed); Pass++)
+                {
+                }
+
+                SeparateTracks(State.Copy, State.Placed, State.Contract);
                 return;
             }
             while (true)
             {
+                FlowchartTerminalTrackRepair.Apply(State.Contract, State.Copy, State.Placed, Bounds);
+                for (int Pass = 0; Pass < 4 && FlowchartDistinctTrackRepair.Apply(State.Contract, State.Copy, State.Placed); Pass++)
+                {
+                }
+
                 var Before = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                 int Shared = Before.Count(Finding => Finding.Rule == "5.1");
                 int SideFaults = Before.Count(Finding => Finding.Rule is "4.11" or "5.8");
@@ -655,8 +677,9 @@ public static partial class DiagramGridLayout
                     if (ChannelLines > FlowchartLayoutRules.RepairChainLines) continue;
                     // Reserve both terminal clearances plus the complete track
                     // lattice. One grid step covers an unfavourable port phase.
-                    Required = Math.Max(Required, (ChannelLines - 1) * DiagramGridMetrics.GRID_UNIT_PX
-                        + 4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX);
+                    double TrackPitch = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
+                    Required = Math.Max(Required, (ChannelLines - 1) * TrackPitch
+                        + 4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + TrackPitch);
                     if (Gap <= 0 || Gap >= Required) continue;
                     double Boundary = A < B ? (A + HalfA + B - HalfB) / 2 : (B + HalfB + A - HalfA) / 2;
                     var Moving = State.Placed.Where(Node => (Horizontal ? Node.X : Node.Y) > Boundary).ToArray();
@@ -680,6 +703,7 @@ public static partial class DiagramGridLayout
                 var After = FlowchartRouteRuleChecker.Check(State.Contract, State.Copy);
                 var OldFaults = Before.Where(Finding => Finding.Rule is "10" or "3.1" or "4.1")
                     .Select(Finding => (Finding.Rule, Finding.Subject)).ToHashSet();
+                bool ClearedSharedTracks = Shared > 0 && !After.Any(Finding => Finding.Rule == "5.1");
                 bool Improved = After.Count(Finding => Finding.Rule == "5.1") <= Shared
                     && (After.Count(Finding => Finding.Rule == "5.1") < Shared
                         || After.Count(Finding => Finding.Rule is "4.11" or "5.8") < SideFaults)
@@ -691,7 +715,8 @@ public static partial class DiagramGridLayout
                     // A fully separated assignment repairs illegality and may
                     // cost more than its illegal baseline. Partial separation
                     // must not merely exchange shared tracks for new crossings.
-                    && (After.All(Finding => Finding.Rule != "5.1")
+                    && (ClearedSharedTracks
+                        || After.All(Finding => Finding.Rule != "5.1")
                         || After.Count(Finding => Finding.Rule == "5.9") <= Before.Count(Finding => Finding.Rule == "5.9"))
                     && !After.Any(Finding => Finding.Rule is "10" or "3.1" or "4.1"
                         && !OldFaults.Contains((Finding.Rule, Finding.Subject)));
@@ -1360,7 +1385,7 @@ public static partial class DiagramGridLayout
                     && nodes.TryGetValue(ends[0].Box.Id, out NodeContract? node)
                     && FlowchartDagrePresentation.IsDiamondShape(node.Shape))
                 {
-                    ApplySlots(ends, nodes);
+                    ApplySlots(ends, nodes, contract);
                     continue;
                 }
                 bool CorridorNesting = NeedsCorridorPortNesting(ends, layout.RenderContext);
@@ -1379,7 +1404,7 @@ public static partial class DiagramGridLayout
                     return vertical ? right.Other.CenterY.CompareTo(left.Other.CenterY)
                         : left.Other.CenterX.CompareTo(right.Other.CenterX);
                 });
-                ApplySlots(ends, nodes);
+                ApplySlots(ends, nodes, contract);
                 CorridorPortOrderObserver?.Invoke("final|" + layout.RenderContext.ActiveLayoutStage + "|" + ends[0].Box.Id + "|" + ends[0].Side + "|nested=" + CorridorNesting + "|"
                     + string.Join(";", ends.Select(End => End.Route.EdgeId + ":" + (End.IsSource ? End.Route.Points[0].Y : End.Route.Points[^1].Y))));
             }

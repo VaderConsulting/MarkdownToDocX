@@ -620,10 +620,6 @@ public static partial class DiagramGridLayout
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
-            // Joint port allocation has already assigned the diamond's symmetric edge slot
-            // and its true edge normal. Do not replace it with the legacy vertex-first path.
-            if (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9)
-                continue;
             if (!Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 || !FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape))
             {
@@ -658,6 +654,14 @@ public static partial class DiagramGridLayout
             }
 
             if (Edge == null || BackEdges.Contains(Edge))
+            {
+                continue;
+            }
+
+            bool ForceCompassPorts = FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label)
+                || FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label);
+            if (!ForceCompassPorts
+                && (Math.Abs(Route.ExitNormalX) > 1e-9 || Math.Abs(Route.ExitNormalY) > 1e-9))
             {
                 continue;
             }
@@ -748,6 +752,17 @@ public static partial class DiagramGridLayout
     {
         double Dx = To.CenterX - From.CenterX;
         double Dy = To.CenterY - From.CenterY;
+        double Tolerance = DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX;
+        if (Math.Abs(Dx) <= Tolerance && Math.Abs(Dy) > Tolerance)
+        {
+            return Dy >= 0 ? "top" : "bottom";
+        }
+
+        if (Math.Abs(Dy) <= Tolerance && Math.Abs(Dx) > Tolerance)
+        {
+            return Dx >= 0 ? "right" : "left";
+        }
+
         if (Math.Abs(Dx) >= Math.Abs(Dy))
         {
             return Dx >= 0 ? "right" : "left";

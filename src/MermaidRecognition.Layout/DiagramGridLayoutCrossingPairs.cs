@@ -63,8 +63,6 @@ public static partial class DiagramGridLayout
                         if (Affected.Count > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit"; continue; }
                         if (FlowchartRouteRuleChecker.HasProperCrossing(Pair.First, Pair.Second)) { Reason = "pair-still-crosses"; continue; }
                         int Bends = RouteBends(Layout), Crossings = TerminalCrossings(Layout);
-                        if (Bends > BeforeBends) { Reason = $"bends:{BeforeBends}->{Bends}"; continue; }
-                        if (Crossings > BeforeCrossings) { Reason = $"crossings:{BeforeCrossings}->{Crossings}"; continue; }
                         double ExtraLength = RouteLength(Layout) - BeforeLength;
                         if (Affected.Any(Route => !FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route,
                             Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))) { Reason = "body-title-or-terminal"; continue; }
@@ -82,9 +80,17 @@ public static partial class DiagramGridLayout
                         var Score = Incremental.Measure(Affected);
                         if (Score.Overlaps > Before.Overlaps || Score.HintsHonoured < Before.HintsHonoured)
                         { Reason = "overlap-or-hint"; continue; }
+                        int BeforeFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Before.Violations);
+                        int AfterFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Score.Violations);
+                        if (AfterFaults > BeforeFaults)
+                        { Reason = "routing-faults"; continue; }
+                        if (AfterFaults == BeforeFaults && (Bends > BeforeBends || Crossings > BeforeCrossings))
+                        { Reason = $"quality:{BeforeBends}->{Bends}/{BeforeCrossings}->{Crossings}"; continue; }
                         var RepairCost = Score.Cost + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
                             + Affected.Count * FlowchartLayoutRules.RepairMovedLineWeight;
-                        if (RepairCost >= Before.Cost) { Reason = "score"; continue; }
+                        if (!FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
+                                BeforeFaults, Before.HintsHonoured, Before.Cost, AfterFaults, Score.HintsHonoured, RepairCost))
+                        { Reason = "score"; continue; }
                         Keep = true; Reason = "kept";
                         RouteRepairOptionObserver?.Invoke("joint-crossing-pair", Pair.Key);
                         Findings = AfterFindings; Before = Score; BeforeBends = Bends; BeforeCrossings = Crossings;
@@ -149,6 +155,7 @@ public static partial class DiagramGridLayout
                 foreach (int Index in Runs(Route, Route == First ? Second : First))
                 {
                     int Run = Index;
+                    if (Run < 0 || Run + 1 >= Route.Points.Count) continue;
                     var Other = Route == First ? Second : First;
                     bool Vertical = Math.Abs(Route.Points[Run].X - Route.Points[Run + 1].X) < 0.001;
                     double Current = Vertical ? Route.Points[Run].X : Route.Points[Run].Y;

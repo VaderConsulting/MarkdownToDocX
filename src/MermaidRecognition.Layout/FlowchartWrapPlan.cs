@@ -2,11 +2,10 @@ using System;
 
 namespace MermaidRecognition.Layout;
 
-/// <summary>Chooses a grid wrap from measured node sizes and rule gaps.</summary>
+/// <summary>Chooses a grid wrap from measured node sizes, rule gaps and page usable width.</summary>
 internal static class FlowchartWrapPlan
 {
     internal const int MinimumRun = 4;
-    private const double TargetRatio = 4.0 / 3.0;
 
     internal readonly record struct Plan(int Columns, int Rows, int Width, int Height)
     {
@@ -21,22 +20,43 @@ internal static class FlowchartWrapPlan
             return default;
         }
 
-        int FirstRun = Math.Min(NodeCount, MinimumRun);
-        Plan Best = Horizontal
-            ? Measure(NodeCount, FirstRun, NodeWidth, NodeHeight, ColumnGap, RankGap)
-            : Measure(NodeCount, DivideRoundUp(NodeCount, FirstRun), NodeWidth, NodeHeight, ColumnGap, RankGap);
-        double BestDistance = RatioDistance(Best);
-
-        for (int Run = FirstRun + 1; Run <= NodeCount; Run++)
+        double UsableSpanPx = FlowchartLayoutRules.DiagramUsableWidthPx;
+        if (Horizontal)
         {
-            int Columns = Horizontal ? Run : DivideRoundUp(NodeCount, Run);
-            Plan Candidate = Measure(NodeCount, Columns, NodeWidth, NodeHeight, ColumnGap, RankGap);
-            double Distance = RatioDistance(Candidate);
-            if (Distance < BestDistance - 1e-9
-                || (Math.Abs(Distance - BestDistance) <= 1e-9 && Candidate.Width * (long)Candidate.Height < Best.Width * (long)Best.Height))
+            Plan SingleRow = Measure(NodeCount, NodeCount, NodeWidth, NodeHeight, ColumnGap, RankGap);
+            if (SingleRow.Width <= UsableSpanPx + 1e-9)
             {
-                Best = Candidate;
-                BestDistance = Distance;
+                return SingleRow;
+            }
+
+            int ColumnsPerRow = MaxUnitsPerSpan(NodeCount, NodeWidth, ColumnGap, UsableSpanPx);
+            return Measure(NodeCount, ColumnsPerRow, NodeWidth, NodeHeight, ColumnGap, RankGap);
+        }
+
+        Plan SingleColumn = Measure(NodeCount, 1, NodeWidth, NodeHeight, ColumnGap, RankGap);
+        if (SingleColumn.Height <= UsableSpanPx + 1e-9)
+        {
+            return SingleColumn;
+        }
+
+        int RowsPerColumn = MaxUnitsPerSpan(NodeCount, NodeHeight, RankGap, UsableSpanPx);
+        int Columns = DivideRoundUp(NodeCount, RowsPerColumn);
+        return Measure(NodeCount, Columns, NodeWidth, NodeHeight, ColumnGap, RankGap);
+    }
+
+    private static int MaxUnitsPerSpan(int NodeCount, int UnitSize, int Gap, double UsableSpanPx)
+    {
+        int Best = 1;
+        for (int Count = 1; Count <= NodeCount; Count++)
+        {
+            int Span = Count * UnitSize + Math.Max(0, Count - 1) * Gap;
+            if (Span <= UsableSpanPx + 1e-9)
+            {
+                Best = Count;
+            }
+            else
+            {
+                break;
             }
         }
 
@@ -54,6 +74,4 @@ internal static class FlowchartWrapPlan
     }
 
     private static int DivideRoundUp(int Dividend, int Divisor) => (Dividend + Divisor - 1) / Divisor;
-
-    private static double RatioDistance(Plan Candidate) => Math.Abs(Math.Log(Candidate.Ratio / TargetRatio));
 }

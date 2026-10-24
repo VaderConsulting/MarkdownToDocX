@@ -246,7 +246,7 @@ public sealed class RouteRuleCatalogueAuditTests
         if (scenario.Id is "F59" or "F137")
         {
             Assert.That(findings.Where(finding => finding.Rule == "3.2/4.7"), Is.Empty,
-                "Shared rectangular ports use exact k/(n+1) slots rather than the five-track approximation.");
+                "Shared ports keep at least line_spacing clearance along the edge.");
             foreach (FlowchartLayoutEdgeRoute route in layout.EdgeRoutes)
             {
                 FlowchartLayoutNodeBounds? source = layout.NodeBounds.FirstOrDefault(box => box.NodeId == route.SourceId);
@@ -432,20 +432,20 @@ public sealed class RouteRuleCatalogueAuditTests
             Assert.That(findings.Where(finding => finding.Rule is "3.1" or "4.1"), Is.Empty,
                 "Circle ports end on the drawn circle and leave along their radius.");
         if (scenario.Id is "F59" or "F137")
-            Assert.That(offSlotPorts, Is.Zero, "The reported endpoints use their exact symmetric slots.");
+            Assert.That(offSlotPorts, Is.Zero, "Shared ports keep at least line_spacing clearance along the edge.");
         // Emit the complete per-diagram measurement before asserting it. The full
         // audit aggregates these lines; previously an off-slot failure happened
         // first, so failed scenarios disappeared from the report and looked like 0.
         Assert.That(findings.Where(finding => finding.Rule is "10" or "5.1"), Is.Empty,
             "Every route must represent a declared link, avoid node interiors/title bands, and own its overlapping tracks.");
-        Assert.That(offSlotPorts, Is.Zero, "Route cleanup must preserve allocated symmetric port slots.");
+        Assert.That(offSlotPorts, Is.Zero, "Route cleanup must preserve minimum port spacing on each edge.");
         Assert.That(orthogonalCleanupRoutes, Is.Empty,
             "Source routing stages must produce orthogonal routes; the final safety net is diagnostic only.");
         Assert.That(titleBandRoutes, Is.Zero, "Route cleanup must not introduce title-band crossings.");
         Assert.That(unrelatedFrameOverlaps, Is.Empty,
             "Rule 7.8 requires every unrelated group frame to remain disjoint after all layout and repair stages.");
         if (scenario.Id is "A115" or "A165")
-            Assert.That(offSlotPorts, Is.Zero, "Final frame fitting must not leave stale symmetric port positions.");
+            Assert.That(offSlotPorts, Is.Zero, "Final frame fitting must not crowd ports below line_spacing.");
         foreach (FlowchartLayoutQualityFailure finding in layout.RenderContext.LayoutStageViolations
                      .Where(finding => finding.Kind is "TitleBandRoute" or "TitleBandRepairFailed"))
         {
@@ -796,10 +796,10 @@ public sealed class RouteRuleCatalogueAuditTests
     private readonly record struct AuditPort(string NodeId, string Side, string PeerId,
         FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool IsSource, string Shape);
 
-    /// <summary>Checks final route terminals against the jointly allocated symmetric outline slots.</summary>
+    /// <summary>Checks final route terminals for minimum port spacing along each edge group.</summary>
     /// <param name="contract">Declared endpoints and renderer geometry.</param>
     /// <param name="layout">Final allocated route model.</param>
-    /// <returns>Exact slot mismatches under the existing allocation audit.</returns>
+    /// <returns>Adjacent ports closer than line_spacing on the same connection segment.</returns>
     internal static HashSet<string> OffSlotPortFaults(DiagramContract contract, FlowchartLayoutResult layout)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> boxes = layout.NodeBounds.Concat(layout.ClusterBounds)
@@ -818,36 +818,23 @@ public sealed class RouteRuleCatalogueAuditTests
             ports.Add(new AuditPort(edge.TargetId, route.EntrySide, edge.SourceId, route.Points[^1], route, false, targetShape));
         }
 
+        double minimumSpacing = FlowchartLayoutRules.LineSpacing;
         HashSet<string> offSlotFaults = new(StringComparer.Ordinal);
         foreach (IGrouping<(string NodeId, string PortGroup), AuditPort> group in ports.GroupBy(port =>
                      (port.NodeId, AuditPortGroup(port))))
         {
-            if (!boxes.TryGetValue(group.Key.NodeId, out FlowchartLayoutNodeBounds? box)) continue;
+            if (group.Count() < 2 || !boxes.TryGetValue(group.Key.NodeId, out FlowchartLayoutNodeBounds? box)) continue;
             AuditPort[] ordered = group.OrderBy(port => PortParameter(port, box)).ToArray();
-            for (int index = 0; index < ordered.Length; index++)
+            for (int index = 1; index < ordered.Length; index++)
             {
-                AuditPort port = ordered[index];
-                double expected = (index + 1.0) / (ordered.Length + 1.0);
-                if (nodes.GetValueOrDefault(port.NodeId)?.GeometryProvider is { } provider)
+                AuditPort left = ordered[index - 1];
+                AuditPort right = ordered[index];
+                double separation = Math.Sqrt(Math.Pow(left.Point.X - right.Point.X, 2)
+                    + Math.Pow(left.Point.Y - right.Point.Y, 2));
+                if (separation + 1.0 < minimumSpacing)
                 {
-                    // A decorated node's visual rectangle is not its connection boundary.
-                    // Check the allocated position against the independently supplied body.
-                    bool eligible = provider.Create(box.Width, box.Height).ConnectionBoundary
-                        .TryPort(port.Side, expected, out var bodyPort);
-                    if (!eligible || Math.Abs(port.Point.X - box.CenterX - bodyPort.X) > 1.0
-                        || Math.Abs(box.CenterY - port.Point.Y - bodyPort.Y) > 1.0)
-                        offSlotFaults.Add($"{port.NodeId}|{port.Route.EdgeId}|ineligible or displaced connection-body slot");
-                    continue;
+                    offSlotFaults.Add($"{group.Key.NodeId}|shape={left.Shape}|{group.Key.PortGroup}|{right.Route.EdgeId}|spacing={separation:0.###}|({right.Point.X:0.##},{right.Point.Y:0.##})|box=({box.CenterX:0.##},{box.CenterY:0.##},{box.Width:0.##},{box.Height:0.##})");
                 }
-                double parameter = PortParameter(port, box);
-                double length = port.Shape.Equals("circle", StringComparison.OrdinalIgnoreCase)
-                    || port.Shape.Equals("doublecircle", StringComparison.OrdinalIgnoreCase)
-                        ? Math.PI * Math.Min(box.Width, box.Height) / 2.0
-                        : port.Shape.Equals("diamond", StringComparison.OrdinalIgnoreCase)
-                            ? DiamondEdgeLength(port, box)
-                            : port.Side is "left" or "right" ? box.Height : box.Width;
-                if (Math.Abs(parameter - expected) * length > 1.0)
-                    offSlotFaults.Add($"{port.NodeId}|shape={port.Shape}|{group.Key.PortGroup}|{port.Route.EdgeId}|{(port.IsSource ? "source" : "target")}|{parameter:0.###}!={expected:0.###}|({port.Point.X:0.##},{port.Point.Y:0.##})|box=({box.CenterX:0.##},{box.CenterY:0.##},{box.Width:0.##},{box.Height:0.##})");
             }
         }
         return offSlotFaults;

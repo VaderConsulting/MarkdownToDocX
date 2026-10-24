@@ -118,19 +118,11 @@ public static partial class DiagramGridLayout
         FlowchartLayoutResult LaidOut, FlowchartRenderContext RenderContext) =>
         ApplyCore(Contract, LaidOut, RenderContext, SkipRootGroupRepacking: true);
 
-    /// <summary>Completes placement and routing, reusing only a private wrap trial with exactly identical initial inputs.</summary>
-    /// <param name="Contract">Unchanged source, containment and hint declarations.</param>
-    /// <param name="LaidOut">Original Dagre seed, copied into this trial's ownership.</param>
-    /// <param name="RenderContext">Owning production or private trial context.</param>
-    /// <param name="SkipRootGroupRepacking">Whether a nested reflow must preserve its caller's root packing.</param>
-    /// <param name="CompletedBandTrials">Optional completed-input cache shared only by fresh wrap trial contexts.</param>
-    /// <returns>The completed layout, with the selected trial's exact routes and hint outcomes.</returns>
     private static FlowchartLayoutResult ApplyCore(
         DiagramContract Contract,
         FlowchartLayoutResult LaidOut,
         FlowchartRenderContext? RenderContext,
-        bool SkipRootGroupRepacking,
-        Dictionary<string, CompletedBandTrial>? CompletedBandTrials = null)
+        bool SkipRootGroupRepacking)
     {
         GridLayoutState State = new(Contract, LaidOut, RenderContext) { SkipRootGroupRepacking = SkipRootGroupRepacking };
         using IDisposable CoverageScope = FlowchartCellPixelWriteGuard.ActivateCoverage(State.CellWriteCoverage);
@@ -140,17 +132,6 @@ public static partial class DiagramGridLayout
         Context.LayoutStageTrace.Clear();
         Context.LayoutStageViolations.Clear();
         Run("grid-and-measured-geometry", GridPreparationStage.Apply);
-        // Wrap width is consumed by the initial cell producer. From this point
-        // onward the exact ordered regions, gaps, bodies, frames, ports, routes
-        // and hint inputs determine the remaining deterministic pipeline.
-        string? BandTrialIdentity = CompletedBandTrials == null ? null : InitialBandTrialIdentity(State);
-        if (BandTrialIdentity != null && CompletedBandTrials!.TryGetValue(BandTrialIdentity, out var Completed))
-        {
-            Completed.Hints.Restore();
-            Context.InitialBandCapacityNeeded = Completed.CapacityNeeded;
-            FlowchartRenderContext.ReportOperationCount("completed-band-trial-cache-hits", 1);
-            return Completed.Layout;
-        }
         Run("placement-hints-2.21", PlacementHintStage.Apply);
         Run("automatic-node-placement-2.x", NodePlacementStage.Apply);
         Run("group-frame-fitting", GroupFrameStage.Apply);
@@ -169,8 +150,6 @@ public static partial class DiagramGridLayout
             Context.BendReassignmentRemoved = FlowchartBendRemovingPortRepair.Apply(Contract, Current.Copy);
             if (Context.BendReassignmentRemoved > 0) RouteRepairStage.PublishFinal(Current);
         });
-        if (BandTrialIdentity != null)
-            CompletedBandTrials!.Add(BandTrialIdentity, new(State.Copy, new BandHintState(Contract), Context.InitialBandCapacityNeeded));
         return State.Copy;
 
         void Run(string Name, Action<GridLayoutState> Stage)
@@ -966,8 +945,10 @@ public static partial class DiagramGridLayout
                 }
             }
             int Crossings = CountRankCrossings(Copy, RankNodes, NextNodes);
-            int TrackUnits = Math.Max(1, (Crossings + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP);
-            Gap = Math.Max(Gap, TrackUnits * DiagramGridMetrics.GRID_UNIT_PX);
+            if (Crossings > 0)
+            {
+                Gap = Math.Max(Gap, DiagramGridMetrics.CeilToGrid(DiagramGridMetrics.GapWidthForTracks(Crossings)));
+            }
             double MermaidDelta = MermaidMain(NextNodes, Horizontal) - MermaidMain(RankNodes, Horizontal);
             bool HasExplicitLength = Contract.Edges.Any(Edge => Edge.MinLength > 1
                 && RankNodes.Any(Node => Node.Id == Edge.SourceId || Node.Id == Edge.TargetId)

@@ -371,7 +371,8 @@ public static partial class DiagramGridLayout
             foreach (var Side in Ends.GroupBy(End => (End.Box.Id,
                          Side: State.Nodes.TryGetValue(End.Box.Id, out var Node) && FlowchartDiamondAttachHelper.IsDiamondShape(Node.Shape)
                              ? "diamond" : End.Side)))
-                ApplySlots(Side.OrderBy(End => End.Side is "left" or "right" ? -End.Other.CenterY : End.Other.CenterX).ToList(), State.Nodes);
+                ApplySlots(Side.OrderBy(End => End.Side is "left" or "right" ? -End.Other.CenterY : End.Other.CenterX).ToList(),
+                    State.Nodes, State.Contract, State.Direction);
             var ChangedRoutes = Layout.EdgeRoutes.Where(Route =>
             {
                 var Saved = OriginalPaths.First(Path => Path.Route == Route);

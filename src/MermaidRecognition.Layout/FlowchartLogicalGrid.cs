@@ -172,6 +172,54 @@ internal sealed class FlowchartLogicalGrid
         return true;
     }
 
+    /// <summary>Explains why <see cref="TryPrepare"/> would reject a proposal without mutating live geometry.</summary>
+    /// <param name="Changes">Proposed node regions.</param>
+    /// <returns>A short machine-readable reason, or null when preparation would succeed.</returns>
+    internal string? DescribePrepareFailure(IReadOnlyDictionary<string, FlowchartCellRegion> Changes)
+    {
+        ArgumentNullException.ThrowIfNull(Changes);
+        var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
+        foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
+        {
+            if (Change.Value == null)
+            {
+                return "null-region";
+            }
+
+            if (!Candidate.ContainsKey(Change.Key))
+            {
+                return "unknown-node:" + Change.Key;
+            }
+
+            if (Requirements.TryGetValue(Change.Key, out Func<FlowchartCellRegion, bool>? Requirement)
+                && !Requirement(Change.Value))
+            {
+                return "mandatory-geometry:" + Change.Key;
+            }
+
+            Candidate[Change.Key] = Change.Value;
+        }
+
+        if (!CheckRegionConvention(Candidate))
+        {
+            return "semantic-convention";
+        }
+
+        FlowchartCellRegion[] Ordered = Candidate.Values.ToArray();
+        for (int First = 0; First < Ordered.Length; First++)
+        {
+            for (int Second = 0; Second < First; Second++)
+            {
+                if (Ordered[First].Overlaps(Ordered[Second]))
+                {
+                    return "cell-overlap";
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Publishes all validated target regions and gaps with a single state replacement.</summary>
     /// <param name="Before">Exact state used to prepare the candidate.</param>
     /// <param name="After">Complete validated candidate owned by this grid.</param>

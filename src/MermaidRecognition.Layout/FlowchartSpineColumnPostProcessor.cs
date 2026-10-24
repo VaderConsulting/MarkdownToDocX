@@ -479,27 +479,11 @@ public static partial class FlowchartSpineColumnPostProcessor
         return null;
     }
 
-    private static bool IsYesLabeledEdge(EdgeContract? Edge)
-    {
-        if (Edge is null || string.IsNullOrWhiteSpace(Edge.Label))
-        {
-            return false;
-        }
+    private static bool IsYesLabeledEdge(EdgeContract? Edge) =>
+        FlowchartDecisionBranchLabelHelper.IsYesLabeledEdge(Edge);
 
-        return string.Equals(Edge.Label.Trim(), "Yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Edge.Label.Trim(), "yes", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsNoLabeledEdge(EdgeContract? Edge)
-    {
-        if (Edge is null || string.IsNullOrWhiteSpace(Edge.Label))
-        {
-            return false;
-        }
-
-        return string.Equals(Edge.Label.Trim(), "No", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Edge.Label.Trim(), "no", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsNoLabeledEdge(EdgeContract? Edge) =>
+        FlowchartDecisionBranchLabelHelper.IsNoLabeledEdge(Edge);
 
     private static double ResolveSideBranchCrossAxis(
         DiagramContract Contract,
@@ -569,8 +553,8 @@ public static partial class FlowchartSpineColumnPostProcessor
         }
 
         string PrimarySinkId = ResolvePrimarySinkId(Contract);
-        EdgeContract? YesEdge = FindYesLabeledEdge(OutgoingEdges);
-        EdgeContract? NoEdge = FindNoLabeledEdge(OutgoingEdges);
+        EdgeContract? YesEdge = FlowchartDecisionBranchLabelHelper.FindYesLabeledEdge(OutgoingEdges);
+        EdgeContract? NoEdge = FlowchartDecisionBranchLabelHelper.FindNoLabeledEdge(OutgoingEdges);
         if (YesEdge is not null && NoEdge is not null)
         {
             if (HasDirectedPath(Contract, YesEdge.TargetId, NoEdge.TargetId))
@@ -631,34 +615,6 @@ public static partial class FlowchartSpineColumnPostProcessor
         }
 
         return BestEdge;
-    }
-
-    private static EdgeContract? FindYesLabeledEdge(IReadOnlyList<EdgeContract> OutgoingEdges)
-    {
-        foreach (EdgeContract Edge in OutgoingEdges)
-        {
-            if (string.Equals(Edge.Label, "Yes", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Edge.Label, "yes", StringComparison.OrdinalIgnoreCase))
-            {
-                return Edge;
-            }
-        }
-
-        return null;
-    }
-
-    private static EdgeContract? FindNoLabeledEdge(IReadOnlyList<EdgeContract> OutgoingEdges)
-    {
-        foreach (EdgeContract Edge in OutgoingEdges)
-        {
-            if (string.Equals(Edge.Label, "No", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Edge.Label, "no", StringComparison.OrdinalIgnoreCase))
-            {
-                return Edge;
-            }
-        }
-
-        return null;
     }
 
     private static string ResolvePrimarySinkId(DiagramContract Contract)

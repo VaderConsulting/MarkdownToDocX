@@ -48,7 +48,7 @@ public static class FlowchartRouteRuleChecker
             CheckTerminal(edge, route, true, boxes, nodes, findings);
             CheckTerminal(edge, route, false, boxes, nodes, findings);
             CheckOrthogonal(edge, route, nodes, boxes, findings);
-            CheckAlignedStraight(edge, route, findings);
+            CheckAlignedStraight(edge, route, boxes, findings);
             if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
                 hasCellAuthority);
             CheckFrameRun(edge, route, contract, boxes, findings);
@@ -62,8 +62,7 @@ public static class FlowchartRouteRuleChecker
                 findings.Add(new("10", Route.EdgeId, "stored path has no unmatched declared visible link"));
 
         CheckPortUniqueness(matched, findings);
-        CheckPortDistribution(matched, boxes, nodes, findings);
-        CheckPortOrder(matched, boxes, nodes, findings);
+        CheckPortSpacing(matched, boxes, nodes, findings);
         CheckCrossings(matched, findings);
         var paths = matched.Select(item => item.Route.Points.Select(point => (point.X, point.Y)).ToArray()).ToArray();
         for (int Left = 0; Left < matched.Count; Left++)
@@ -77,10 +76,10 @@ public static class FlowchartRouteRuleChecker
         return findings;
     }
 
-    /// <summary>Checks the existing symmetric port-distribution rule without repeating unrelated route and crossing checks.</summary>
+    /// <summary>Checks minimum port spacing without repeating unrelated route and crossing checks.</summary>
     /// <param name="Contract">Visible declarations used to match parallel links unambiguously.</param>
     /// <param name="Layout">The current candidate's allocated endpoints and outlines.</param>
-    /// <returns>The same rule 3.2/4.7 findings returned by the full checker.</returns>
+    /// <returns>The same rule 3.2/4.7 spacing findings returned by the full checker.</returns>
     internal static IReadOnlyList<Finding> CheckPortAllocation(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
         var Boxes = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId, StringComparer.Ordinal)
@@ -96,7 +95,7 @@ public static class FlowchartRouteRuleChecker
             Matched.Add((Edge, Route));
         }
         var Findings = new List<Finding>();
-        CheckPortDistribution(Matched, Boxes, Nodes, Findings);
+        CheckPortSpacing(Matched, Boxes, Nodes, Findings);
         return Findings;
     }
 
@@ -291,12 +290,19 @@ public static class FlowchartRouteRuleChecker
         string.Equals(shape, "circle", StringComparison.OrdinalIgnoreCase)
         || string.Equals(shape, "doublecircle", StringComparison.OrdinalIgnoreCase);
 
-    private static void CheckAlignedStraight(EdgeContract edge, FlowchartLayoutEdgeRoute route, List<Finding> findings)
+    private static void CheckAlignedStraight(EdgeContract edge, FlowchartLayoutEdgeRoute route,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes, List<Finding> findings)
     {
         FlowchartLayoutPoint a = route.Points[0], b = route.Points[^1];
         if ((Math.Abs(a.X - b.X) <= Tolerance || Math.Abs(a.Y - b.Y) <= Tolerance)
             && route.Points.Count != 2 && edge.RoutingHint == null)
+        {
+            // A bend is required when the straight chord would cross an unrelated box.
+            if (FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
+                    a.X, a.Y, b.X, b.Y, boxes, edge.SourceId, edge.TargetId))
+                return;
             findings.Add(new Finding("4.2", EdgeName(edge), "aligned ports are not connected by one straight run"));
+        }
     }
 
     private static void CheckPortUniqueness(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes, List<Finding> findings)
@@ -315,10 +321,11 @@ public static class FlowchartRouteRuleChecker
         }
     }
 
-    private static void CheckPortDistribution(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes,
+    private static void CheckPortSpacing(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes,
         IReadOnlyDictionary<string, NodeContract> nodes, List<Finding> findings)
     {
+        double minimumSpacing = FlowchartLayoutRules.LineSpacing;
         var ports = routes.SelectMany(pair => new[]
         {
             (Node: pair.Edge.SourceId, Side: pair.Route.ExitSide, Point: pair.Route.Points[0], Route: pair.Route, Source: true),
@@ -334,36 +341,54 @@ public static class FlowchartRouteRuleChecker
                 ? DiamondPortPosition(port.Point, box, port.Route, port.Source)
                 : circle ? CirclePortPosition(port.Point, box, port.Side)
                     : PortPosition(port.Point, box, port.Side)).ToArray();
-            for (int i = 0; i < ordered.Length; i++)
+            for (int i = 1; i < ordered.Length; i++)
             {
-                double expected = (i + 1.0) / (ordered.Length + 1.0);
-                double actual = diamond
-                    ? DiamondPortPosition(ordered[i].Point, box, ordered[i].Route, ordered[i].Source)
-                    : circle ? CirclePortPosition(ordered[i].Point, box, ordered[i].Side)
-                        : PortPosition(ordered[i].Point, box, ordered[i].Side);
-                (double startX, double startY, double endX, double endY) = diamond
-                    ? DiamondEdge(group.Key.PortGroup, box) : default;
-                double distributionError = diamond
-                    ? Math.Abs(actual - expected) * Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2))
-                    : circle
-                        ? Math.Abs(actual - expected) * Math.PI * Math.Min(box.Width, box.Height) / 2.0
-                    : Math.Abs(actual - expected) * Math.Max(box.Width, box.Height);
-                if (node?.GeometryProvider is { } Provider)
+                double separation = PortSeparationPixels(ordered[i - 1], ordered[i], box, group.Key.PortGroup, diamond, circle, nodes);
+                if (separation + Tolerance < minimumSpacing)
                 {
-                    bool Eligible = Provider.Create(box.Width, box.Height).ConnectionBoundary
-                        .TryPort(ordered[i].Side, expected, out var Port);
-                    distributionError = Eligible
-                        ? Math.Max(Math.Abs(ordered[i].Point.X - box.CenterX - Port.X),
-                            Math.Abs(box.CenterY - ordered[i].Point.Y - Port.Y))
-                        : double.PositiveInfinity;
-                }
-                if (distributionError > Tolerance)
-                {
-                    findings.Add(new Finding("3.2/4.7", group.Key.Node, $"{group.Key.PortGroup} port {i + 1}/{ordered.Length} is at {actual:0.###}, expected {expected:0.###}"));
+                    findings.Add(new Finding("3.2/4.7", group.Key.Node,
+                        $"{group.Key.PortGroup} ports {i}/{ordered.Length} are {separation:0.###} px apart, need at least {minimumSpacing:0.###} px"));
                     break;
                 }
             }
         }
+    }
+
+    private static double PortSeparationPixels(
+        (string Node, string Side, FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool Source) left,
+        (string Node, string Side, FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool Source) right,
+        FlowchartLayoutNodeBounds box,
+        string portGroup,
+        bool diamond,
+        bool circle,
+        IReadOnlyDictionary<string, NodeContract> nodes)
+    {
+        if (diamond)
+        {
+            (double startX, double startY, double endX, double endY) = DiamondEdge(portGroup, box);
+            double edgeLength = Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
+            double leftT = DiamondPortPosition(left.Point, box, left.Route, left.Source);
+            double rightT = DiamondPortPosition(right.Point, box, right.Route, right.Source);
+            return Math.Abs(rightT - leftT) * edgeLength;
+        }
+
+        if (circle)
+        {
+            double radius = Math.Min(box.Width, box.Height) / 2.0;
+            double leftT = CirclePortPosition(left.Point, box, left.Side);
+            double rightT = CirclePortPosition(right.Point, box, right.Side);
+            return Math.Abs(rightT - leftT) * Math.PI * radius;
+        }
+
+        if (nodes.TryGetValue(box.NodeId, out NodeContract? node) && node.GeometryProvider is { } provider)
+        {
+            return Math.Sqrt(Math.Pow(left.Point.X - right.Point.X, 2) + Math.Pow(left.Point.Y - right.Point.Y, 2));
+        }
+
+        bool verticalSide = portGroup is "left" or "right";
+        return verticalSide
+            ? Math.Abs(left.Point.Y - right.Point.Y)
+            : Math.Abs(left.Point.X - right.Point.X);
     }
 
     private static string PortGroupKey(string nodeId, string side, FlowchartLayoutEdgeRoute route, bool source,
@@ -412,49 +437,6 @@ public static class FlowchartRouteRuleChecker
         "top" or "bottom" => (point.X - (box.CenterX - box.Width / 2)) / box.Width,
         _ => 0.5
     };
-
-    private static void CheckPortOrder(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes,
-        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes,
-        IReadOnlyDictionary<string, NodeContract> nodes, List<Finding> findings)
-    {
-        var ports = routes.SelectMany(pair => new[]
-        {
-            (Node: pair.Edge.SourceId, Side: pair.Route.ExitSide, Peer: pair.Edge.TargetId, Point: pair.Route.Points[0], Route: pair.Route, Source: true),
-            (Node: pair.Edge.TargetId, Side: pair.Route.EntrySide, Peer: pair.Edge.SourceId, Point: pair.Route.Points[^1], Route: pair.Route, Source: false)
-        });
-        foreach (var group in ports.GroupBy(port => (port.Node, PortGroup: PortGroupKey(port.Node, port.Side, port.Route, port.Source, nodes))))
-        {
-            if (!boxes.TryGetValue(group.Key.Node, out FlowchartLayoutNodeBounds? box)) continue;
-            bool diamond = nodes.TryGetValue(group.Key.Node, out NodeContract? node)
-                && FlowchartDiamondAttachHelper.IsDiamondShape(node.Shape);
-            bool circle = nodes.TryGetValue(group.Key.Node, out node) && IsCircleShape(node.Shape);
-            var ordered = group.OrderBy(port => diamond
-                ? DiamondPortPosition(port.Point, box, port.Route, port.Source)
-                : circle ? CirclePortPosition(port.Point, box, port.Side)
-                    : PortPosition(port.Point, box, port.Side)).ToArray();
-            for (int i = 1; i < ordered.Length; i++)
-            {
-                if (!boxes.TryGetValue(ordered[i - 1].Peer, out FlowchartLayoutNodeBounds? a)
-                    || !boxes.TryGetValue(ordered[i].Peer, out FlowchartLayoutNodeBounds? b)) continue;
-                double peerA, peerB;
-                if (diamond)
-                {
-                    peerA = DiamondPeerPosition(a, box, group.Key.PortGroup);
-                    peerB = DiamondPeerPosition(b, box, group.Key.PortGroup);
-                }
-                else
-                {
-                    peerA = group.Key.PortGroup is "left" or "right" ? a.CenterY : a.CenterX;
-                    peerB = group.Key.PortGroup is "left" or "right" ? b.CenterY : b.CenterX;
-                }
-                if (peerA > peerB + Tolerance)
-                {
-                    findings.Add(new Finding("3.3/5.2", group.Key.Node, $"{group.Key.PortGroup} ports are out of order relative to their peer nodes"));
-                    break;
-                }
-            }
-        }
-    }
 
     private static (double StartX, double StartY, double EndX, double EndY) DiamondEdge(string portGroup, FlowchartLayoutNodeBounds box)
     {

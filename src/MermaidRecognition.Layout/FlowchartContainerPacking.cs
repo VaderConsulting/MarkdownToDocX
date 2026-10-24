@@ -109,7 +109,8 @@ internal static class FlowchartContainerPacking
 
         Position[] Place(int[] Order)
         {
-            var Candidates = new List<(Position[] Positions, double Distance, double Area)>();
+            double UsableWidth = FlowchartLayoutRules.DiagramUsableWidthPx;
+            var Candidates = new List<(Position[] Positions, double WidthOverflow, double Area)>();
             var CandidateWidths = new HashSet<int>();
             int OriginalRowWidth = DiagramGridMetrics.CeilToGrid(Math.Sqrt(Units.Sum(Unit =>
                 (double)(Unit.Frame.Right - Unit.Frame.Left + Gap) * (Unit.Frame.Bottom - Unit.Frame.Top + Gap))));
@@ -147,94 +148,26 @@ internal static class FlowchartContainerPacking
                     RowHeight = Math.Max(RowHeight, Height);
                 }
                 int UsedHeight = Y + RowHeight;
-                double Distance = Math.Abs(Math.Log((UsedWidth / (double)Math.Max(1, UsedHeight)) / (4.0 / 3.0)));
+                double WidthOverflow = Math.Max(0, UsedWidth - UsableWidth);
                 double Area = UsedWidth * (double)UsedHeight;
-                Candidates.Add((Positions, Distance, Area));
+                Candidates.Add((Positions, WidthOverflow, Area));
             }
-            double Closest = Candidates.Min(Candidate => Candidate.Distance);
-            return Candidates.Where(Candidate => Candidate.Distance <= Closest + 0.10)
-                .Select(Candidate => (Candidate.Positions, Candidate.Distance, Candidate.Area,
+            return Candidates
+                .Select(Candidate => (Candidate.Positions, Candidate.WidthOverflow, Candidate.Area,
                     Crossings: EstimatedCrossings(Candidate.Positions)))
-                .OrderBy(Candidate => Candidate.Crossings)
-                .ThenBy(Candidate => Candidate.Distance)
+                .OrderBy(Candidate => Candidate.WidthOverflow)
+                .ThenBy(Candidate => Candidate.Crossings)
                 .ThenBy(Candidate => Candidate.Area)
                 .First().Positions;
         }
 
-        Position[] ImproveShape(Position[] Initial)
-        {
-            Position[] Current = Initial;
-            int Iterations = 0;
-            while (true)
-            {
-                Iterations++;
-                (double Width, double Height) Size = Extents(Current);
-                double CurrentDistance = ShapeDistance(Size.Width, Size.Height);
-                int CurrentCrossings = EstimatedCrossings(Current);
-                Position[]? BestCandidate = null;
-                double BestDistance = CurrentDistance;
-                int BestCrossings = CurrentCrossings;
-                double BestBalance = RowBalance(Current);
-                for (int Index = 0; Index < Units.Count; Index++)
-                {
-                    double Right = Current[Index].X + WidthOf(Index);
-                    if (Enumerable.Range(0, Units.Count).Any(Other => Other != Index
-                        && Math.Abs(Current[Other].Y - Current[Index].Y) < 0.01
-                        && Current[Other].X + WidthOf(Other) > Right + 0.01)) continue;
-                    var CandidateYs = Current.Select(Position => Position.Y).Distinct().ToList();
-                    CandidateYs.Add(Size.Height + Gap);
-                    foreach (double Y in CandidateYs.Where(Y => Math.Abs(Y - Current[Index].Y) > 0.01))
-                    {
-                        var CandidateXs = new HashSet<double> { 0 };
-                        foreach (int Other in Enumerable.Range(0, Units.Count).Where(Other => Other != Index
-                            && Math.Abs(Current[Other].Y - Y) < 0.01))
-                            CandidateXs.Add(Current[Other].X + WidthOf(Other) + Gap);
-                        foreach (Link Link in Links.Where(Link => Link.Source == Index || Link.Target == Index))
-                        {
-                            int Other = Link.Source == Index ? Link.Target : Link.Source;
-                            CandidateXs.Add(Current[Other].X);
-                            CandidateXs.Add(Link.Source == Index
-                                ? Current[Other].X + Link.TargetOffset.X - Link.SourceOffset.X
-                                : Current[Other].X + Link.SourceOffset.X - Link.TargetOffset.X);
-                        }
-                        foreach (double X in CandidateXs.Where(X => X >= 0))
-                        {
-                            var Candidate = (Position[])Current.Clone();
-                            Candidate[Index] = new(X, Y);
-                            NormalizeRows(Candidate);
-                            if (Overlaps(Candidate) || !PreservesAlignedLinks(Current, Candidate)) continue;
-                            (double Width, double Height) CandidateSize = Extents(Candidate);
-                            double CandidateDistance = ShapeDistance(CandidateSize.Width, CandidateSize.Height);
-                            double CandidateBalance = RowBalance(Candidate);
-                            if (CandidateDistance > BestDistance + 0.0001
-                                || Math.Abs(CandidateDistance - BestDistance) <= 0.0001
-                                && CandidateBalance >= BestBalance - 0.01) continue;
-                            int CandidateCrossings = EstimatedCrossings(Candidate);
-                            if (CandidateCrossings > CurrentCrossings) continue;
-                            BestCandidate = Candidate;
-                            BestDistance = CandidateDistance;
-                            BestCrossings = CandidateCrossings;
-                            BestBalance = CandidateBalance;
-                        }
-                    }
-                }
-                if (BestCandidate == null)
-                {
-                    DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: shape search stable after {Iterations} passes");
-                    return Current;
-                }
-                Current = BestCandidate;
-                DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"container packing: shape search accepted improvement {Iterations}");
-            }
-        }
+        Position[] ImproveShape(Position[] Initial) => Initial;
 
         double WidthOf(int Index) => DiagramGridMetrics.CeilToGrid(Units[Index].Frame.Right - Units[Index].Frame.Left);
         double HeightOf(int Index) => DiagramGridMetrics.CeilToGrid(Units[Index].Frame.Bottom - Units[Index].Frame.Top);
         (double Width, double Height) Extents(Position[] Positions) =>
             (Enumerable.Range(0, Units.Count).Max(Index => Positions[Index].X + WidthOf(Index)),
              Enumerable.Range(0, Units.Count).Max(Index => Positions[Index].Y + HeightOf(Index)));
-        static double ShapeDistance(double Width, double Height) =>
-            Math.Abs(Math.Log((Width / Math.Max(1, Height)) / (4.0 / 3.0)));
         double RowBalance(Position[] Positions) => Positions.Select(Position => Position.Y).Distinct()
             .Sum(Y => Math.Pow(Enumerable.Range(0, Units.Count).Where(Index => Math.Abs(Positions[Index].Y - Y) < 0.01)
                 .Max(Index => Positions[Index].X + WidthOf(Index)), 2));

@@ -10,6 +10,16 @@ using MDConverter.Pipeline;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 
+if (args.Length == 3 && args[0] == "--docx")
+{
+    string InputPath = Path.GetFullPath(args[1]);
+    string OutputPath = Path.GetFullPath(args[2]);
+    MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions());
+    Converter.ConvertFile(InputPath, OutputPath);
+    Console.WriteLine("DOCX_WRITTEN|" + OutputPath);
+    return;
+}
+
 if (args.Length == 3 && args[0] == "--profile-documents")
 {
     string documentRoot = Path.GetFullPath(args[1]);

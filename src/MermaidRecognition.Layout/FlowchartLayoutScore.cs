@@ -414,7 +414,7 @@ internal static partial class FlowchartLayoutScore
         return Corners > 3;
     }
 
-    /// <summary>Scores complete pre-routing node and frame geometry using the existing aspect and raster empty-space terms.</summary>
+    /// <summary>Scores complete pre-routing node and frame geometry using raster empty-space terms.</summary>
     /// <param name="Layout">Projected candidate bounds, including every frame; no route has yet been selected.</param>
     /// <returns>The unchanged placement terms of the layout score, with no invented route penalties.</returns>
     internal static double MeasurePlacement(FlowchartLayoutResult Layout)
@@ -423,22 +423,25 @@ internal static partial class FlowchartLayoutScore
         return Calculate(Width, Height, 0, EmptyAreaShare(Layout, Width, Height));
     }
 
+    internal static double PlacementWidth(FlowchartLayoutResult Layout) => Bounds(Layout).Width;
+
     internal static double Calculate(double Width, double Height, int Crossings, double EmptyShare)
         => Calculate(Width, Height, Crossings, 0, EmptyShare);
 
     internal static double Calculate(double Width, double Height, int Crossings, int ForcedMinimum, double EmptyShare)
     {
-        double TargetRatio = FlowchartLayoutRules.TargetAspectWidth / FlowchartLayoutRules.TargetAspectHeight;
-        double ShapePercent = Math.Abs((Width / Math.Max(1.0, Height)) - TargetRatio) / TargetRatio * 100.0;
-        double Shape = ShapePercent / FlowchartLayoutRules.ShapeStep * FlowchartLayoutRules.ShapePoints;
+        const double EmptyScoreStepPercent = 5.0;
         double EmptyPercent = EmptyShare * 100.0;
-        double EmptyLowRate = FlowchartLayoutRules.EmptyPointsLow / FlowchartLayoutRules.ShapeStep;
-        double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / FlowchartLayoutRules.ShapeStep;
+        double EmptyLowRate = FlowchartLayoutRules.EmptyPointsLow / EmptyScoreStepPercent;
+        double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / EmptyScoreStepPercent;
         double Empty = EmptyPercent <= FlowchartLayoutRules.EmptyThreshold
             ? EmptyPercent * EmptyLowRate
             : FlowchartLayoutRules.EmptyThreshold * EmptyLowRate
                 + (EmptyPercent - FlowchartLayoutRules.EmptyThreshold) * EmptyHighRate;
-        return Shape + Empty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
+        double OverWidthPx = Math.Max(0.0, Width - FlowchartLayoutRules.DiagramUsableWidthPx);
+        double OverWidthPercent = OverWidthPx / Math.Max(1.0, FlowchartLayoutRules.DiagramUsableWidthPx) * 100.0;
+        double WrapWidthPenalty = OverWidthPercent / EmptyScoreStepPercent * 2.0;
+        return Empty + WrapWidthPenalty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
     }
 
     internal static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)

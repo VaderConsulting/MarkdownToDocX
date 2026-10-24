@@ -438,6 +438,7 @@ public static partial class DiagramGridLayout
             double BeforeLength = RouteLength(State.Copy);
             int BeforeBends = RouteBends(State.Copy);
             var BestScore = Before.Cost;
+            double BestChainTie = FlowchartChainPlacementTie.Measure(State.Contract, State.Copy.NodeBounds);
             double BestShortfall = Shortfall?.Invoke() ?? 0;
             double InitialShortfall = BestShortfall;
             CellGeometrySnapshot? Best = null;
@@ -512,16 +513,24 @@ public static partial class DiagramGridLayout
                     int ChangedLines = Original.ChangedLines();
                     var Cost = After.Cost + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
                         + ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight;
+                    int BeforeFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Before.Violations);
+                    int AfterFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(After.Violations);
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
                         && !AfterFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
                         && (!PreserveBends || ExtraBends <= 0)
-                        && ChangedLines <= FlowchartLayoutRules.RepairChainLines;
+                        && ChangedLines <= FlowchartLayoutRules.RepairChainLines
+                        && (AfterFaults < BeforeFaults || FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
+                            BeforeFaults, Before.HintsHonoured, Before.Cost, AfterFaults, After.HintsHonoured, Cost));
                     RouteRepairCandidateObserver?.Invoke("cell-move", Option.Subject, Cost, Legal);
+                    double ChainTie = FlowchartChainPlacementTie.Measure(State.Contract, State.Copy.NodeBounds);
                     if (!Legal || Remaining > BestShortfall
-                        || Remaining == BestShortfall && Cost >= BestScore - 0.001) continue;
+                        || Remaining == BestShortfall && Cost.CompareTo(BestScore) > 0
+                        || Remaining == BestShortfall && Cost.CompareTo(BestScore) == 0
+                            && ChainTie >= BestChainTie - 0.001) continue;
                     BestShortfall = Remaining;
                     BestScore = Cost;
+                    BestChainTie = ChainTie;
                     Best = new(State);
                     BestAffected = Affected;
                     Winner = Option.Subject;
@@ -556,6 +565,8 @@ public static partial class DiagramGridLayout
                 int ChangedLines = Original.ChangedLines();
                 var Cost = Confirmed.Cost + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
                     + ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight;
+                int ConfirmedFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Confirmed.Violations);
+                int InitialFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Before.Violations);
                 if (!Original.UnchangedOutside(BestAffected!) || Confirmed.Overlaps > Before.Overlaps || Confirmed.HintsHonoured < Before.HintsHonoured
                     || !NoNewFindings(BeforeFindings, ConfirmedFindings)
                     || ConfirmedFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
@@ -563,7 +574,9 @@ public static partial class DiagramGridLayout
                     || PreserveBends && ExtraBends > 0
                     || ChangedLines > FlowchartLayoutRules.RepairChainLines
                     || (Shortfall?.Invoke() ?? 0) > InitialShortfall
-                    || (Shortfall?.Invoke() ?? 0) == InitialShortfall && Cost >= Before.Cost - 0.001)
+                    || (Shortfall?.Invoke() ?? 0) == InitialShortfall
+                        && !FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
+                            InitialFaults, Before.HintsHonoured, Before.Cost, ConfirmedFaults, Confirmed.HintsHonoured, Cost))
                 {
                     Original.Restore(State);
                     State.Copy.RenderContext.IsEvaluatingCellRouteCandidate = PreviousEvaluation;

@@ -28,20 +28,21 @@ internal static class FlowchartLayoutRules
     internal static double TrackSpacing => Get("track_spacing") * Get("grid_step");
     /// <summary>Configured minimum parallel-line and same-edge port separation, expressed directly in page pixels.</summary>
     internal static double LineSpacing => Get("line_spacing");
+    /// <summary>Float tolerance for shared-track, overlap, port-spacing and clearance comparisons.</summary>
+    internal static double GeometryTolerancePx => Get("geometry_tolerance_px");
+    /// <summary>Terminal arrowhead length used when sizing 4.4 clearance into a bounding outline.</summary>
+    internal static double ArrowheadLengthPx => Get("arrowhead_length_px");
     /// <summary>Approved fractional buffer added to forecast traffic when initial corridor gaps are sized.</summary>
     internal static double CorridorCapacityBuffer => Get("corridor_capacity_buffer");
     internal static double CrossingScore => Get("score_crossing");
     internal static double DisconnectedEndScore => Get("score_disconnected_end");
-    internal static double TargetAspectWidth => Get("target_aspect_width");
-    internal static double TargetAspectHeight => Get("target_aspect_height");
-    internal static double ShapePoints => Get("score_shape_points");
-    internal static double ShapeStep => Get("score_shape_step");
     internal static double EmptyPointsLow => Get("score_empty_points_low");
     internal static double EmptyThreshold => Get("score_empty_threshold");
     internal static double EmptyPointsHigh => Get("score_empty_points_high");
     internal static double NodeGroupHintScore => Get("score_hint_node_group");
     internal static double LineHintScore => Get("score_hint_line");
     internal static double CrossEndpointStandoff => Get("cross_endpoint_standoff");
+    internal static double DiagramUsableWidthPx => Get("diagram_usable_width_px");
     internal static double GroupMemberMinimumInset => Get("group_member_min_inset") * Get("grid_step");
     internal static int RepairCandidateMoves => checked((int)Get("repair_candidate_moves"));
     internal static int RepairChainDepth => checked((int)Get("repair_chain_depth"));

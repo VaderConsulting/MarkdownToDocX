@@ -7,12 +7,12 @@ namespace MermaidRecognition.Layout;
 /// <summary>Wraps a complete simple path through one cell-region and gap transaction.</summary>
 internal static partial class FlowchartChainWrapping
 {
-    /// <summary>Plans whole-span row/column wrapping, grows measured label gaps and accepts only an improved aspect ratio.</summary>
+    /// <summary>Plans whole-span row/column wrapping, grows measured label gaps and accepts only usable-width folds.</summary>
     /// <param name="Path">Complete connected path in declared traversal order.</param>
     /// <param name="Horizontal">Whether traversal wraps across columns first.</param>
     /// <param name="ColumnGap">Measured horizontal label/routing clearance.</param>
     /// <param name="RowGap">Measured vertical label/routing clearance.</param>
-    /// <returns>Whether the complete legal wrap improved the aspect ratio.</returns>
+    /// <returns>Whether the complete legal wrap fit within diagram usable width.</returns>
     internal static bool ApplyCellPath(List<DiagramGridLayout.GridNode> Path, bool Horizontal, int ColumnGap, int RowGap)
     {
         if (Path.Count < FlowchartWrapPlan.MinimumRun + 1) return false;
@@ -54,13 +54,13 @@ internal static partial class FlowchartChainWrapping
         {
             double Width = Path.Max(Node => Node.X + Node.Width / 2d) - Path.Min(Node => Node.X - Node.Width / 2d);
             double Height = Path.Max(Node => Node.Y + Node.Height / 2d) - Path.Min(Node => Node.Y - Node.Height / 2d);
-            Accepted = RatioDistance(Width, Height) < RatioDistance(OldWidth, OldHeight) - 1e-9;
+            Accepted = ShouldAcceptWrap(Horizontal, OldWidth, OldHeight, new FlowchartWrapPlan.Plan(
+                Wrap.Columns, Wrap.Rows, checked((int)Math.Ceiling(Width)), checked((int)Math.Ceiling(Height))));
             return Accepted;
         }
         finally
         {
-            // Aspect rejection is a complete rollback, including any label
-            // clearance gaps grown by the proposed wrapped rows and columns.
+            // Rejected wraps roll back gaps grown during the trial, including every region.
             if (!Accepted) Plan.Rollback();
         }
     }
