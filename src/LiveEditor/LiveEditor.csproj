@@ -11,6 +11,9 @@
     <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateSupportedOSPlatformAttribute>false</GenerateSupportedOSPlatformAttribute>
+    <GenerateTargetPlatformAttribute>false</GenerateTargetPlatformAttribute>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <LangVersion>latest</LangVersion>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <AnalysisLevel>none</AnalysisLevel>
@@ -20,12 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="..\MDConverter\MDConverter.csproj" />
     <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>LiveEditor.Tests</_Parameter1>
-    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

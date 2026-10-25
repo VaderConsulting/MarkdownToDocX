@@ -28,85 +28,227 @@ namespace LiveEditor
 
         private void InitializeComponent()
         {
+            DetailTable = new TableLayoutPanel();
+            TitleLabel = new Label();
             ObjectPicture = new PictureBox();
-            TypeRow = new Panel();
+            DescriptionBox = new TextBox();
+            EditorLineRow = new TableLayoutPanel();
+            EditorLineCaption = new Label();
+            EditorLineValue = new Label();
+            EditorLineSpacer = new Label();
+            FactsBox = new TextBox();
+            TypeRow = new TableLayoutPanel();
             TypeLabel = new Label();
             TypeCombo = new ComboBox();
             ChangeTypeButton = new Button();
+            RadiosRow = new FlowLayoutPanel();
             KeepRelationshipsRadio = new RadioButton();
             UpdateRelationshipsRadio = new RadioButton();
-            FactsRow = new Panel();
-            EditorLineCaption = new Label();
-            EditorLineValue = new Label();
-            FactsLabel = new Label();
-            TitleLabel = new Label();
-            DescriptionBox = new TextBox();
+            DetailTable.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)ObjectPicture).BeginInit();
+            EditorLineRow.SuspendLayout();
             TypeRow.SuspendLayout();
-            FactsRow.SuspendLayout();
+            RadiosRow.SuspendLayout();
             SuspendLayout();
+            // 
+            // DetailTable
+            // 
+            DetailTable.ColumnCount = 2;
+            DetailTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112F));
+            DetailTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            DetailTable.Controls.Add(TitleLabel, 0, 0);
+            DetailTable.Controls.Add(ObjectPicture, 0, 1);
+            DetailTable.Controls.Add(DescriptionBox, 1, 1);
+            DetailTable.Controls.Add(EditorLineRow, 1, 2);
+            DetailTable.Controls.Add(FactsBox, 1, 3);
+            DetailTable.Controls.Add(TypeRow, 1, 4);
+            DetailTable.Controls.Add(RadiosRow, 1, 5);
+            DetailTable.Dock = DockStyle.Fill;
+            DetailTable.Location = new Point(0, 0);
+            DetailTable.Name = "DetailTable";
+            DetailTable.RowCount = 6;
+            DetailTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            DetailTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            DetailTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            DetailTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 56F));
+            DetailTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            DetailTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
+            DetailTable.Size = new Size(600, 303);
+            DetailTable.TabIndex = 0;
+            // 
+            // TitleLabel
+            // 
+            DetailTable.SetColumnSpan(TitleLabel, 2);
+            TitleLabel.Dock = DockStyle.Fill;
+            TitleLabel.Font = new Font("Segoe UI", 4.60800028F, FontStyle.Bold);
+            TitleLabel.Location = new Point(0, 0);
+            TitleLabel.Margin = new Padding(0);
+            TitleLabel.Name = "TitleLabel";
+            TitleLabel.Padding = new Padding(8, 4, 4, 0);
+            TitleLabel.Size = new Size(600, 28);
+            TitleLabel.TabIndex = 3;
+            TitleLabel.Text = "Selection";
             // 
             // ObjectPicture
             // 
             ObjectPicture.AccessibleName = "Selected object";
             ObjectPicture.BackColor = Color.White;
             ObjectPicture.BorderStyle = BorderStyle.FixedSingle;
-            ObjectPicture.Dock = DockStyle.Left;
-            ObjectPicture.Location = new Point(0, 0);
-            ObjectPicture.Margin = new Padding(0);
+            ObjectPicture.Dock = DockStyle.Fill;
+            ObjectPicture.Location = new Point(4, 32);
+            ObjectPicture.Margin = new Padding(4);
             ObjectPicture.Name = "ObjectPicture";
-            ObjectPicture.Size = new Size(128, 176);
+            DetailTable.SetRowSpan(ObjectPicture, 5);
+            ObjectPicture.Size = new Size(104, 267);
             ObjectPicture.SizeMode = PictureBoxSizeMode.Zoom;
             ObjectPicture.TabIndex = 0;
             ObjectPicture.TabStop = false;
             // 
+            // DescriptionBox
+            // 
+            DescriptionBox.BorderStyle = BorderStyle.None;
+            DescriptionBox.Dock = DockStyle.Fill;
+            DescriptionBox.Location = new Point(115, 31);
+            DescriptionBox.Multiline = true;
+            DescriptionBox.Name = "DescriptionBox";
+            DescriptionBox.ReadOnly = true;
+            DescriptionBox.ScrollBars = ScrollBars.Vertical;
+            DescriptionBox.Size = new Size(482, 93);
+            DescriptionBox.TabIndex = 4;
+            // 
+            // EditorLineRow
+            // 
+            EditorLineRow.ColumnCount = 3;
+            EditorLineRow.ColumnStyles.Add(new ColumnStyle());
+            EditorLineRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44F));
+            EditorLineRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            EditorLineRow.Controls.Add(EditorLineCaption, 0, 0);
+            EditorLineRow.Controls.Add(EditorLineValue, 1, 0);
+            EditorLineRow.Controls.Add(EditorLineSpacer, 2, 0);
+            EditorLineRow.Dock = DockStyle.Fill;
+            EditorLineRow.Location = new Point(112, 127);
+            EditorLineRow.Margin = new Padding(0);
+            EditorLineRow.Name = "EditorLineRow";
+            EditorLineRow.RowCount = 1;
+            EditorLineRow.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            EditorLineRow.Size = new Size(488, 28);
+            EditorLineRow.TabIndex = 2;
+            // 
+            // EditorLineCaption
+            // 
+            EditorLineCaption.AutoSize = true;
+            EditorLineCaption.Location = new Point(4, 0);
+            EditorLineCaption.Margin = new Padding(4, 0, 8, 0);
+            EditorLineCaption.Name = "EditorLineCaption";
+            EditorLineCaption.Size = new Size(77, 20);
+            EditorLineCaption.TabIndex = 0;
+            EditorLineCaption.Text = "Editor line";
+            // 
+            // EditorLineValue
+            // 
+            EditorLineValue.AccessibleName = "Editor line number";
+            EditorLineValue.BorderStyle = BorderStyle.FixedSingle;
+            EditorLineValue.Location = new Point(93, 2);
+            EditorLineValue.Margin = new Padding(4, 2, 0, 2);
+            EditorLineValue.Name = "EditorLineValue";
+            EditorLineValue.Size = new Size(40, 23);
+            EditorLineValue.TabIndex = 1;
+            EditorLineValue.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // EditorLineSpacer
+            // 
+            EditorLineSpacer.Dock = DockStyle.Fill;
+            EditorLineSpacer.Location = new Point(133, 0);
+            EditorLineSpacer.Margin = new Padding(0);
+            EditorLineSpacer.Name = "EditorLineSpacer";
+            EditorLineSpacer.Size = new Size(355, 28);
+            EditorLineSpacer.TabIndex = 2;
+            // 
+            // FactsBox
+            // 
+            FactsBox.BackColor = SystemColors.Control;
+            FactsBox.BorderStyle = BorderStyle.None;
+            FactsBox.Dock = DockStyle.Fill;
+            FactsBox.Location = new Point(116, 159);
+            FactsBox.Margin = new Padding(4);
+            FactsBox.Multiline = true;
+            FactsBox.Name = "FactsBox";
+            FactsBox.ReadOnly = true;
+            FactsBox.Size = new Size(480, 48);
+            FactsBox.TabIndex = 2;
+            FactsBox.TabStop = false;
+            FactsBox.Text = "Connection points";
+            // 
             // TypeRow
             // 
-            TypeRow.Controls.Add(UpdateRelationshipsRadio);
-            TypeRow.Controls.Add(KeepRelationshipsRadio);
-            TypeRow.Controls.Add(ChangeTypeButton);
-            TypeRow.Controls.Add(TypeCombo);
-            TypeRow.Controls.Add(TypeLabel);
-            TypeRow.Dock = DockStyle.Bottom;
-            TypeRow.Location = new Point(128, 124);
+            TypeRow.ColumnCount = 3;
+            TypeRow.ColumnStyles.Add(new ColumnStyle());
+            TypeRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            TypeRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110F));
+            TypeRow.Controls.Add(TypeLabel, 0, 0);
+            TypeRow.Controls.Add(TypeCombo, 1, 0);
+            TypeRow.Controls.Add(ChangeTypeButton, 2, 0);
+            TypeRow.Dock = DockStyle.Fill;
+            TypeRow.Location = new Point(112, 211);
             TypeRow.Margin = new Padding(0);
             TypeRow.Name = "TypeRow";
-            TypeRow.Size = new Size(472, 52);
+            TypeRow.RowCount = 1;
+            TypeRow.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+            TypeRow.Size = new Size(488, 40);
             TypeRow.TabIndex = 1;
             // 
             // TypeLabel
             // 
-            TypeLabel.AutoSize = true;
-            TypeLabel.Location = new Point(8, 6);
+            TypeLabel.Location = new Point(4, 0);
+            TypeLabel.Margin = new Padding(4, 0, 8, 0);
             TypeLabel.Name = "TypeLabel";
-            TypeLabel.Size = new Size(34, 15);
+            TypeLabel.Size = new Size(41, 36);
             TypeLabel.TabIndex = 0;
             TypeLabel.Text = "Type";
+            TypeLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // TypeCombo
             // 
+            TypeCombo.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             TypeCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-            TypeCombo.Location = new Point(48, 2);
+            TypeCombo.Location = new Point(57, 6);
+            TypeCombo.Margin = new Padding(4, 6, 8, 8);
             TypeCombo.Name = "TypeCombo";
-            TypeCombo.Size = new Size(220, 23);
+            TypeCombo.Size = new Size(313, 28);
             TypeCombo.TabIndex = 1;
             // 
             // ChangeTypeButton
             // 
-            ChangeTypeButton.Location = new Point(274, 1);
+            ChangeTypeButton.Location = new Point(378, 0);
+            ChangeTypeButton.Margin = new Padding(0);
             ChangeTypeButton.Name = "ChangeTypeButton";
-            ChangeTypeButton.Size = new Size(96, 25);
+            ChangeTypeButton.Size = new Size(98, 40);
             ChangeTypeButton.TabIndex = 2;
             ChangeTypeButton.Text = "Change type";
+            ChangeTypeButton.UseCompatibleTextRendering = true;
             ChangeTypeButton.UseVisualStyleBackColor = true;
+            ChangeTypeButton.Click += ChangeTypeButton_Click;
+            // 
+            // RadiosRow
+            // 
+            RadiosRow.Controls.Add(KeepRelationshipsRadio);
+            RadiosRow.Controls.Add(UpdateRelationshipsRadio);
+            RadiosRow.Dock = DockStyle.Fill;
+            RadiosRow.Location = new Point(112, 251);
+            RadiosRow.Margin = new Padding(0);
+            RadiosRow.Name = "RadiosRow";
+            RadiosRow.Padding = new Padding(4, 6, 0, 0);
+            RadiosRow.Size = new Size(488, 52);
+            RadiosRow.TabIndex = 5;
             // 
             // KeepRelationshipsRadio
             // 
             KeepRelationshipsRadio.AutoSize = true;
             KeepRelationshipsRadio.Checked = true;
-            KeepRelationshipsRadio.Location = new Point(8, 30);
+            KeepRelationshipsRadio.Location = new Point(7, 9);
+            KeepRelationshipsRadio.Margin = new Padding(3, 3, 12, 3);
             KeepRelationshipsRadio.Name = "KeepRelationshipsRadio";
-            KeepRelationshipsRadio.Size = new Size(122, 19);
+            KeepRelationshipsRadio.Size = new Size(134, 21);
             KeepRelationshipsRadio.TabIndex = 3;
             KeepRelationshipsRadio.TabStop = true;
             KeepRelationshipsRadio.Text = "Keep relationships";
@@ -114,105 +256,45 @@ namespace LiveEditor
             // UpdateRelationshipsRadio
             // 
             UpdateRelationshipsRadio.AutoSize = true;
-            UpdateRelationshipsRadio.Location = new Point(148, 30);
+            UpdateRelationshipsRadio.Location = new Point(156, 9);
             UpdateRelationshipsRadio.Name = "UpdateRelationshipsRadio";
-            UpdateRelationshipsRadio.Size = new Size(154, 19);
+            UpdateRelationshipsRadio.Size = new Size(172, 21);
             UpdateRelationshipsRadio.TabIndex = 4;
             UpdateRelationshipsRadio.Text = "Drop illegal relationships";
             // 
-            // FactsRow
-            // 
-            FactsRow.Controls.Add(FactsLabel);
-            FactsRow.Controls.Add(EditorLineValue);
-            FactsRow.Controls.Add(EditorLineCaption);
-            FactsRow.Dock = DockStyle.Bottom;
-            FactsRow.Location = new Point(128, 84);
-            FactsRow.Margin = new Padding(0);
-            FactsRow.Name = "FactsRow";
-            FactsRow.Size = new Size(472, 40);
-            FactsRow.TabIndex = 2;
-            // 
-            // EditorLineCaption
-            // 
-            EditorLineCaption.AutoSize = true;
-            EditorLineCaption.Location = new Point(8, 4);
-            EditorLineCaption.Name = "EditorLineCaption";
-            EditorLineCaption.Size = new Size(68, 15);
-            EditorLineCaption.TabIndex = 0;
-            EditorLineCaption.Text = "Editor Line:";
-            // 
-            // EditorLineValue
-            // 
-            EditorLineValue.AccessibleName = "Editor line number";
-            EditorLineValue.BorderStyle = BorderStyle.FixedSingle;
-            EditorLineValue.Location = new Point(88, 2);
-            EditorLineValue.Name = "EditorLineValue";
-            EditorLineValue.Size = new Size(48, 19);
-            EditorLineValue.TabIndex = 1;
-            EditorLineValue.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // FactsLabel
-            // 
-            FactsLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            FactsLabel.Location = new Point(8, 22);
-            FactsLabel.Name = "FactsLabel";
-            FactsLabel.Size = new Size(460, 16);
-            FactsLabel.TabIndex = 2;
-            FactsLabel.Text = "Connection points";
-            // 
-            // TitleLabel
-            // 
-            TitleLabel.Dock = DockStyle.Top;
-            TitleLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
-            TitleLabel.Location = new Point(128, 0);
-            TitleLabel.Name = "TitleLabel";
-            TitleLabel.Padding = new Padding(8, 4, 4, 0);
-            TitleLabel.Size = new Size(472, 24);
-            TitleLabel.TabIndex = 3;
-            TitleLabel.Text = "Selection";
-            // 
-            // DescriptionBox
-            // 
-            DescriptionBox.BorderStyle = BorderStyle.None;
-            DescriptionBox.Dock = DockStyle.Fill;
-            DescriptionBox.Location = new Point(128, 24);
-            DescriptionBox.Multiline = true;
-            DescriptionBox.Name = "DescriptionBox";
-            DescriptionBox.ReadOnly = true;
-            DescriptionBox.ScrollBars = ScrollBars.Vertical;
-            DescriptionBox.Size = new Size(472, 60);
-            DescriptionBox.TabIndex = 4;
-            DescriptionBox.WordWrap = true;
-            // 
             // SelectionPanel
             // 
-            Controls.Add(DescriptionBox);
-            Controls.Add(TitleLabel);
-            Controls.Add(FactsRow);
-            Controls.Add(TypeRow);
-            Controls.Add(ObjectPicture);
+            AutoScaleMode = AutoScaleMode.Inherit;
+            Controls.Add(DetailTable);
+            MinimumSize = new Size(280, 303);
             Name = "SelectionPanel";
-            Size = new Size(600, 176);
+            Size = new Size(600, 303);
+            Load += SelectionPanel_Load;
+            DetailTable.ResumeLayout(false);
+            DetailTable.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)ObjectPicture).EndInit();
+            EditorLineRow.ResumeLayout(false);
+            EditorLineRow.PerformLayout();
             TypeRow.ResumeLayout(false);
-            TypeRow.PerformLayout();
-            FactsRow.ResumeLayout(false);
-            FactsRow.PerformLayout();
+            RadiosRow.ResumeLayout(false);
+            RadiosRow.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
+        private TableLayoutPanel DetailTable;
         private PictureBox ObjectPicture;
-        private Panel TypeRow;
+        private TableLayoutPanel TypeRow;
         private Label TypeLabel;
         private ComboBox TypeCombo;
         private Button ChangeTypeButton;
         private RadioButton KeepRelationshipsRadio;
         private RadioButton UpdateRelationshipsRadio;
-        private Panel FactsRow;
+        private FlowLayoutPanel RadiosRow;
+        private TableLayoutPanel EditorLineRow;
         private Label EditorLineCaption;
         private Label EditorLineValue;
-        private Label FactsLabel;
+        private Label EditorLineSpacer;
+        private TextBox FactsBox;
         private Label TitleLabel;
         private TextBox DescriptionBox;
     }

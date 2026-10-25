@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace LiveEditor;
@@ -58,12 +59,6 @@ internal sealed partial class ElementPalette : UserControl
     {
         InitializeComponent();
         BuildTabs();
-        PromptGlyph.Paint += PromptGlyph_Paint;
-        PromptLabelBox.TextChanged += PromptLabelBox_TextChanged;
-        PromptIdBox.TextChanged += PromptIdBox_TextChanged;
-        InsertLineButton.Click += InsertLineButton_Click;
-        CancelPromptButton.Click += CancelPromptButton_Click;
-        LayerTabs.SelectedIndexChanged += LayerTabs_SelectedIndexChanged;
     }
 
     /// <summary>Raised when the user confirms a label and identifier.</summary>
@@ -201,25 +196,14 @@ internal sealed partial class ElementPalette : UserControl
 
     private void BuildTabs()
     {
-        foreach (EnterpriseLayer Layer in Enum.GetValues<EnterpriseLayer>())
-        {
-            TabPage Page = new TabPage(LayerName(Layer))
-            {
-                Padding = new Padding(0),
-                Margin = new Padding(0)
-            };
-            FlowLayoutPanel Flow = new FlowLayoutPanel
-            {
-                AutoScroll = false,
-                Dock = DockStyle.Fill,
-                WrapContents = true,
-                Padding = new Padding(4, 2, 4, 2)
-            };
-            Page.Controls.Add(Flow);
-            Flow.Resize += Flow_Resize;
-            _Pages[Layer] = Page;
-            LayerTabs.TabPages.Add(Page);
-        }
+        RegisterLayer(EnterpriseLayer.Motivation, MotivationPage, MotivationFlow);
+        RegisterLayer(EnterpriseLayer.Strategy, StrategyPage, StrategyFlow);
+        RegisterLayer(EnterpriseLayer.Business, BusinessPage, BusinessFlow);
+        RegisterLayer(EnterpriseLayer.Application, ApplicationPage, ApplicationFlow);
+        RegisterLayer(EnterpriseLayer.Technology, TechnologyPage, TechnologyFlow);
+        RegisterLayer(EnterpriseLayer.Implementation, ImplementationPage, ImplementationFlow);
+        RegisterLayer(EnterpriseLayer.Composite, CompositePage, CompositeFlow);
+        RegisterLayer(EnterpriseLayer.Junction, JunctionPage, JunctionFlow);
 
         foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
         {
@@ -232,10 +216,11 @@ internal sealed partial class ElementPalette : UserControl
             _Pages[Metadata.Layer].Controls[0].Controls.Add(Button);
         }
 
-        if (LayerTabs.TabPages.Count > 3)
-        {
-            LayerTabs.SelectedIndex = 3;
-        }
+    }
+
+    private void RegisterLayer(EnterpriseLayer Layer, TabPage Page, FlowLayoutPanel Flow)
+    {
+        _Pages[Layer] = Page;
     }
 
     private void ApplyFilter(string Prefix)
@@ -663,6 +648,20 @@ internal sealed partial class ElementPalette : UserControl
 
     private void ApplyToolbarHeight()
     {
+        if (PromptPanel.Visible)
+        {
+            LayerTabs.Visible = false;
+            PromptPanel.PerformLayout();
+            int PromptHeight = Math.Max(PromptPanel.Height, PromptPanel.PreferredSize.Height);
+            if (Height != PromptHeight)
+            {
+                Height = PromptHeight;
+            }
+
+            return;
+        }
+
+        LayerTabs.Visible = true;
         if (LayerTabs.SelectedTab == null || LayerTabs.SelectedTab.Controls.Count == 0)
         {
             return;
@@ -707,12 +706,6 @@ internal sealed partial class ElementPalette : UserControl
         }
 
         int Next = Chrome + ContentBottom;
-        if (PromptPanel.Visible)
-        {
-            int PromptHeight = Math.Max(PromptPanel.Height, PromptPanel.PreferredSize.Height);
-            Next += PromptHeight;
-        }
-
         if (Height != Next)
         {
             Height = Next;
@@ -815,24 +808,8 @@ internal sealed partial class ElementPalette : UserControl
 
     private HashSet<string> CollectUsedIdentifiers()
     {
-        HashSet<string> Used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string Source = _SourceText == null ? string.Empty : _SourceText();
-        AddDeclaredIdentifiers(Source, Used);
-        return Used;
-    }
-
-    private static void AddDeclaredIdentifiers(string Source, HashSet<string> Used)
-    {
-        if (!EnterpriseParser.IsEnterpriseSource(Source))
-        {
-            return;
-        }
-
-        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(Source);
-        foreach (string Identifier in Result.Document.Elements.Keys)
-        {
-            Used.Add(Identifier);
-        }
+        return Parser.CollectUsedIdentifiers(Source);
     }
 
     private static string SuggestIdentifier(string Label, HashSet<string> Used)
@@ -1079,8 +1056,4 @@ internal sealed partial class ElementPalette : UserControl
         }
     }
 
-    private static string LayerName(EnterpriseLayer Layer)
-    {
-        return Layer.ToString();
-    }
 }

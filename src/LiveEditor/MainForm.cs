@@ -102,15 +102,9 @@ public partial class MainForm : Form
         _Settings = Settings;
         InitializeComponent();
         _PreviewHoverDismiss = new PreviewHoverDismissFilter(this);
-        CodeView.ColoursRefreshing += CodeView_ColoursRefreshing;
-        CodeView.StatusRequested += CodeView_StatusRequested;
-        CodeView.FontSizeChanged += CodeView_FontSizeChanged;
-        CodeView.IntelliSense.StatusChanged += IntelliSense_StatusChanged;
-        CodeView.IntelliSense.Accepted += CompletionPopup_ItemAccepted;
-        SelectionDetails.ChangeTypeClicked += SelectionDetails_ChangeTypeClicked;
         WireEvents();
         ApplySettings();
-        BuildSamplesMenu();
+        AssignSampleSources();
         BuildRecentFilesMenu();
         RestoreSessionContent();
         ApplyTheme();
@@ -118,8 +112,6 @@ public partial class MainForm : Form
         UpdateTitle();
         QueueHighlight();
         QueueRender();
-        Load += MainForm_Load;
-        Shown += MainForm_Shown;
     }
 
     private void MainForm_Load(object? Sender, EventArgs E)
@@ -268,75 +260,8 @@ public partial class MainForm : Form
 
     private void WireEvents()
     {
-        CodeView.Editor.TextChanged += Editor_TextChanged;
-        CodeView.Editor.SelectionChanged += Editor_SelectionChanged;
-        CodeView.Editor.MouseDoubleClick += Editor_MouseDoubleClick;
-        Preview.PictureMouseMove += Preview_PictureMouseMove;
-        Preview.PictureMouseLeave += Preview_PictureMouseLeave;
-        Preview.EscapePressed += Preview_EscapePressed;
-        Preview.LineStepRequested += Preview_LineStepRequested;
-        Preview.SelectedItemsChanged += Preview_SelectedItemsChanged;
-        Preview.ZoomChanged += Preview_ZoomChanged;
-        Preview.RefreshRequested += Preview_RefreshRequested;
-        Deactivate += MainForm_Deactivate;
         Application.AddMessageFilter(_PreviewHoverDismiss);
         ElementToolbar.BindSource(CurrentEditorText);
-        ElementToolbar.InsertRequested += ElementToolbar_InsertRequested;
-        ElementToolbar.PromptClosed += ElementToolbar_PromptClosed;
-        DiagnosticsList.DoubleClick += DiagnosticsList_DoubleClick;
-        RenderTimer.Tick += RenderTimer_Tick;
-        NewMenuItem.Click += NewMenuItem_Click;
-        OpenMenuItem.Click += OpenMenuItem_Click;
-        SaveMenuItem.Click += SaveMenuItem_Click;
-        SaveAsMenuItem.Click += SaveAsMenuItem_Click;
-        ExitMenuItem.Click += ExitMenuItem_Click;
-        UndoMenuItem.Click += UndoMenuItem_Click;
-        RedoMenuItem.Click += RedoMenuItem_Click;
-        CutMenuItem.Click += CutMenuItem_Click;
-        CopyMenuItem.Click += CopyMenuItem_Click;
-        PasteMenuItem.Click += PasteMenuItem_Click;
-        FindMenuItem.Click += FindMenuItem_Click;
-        ReplaceMenuItem.Click += ReplaceMenuItem_Click;
-        GoToLineMenuItem.Click += GoToLineMenuItem_Click;
-        FindNextMenuItem.Click += FindNextMenuItem_Click;
-        FindPreviousMenuItem.Click += FindPreviousMenuItem_Click;
-        CommentMenuItem.Click += CommentMenuItem_Click;
-        UncommentMenuItem.Click += UncommentMenuItem_Click;
-        DuplicateLineMenuItem.Click += DuplicateLineMenuItem_Click;
-        DeleteLineMenuItem.Click += DeleteLineMenuItem_Click;
-        IndentMenuItem.Click += IndentMenuItem_Click;
-        OutdentMenuItem.Click += OutdentMenuItem_Click;
-        NextErrorMenuItem.Click += NextErrorMenuItem_Click;
-        PreviousErrorMenuItem.Click += PreviousErrorMenuItem_Click;
-        CopySourceMenuItem.Click += CopySourceMenuItem_Click;
-        ListMembersMenuItem.Click += ListMembersMenuItem_Click;
-        ParameterInfoMenuItem.Click += ParameterInfoMenuItem_Click;
-        QuickInfoMenuItem.Click += QuickInfoMenuItem_Click;
-        RenameSymbolMenuItem.Click += RenameSymbolMenuItem_Click;
-        GoToDefinitionMenuItem.Click += GoToDefinitionMenuItem_Click;
-        FindReferencesMenuItem.Click += FindReferencesMenuItem_Click;
-        CommandPaletteMenuItem.Click += CommandPaletteMenuItem_Click;
-        SelectNextOccurrenceMenuItem.Click += SelectNextOccurrenceMenuItem_Click;
-        InsertArchiSnippetMenuItem.Click += InsertArchiSnippetMenuItem_Click;
-        SettingsMenuItem.Click += SettingsMenuItem_Click;
-        ToggleThemeMenuItem.Click += ToggleThemeMenuItem_Click;
-        ToggleSplitOrientationMenuItem.Click += ToggleSplitOrientationMenuItem_Click;
-        ZoomInMenuItem.Click += ZoomInMenuItem_Click;
-        ZoomOutMenuItem.Click += ZoomOutMenuItem_Click;
-        ZoomResetMenuItem.Click += ZoomResetMenuItem_Click;
-        FitPreviewMenuItem.Click += FitPreviewMenuItem_Click;
-        ToggleDiagnosticsMenuItem.Click += ToggleDiagnosticsMenuItem_Click;
-        ToggleMinimapMenuItem.Click += ToggleMinimapMenuItem_Click;
-        ToggleLegacyPreviewMenuItem.Click += ToggleLegacyPreviewMenuItem_Click;
-        ExportPngMenuItem.Click += ExportPngMenuItem_Click;
-        ExportSvgMenuItem.Click += ExportSvgMenuItem_Click;
-        ImportExchangeMenuItem.Click += ImportExchangeMenuItem_Click;
-        ImportArchimateMenuItem.Click += ImportArchimateMenuItem_Click;
-        ExportExchangeMenuItem.Click += ExportExchangeMenuItem_Click;
-        ExportArchimateMenuItem.Click += ExportArchimateMenuItem_Click;
-        OpenCoArchiFolderMenuItem.Click += OpenCoArchiFolderMenuItem_Click;
-        SaveCoArchiFolderMenuItem.Click += SaveCoArchiFolderMenuItem_Click;
-        FormClosing += MainForm_FormClosing;
     }
 
     private void UpdateFeatureAvailability()
@@ -361,10 +286,6 @@ public partial class MainForm : Form
         ExportSvgMenuItem.Enabled = LiveEditorFeatureGate.M_ExportPngSvg;
         RecentFilesMenuItem.Enabled = LiveEditorFeatureGate.U_RecentFiles;
         SamplesMenu.Enabled = LiveEditorFeatureGate.K_SampleGallery;
-        if (LiveEditorFeatureGate.K_SampleGallery && SamplesMenu.DropDownItems.Count == 0)
-        {
-            BuildSamplesMenu();
-        }
     }
 
     private void ApplySettings()
@@ -1556,6 +1477,7 @@ public partial class MainForm : Form
         ElementToolbar.Dock = DockStyle.Top;
         EditorSplit.Dock = DockStyle.Fill;
         Preview.Dock = DockStyle.Fill;
+        CodeView.Dock = DockStyle.Fill;
         SelectionDetails.Dock = DockStyle.Bottom;
         Control EditorParent = _Settings.EditorOnLeft ? EditorSplit.Panel1 : EditorSplit.Panel2;
         Control PreviewParent = _Settings.EditorOnLeft ? EditorSplit.Panel2 : EditorSplit.Panel1;
@@ -1569,9 +1491,9 @@ public partial class MainForm : Form
             PreviewParent.Controls.Add(Preview);
         }
 
-        if (!ReferenceEquals(SelectionDetails.Parent, PreviewParent))
+        if (!ReferenceEquals(SelectionDetails.Parent, EditorParent))
         {
-            PreviewParent.Controls.Add(SelectionDetails);
+            EditorParent.Controls.Add(SelectionDetails);
         }
 
         if (_Settings.WideToolbar)
@@ -1595,7 +1517,8 @@ public partial class MainForm : Form
             PreviewParent.Controls.SetChildIndex(ElementToolbar, PreviewParent.Controls.Count - 1);
         }
 
-        PreviewParent.Controls.SetChildIndex(SelectionDetails, PreviewParent.Controls.Count - 1);
+        EditorParent.Controls.SetChildIndex(SelectionDetails, EditorParent.Controls.Count - 1);
+        EditorParent.Controls.SetChildIndex(CodeView, 0);
         EnsureEditorSplitLayout();
     }
 
@@ -2129,30 +2052,47 @@ public partial class MainForm : Form
         SetStatus("Settings saved");
     }
 
-    private void BuildSamplesMenu()
+    private void AssignSampleSources()
     {
-        SamplesMenu.DropDownItems.Clear();
-        if (!LiveEditorFeatureGate.K_SampleGallery)
+        for (int Index = 0; Index < SamplesMenu.DropDownItems.Count; Index++)
         {
-            return;
-        }
+            if (SamplesMenu.DropDownItems[Index] is not ToolStripMenuItem GroupMenu)
+            {
+                continue;
+            }
 
-        for (int Index = 0; Index < SampleCatalog.Groups.Count; Index++)
-        {
-            DiagramSampleGroup Group = SampleCatalog.Groups[Index];
-            ToolStripMenuItem Submenu = new ToolStripMenuItem(Group.MenuTitle);
-            Submenu.DropDownItems.Add(CreateSampleItem(Group.SimpleTitle, Group.SimpleSource));
-            Submenu.DropDownItems.Add(CreateSampleItem(Group.CompleteTitle, Group.FullSource));
-            SamplesMenu.DropDownItems.Add(Submenu);
-        }
-    }
+            DiagramSampleGroup? Group = null;
+            for (int GroupIndex = 0; GroupIndex < SampleCatalog.Groups.Count; GroupIndex++)
+            {
+                if (string.Equals(SampleCatalog.Groups[GroupIndex].MenuTitle, GroupMenu.Text, StringComparison.Ordinal))
+                {
+                    Group = SampleCatalog.Groups[GroupIndex];
+                    break;
+                }
+            }
 
-    private ToolStripMenuItem CreateSampleItem(string Title, string Source)
-    {
-        ToolStripMenuItem Item = new ToolStripMenuItem(Title);
-        Item.Tag = Source;
-        Item.Click += SampleMenuItem_Click;
-        return Item;
+            if (Group == null)
+            {
+                continue;
+            }
+
+            for (int ItemIndex = 0; ItemIndex < GroupMenu.DropDownItems.Count; ItemIndex++)
+            {
+                if (GroupMenu.DropDownItems[ItemIndex] is not ToolStripMenuItem Item)
+                {
+                    continue;
+                }
+
+                if (Item.Name != null && Item.Name.EndsWith("SimpleMenuItem", StringComparison.Ordinal))
+                {
+                    Item.Tag = Group.SimpleSource;
+                }
+                else
+                {
+                    Item.Tag = Group.FullSource;
+                }
+            }
+        }
     }
 
     private void SampleMenuItem_Click(object? Sender, EventArgs E)

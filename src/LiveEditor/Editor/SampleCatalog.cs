@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace LiveEditor.Editor;
@@ -107,6 +108,24 @@ internal static class SampleCatalog
         {
             return _Groups;
         }
+    }
+
+    /// <summary>
+    /// Finds the sample pair for a kind id.
+    /// </summary>
+    /// <param name="KindId">Catalogue kind id stored on the Samples menu item.</param>
+    /// <returns>The group, or null when that kind has no sample.</returns>
+    public static DiagramSampleGroup? Find(string KindId)
+    {
+        for (int Index = 0; Index < _Groups.Count; Index++)
+        {
+            if (string.Equals(_Groups[Index].KindId, KindId, StringComparison.OrdinalIgnoreCase))
+            {
+                return _Groups[Index];
+            }
+        }
+
+        return null;
     }
 
     private static string SampleTitle(string Description, bool Simple)

@@ -20,9 +20,7 @@ internal sealed partial class NewDiagramForm : Form
     public NewDiagramForm()
     {
         InitializeComponent();
-        BuildChoices();
-        CreateDiagramButton.Click += CreateDiagramButton_Click;
-        CancelDiagramButton.Click += CancelDiagramButton_Click;
+        WireChoices();
     }
 
     /// <summary>Gets the kind chosen by the user.</summary>
@@ -34,43 +32,34 @@ internal sealed partial class NewDiagramForm : Form
         }
     }
 
-    private void BuildChoices()
+    private void WireChoices()
     {
-        Dictionary<string, FlowLayoutPanel> Groups = new Dictionary<string, FlowLayoutPanel>(StringComparer.Ordinal);
-        for (int Index = 0; Index < DiagramKindCatalog.Supported.Count; Index++)
+        Button[] Choices = new Button[]
         {
-            DiagramKindDefinition Kind = DiagramKindCatalog.Supported[Index];
-            if (!Groups.TryGetValue(Kind.Group, out FlowLayoutPanel? Flow))
-            {
-                TabPage Page = new TabPage(Kind.Group)
-                {
-                    Padding = new Padding(0)
-                };
-                Flow = new FlowLayoutPanel
-                {
-                    Dock = DockStyle.Fill,
-                    Padding = new Padding(8),
-                    WrapContents = true
-                };
-                Page.Controls.Add(Flow);
-                KindTabs.TabPages.Add(Page);
-                Groups[Kind.Group] = Flow;
-            }
-
-            Button Choice = new Button
-            {
-                Name = "Kind_" + Kind.Id,
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Margin = new Padding(4),
-                Text = Kind.Title,
-                Tag = Kind,
-                UseVisualStyleBackColor = false
-            };
-            Choice.Click += Choice_Click;
-            Choice.DoubleClick += Choice_DoubleClick;
-            Flow.Controls.Add(Choice);
-            _Choices.Add(Choice);
+            Kind_enterprise,
+            Kind_flowchart,
+            Kind_sequence,
+            Kind_class,
+            Kind_state,
+            Kind_er,
+            Kind_gantt,
+            Kind_pie,
+            Kind_gitGraph,
+            Kind_mindmap,
+            Kind_timeline,
+            Kind_journey,
+            Kind_quadrantChart,
+            Kind_xychart,
+            Kind_architecture,
+            Kind_block,
+            Kind_packet,
+            Kind_radar,
+            Kind_treemap,
+            Kind_c4
+        };
+        for (int Index = 0; Index < Choices.Length; Index++)
+        {
+            _Choices.Add(Choices[Index]);
         }
 
         if (_Choices.Count > 0)
@@ -103,7 +92,8 @@ internal sealed partial class NewDiagramForm : Form
 
     private void SelectChoice(Button Choice)
     {
-        _SelectedKind = Choice.Tag as DiagramKindDefinition;
+        string KindId = Choice.Tag as string ?? string.Empty;
+        _SelectedKind = DiagramKindCatalog.Find(KindId);
         for (int Index = 0; Index < _Choices.Count; Index++)
         {
             bool Selected = ReferenceEquals(_Choices[Index], Choice);

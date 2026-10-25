@@ -64,26 +64,6 @@ internal sealed partial class PreviewCanvas : UserControl
         _SelectionColour = DEFAULT_SELECTION_COLOUR;
         _SelectionStyle = PreviewStyle.ForCurrentDiagram(DEFAULT_SELECTION_COLOUR);
         InitializeComponent();
-        Viewport.MouseWheel += Viewport_MouseWheel;
-        DiagramPicture.MouseWheel += Picture_MouseWheel;
-        Viewport.Resize += Viewport_Resize;
-        Viewport.MouseLeave += Picture_MouseLeave;
-        Viewport.MouseDown += Viewport_MouseDown;
-        DiagramPicture.MouseMove += Picture_MouseMove;
-        DiagramPicture.MouseLeave += Picture_MouseLeave;
-        DiagramPicture.MouseDown += Picture_MouseDown;
-        DiagramPicture.Paint += Picture_Paint;
-        ZoomInButton.Click += ZoomInButton_Click;
-        ZoomOutButton.Click += ZoomOutButton_Click;
-        FitButton.Click += FitButton_Click;
-        FitButton.Paint += FitButton_Paint;
-        FocusSink.EscapePressed += FocusSink_EscapePressed;
-        FocusSink.LineStepPressed += FocusSink_LineStepPressed;
-        DiagramMenu.Opening += DiagramMenu_Opening;
-        ClearMenuItem.Click += ClearMenuItem_Click;
-        RefreshMenuItem.Click += RefreshMenuItem_Click;
-        CopyPngMenuItem.Click += CopyPngMenuItem_Click;
-        Layout += PreviewCanvas_Layout;
     }
 
     /// <summary>Raised when the pointer moves over the picture.</summary>
@@ -966,6 +946,23 @@ internal sealed partial class PreviewCanvas : UserControl
 
         Point Centre = new Point(Viewport.ClientSize.Width / 2, Viewport.ClientSize.Height / 2);
         SetZoomAt(DisplayedZoom() / ZOOM_STEP, Centre);
+    }
+
+    /// <summary>
+    /// Sizes the canvas to the diagram picture at 100 percent so the full extents can be scrolled.
+    /// </summary>
+    public void ExpandToDiagramExtents()
+    {
+        if (DiagramPicture.Image == null)
+        {
+            return;
+        }
+
+        _FitToWindow = false;
+        _Zoom = 1;
+        ApplyView();
+        Viewport.AutoScrollPosition = new Point(0, 0);
+        ZoomChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Scales the picture so the whole diagram fits the viewport.</summary>

@@ -43,6 +43,26 @@ public sealed class FlowchartParser : Parser
     }
 
     /// <inheritdoc />
+    public override string PrepareSource(string Source)
+    {
+        return FlowchartScriptNormalizer.ExpandInlineNodes(Source);
+    }
+
+    /// <inheritdoc />
+    public override void AddUsedIdentifiers(string? Source, HashSet<string> Used)
+    {
+        if (Used == null)
+        {
+            return;
+        }
+
+        foreach (string Id in FlowchartScriptNormalizer.CollectUsedIds(Source))
+        {
+            Used.Add(Id);
+        }
+    }
+
+    /// <inheritdoc />
     public override bool Detect(string? Source)
     {
         if (string.IsNullOrWhiteSpace(Source))

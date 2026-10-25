@@ -13,6 +13,8 @@ public abstract class Parser
 
     private static readonly object _RegisterLock = new object();
 
+    private static bool _DefaultsReady;
+
     /// <summary>
     /// Registers a parser so <see cref="ForSource"/> can find it.
     /// </summary>
@@ -63,6 +65,96 @@ public abstract class Parser
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Prepares a script for the editor before it is shown.
+    /// Flowchart sources expand inline-only nodes onto their own lines so each item has a line id.
+    /// </summary>
+    /// <param name="Source">File or sample text.</param>
+    /// <returns>The text to load into the editor.</returns>
+    public static string PrepareForEditor(string? Source)
+    {
+        EnsureDefaults();
+        if (string.IsNullOrWhiteSpace(Source))
+        {
+            return Source ?? string.Empty;
+        }
+
+        Parser? Kind = ForSource(Source);
+        if (Kind == null)
+        {
+            return Source;
+        }
+
+        return Kind.PrepareSource(Source);
+    }
+
+    /// <summary>
+    /// Kind-specific rewrite before the editor shows the script.
+    /// </summary>
+    /// <param name="Source">Original script.</param>
+    /// <returns>Script to display.</returns>
+    public virtual string PrepareSource(string Source)
+    {
+        return Source ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Collects identifier names currently used in the script.
+    /// Re-scan after the user adds, edits, or deletes lines so suggestions stay unique.
+    /// </summary>
+    /// <param name="Source">Editor text.</param>
+    /// <returns>Used identifiers. Comparison is case-insensitive.</returns>
+    public static HashSet<string> CollectUsedIdentifiers(string? Source)
+    {
+        HashSet<string> Used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        EnsureDefaults();
+        if (string.IsNullOrWhiteSpace(Source))
+        {
+            return Used;
+        }
+
+        Parser? Kind = ForSource(Source);
+        if (Kind == null)
+        {
+            return Used;
+        }
+
+        Kind.AddUsedIdentifiers(Source, Used);
+        return Used;
+    }
+
+    /// <summary>
+    /// Adds this kind's identifiers from the current script into <paramref name="Used"/>.
+    /// </summary>
+    /// <param name="Source">Editor text.</param>
+    /// <param name="Used">Set to fill. Caller owns the set across add / edit / delete re-scans.</param>
+    public virtual void AddUsedIdentifiers(string? Source, HashSet<string> Used)
+    {
+        if (Used == null || string.IsNullOrWhiteSpace(Source))
+        {
+            return;
+        }
+
+        DiagramParseResult Result = Parse(Source);
+        foreach (DiagramItem Item in Result.Items)
+        {
+            if (Item.Name.Length > 0)
+            {
+                Used.Add(Item.Name);
+            }
+
+            if (Item.SourceName.Length > 0)
+            {
+                Used.Add(Item.SourceName);
+            }
+
+            if (Item.TargetName.Length > 0)
+            {
+                Used.Add(Item.TargetName);
+            }
+        }
     }
 
     /// <summary>
@@ -168,13 +260,33 @@ public abstract class Parser
     {
         lock (_RegisterLock)
         {
-            if (_Registered.Count > 0)
+            if (_DefaultsReady)
             {
                 return;
             }
+
+            _DefaultsReady = true;
         }
 
         Register(Kinds.Enterprise.EnterpriseParser.Default);
         Register(Kinds.Flowchart.FlowchartParser.Default);
+        Register(Kinds.Sequence.SequenceParser.Default);
+        Register(Kinds.Class.ClassDiagramParser.Default);
+        Register(Kinds.State.StateDiagramParser.Default);
+        Register(Kinds.Er.ErDiagramParser.Default);
+        Register(Kinds.Architecture.ArchitectureParser.Default);
+        Register(Kinds.Block.BlockDiagramParser.Default);
+        Register(Kinds.C4.C4Parser.Default);
+        Register(Kinds.Charts.GanttParser.Default);
+        Register(Kinds.Charts.PieParser.Default);
+        Register(Kinds.Charts.GitGraphParser.Default);
+        Register(Kinds.Charts.MindmapParser.Default);
+        Register(Kinds.Charts.TimelineParser.Default);
+        Register(Kinds.Charts.JourneyParser.Default);
+        Register(Kinds.Charts.QuadrantChartParser.Default);
+        Register(Kinds.Charts.XyChartParser.Default);
+        Register(Kinds.Charts.PacketParser.Default);
+        Register(Kinds.Charts.RadarParser.Default);
+        Register(Kinds.Charts.TreemapParser.Default);
     }
 }

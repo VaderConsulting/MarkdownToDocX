@@ -61,6 +61,7 @@ internal sealed class ElementGlyphButton : Control
     public ElementGlyphButton()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+        BackColor = SystemColors.Control;
         Size = new Size(76, 52);
         Cursor = Cursors.Hand;
         Font = new Font("Segoe UI", 8F, FontStyle.Regular, GraphicsUnit.Point);
@@ -189,7 +190,7 @@ internal sealed class ElementGlyphButton : Control
     /// <inheritdoc />
     protected override void OnPaint(PaintEventArgs E)
     {
-        E.Graphics.Clear(Parent == null ? SystemColors.Window : Parent.BackColor);
+        E.Graphics.Clear(ButtonColour());
         if (_Metadata != null)
         {
             Rectangle Shape = new Rectangle((Width - SHAPE_WIDTH) / 2, SHAPE_TOP, SHAPE_WIDTH, SHAPE_HEIGHT);
@@ -203,6 +204,25 @@ internal sealed class ElementGlyphButton : Control
             using Pen Border = new Pen(SystemColors.WindowText, 1F);
             E.Graphics.DrawRectangle(Border, 0, 0, Width - 1, Height - 1);
         }
+    }
+
+    private Color ButtonColour()
+    {
+        if (_IsLive)
+        {
+            return Color.FromArgb(255, 230, 150);
+        }
+
+        if (Parent != null)
+        {
+            Color ParentColour = Parent.BackColor;
+            if (ParentColour.A > 0 && ParentColour.GetBrightness() > 0.2F)
+            {
+                return ParentColour;
+            }
+        }
+
+        return SystemColors.Control;
     }
 
     private string CaptionText()

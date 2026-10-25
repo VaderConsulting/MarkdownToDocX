@@ -47,28 +47,7 @@ internal sealed partial class CodeEditor : UserControl
         _IntelliSense.ListOpened += IntelliSense_ListOpened;
         _IntelliSense.Accepted += IntelliSense_Accepted;
         _GhostText = LiveEditorFeatureGate.F_GhostText ? new GhostTextOverlay(SourceEditor) : null;
-        SourceEditor.TextChanged += SourceEditor_TextChanged;
-        SourceEditor.SelectionChanged += SourceEditor_SelectionChanged;
-        SourceEditor.MouseDoubleClick += SourceEditor_MouseDoubleClick;
-        SourceEditor.KeyDown += SourceEditor_KeyDown;
-        SourceEditor.PreviewKeyDown += SourceEditor_PreviewKeyDown;
-        SourceEditor.LostFocus += SourceEditor_LostFocus;
-        HighlightTimer.Tick += HighlightTimer_Tick;
-        Disposed += CodeEditor_Disposed;
-        FindNextButton.Click += FindNextButton_Click;
-        FindPreviousButton.Click += FindPreviousButton_Click;
-        ReplaceButton.Click += ReplaceButton_Click;
-        ReplaceAllButton.Click += ReplaceAllButton_Click;
-        CloseFindButton.Click += CloseFindButton_Click;
-        QueryBox.KeyDown += QueryBox_KeyDown;
-        QueryBox.TextChanged += QueryBox_TextChanged;
-        MatchCaseCheckBox.CheckedChanged += QueryBox_TextChanged;
-        ReplaceBox.KeyDown += QueryBox_KeyDown;
-        ScrollMarks.LineChosen += ScrollMarks_LineChosen;
-        SourceEditor.VScroll += SourceEditor_ScrollChanged;
         _EditorWheel = new EditorMouseWheel(this);
-        SourceEditor.HandleCreated += SourceEditor_HandleCreated;
-        SourceEditor.HandleDestroyed += SourceEditor_HandleDestroyed;
         if (SourceEditor.IsHandleCreated)
         {
             _EditorWheel.AssignHandle(SourceEditor.Handle);
@@ -405,7 +384,8 @@ internal sealed partial class CodeEditor : UserControl
     /// <param name="Source">File or sample text.</param>
     internal void SetSource(string Source)
     {
-        string Text = EditorEditing.IndentTrailingBlankLine(Source ?? string.Empty);
+        string Prepared = MermaidRecognition.Core.Parser.PrepareForEditor(Source ?? string.Empty);
+        string Text = EditorEditing.IndentTrailingBlankLine(Prepared);
         _IntelliSense.Suppress = true;
         try
         {

@@ -31,17 +31,9 @@ internal enum AssistSurface
 /// </summary>
 internal sealed class CompletionPopup : IDisposable, IMessageFilter
 {
-    private const int WM_MOUSEACTIVATE = 0x0021;
-
-    private const int MA_NOACTIVATE = 3;
-
-    private const int WS_EX_TOOLWINDOW = 0x00000080;
-
-    private const int WS_EX_NOACTIVATE = 0x08000000;
-
     private const int WM_KEYDOWN = 0x0100;
 
-    private readonly AssistWindow _Window;
+    private readonly CompletionAssistWindow _Window;
 
     private readonly RichTextBox _Signature;
 
@@ -89,50 +81,22 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
     /// <summary>Creates the popup.</summary>
     public CompletionPopup()
     {
-        _Signature = new RichTextBox
-        {
-            BorderStyle = BorderStyle.None,
-            ReadOnly = true,
-            ScrollBars = RichTextBoxScrollBars.None,
-            DetectUrls = false,
-            TabStop = false,
-            Font = _ProseFont,
-            WordWrap = true,
-            BackColor = SystemColors.Info,
-            ForeColor = SystemColors.InfoText
-        };
-        _List = new ListBox
-        {
-            BorderStyle = BorderStyle.None,
-            Font = _ListFont,
-            IntegralHeight = false,
-            HorizontalScrollbar = false,
-            ItemHeight = 22,
-            DrawMode = DrawMode.Normal,
-            TabStop = false,
-            BackColor = SystemColors.Window,
-            ForeColor = SystemColors.WindowText
-        };
-        _Detail = new TextBox
-        {
-            BorderStyle = BorderStyle.None,
-            Font = _CodeFont,
-            Multiline = true,
-            ReadOnly = true,
-            WordWrap = false,
-            ScrollBars = ScrollBars.None,
-            TabStop = false,
-            BackColor = SystemColors.Info,
-            ForeColor = SystemColors.InfoText
-        };
-        _List.Click += List_Click;
-        _List.SelectedIndexChanged += List_SelectedIndexChanged;
-        _Detail.MouseDown += DismissFromPointer;
-        _Signature.MouseDown += DismissFromPointer;
-        _Window = new AssistWindow();
-        _Window.Controls.Add(_Signature);
-        _Window.Controls.Add(_List);
-        _Window.Controls.Add(_Detail);
+        _Window = new CompletionAssistWindow();
+        _Signature = _Window.Signature;
+        _List = _Window.Members;
+        _Detail = _Window.Detail;
+        _Signature.Font = _ProseFont;
+        _Signature.BackColor = SystemColors.Info;
+        _Signature.ForeColor = SystemColors.InfoText;
+        _List.Font = _ListFont;
+        _List.BackColor = SystemColors.Window;
+        _List.ForeColor = SystemColors.WindowText;
+        _Detail.Font = _CodeFont;
+        _Detail.BackColor = SystemColors.Info;
+        _Detail.ForeColor = SystemColors.InfoText;
+        _Window.MemberChosen += List_Click;
+        _Window.MemberHighlighted += List_SelectedIndexChanged;
+        _Window.SurfacePressed += DismissFromPointer;
 
         // Create the window handles now, while hidden, so the signature can be measured before the first show.
         _ = _Window.Handle;
@@ -1011,47 +975,4 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
         return Target.GetPositionFromCharIndex(Index);
     }
 
-    private sealed class AssistWindow : Form
-    {
-        public AssistWindow()
-        {
-            FormBorderStyle = FormBorderStyle.None;
-            ShowInTaskbar = false;
-            StartPosition = FormStartPosition.Manual;
-            ControlBox = false;
-            ShowIcon = false;
-            Padding = new Padding(1);
-            BackColor = SystemColors.ControlDark;
-            AutoScaleMode = AutoScaleMode.None;
-        }
-
-        protected override bool ShowWithoutActivation
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams Value = base.CreateParams;
-                Value.ExStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
-                return Value;
-            }
-        }
-
-        protected override void WndProc(ref Message Message)
-        {
-            if (Message.Msg == WM_MOUSEACTIVATE)
-            {
-                Message.Result = (IntPtr)MA_NOACTIVATE;
-                return;
-            }
-
-            base.WndProc(ref Message);
-        }
-    }
 }

@@ -47,6 +47,10 @@ namespace LiveEditor
             Viewport.Margin = new Padding(2, 2, 2, 2);
             Viewport.ContextMenuStrip = DiagramMenu;
             Viewport.Name = "Viewport";
+            Viewport.MouseWheel += Viewport_MouseWheel;
+            Viewport.Resize += Viewport_Resize;
+            Viewport.MouseLeave += Picture_MouseLeave;
+            Viewport.MouseDown += Viewport_MouseDown;
             Viewport.Size = new Size(240, 406);
             Viewport.TabIndex = 0;
             //
@@ -59,6 +63,11 @@ namespace LiveEditor
             DiagramPicture.Location = new Point(0, 0);
             DiagramPicture.Margin = new Padding(2, 2, 2, 2);
             DiagramPicture.Name = "DiagramPicture";
+            DiagramPicture.MouseWheel += Picture_MouseWheel;
+            DiagramPicture.MouseMove += Picture_MouseMove;
+            DiagramPicture.MouseLeave += Picture_MouseLeave;
+            DiagramPicture.MouseDown += Picture_MouseDown;
+            DiagramPicture.Paint += Picture_Paint;
             DiagramPicture.Size = new Size(240, 406);
             DiagramPicture.SizeMode = PictureBoxSizeMode.Zoom;
             DiagramPicture.TabIndex = 0;
@@ -82,6 +91,7 @@ namespace LiveEditor
             ZoomInButton.Location = new Point(0, 0);
             ZoomInButton.Margin = new Padding(2, 2, 2, 2);
             ZoomInButton.Name = "ZoomInButton";
+            ZoomInButton.Click += ZoomInButton_Click;
             ZoomInButton.Size = new Size(32, 32);
             ZoomInButton.TabIndex = 3;
             ZoomInButton.Text = "+";
@@ -94,6 +104,7 @@ namespace LiveEditor
             ZoomOutButton.Location = new Point(0, 0);
             ZoomOutButton.Margin = new Padding(2, 2, 2, 2);
             ZoomOutButton.Name = "ZoomOutButton";
+            ZoomOutButton.Click += ZoomOutButton_Click;
             ZoomOutButton.Size = new Size(32, 32);
             ZoomOutButton.TabIndex = 4;
             ZoomOutButton.Text = "-";
@@ -106,6 +117,8 @@ namespace LiveEditor
             FitButton.Location = new Point(0, 0);
             FitButton.Margin = new Padding(2, 2, 2, 2);
             FitButton.Name = "FitButton";
+            FitButton.Click += FitButton_Click;
+            FitButton.Paint += FitButton_Paint;
             FitButton.Size = new Size(32, 32);
             FitButton.TabIndex = 5;
             FitButton.UseVisualStyleBackColor = true;
@@ -113,29 +126,35 @@ namespace LiveEditor
             // FocusSink
             //
             FocusSink.Name = "FocusSink";
+            FocusSink.EscapePressed += FocusSink_EscapePressed;
+            FocusSink.LineStepPressed += FocusSink_LineStepPressed;
             FocusSink.TabIndex = 6;
             //
             // DiagramMenu
             //
             DiagramMenu.Items.AddRange(new ToolStripItem[] { ClearMenuItem, RefreshMenuItem, CopyPngMenuItem });
             DiagramMenu.Name = "DiagramMenu";
+            DiagramMenu.Opening += DiagramMenu_Opening;
             DiagramMenu.Size = new Size(240, 82);
             //
             // ClearMenuItem
             //
             ClearMenuItem.Name = "ClearMenuItem";
+            ClearMenuItem.Click += ClearMenuItem_Click;
             ClearMenuItem.Size = new Size(239, 22);
             ClearMenuItem.Text = "Clear";
             //
             // RefreshMenuItem
             //
             RefreshMenuItem.Name = "RefreshMenuItem";
+            RefreshMenuItem.Click += RefreshMenuItem_Click;
             RefreshMenuItem.Size = new Size(239, 22);
             RefreshMenuItem.Text = "Refresh";
             //
             // CopyPngMenuItem
             //
             CopyPngMenuItem.Name = "CopyPngMenuItem";
+            CopyPngMenuItem.Click += CopyPngMenuItem_Click;
             CopyPngMenuItem.Size = new Size(239, 22);
             CopyPngMenuItem.Text = "Save to Clipboard (.png)";
             //
@@ -149,6 +168,7 @@ namespace LiveEditor
             Controls.Add(ZoomInButton);
             Controls.Add(FocusSink);
             Name = "PreviewCanvas";
+            Layout += PreviewCanvas_Layout;
             Size = new Size(240, 406);
             DiagramMenu.ResumeLayout(false);
             Viewport.ResumeLayout(false);

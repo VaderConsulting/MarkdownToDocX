@@ -13,6 +13,10 @@ namespace LiveEditor;
 /// </summary>
 internal sealed partial class SelectionPanel : UserControl
 {
+    private const int CHANGE_TYPE_BUTTON_MIN_WIDTH = 75;
+
+    private const int CHANGE_TYPE_BUTTON_MIN_HEIGHT = 23;
+
     private Image? _OwnedPicture;
 
     private bool _Filling;
@@ -23,8 +27,62 @@ internal sealed partial class SelectionPanel : UserControl
     public SelectionPanel()
     {
         InitializeComponent();
-        ChangeTypeButton.Click += ChangeTypeButton_Click;
+        LayoutDetailRows();
         ShowNone();
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        LayoutDetailRows();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        LayoutDetailRows();
+    }
+
+    private void SelectionPanel_Load(object? Sender, EventArgs e)
+    {
+        LayoutDetailRows();
+    }
+
+    private void LayoutDetailRows()
+    {
+        LayoutTypeRow();
+        LayoutEditorLineRow();
+    }
+
+    private void LayoutTypeRow()
+    {
+        Size ButtonPreferred = ChangeTypeButton.PreferredSize;
+        int ButtonWidth = Math.Max(CHANGE_TYPE_BUTTON_MIN_WIDTH, ButtonPreferred.Width);
+        int ButtonHeight = Math.Max(CHANGE_TYPE_BUTTON_MIN_HEIGHT, ButtonPreferred.Height);
+        ChangeTypeButton.Size = new Size(ButtonWidth, ButtonHeight);
+        int ComboHeight = Math.Max(CHANGE_TYPE_BUTTON_MIN_HEIGHT, TypeCombo.PreferredSize.Height);
+        TypeCombo.Height = ComboHeight;
+        int LabelHeight = TypeLabel.Height;
+        int ContentHeight = Math.Max(ButtonHeight, Math.Max(ComboHeight, LabelHeight));
+        int TypeRowHeight = Math.Max(40, ContentHeight + 8);
+        TypeRow.RowStyles[0] = new RowStyle(SizeType.Absolute, TypeRowHeight);
+        DetailTable.RowStyles[4] = new RowStyle(SizeType.Absolute, TypeRowHeight);
+        int PadTop = (TypeRowHeight - ContentHeight) / 2;
+        TypeLabel.Margin = new Padding(4, PadTop + (ContentHeight - LabelHeight) / 2, 8, 0);
+        TypeCombo.Margin = new Padding(4, PadTop + (ContentHeight - ComboHeight) / 2, 8, 0);
+        ChangeTypeButton.Margin = new Padding(0, PadTop + (ContentHeight - ButtonHeight) / 2, 4, 0);
+        ChangeTypeButton.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+    }
+
+    private void LayoutEditorLineRow()
+    {
+        int RowHeight = (int)EditorLineRow.RowStyles[0].Height;
+        int ValueHeight = EditorLineValue.Height;
+        int CaptionHeight = EditorLineCaption.Height;
+        int ContentHeight = Math.Max(ValueHeight, CaptionHeight);
+        int PadTop = (RowHeight - ContentHeight) / 2;
+        EditorLineCaption.Margin = new Padding(4, PadTop + (ContentHeight - CaptionHeight) / 2, 8, 0);
+        EditorLineValue.Margin = new Padding(4, PadTop + (ContentHeight - ValueHeight) / 2, 0, 0);
     }
 
     /// <summary>
@@ -64,11 +122,12 @@ internal sealed partial class SelectionPanel : UserControl
         try
         {
             TitleLabel.Text = "Selection";
-            DescriptionBox.Text = "Select an object in the diagram.";
+            DescriptionBox.Text = string.Empty;
             SetEditorLine(0);
-            FactsLabel.Text = string.Empty;
+            FactsBox.Text = string.Empty;
             SetPicture(null);
             TypeRow.Visible = false;
+            Visible = false;
         }
         finally
         {
@@ -93,10 +152,11 @@ internal sealed partial class SelectionPanel : UserControl
             TitleLabel.Text = Title;
             DescriptionBox.Text = Description;
             SetEditorLine(EditorLine);
-            FactsLabel.Text = Facts;
+            FactsBox.Text = Facts;
             SetPicture(Picture);
             bool CanChange = CurrentKebab.Length > 0;
             TypeRow.Visible = CanChange;
+            Visible = true;
             if (!CanChange)
             {
                 return;
