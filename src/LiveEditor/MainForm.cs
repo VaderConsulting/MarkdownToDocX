@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -21,9 +22,6 @@ namespace LiveEditor;
 /// </summary>
 public partial class MainForm : Form
 {
-    private const double MINIMUM_PREVIEW_ZOOM = 0.10;
-    private const double MAXIMUM_PREVIEW_ZOOM = 8.00;
-    private const double PREVIEW_ZOOM_STEP = 1.20;
     private const string DEFAULT_SOURCE =
         "enterprise\r\n"
         + "  title LiveEditor preview\r\n"
@@ -48,16 +46,15 @@ public partial class MainForm : Form
     private SessionSettings _Settings;
     private FileSystemWatcher? _Watcher;
     private CancellationTokenSource? _RenderCancellation;
-    private Image? _LastGoodPreview;
     private byte[]? _LastPngBytes;
     private string? _LastSvg;
     private readonly PreviewHoverWindow _PreviewHoverWindow = new PreviewHoverWindow();
     private readonly PreviewHoverDismissFilter _PreviewHoverDismiss;
-    private PreviewHoverIndex? _PreviewHover;
     private string? _PreviewHoverText;
-    private readonly PreviewFocusSink _PreviewFocusSink = new PreviewFocusSink();
-    private PreviewObject? _PreviewSelection;
+    private bool _IgnorePreviewSelection;
     private bool _SyncingSelectionFromPreview;
+    private bool _FollowPreviewFromCaret;
+    private int _CaretAtPreviewClear = -1;
     private int _EditorTextVersion;
     private int _PreviewIndexTextVersion = -1;
     private int _RenderTextVersion;
@@ -70,9 +67,6 @@ public partial class MainForm : Form
     private bool _SuppressWatcher;
     private int _RenderGeneration;
     private DiagramMetadata _DiagramMetadata = DiagramMetadata.Empty(0);
-    private double _PreviewZoom = 1.0;
-
-    private bool _PositioningZoomButtons;
     private DateTime? _BrokenSince;
 
     /// <summary>
@@ -153,8 +147,16 @@ public partial class MainForm : Form
     private async void MainForm_Shown(object? Sender, EventArgs E)
     {
         EnsureEditorSplitLayout();
-        CodeView.Editor.Focus();
-        CodeView.Editor.SelectionStart = Math.Min(_Settings.CaretIndex, CodeView.Editor.TextLength);
+        _IgnorePreviewSelection = true;
+        try
+        {
+            CodeView.Editor.Focus();
+            CodeView.Editor.SelectionStart = Math.Min(_Settings.CaretIndex, CodeView.Editor.TextLength);
+        }
+        finally
+        {
+            _IgnorePreviewSelection = false;
+        }
         if (!_CapturePreviewOnShown)
         {
             return;
@@ -268,23 +270,15 @@ public partial class MainForm : Form
     {
         CodeView.Editor.TextChanged += Editor_TextChanged;
         CodeView.Editor.SelectionChanged += Editor_SelectionChanged;
-        PreviewCanvas.MouseWheel += PreviewCanvas_MouseWheel;
-        PreviewImage.MouseWheel += PreviewImage_MouseWheel;
-        PreviewCanvas.Resize += PreviewCanvas_Resize;
-        PreviewImage.MouseMove += PreviewImage_MouseMove;
-        PreviewImage.MouseLeave += PreviewImage_MouseLeave;
-        PreviewImage.MouseDown += PreviewImage_MouseDown;
-        PreviewImage.Paint += PreviewImage_Paint;
-        _PreviewFocusSink.EscapePressed += PreviewFocusSink_EscapePressed;
-        PreviewHost.Controls.Add(_PreviewFocusSink);
-        PreviewCanvas.MouseLeave += PreviewImage_MouseLeave;
+        CodeView.Editor.MouseDoubleClick += Editor_MouseDoubleClick;
+        Preview.PictureMouseMove += Preview_PictureMouseMove;
+        Preview.PictureMouseLeave += Preview_PictureMouseLeave;
+        Preview.EscapePressed += Preview_EscapePressed;
+        Preview.SelectedItemsChanged += Preview_SelectedItemsChanged;
+        Preview.ZoomChanged += Preview_ZoomChanged;
+        Preview.RefreshRequested += Preview_RefreshRequested;
         Deactivate += MainForm_Deactivate;
         Application.AddMessageFilter(_PreviewHoverDismiss);
-        PreviewHost.Layout += PreviewHost_Layout;
-        PreviewZoomInButton.Click += PreviewZoomInButton_Click;
-        PreviewZoomOutButton.Click += PreviewZoomOutButton_Click;
-        PreviewFitButton.Click += FitPreviewMenuItem_Click;
-        PreviewFitButton.Paint += PreviewFitButton_Paint;
         ElementToolbar.BindSource(CurrentEditorText);
         ElementToolbar.InsertRequested += ElementToolbar_InsertRequested;
         ElementToolbar.PromptClosed += ElementToolbar_PromptClosed;
@@ -358,9 +352,7 @@ public partial class MainForm : Form
         ZoomOutMenuItem.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
         ZoomResetMenuItem.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
         FitPreviewMenuItem.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
-        PreviewZoomInButton.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
-        PreviewZoomOutButton.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
-        PreviewFitButton.Enabled = LiveEditorFeatureGate.L_ZoomPanPreview;
+        Preview.NavigationEnabled = LiveEditorFeatureGate.L_ZoomPanPreview;
         ToggleDiagnosticsMenuItem.Enabled = LiveEditorFeatureGate.X_DiagnosticsPanel;
         ToggleMinimapMenuItem.Enabled = LiveEditorFeatureGate.Y_Minimap;
         ToggleLegacyPreviewMenuItem.Enabled = LiveEditorFeatureGate.S_LegacyPreview;
@@ -376,7 +368,9 @@ public partial class MainForm : Form
 
     private void ApplySettings()
     {
-        _PreviewZoom = ClampZoom(_Settings.PreviewZoom);
+        Preview.Zoom = _Settings.PreviewZoom;
+        Preview.FitToWindow = _Settings.PreviewFitToWindow;
+        Preview.SelectionColour = SessionSettings.ParseColour(_Settings.SelectionColour);
         BodySplit.Panel2Collapsed = !LiveEditorFeatureGate.X_DiagnosticsPanel || !_Settings.DiagnosticsVisible;
         CodeView.MinimapVisible = LiveEditorFeatureGate.Y_Minimap && _Settings.MinimapVisible;
         Orientation DesiredOrientation = _Settings.VerticalSplit ? Orientation.Vertical : Orientation.Horizontal;
@@ -449,6 +443,37 @@ public partial class MainForm : Form
         UpdateCaretDiagnosticStatus();
         ElementToolbar.UpdateFromEditor(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
         SyncPreviewSelectionFromCaret();
+    }
+
+    private void Editor_MouseDoubleClick(object? Sender, MouseEventArgs E)
+    {
+        if (E.Button != MouseButtons.Left || _IgnorePreviewSelection || _SyncingSelectionFromPreview || CodeView.IsApplyingFormatting || Preview.Index == null || !PreviewIndexIsCurrent)
+        {
+            return;
+        }
+
+        PreviewObject? AtCaret = PreviewObjectAtCaret();
+        if (AtCaret == null)
+        {
+            return;
+        }
+
+        _CaretAtPreviewClear = -1;
+        _FollowPreviewFromCaret = true;
+        if (!ReferenceEquals(AtCaret, CurrentPreviewItem()))
+        {
+            _IgnorePreviewSelection = true;
+            try
+            {
+                Preview.SelectedItems = new PreviewObject[] { AtCaret };
+            }
+            finally
+            {
+                _IgnorePreviewSelection = false;
+            }
+        }
+
+        Preview.ScrollItemIntoView(AtCaret, Centre: true);
     }
 
     private void CodeView_ColoursRefreshing(object? Sender, EventArgs E)
@@ -644,37 +669,25 @@ public partial class MainForm : Form
             BeginInvoke(() => PublishDiagramMetadata(Metadata));
             Token.ThrowIfCancellationRequested();
             ReportRenderProgress(Generation, 10, "Laying out");
-            string? Svg = null;
-            byte[]? PngBytes;
-            if (LegacyPreview)
+            Token.ThrowIfCancellationRequested();
+            if (IsHandleCreated)
             {
-                Svg = MermaidDiagramExport.RenderSvg(Source);
-                Token.ThrowIfCancellationRequested();
-                ReportRenderProgress(Generation, 80, "Drawing picture");
-                PngBytes = MermaidDiagramExport.TryRasterizeSvg(Svg);
-            }
-            else if (MermaidDiagramExport.TryRenderPreviewSvg(Source, out string PreviewSvg))
-            {
-                Svg = PreviewSvg;
-                Token.ThrowIfCancellationRequested();
-                ReportRenderProgress(Generation, 80, "Drawing picture");
-                PngBytes = MermaidDiagramExport.TryRasterizeSvg(Svg);
+                Invoke(() =>
+                {
+                    _IgnorePreviewSelection = true;
+                });
             }
             else
             {
-                PngBytes = null;
+                _IgnorePreviewSelection = true;
             }
 
+            Preview.UseLegacyRenderer = LegacyPreview;
+            Preview.Load(Source);
             Token.ThrowIfCancellationRequested();
             Timer.Stop();
             ReportRenderProgress(Generation, 95, "Showing picture");
-            if (PngBytes == null || PngBytes.Length == 0)
-            {
-                BeginInvoke(() => ApplyRenderFailure(Generation, "Incomplete diagram", Timer.ElapsedMilliseconds));
-                return;
-            }
-
-            BeginInvoke(() => ApplyRenderSuccess(Generation, PngBytes, Svg, Timer.ElapsedMilliseconds, LegacyPreview));
+            BeginInvoke(() => CompleteRender(Generation, Timer.ElapsedMilliseconds, LegacyPreview));
         }
         catch (OperationCanceledException)
         {
@@ -686,41 +699,35 @@ public partial class MainForm : Form
         }
     }
 
-    private void ApplyRenderSuccess(int Generation, byte[] PngBytes, string? Svg, long ElapsedMilliseconds, bool LegacyPreview)
+    private void CompleteRender(int Generation, long ElapsedMilliseconds, bool LegacyPreview)
     {
         if (Generation != _RenderGeneration || IsDisposed)
         {
             return;
         }
 
+        if (Preview.Image == null)
+        {
+            ApplyRenderFailure(Generation, string.IsNullOrWhiteSpace(Preview.RenderFailure) ? "Incomplete diagram" : Preview.RenderFailure, ElapsedMilliseconds);
+            return;
+        }
+
         try
         {
-            using MemoryStream Stream = new MemoryStream(PngBytes);
-            using Image Loaded = Image.FromStream(Stream);
-            Image NewImage = new Bitmap(Loaded);
-            Image? Previous = PreviewImage.Image;
-            PreviewImage.Image = NewImage;
-            if (Previous != null && !ReferenceEquals(Previous, _LastGoodPreview))
-            {
-                Previous.Dispose();
-            }
-
-            if (_LastGoodPreview != null && !ReferenceEquals(_LastGoodPreview, NewImage))
-            {
-                _LastGoodPreview.Dispose();
-            }
-
-            _LastGoodPreview = NewImage;
-            _LastPngBytes = (byte[])PngBytes.Clone();
-            _LastSvg = Svg;
-            _PreviewHover = PreviewHoverIndex.Build(Svg, CodeView.Editor.Text);
+            _LastPngBytes = CopyPng(Preview.Image);
+            _LastSvg = Preview.RenderedSvg;
             _PreviewIndexTextVersion = _RenderTextVersion;
             RestorePreviewSelection();
             _BrokenSince = null;
-            PreviewBanner.Visible = LegacyPreview;
-            PreviewBanner.Height = LegacyPreview ? 28 : 0;
-            PreviewBanner.Text = LegacyPreview ? "Legacy Naiad preview" : string.Empty;
-            ApplyPreviewZoom();
+            if (LegacyPreview)
+            {
+                Preview.ShowBanner("Legacy Naiad preview", 28);
+            }
+            else
+            {
+                Preview.HideBanner();
+            }
+
             ReportRenderProgressNow(Generation, 100, "Done");
             SetStatus(CaretStatusOr("OK"));
             UpdateRenderTiming(ElapsedMilliseconds);
@@ -730,6 +737,18 @@ public partial class MainForm : Form
         {
             ApplyRenderFailure(Generation, Ex.Message, ElapsedMilliseconds);
         }
+        finally
+        {
+            _IgnorePreviewSelection = false;
+        }
+    }
+
+    private static byte[] CopyPng(Image Picture)
+    {
+        using MemoryStream Stream = new MemoryStream();
+        using Bitmap Copy = new Bitmap(Picture);
+        Copy.Save(Stream, ImageFormat.Png);
+        return Stream.ToArray();
     }
 
     private void ApplyRenderFailure(int Generation, string Message, long ElapsedMilliseconds)
@@ -747,23 +766,22 @@ public partial class MainForm : Form
         _BrokenSince ??= DateTime.Now;
         if (!LiveEditorFeatureGate.Q_KeepLastGoodPreview)
         {
-            Image? Previous = PreviewImage.Image;
-            PreviewImage.Image = null;
-            if (Previous != null && !ReferenceEquals(Previous, _LastGoodPreview))
+            _IgnorePreviewSelection = true;
+            try
             {
-                Previous.Dispose();
+                Preview.Clear();
+            }
+            finally
+            {
+                _IgnorePreviewSelection = false;
             }
 
-            _PreviewHover = null;
-            _PreviewSelection = null;
             HidePreviewHover();
             UpdateSelectionPanel();
         }
 
-        PreviewBanner.Visible = true;
-        PreviewBanner.Height = 32;
         string Time = _BrokenSince.Value.ToString("T", CultureInfo.CurrentCulture);
-        PreviewBanner.Text = $"Broken since {Time}: {TruncateStatus(Message)}";
+        Preview.ShowBanner($"Broken since {Time}: {TruncateStatus(Message)}", 32);
         SetStatus(CaretStatusOr(TruncateStatus(Message)));
         UpdateRenderTiming(ElapsedMilliseconds);
         UpdateCaretDiagnosticStatus();
@@ -820,34 +838,15 @@ public partial class MainForm : Form
         TimingLabel.Text = LiveEditorFeatureGate.R_RenderTiming ? $"{ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture)} ms" : string.Empty;
     }
 
-    private void PreviewImage_MouseMove(object? Sender, MouseEventArgs E)
+    private void Preview_PictureMouseMove(object? Sender, MouseEventArgs E)
     {
-        if (PreviewImage.Image == null || _PreviewHover == null)
+        if (!Preview.HasPicture || Preview.Index == null)
         {
             HidePreviewHover();
             return;
         }
 
-        double SvgX;
-        double SvgY;
-        bool Mapped = PreviewHoverIndex.TryMapClientToSvg(
-            E.X,
-            E.Y,
-            PreviewImage.ClientSize.Width,
-            PreviewImage.ClientSize.Height,
-            PreviewImage.Image.Width,
-            PreviewImage.Image.Height,
-            _PreviewHover.Width,
-            _PreviewHover.Height,
-            out SvgX,
-            out SvgY);
-        if (!Mapped)
-        {
-            HidePreviewHover();
-            return;
-        }
-
-        string? Text = _PreviewHover.Hit(SvgX, SvgY);
+        string? Text = Preview.HitText(E.Location);
         if (string.IsNullOrEmpty(Text))
         {
             HidePreviewHover();
@@ -860,150 +859,30 @@ public partial class MainForm : Form
         }
 
         _PreviewHoverText = Text;
-        _PreviewHoverWindow.ShowNear(this, Text, PreviewImage.PointToScreen(E.Location));
+        _PreviewHoverWindow.ShowNear(this, Text, Preview.PictureToScreen(E.Location));
     }
 
-    private void PreviewImage_MouseLeave(object? Sender, EventArgs E)
+    private void Preview_PictureMouseLeave(object? Sender, EventArgs E)
     {
         HidePreviewHover();
     }
 
-    /// <summary>Gets the selected preview object, or null when nothing is selected.</summary>
-    internal PreviewObject? PreviewSelectionObject
-    {
-        get
-        {
-            return _PreviewSelection;
-        }
-    }
-
-    /// <summary>Gets the hit index for the picture in the preview.</summary>
-    internal PreviewHoverIndex? PreviewIndex
-    {
-        get
-        {
-            return _PreviewHover;
-        }
-    }
-
-    /// <summary>Gets whether the preview index was built from the text now in the editor.</summary>
-    internal bool PreviewIndexIsCurrent
-    {
-        get
-        {
-            return _PreviewHover != null && _PreviewIndexTextVersion == _EditorTextVersion;
-        }
-    }
-
-    /// <summary>
-    /// Selects a preview object and selects its declaration in the editor.
-    /// </summary>
-    /// <param name="Selected">Object to select, or null to clear the selection.</param>
-    internal void SelectPreviewObject(PreviewObject? Selected)
-    {
-        SelectPreviewObject(Selected, SyncEditor: true);
-    }
-
-    /// <summary>
-    /// Does what a left click at a point in the preview picture does.
-    /// </summary>
-    /// <param name="ClientPoint">Point in picture-box client pixels.</param>
-    internal void ClickPreview(Point ClientPoint)
-    {
-        if (_PreviewFocusSink.CanFocus)
-        {
-            _PreviewFocusSink.Focus();
-        }
-
-        SelectPreviewObject(HitPreviewObject(ClientPoint.X, ClientPoint.Y), SyncEditor: true);
-    }
-
-    /// <summary>
-    /// Does what Esc does while the preview has focus.
-    /// </summary>
-    internal void PressPreviewEscape()
-    {
-        _PreviewFocusSink.HandleKey(Keys.Escape);
-    }
-
-    /// <summary>
-    /// Returns the object under a point in the preview picture.
-    /// </summary>
-    /// <param name="ClientX">Pointer position in the picture box.</param>
-    /// <param name="ClientY">Pointer position in the picture box.</param>
-    /// <returns>The object, or null for empty space.</returns>
-    internal PreviewObject? HitPreviewObject(int ClientX, int ClientY)
-    {
-        if (!TryGetPreviewTransform(out double ScaleX, out double ScaleY, out double OffsetX, out double OffsetY) || _PreviewHover == null)
-        {
-            return null;
-        }
-
-        double SvgX = (ClientX - OffsetX) / ScaleX;
-        double SvgY = (ClientY - OffsetY) / ScaleY;
-        return _PreviewHover.HitObject(SvgX, SvgY, PreviewSelection.CLICK_TOLERANCE / Math.Min(ScaleX, ScaleY));
-    }
-
-    private bool TryGetPreviewTransform(out double ScaleX, out double ScaleY, out double OffsetX, out double OffsetY)
-    {
-        ScaleX = 0;
-        ScaleY = 0;
-        OffsetX = 0;
-        OffsetY = 0;
-        Image? Picture = PreviewImage.Image;
-        if (Picture == null || _PreviewHover == null)
-        {
-            return false;
-        }
-
-        return PreviewSelection.TryGetSvgToClient(
-            PreviewImage.ClientSize.Width,
-            PreviewImage.ClientSize.Height,
-            Picture.Width,
-            Picture.Height,
-            _PreviewHover.Width,
-            _PreviewHover.Height,
-            out ScaleX,
-            out ScaleY,
-            out OffsetX,
-            out OffsetY);
-    }
-
-    private void PreviewImage_MouseDown(object? Sender, MouseEventArgs E)
-    {
-        if (E.Button != MouseButtons.Left)
-        {
-            return;
-        }
-
-        ClickPreview(E.Location);
-    }
-
-    private void PreviewImage_Paint(object? Sender, PaintEventArgs E)
-    {
-        if (_PreviewSelection == null)
-        {
-            return;
-        }
-
-        if (TryGetPreviewTransform(out double ScaleX, out double ScaleY, out double OffsetX, out double OffsetY))
-        {
-            PreviewSelection.Paint(E.Graphics, _PreviewSelection, SessionSettings.ParseColour(_Settings.SelectionColour), ScaleX, ScaleY, OffsetX, OffsetY);
-        }
-    }
-
-    private void PreviewFocusSink_EscapePressed(object? Sender, EventArgs E)
+    private void Preview_EscapePressed(object? Sender, EventArgs E)
     {
         SelectPreviewObject(null, SyncEditor: false);
     }
 
-    private void SelectPreviewObject(PreviewObject? Selected, bool SyncEditor)
+    private void Preview_SelectedItemsChanged(object? Sender, EventArgs E)
     {
-        _PreviewSelection = Selected;
-        PreviewImage.Invalidate();
         UpdateSelectionPanel();
-        if (!SyncEditor || Selected == null || Selected.LineNumber < 1 || !PreviewIndexIsCurrent)
+        PreviewObject? Selected = CurrentPreviewItem();
+        if (_IgnorePreviewSelection || Selected == null || Selected.LineNumber < 1 || !PreviewIndexIsCurrent)
         {
+            if (Selected == null)
+            {
+                _CaretAtPreviewClear = CodeView.Editor.SelectionStart;
+            }
+
             return;
         }
 
@@ -1025,16 +904,130 @@ public partial class MainForm : Form
         }
     }
 
+    private void Preview_RefreshRequested(object? Sender, EventArgs E)
+    {
+        QueueRender();
+    }
+
+    private void Preview_ZoomChanged(object? Sender, EventArgs E)
+    {
+        _Settings.PreviewZoom = Preview.Zoom;
+        _Settings.PreviewFitToWindow = Preview.FitToWindow;
+        if (Preview.FitToWindow)
+        {
+            SetStatus("Preview fitted to window");
+            return;
+        }
+
+        SetStatus($"Preview zoom {Math.Round(Preview.Zoom * 100.0).ToString(CultureInfo.InvariantCulture)}%");
+    }
+
+    /// <summary>Gets the selected preview object, or null when nothing is selected.</summary>
+    internal PreviewObject? PreviewSelectionObject
+    {
+        get
+        {
+            return CurrentPreviewItem();
+        }
+    }
+
+    /// <summary>Gets the hit index for the picture in the preview.</summary>
+    internal PreviewHoverIndex? PreviewIndex
+    {
+        get
+        {
+            return Preview.Index;
+        }
+    }
+
+    /// <summary>Gets whether the preview index was built from the text now in the editor.</summary>
+    internal bool PreviewIndexIsCurrent
+    {
+        get
+        {
+            return Preview.Index != null && _PreviewIndexTextVersion == _EditorTextVersion;
+        }
+    }
+
+    /// <summary>
+    /// Selects a preview object and selects its declaration in the editor.
+    /// </summary>
+    /// <param name="Selected">Object to select, or null to clear the selection.</param>
+    internal void SelectPreviewObject(PreviewObject? Selected)
+    {
+        SelectPreviewObject(Selected, SyncEditor: true);
+    }
+
+    /// <summary>
+    /// Does what a left click at a point in the preview picture does.
+    /// </summary>
+    /// <param name="ClientPoint">Point in picture-box client pixels.</param>
+    internal void ClickPreview(Point ClientPoint)
+    {
+        Preview.FocusForKeys();
+        SelectPreviewObject(Preview.HitItem(ClientPoint), SyncEditor: true);
+    }
+
+    /// <summary>
+    /// Does what Esc does while the preview has focus.
+    /// </summary>
+    internal void PressPreviewEscape()
+    {
+        Preview.PressEscape();
+    }
+
+    /// <summary>
+    /// Returns the object under a point in the preview picture.
+    /// </summary>
+    /// <param name="ClientX">Pointer position in the picture box.</param>
+    /// <param name="ClientY">Pointer position in the picture box.</param>
+    /// <returns>The object, or null for empty space.</returns>
+    internal PreviewObject? HitPreviewObject(int ClientX, int ClientY)
+    {
+        return Preview.HitItem(new Point(ClientX, ClientY));
+    }
+
+    private PreviewObject? CurrentPreviewItem()
+    {
+        IReadOnlyList<PreviewObject>? Items = Preview.SelectedItems;
+        if (Items == null || Items.Count == 0)
+        {
+            return null;
+        }
+
+        return Items[Items.Count - 1];
+    }
+
+    private void SelectPreviewObject(PreviewObject? Selected, bool SyncEditor)
+    {
+        _IgnorePreviewSelection = !SyncEditor;
+        try
+        {
+            if (Selected == null)
+            {
+                Preview.SelectedItems = null;
+            }
+            else
+            {
+                Preview.SelectedItems = new PreviewObject[] { Selected };
+            }
+        }
+        finally
+        {
+            _IgnorePreviewSelection = false;
+        }
+    }
+
     private PreviewObject? PreviewObjectAtCaret()
     {
-        if (_PreviewHover == null)
+        if (Preview.Index == null)
         {
             return null;
         }
 
         string Text = CodeView.Editor.Text;
         int Line = PreviewSelection.LineNumberAt(Text, CodeView.Editor.SelectionStart);
-        PreviewObject? AtLine = _PreviewHover.ObjectAtLine(Line);
+        PreviewObject? AtLine = Preview.Index.ObjectAtLine(Line);
         if (AtLine != null && PreviewIndexIsCurrent)
         {
             return AtLine;
@@ -1051,7 +1044,7 @@ public partial class MainForm : Form
 
     private PreviewObject? DrawnObjectForLine(string Text, int Line)
     {
-        if (_PreviewHover == null || Line < 1 || !EnterpriseParser.IsEnterpriseSource(Text))
+        if (Preview.Index == null || Line < 1 || !EnterpriseParser.IsEnterpriseSource(Text))
         {
             return null;
         }
@@ -1067,7 +1060,7 @@ public partial class MainForm : Form
             string Kind = EnterpriseElementCatalog.GetRelationshipName(Relationship.Kind);
             for (int Occurrence = 0; ; Occurrence++)
             {
-                PreviewObject? Match = _PreviewHover.FindObject("line\u001f" + Relationship.SourceId + "\u001f" + Relationship.TargetId + "\u001f" + Kind + "\u001f" + Occurrence.ToString(CultureInfo.InvariantCulture));
+                PreviewObject? Match = Preview.Index.FindObject("line\u001f" + Relationship.SourceId + "\u001f" + Relationship.TargetId + "\u001f" + Kind + "\u001f" + Occurrence.ToString(CultureInfo.InvariantCulture));
                 if (Match == null)
                 {
                     break;
@@ -1084,7 +1077,7 @@ public partial class MainForm : Form
         {
             if (Element.LineNumber == Line)
             {
-                return _PreviewHover.FindObject("node\u001f" + Element.Id);
+                return Preview.Index.FindObject("node\u001f" + Element.Id);
             }
         }
 
@@ -1092,7 +1085,7 @@ public partial class MainForm : Form
         {
             if (Group.LineNumber == Line)
             {
-                return _PreviewHover.FindObject("node\u001f" + Group.Id);
+                return Preview.Index.FindObject("node\u001f" + Group.Id);
             }
         }
 
@@ -1100,7 +1093,7 @@ public partial class MainForm : Form
         {
             if (Note.LineNumber == Line)
             {
-                return _PreviewHover.FindObject("node\u001f" + Note.Id);
+                return Preview.Index.FindObject("node\u001f" + Note.Id);
             }
         }
 
@@ -1122,37 +1115,74 @@ public partial class MainForm : Form
 
     private void SyncPreviewSelectionFromCaret()
     {
-        if (_SyncingSelectionFromPreview || CodeView.IsApplyingFormatting || _PreviewHover == null)
+        if (_IgnorePreviewSelection || _SyncingSelectionFromPreview || !CodeView.Editor.Focused || CodeView.IsApplyingFormatting || Preview.Index == null || !PreviewIndexIsCurrent)
         {
             return;
         }
 
+        if (_CaretAtPreviewClear >= 0 && CodeView.Editor.SelectionStart == _CaretAtPreviewClear)
+        {
+            return;
+        }
+
+        _CaretAtPreviewClear = -1;
+        _FollowPreviewFromCaret = true;
         PreviewObject? AtCaret = PreviewObjectAtCaret();
-        if (ReferenceEquals(AtCaret, _PreviewSelection))
+        if (AtCaret == null)
         {
             return;
         }
 
-        _PreviewSelection = AtCaret;
-        PreviewImage.Invalidate();
-        UpdateSelectionPanel();
+        if (!ReferenceEquals(AtCaret, CurrentPreviewItem()))
+        {
+            _IgnorePreviewSelection = true;
+            try
+            {
+                Preview.SelectedItems = new PreviewObject[] { AtCaret };
+            }
+            finally
+            {
+                _IgnorePreviewSelection = false;
+            }
+        }
+
+        Preview.ScrollItemIntoView(AtCaret, Centre: false);
     }
 
     private void RestorePreviewSelection()
     {
-        PreviewObject? Restored = _PreviewHover?.FindObject(_PreviewSelection?.Key);
-        if (CodeView.Editor.Focused)
+        List<PreviewObject> Restored = new List<PreviewObject>();
+        if (Preview.SelectedItems != null)
+        {
+            foreach (PreviewObject Item in Preview.SelectedItems)
+            {
+                PreviewObject? Found = Preview.FindItem(Item.Key);
+                if (Found != null)
+                {
+                    Restored.Add(Found);
+                }
+            }
+        }
+
+        if (_FollowPreviewFromCaret && CodeView.Editor.Focused)
         {
             PreviewObject? AtCaret = PreviewObjectAtCaret();
             if (AtCaret != null)
             {
-                Restored = AtCaret;
+                Restored.Clear();
+                Restored.Add(AtCaret);
             }
         }
 
-        _PreviewSelection = Restored;
-        PreviewImage.Invalidate();
-        UpdateSelectionPanel();
+        _IgnorePreviewSelection = true;
+        try
+        {
+            Preview.SelectedItems = Restored;
+        }
+        finally
+        {
+            _IgnorePreviewSelection = false;
+        }
     }
 
     private void UpdateSelectionPanel()
@@ -1162,8 +1192,8 @@ public partial class MainForm : Form
             return;
         }
 
-        PreviewObject? Selected = _PreviewSelection;
-        if (Selected == null || _PreviewHover == null)
+        PreviewObject? Selected = CurrentPreviewItem();
+        if (Selected == null || Preview.Index == null)
         {
             SelectionDetails.ShowNone();
             return;
@@ -1246,8 +1276,8 @@ public partial class MainForm : Form
 
     private Image? CropSelection(PreviewObject Selected)
     {
-        Image? Picture = PreviewImage.Image;
-        if (Picture == null || _PreviewHover == null || _PreviewHover.Width <= 0 || _PreviewHover.Height <= 0)
+        Image? Picture = Preview.Picture;
+        if (Picture == null || Preview.Index == null || Preview.Index.Width <= 0 || Preview.Index.Height <= 0)
         {
             return null;
         }
@@ -1257,8 +1287,8 @@ public partial class MainForm : Form
             return null;
         }
 
-        double ScaleX = Picture.Width / _PreviewHover.Width;
-        double ScaleY = Picture.Height / _PreviewHover.Height;
+        double ScaleX = Picture.Width / Preview.Index.Width;
+        double ScaleY = Picture.Height / Preview.Index.Height;
         int Left = (int)Math.Floor((Selected.Left - 6) * ScaleX);
         int Top = (int)Math.Floor((Selected.Top - 6) * ScaleY);
         int Right = (int)Math.Ceiling((Selected.Right + 6) * ScaleX);
@@ -1299,35 +1329,92 @@ public partial class MainForm : Form
         return Crop;
     }
 
-    private void SelectionDetails_ChangeTypeClicked(object? Sender, EventArgs E)
+    /// <summary>
+    /// Replaces the declaration line of an item. The item does not need to be selected.
+    /// </summary>
+    /// <param name="Item">Item whose declaration line is replaced.</param>
+    /// <param name="Declaration">The new declaration line, without a line break.</param>
+    /// <returns>False when the source is left unchanged.</returns>
+    internal bool ReplacePreviewItem(PreviewObject? Item, string? Declaration)
     {
-        if (_PreviewSelection == null || _PreviewSelection.Kind == PreviewObjectKind.Relationship || SelectionDetails.SelectedKebab.Length == 0)
+        if (Item == null)
         {
-            return;
+            return false;
         }
 
-        string Updated = ElementTypeChange.Apply(CodeView.Editor.Text, _PreviewSelection.Id, SelectionDetails.SelectedKebab, SelectionDetails.RemoveDisallowedRelationships);
+        return ApplyDiagramText(PreviewItemEdit.ReplaceDeclaration(CodeView.Editor.Text, Item, Declaration));
+    }
+
+    /// <summary>
+    /// Removes the declaration line of an item. The item does not need to be selected.
+    /// </summary>
+    /// <param name="Item">Item to remove.</param>
+    /// <returns>False when the source is left unchanged.</returns>
+    internal bool RemovePreviewItem(PreviewObject? Item)
+    {
+        if (Item == null)
+        {
+            return false;
+        }
+
+        return ApplyDiagramText(PreviewItemEdit.Remove(CodeView.Editor.Text, Item));
+    }
+
+    /// <summary>
+    /// Changes the type of an element, or the kind of a relationship. The item does not need to be selected.
+    /// </summary>
+    /// <param name="Item">Item to change.</param>
+    /// <param name="NewKebab">New element token, such as application-service, or a relationship kind, such as serving.</param>
+    /// <param name="RemoveDisallowedRelationships">When true, relationships the new element type does not allow are removed.</param>
+    /// <returns>False when the source is left unchanged.</returns>
+    internal bool ChangePreviewItemType(PreviewObject? Item, string? NewKebab, bool RemoveDisallowedRelationships)
+    {
+        if (Item == null)
+        {
+            return false;
+        }
+
+        return ApplyDiagramText(PreviewItemEdit.ChangeType(CodeView.Editor.Text, Item, NewKebab, RemoveDisallowedRelationships));
+    }
+
+    private bool ApplyDiagramText(string Updated)
+    {
         if (string.Equals(Updated, CodeView.Editor.Text, StringComparison.Ordinal))
         {
-            SetStatus("The element is already that type, or its declaration could not be changed.");
-            return;
+            return false;
         }
 
         CodeView.IntelliSense.Suppress = true;
+        _IgnorePreviewSelection = true;
         try
         {
-            CodeView.Editor.Select(0, CodeView.Editor.TextLength);
-            CodeView.Editor.SelectedText = Updated;
+            CodeView.Editor.Text = Updated;
         }
         finally
         {
             CodeView.IntelliSense.Suppress = false;
+            _IgnorePreviewSelection = false;
         }
 
         _IsDirty = true;
         UpdateTitle();
         QueueHighlight();
         QueueRender();
+        return true;
+    }
+
+    private void SelectionDetails_ChangeTypeClicked(object? Sender, EventArgs E)
+    {
+        PreviewObject? Selected = CurrentPreviewItem();
+        if (Selected == null || Selected.Kind == PreviewObjectKind.Relationship || SelectionDetails.SelectedKebab.Length == 0)
+        {
+            return;
+        }
+
+        if (!ChangePreviewItemType(Selected, SelectionDetails.SelectedKebab, SelectionDetails.RemoveDisallowedRelationships))
+        {
+            SetStatus("The element is already that type, or its declaration could not be changed.");
+        }
     }
 
     private void MainForm_Deactivate(object? Sender, EventArgs E)
@@ -1337,12 +1424,12 @@ public partial class MainForm : Form
 
     private void DismissPreviewHoverIfPointerLeft()
     {
-        if (!_PreviewHoverWindow.Visible || PreviewImage.IsDisposed)
+        if (!_PreviewHoverWindow.Visible || Preview.IsPictureDisposed)
         {
             return;
         }
 
-        Rectangle Area = PreviewImage.RectangleToScreen(PreviewImage.ClientRectangle);
+        Rectangle Area = Preview.PictureScreenRectangle();
         if (!Area.Contains(Cursor.Position))
         {
             HidePreviewHover();
@@ -1377,321 +1464,20 @@ public partial class MainForm : Form
 
             if (Message.Msg == WM_MOUSEWHEEL)
             {
-                return _Host.TryHandlePreviewMouseWheelMessage(Message);
+                return _Host.Preview.TryHandleMouseWheel(Message);
             }
 
             return false;
         }
     }
 
-    private void PreviewCanvas_MouseWheel(object? Sender, MouseEventArgs E)
-    {
-        HandlePreviewMouseWheel(E.Delta, E.Location, E);
-    }
-
-    private void PreviewImage_MouseWheel(object? Sender, MouseEventArgs E)
-    {
-        Point OnCanvas = PreviewCanvas.PointToClient(PreviewImage.PointToScreen(E.Location));
-        HandlePreviewMouseWheel(E.Delta, OnCanvas, E);
-    }
-
-    /// <summary>
-    /// When the pointer is over the preview, eats the wheel so the editor does not scroll or zoom, and applies Visio-style preview navigation.
-    /// </summary>
-    private bool TryHandlePreviewMouseWheelMessage(Message Message)
-    {
-        if (!LiveEditorFeatureGate.L_ZoomPanPreview || !IsPointerOverPreview())
-        {
-            return false;
-        }
-
-        int Delta = unchecked((short)((ulong)Message.WParam.ToInt64() >> 16));
-        if (Delta == 0)
-        {
-            return false;
-        }
-
-        Point OnCanvas = PreviewCanvas.PointToClient(Cursor.Position);
-        HandlePreviewMouseWheel(Delta, OnCanvas, null);
-        return true;
-    }
-
-    private bool IsPointerOverPreview()
-    {
-        if (PreviewCanvas.IsDisposed || !PreviewCanvas.Visible)
-        {
-            return false;
-        }
-
-        Rectangle Area = PreviewCanvas.RectangleToScreen(PreviewCanvas.ClientRectangle);
-        return Area.Contains(Cursor.Position);
-    }
-
-    /// <summary>
-    /// Routes preview wheel input: Ctrl zooms at the cursor, Shift scrolls left/right (Visio-style), otherwise scrolls vertically.
-    /// </summary>
-    private void HandlePreviewMouseWheel(int Delta, Point CanvasClient, MouseEventArgs? E)
-    {
-        Keys Mods = ModifierKeys;
-        if ((Mods & Keys.Control) == Keys.Control)
-        {
-            if (E is HandledMouseEventArgs Handled)
-            {
-                Handled.Handled = true;
-            }
-
-            double CurrentZoom = CurrentPreviewZoom();
-            double NextZoom = Delta > 0 ? CurrentZoom * PREVIEW_ZOOM_STEP : CurrentZoom / PREVIEW_ZOOM_STEP;
-            SetPreviewZoomAt(NextZoom, CanvasClient);
-            return;
-        }
-
-        if (E is HandledMouseEventArgs Marked)
-        {
-            Marked.Handled = true;
-        }
-
-        if ((Mods & Keys.Shift) == Keys.Shift)
-        {
-            ScrollPreviewByWheel(Delta, Horizontal: true);
-            return;
-        }
-
-        ScrollPreviewByWheel(Delta, Horizontal: false);
-    }
-
-    /// <summary>
-    /// Scrolls the preview from a mouse-wheel delta. Positive delta scrolls up or left (Visio-style with Shift).
-    /// </summary>
-    private void ScrollPreviewByWheel(int Delta, bool Horizontal)
-    {
-        if (!LiveEditorFeatureGate.L_ZoomPanPreview)
-        {
-            return;
-        }
-
-        int ScrollX = -PreviewCanvas.AutoScrollPosition.X;
-        int ScrollY = -PreviewCanvas.AutoScrollPosition.Y;
-        int Notch = SystemInformation.MouseWheelScrollDelta;
-        if (Notch <= 0)
-        {
-            Notch = 120;
-        }
-
-        int LinePixels = Math.Max(16, SystemInformation.MouseWheelScrollLines * 16);
-        if (SystemInformation.MouseWheelScrollLines < 0)
-        {
-            int Span = Horizontal ? PreviewCanvas.ClientSize.Width : PreviewCanvas.ClientSize.Height;
-            LinePixels = Math.Max(16, Span / 4);
-        }
-
-        int DeltaNotches = Delta / Notch;
-        if (DeltaNotches == 0 && Delta != 0)
-        {
-            DeltaNotches = Math.Sign(Delta);
-        }
-
-        int Step = DeltaNotches * LinePixels;
-        if (Horizontal)
-        {
-            int NewX = Math.Max(0, ScrollX - Step);
-            PreviewCanvas.AutoScrollPosition = new Point(NewX, ScrollY);
-            return;
-        }
-
-        int NewY = Math.Max(0, ScrollY - Step);
-        PreviewCanvas.AutoScrollPosition = new Point(ScrollX, NewY);
-    }
-
-    private void PreviewCanvas_Resize(object? Sender, EventArgs E)
-    {
-        if (PreviewImage.Image != null)
-        {
-            ApplyPreviewZoom();
-        }
-    }
-
-    private void SetPreviewZoom(double Zoom)
-    {
-        Point Centre = new Point(PreviewCanvas.ClientSize.Width / 2, PreviewCanvas.ClientSize.Height / 2);
-        SetPreviewZoomAt(Zoom, Centre);
-    }
-
-    /// <summary>
-    /// Zooms the preview so the diagram point under <paramref name="ClientPoint"/> stays under the cursor.
-    /// </summary>
-    /// <param name="Zoom">Requested zoom factor.</param>
-    /// <param name="ClientPoint">Point in preview-canvas client pixels, usually the mouse.</param>
-    private void SetPreviewZoomAt(double Zoom, Point ClientPoint)
-    {
-        double NewZoom = ClampZoom(Zoom);
-        if (PreviewImage.Image == null)
-        {
-            _PreviewZoom = NewZoom;
-            _Settings.PreviewZoom = _PreviewZoom;
-            _Settings.PreviewFitToWindow = false;
-            ApplyPreviewZoom();
-            SetStatus($"Preview zoom {Math.Round(_PreviewZoom * 100.0).ToString(CultureInfo.InvariantCulture)}%");
-            return;
-        }
-
-        double OldZoom = CurrentPreviewZoom();
-        if (Math.Abs(NewZoom - OldZoom) < 0.0001 && !_Settings.PreviewFitToWindow)
-        {
-            return;
-        }
-
-        GetImagePointUnderClient(ClientPoint, out double ImageX, out double ImageY);
-        _PreviewZoom = NewZoom;
-        _Settings.PreviewZoom = _PreviewZoom;
-        _Settings.PreviewFitToWindow = false;
-        ApplyPreviewZoom();
-        int ContentX = (int)Math.Round(ImageX * NewZoom);
-        int ContentY = (int)Math.Round(ImageY * NewZoom);
-        PreviewCanvas.AutoScrollPosition = new Point(Math.Max(0, ContentX - ClientPoint.X), Math.Max(0, ContentY - ClientPoint.Y));
-        SetStatus($"Preview zoom {Math.Round(_PreviewZoom * 100.0).ToString(CultureInfo.InvariantCulture)}%");
-    }
-
-    /// <summary>
-    /// Maps a canvas client point onto image pixels at the current zoom or fit scale.
-    /// </summary>
-    private void GetImagePointUnderClient(Point ClientPoint, out double ImageX, out double ImageY)
-    {
-        Image Picture = PreviewImage.Image!;
-        if (_Settings.PreviewFitToWindow)
-        {
-            Size Area = PreviewCanvas.ClientSize;
-            double Fitted = Math.Min(Area.Width / (double)Picture.Width, Area.Height / (double)Picture.Height);
-            Fitted = Math.Max(0.0001, Fitted);
-            int DisplayWidth = Math.Max(1, (int)Math.Round(Picture.Width * Fitted));
-            int DisplayHeight = Math.Max(1, (int)Math.Round(Picture.Height * Fitted));
-            int OffsetX = (Area.Width - DisplayWidth) / 2;
-            int OffsetY = (Area.Height - DisplayHeight) / 2;
-            ImageX = (ClientPoint.X - OffsetX) / Fitted;
-            ImageY = (ClientPoint.Y - OffsetY) / Fitted;
-            return;
-        }
-
-        Point Scroll = PreviewCanvas.AutoScrollPosition;
-        double Zoom = Math.Max(0.0001, _PreviewZoom);
-        ImageX = (ClientPoint.X - Scroll.X) / Zoom;
-        ImageY = (ClientPoint.Y - Scroll.Y) / Zoom;
-    }
-
-    private static double ClampZoom(double Zoom)
-    {
-        return Math.Max(MINIMUM_PREVIEW_ZOOM, Math.Min(MAXIMUM_PREVIEW_ZOOM, Zoom));
-    }
-
-    /// <summary>
-    /// Returns the zoom the preview is actually showing. Fit-to-window does not store that scale.
-    /// </summary>
-    private double CurrentPreviewZoom()
-    {
-        if (!_Settings.PreviewFitToWindow || PreviewImage.Image == null)
-        {
-            return _PreviewZoom;
-        }
-
-        int ImageWidth = PreviewImage.Image.Width;
-        int ImageHeight = PreviewImage.Image.Height;
-        Size Area = PreviewCanvas.ClientSize;
-        if (ImageWidth <= 0 || ImageHeight <= 0 || Area.Width <= 0 || Area.Height <= 0)
-        {
-            return _PreviewZoom;
-        }
-
-        double Fitted = Math.Min(Area.Width / (double)ImageWidth, Area.Height / (double)ImageHeight);
-        return ClampZoom(Fitted);
-    }
-
-    private void ApplyPreviewZoom()
-    {
-        if (PreviewImage.Image == null)
-        {
-            PreviewImage.Dock = DockStyle.Fill;
-            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
-            PreviewCanvas.AutoScrollMinSize = Size.Empty;
-            return;
-        }
-
-        if (_Settings.PreviewFitToWindow)
-        {
-            PreviewCanvas.AutoScrollPosition = Point.Empty;
-            PreviewCanvas.AutoScrollMinSize = Size.Empty;
-            PreviewImage.Dock = DockStyle.Fill;
-            PreviewImage.Location = Point.Empty;
-            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
-        }
-        else
-        {
-            int Width = Math.Max(1, (int)Math.Round(PreviewImage.Image.Width * _PreviewZoom));
-            int Height = Math.Max(1, (int)Math.Round(PreviewImage.Image.Height * _PreviewZoom));
-            PreviewImage.Dock = DockStyle.None;
-            PreviewImage.Location = Point.Empty;
-            PreviewImage.Size = new Size(Width, Height);
-            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
-            PreviewCanvas.AutoScrollMinSize = new Size(Width, Height);
-        }
-
-        PreviewImage.Visible = true;
-        PreviewImage.BringToFront();
-        PreviewImage.Invalidate();
-        PreviewCanvas.Invalidate();
-        PositionPreviewZoomButtons();
-    }
-
-    private void PreviewHost_Layout(object? Sender, LayoutEventArgs E)
-    {
-        PositionPreviewZoomButtons();
-    }
-
-    private void PositionPreviewZoomButtons()
-    {
-        if (_PositioningZoomButtons)
-        {
-            return;
-        }
-
-        _PositioningZoomButtons = true;
-        try
-        {
-            const int BUTTON = 32;
-            const int GAP = 4;
-            const int MARGIN = 10;
-            int Right = PreviewCanvas.Left + PreviewCanvas.ClientSize.Width;
-            int Bottom = PreviewCanvas.Top + PreviewCanvas.ClientSize.Height;
-            int X = Math.Max(PreviewCanvas.Left, Right - MARGIN - BUTTON);
-            int FitTop = Math.Max(PreviewCanvas.Top, Bottom - MARGIN - BUTTON);
-            int OutTop = Math.Max(PreviewCanvas.Top, FitTop - GAP - BUTTON);
-            int InTop = Math.Max(PreviewCanvas.Top, OutTop - GAP - BUTTON);
-            PreviewZoomInButton.SetBounds(X, InTop, BUTTON, BUTTON);
-            PreviewZoomOutButton.SetBounds(X, OutTop, BUTTON, BUTTON);
-            PreviewFitButton.SetBounds(X, FitTop, BUTTON, BUTTON);
-            PreviewZoomInButton.BringToFront();
-            PreviewZoomOutButton.BringToFront();
-            PreviewFitButton.BringToFront();
-        }
-        finally
-        {
-            _PositioningZoomButtons = false;
-        }
-    }
-
-    /// <summary>
-
-    private void PreviewFitButton_Paint(object? Sender, PaintEventArgs E)
-    {
-        Rectangle Box = new Rectangle(8, 8, 14, 14);
-        using Pen Outline = new Pen(PreviewFitButton.ForeColor, 1.6F);
-        E.Graphics.DrawRectangle(Outline, Box);
-    }
 
     private void ApplyWorkspaceLayout()
     {
         ElementToolbar.Dock = DockStyle.Top;
         EditorSplit.Dock = DockStyle.Fill;
-        PreviewHost.Dock = DockStyle.Fill;
+        Preview.Dock = DockStyle.Fill;
+        SelectionDetails.Dock = DockStyle.Bottom;
         Control EditorParent = _Settings.EditorOnLeft ? EditorSplit.Panel1 : EditorSplit.Panel2;
         Control PreviewParent = _Settings.EditorOnLeft ? EditorSplit.Panel2 : EditorSplit.Panel1;
         if (!ReferenceEquals(CodeView.Parent, EditorParent))
@@ -1699,9 +1485,14 @@ public partial class MainForm : Form
             EditorParent.Controls.Add(CodeView);
         }
 
-        if (!ReferenceEquals(PreviewHost.Parent, PreviewParent))
+        if (!ReferenceEquals(Preview.Parent, PreviewParent))
         {
-            PreviewParent.Controls.Add(PreviewHost);
+            PreviewParent.Controls.Add(Preview);
+        }
+
+        if (!ReferenceEquals(SelectionDetails.Parent, PreviewParent))
+        {
+            PreviewParent.Controls.Add(SelectionDetails);
         }
 
         if (_Settings.WideToolbar)
@@ -1714,34 +1505,19 @@ public partial class MainForm : Form
             BodySplit.Panel1.Controls.SetChildIndex(EditorSplit, 0);
             BodySplit.Panel1.Controls.SetChildIndex(ElementToolbar, BodySplit.Panel1.Controls.Count - 1);
         }
-        else if (!ReferenceEquals(ElementToolbar.Parent, PreviewHost))
+        else if (!ReferenceEquals(ElementToolbar.Parent, PreviewParent))
         {
-            PreviewHost.Controls.Add(ElementToolbar);
+            PreviewParent.Controls.Add(ElementToolbar);
         }
 
-        ArrangePreviewChrome();
+        PreviewParent.Controls.SetChildIndex(Preview, 0);
+        if (ReferenceEquals(ElementToolbar.Parent, PreviewParent))
+        {
+            PreviewParent.Controls.SetChildIndex(ElementToolbar, PreviewParent.Controls.Count - 1);
+        }
+
+        PreviewParent.Controls.SetChildIndex(SelectionDetails, PreviewParent.Controls.Count - 1);
         EnsureEditorSplitLayout();
-        PositionPreviewZoomButtons();
-    }
-
-    private void ArrangePreviewChrome()
-    {
-        List<Control> Order = new List<Control>();
-        if (ReferenceEquals(ElementToolbar.Parent, PreviewHost))
-        {
-            Order.Add(ElementToolbar);
-        }
-
-        Order.Add(PreviewBanner);
-        Order.Add(SelectionDetails);
-        Order.Add(PreviewCanvas);
-        Order.Add(PreviewFitButton);
-        Order.Add(PreviewZoomOutButton);
-        Order.Add(PreviewZoomInButton);
-        for (int Index = Order.Count - 1; Index >= 0; Index--)
-        {
-            PreviewHost.Controls.SetChildIndex(Order[Index], PreviewHost.Controls.Count - 1);
-        }
     }
 
     private string CurrentEditorText()
@@ -1830,22 +1606,6 @@ public partial class MainForm : Form
     private void ZoomOutMenuItem_Click(object? Sender, EventArgs E)
     {
         CodeView.ZoomOut();
-    }
-
-    private void PreviewZoomInButton_Click(object? Sender, EventArgs E)
-    {
-        if (LiveEditorFeatureGate.L_ZoomPanPreview)
-        {
-            SetPreviewZoom(CurrentPreviewZoom() * PREVIEW_ZOOM_STEP);
-        }
-    }
-
-    private void PreviewZoomOutButton_Click(object? Sender, EventArgs E)
-    {
-        if (LiveEditorFeatureGate.L_ZoomPanPreview)
-        {
-            SetPreviewZoom(CurrentPreviewZoom() / PREVIEW_ZOOM_STEP);
-        }
     }
 
     private void ZoomResetMenuItem_Click(object? Sender, EventArgs E)
@@ -1951,14 +1711,7 @@ public partial class MainForm : Form
 
     private void FitPreviewMenuItem_Click(object? Sender, EventArgs E)
     {
-        if (!LiveEditorFeatureGate.L_ZoomPanPreview || PreviewImage.Image == null)
-        {
-            return;
-        }
-
-        _Settings.PreviewFitToWindow = true;
-        ApplyPreviewZoom();
-        SetStatus("Preview fitted to window");
+        Preview.Fit();
     }
 
     private void ExportPngMenuItem_Click(object? Sender, EventArgs E)
@@ -2038,11 +1791,7 @@ public partial class MainForm : Form
         CodeView.ApplyChrome(_Settings.DarkTheme);
         DiagnosticsList.BackColor = Background;
         DiagnosticsList.ForeColor = Foreground;
-        PreviewCanvas.BackColor = Background;
-        PreviewImage.BackColor = Background;
-        PreviewHost.BackColor = Panel;
-        PreviewBanner.BackColor = _Settings.DarkTheme ? Color.FromArgb(100, 70, 20) : Color.LemonChiffon;
-        PreviewBanner.ForeColor = _Settings.DarkTheme ? Color.White : Color.Black;
+        Preview.ApplyChrome(_Settings.DarkTheme, Background, Panel);
     }
 
     private void ToggleSplitOrientationMenuItem_Click(object? Sender, EventArgs E)
@@ -2291,6 +2040,7 @@ public partial class MainForm : Form
         }
 
         Dialog.ApplyTo(_Settings);
+        Preview.SelectionColour = SessionSettings.ParseColour(_Settings.SelectionColour);
         ApplyEditorPreferences();
         ApplyWorkspaceLayout();
         _Settings.Save();
@@ -2640,15 +2390,7 @@ public partial class MainForm : Form
         Application.RemoveMessageFilter(_PreviewHoverDismiss);
         HidePreviewHover();
         _PreviewHoverWindow.Dispose();
-        Image? Preview = PreviewImage.Image;
-        PreviewImage.Image = null;
-        Preview?.Dispose();
-        if (_LastGoodPreview != null && !ReferenceEquals(_LastGoodPreview, Preview))
-        {
-            _LastGoodPreview.Dispose();
-        }
-
-        _LastGoodPreview = null;
+        Preview.Clear();
     }
 
     private void SaveSession()
@@ -2659,7 +2401,8 @@ public partial class MainForm : Form
         }
 
         _Settings.CaretIndex = CodeView.Editor.SelectionStart;
-        _Settings.PreviewZoom = _PreviewZoom;
+        _Settings.PreviewZoom = Preview.Zoom;
+        _Settings.PreviewFitToWindow = Preview.FitToWindow;
         _Settings.LastFilePath = _CurrentSourcePath;
         _Settings.LastCoArchiFolder = _CurrentCoArchiFolder;
         _Settings.VerticalSplit = EditorSplit.Orientation == Orientation.Vertical;

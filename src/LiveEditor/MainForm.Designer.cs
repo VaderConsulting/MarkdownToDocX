@@ -93,13 +93,7 @@ namespace LiveEditor
             EditorSplit = new SplitContainer();
             CodeView = new CodeEditor();
             ElementToolbar = new ElementPalette();
-            PreviewHost = new Panel();
-            PreviewCanvas = new Panel();
-            PreviewImage = new PictureBox();
-            PreviewBanner = new Label();
-            PreviewZoomInButton = new Button();
-            PreviewZoomOutButton = new Button();
-            PreviewFitButton = new Button();
+            Preview = new PreviewCanvas();
             SelectionDetails = new SelectionPanel();
             DiagnosticsList = new ListBox();
             StatusBar = new StatusStrip();
@@ -117,9 +111,6 @@ namespace LiveEditor
             EditorSplit.Panel1.SuspendLayout();
             EditorSplit.Panel2.SuspendLayout();
             EditorSplit.SuspendLayout();
-            PreviewHost.SuspendLayout();
-            PreviewCanvas.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)PreviewImage).BeginInit();
             StatusBar.SuspendLayout();
             SuspendLayout();
             // 
@@ -597,7 +588,8 @@ namespace LiveEditor
             // 
             // EditorSplit.Panel2
             // 
-            EditorSplit.Panel2.Controls.Add(PreviewHost);
+            EditorSplit.Panel2.Controls.Add(Preview);
+            EditorSplit.Panel2.Controls.Add(SelectionDetails);
             EditorSplit.Panel2MinSize = 240;
             EditorSplit.Size = new Size(898, 406);
             EditorSplit.SplitterDistance = 655;
@@ -613,92 +605,14 @@ namespace LiveEditor
             CodeView.Size = new Size(655, 406);
             CodeView.TabIndex = 0;
             // 
-            // PreviewHost
+            // Preview
             // 
-            PreviewHost.Controls.Add(PreviewCanvas);
-            PreviewHost.Controls.Add(PreviewBanner);
-            PreviewHost.Controls.Add(PreviewZoomInButton);
-            PreviewHost.Controls.Add(PreviewZoomOutButton);
-            PreviewHost.Controls.Add(PreviewFitButton);
-            PreviewHost.Controls.Add(SelectionDetails);
-            PreviewHost.Dock = DockStyle.Fill;
-            PreviewHost.Location = new Point(0, 0);
-            PreviewHost.Margin = new Padding(2, 2, 2, 2);
-            PreviewHost.Name = "PreviewHost";
-            PreviewHost.Size = new Size(240, 406);
-            PreviewHost.TabIndex = 0;
-            // 
-            // PreviewCanvas
-            // 
-            PreviewCanvas.AccessibleName = "Diagram preview canvas";
-            PreviewCanvas.AutoScroll = true;
-            PreviewCanvas.BackColor = Color.White;
-            PreviewCanvas.Controls.Add(PreviewImage);
-            PreviewCanvas.Dock = DockStyle.Fill;
-            PreviewCanvas.Location = new Point(0, 0);
-            PreviewCanvas.Margin = new Padding(2, 2, 2, 2);
-            PreviewCanvas.Name = "PreviewCanvas";
-            PreviewCanvas.Size = new Size(240, 406);
-            PreviewCanvas.TabIndex = 0;
-            // 
-            // PreviewImage
-            // 
-            PreviewImage.AccessibleName = "Diagram preview image";
-            PreviewImage.BackColor = Color.White;
-            PreviewImage.Dock = DockStyle.Fill;
-            PreviewImage.Location = new Point(0, 0);
-            PreviewImage.Margin = new Padding(2, 2, 2, 2);
-            PreviewImage.Name = "PreviewImage";
-            PreviewImage.Size = new Size(240, 406);
-            PreviewImage.SizeMode = PictureBoxSizeMode.Zoom;
-            PreviewImage.TabIndex = 0;
-            PreviewImage.TabStop = false;
-            // 
-            // PreviewBanner
-            // 
-            PreviewBanner.Dock = DockStyle.Top;
-            PreviewBanner.Location = new Point(0, 0);
-            PreviewBanner.Margin = new Padding(2, 0, 2, 0);
-            PreviewBanner.Name = "PreviewBanner";
-            PreviewBanner.Size = new Size(240, 0);
-            PreviewBanner.TabIndex = 1;
-            PreviewBanner.TextAlign = ContentAlignment.MiddleLeft;
-            PreviewBanner.Visible = false;
-            // 
-            // PreviewZoomInButton
-            // 
-            PreviewZoomInButton.AccessibleName = "Zoom in";
-            PreviewZoomInButton.FlatStyle = FlatStyle.Flat;
-            PreviewZoomInButton.Location = new Point(0, 0);
-            PreviewZoomInButton.Margin = new Padding(2, 2, 2, 2);
-            PreviewZoomInButton.Name = "PreviewZoomInButton";
-            PreviewZoomInButton.Size = new Size(23, 20);
-            PreviewZoomInButton.TabIndex = 3;
-            PreviewZoomInButton.Text = "+";
-            PreviewZoomInButton.UseVisualStyleBackColor = true;
-            // 
-            // PreviewZoomOutButton
-            // 
-            PreviewZoomOutButton.AccessibleName = "Zoom out";
-            PreviewZoomOutButton.FlatStyle = FlatStyle.Flat;
-            PreviewZoomOutButton.Location = new Point(0, 0);
-            PreviewZoomOutButton.Margin = new Padding(2, 2, 2, 2);
-            PreviewZoomOutButton.Name = "PreviewZoomOutButton";
-            PreviewZoomOutButton.Size = new Size(23, 20);
-            PreviewZoomOutButton.TabIndex = 4;
-            PreviewZoomOutButton.Text = "-";
-            PreviewZoomOutButton.UseVisualStyleBackColor = true;
-            // 
-            // PreviewFitButton
-            // 
-            PreviewFitButton.AccessibleName = "Fit preview";
-            PreviewFitButton.FlatStyle = FlatStyle.Flat;
-            PreviewFitButton.Location = new Point(0, 0);
-            PreviewFitButton.Margin = new Padding(2, 2, 2, 2);
-            PreviewFitButton.Name = "PreviewFitButton";
-            PreviewFitButton.Size = new Size(23, 20);
-            PreviewFitButton.TabIndex = 5;
-            PreviewFitButton.UseVisualStyleBackColor = true;
+            Preview.Dock = DockStyle.Fill;
+            Preview.Location = new Point(0, 0);
+            Preview.Margin = new Padding(2, 2, 2, 2);
+            Preview.Name = "Preview";
+            Preview.Size = new Size(240, 230);
+            Preview.TabIndex = 0;
             // 
             // SelectionDetails
             // 
@@ -788,9 +702,6 @@ namespace LiveEditor
             EditorSplit.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)EditorSplit).EndInit();
             EditorSplit.ResumeLayout(false);
-            PreviewHost.ResumeLayout(false);
-            PreviewCanvas.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)PreviewImage).EndInit();
             StatusBar.ResumeLayout(false);
             StatusBar.PerformLayout();
             ResumeLayout(false);
@@ -869,10 +780,7 @@ namespace LiveEditor
         private SplitContainer BodySplit;
         private SplitContainer EditorSplit;
         private CodeEditor CodeView;
-        private Panel PreviewHost;
-        private Panel PreviewCanvas;
-        private PictureBox PreviewImage;
-        private Label PreviewBanner;
+        private PreviewCanvas Preview;
         private ListBox DiagnosticsList;
         private StatusStrip StatusBar;
         private ToolStripStatusLabel StatusLabel;
@@ -881,9 +789,6 @@ namespace LiveEditor
         private ToolStripStatusLabel SignatureLabel;
         private System.Windows.Forms.Timer RenderTimer;
         private ElementPalette ElementToolbar;
-        private Button PreviewZoomInButton;
-        private Button PreviewZoomOutButton;
-        private Button PreviewFitButton;
         private SelectionPanel SelectionDetails;
         private System.ComponentModel.IContainer components;
     }

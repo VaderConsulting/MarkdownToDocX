@@ -215,17 +215,31 @@ public sealed class PreviewSelectionTests
         Application.DoEvents();
         RichTextBox Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
         Editor.Text = SOURCE;
+        Editor.SelectionStart = Editor.Text.IndexOf("application-component shop", StringComparison.Ordinal);
         WaitForCurrentIndex(Form);
 
         PreviewObject Shop = Form.PreviewIndex!.FindObject("node\u001fshop")!;
+        Assert.That(Shop.Selected, Is.False);
+        Assert.That(Form.PreviewSelectionObject, Is.Null);
         Form.SelectPreviewObject(Shop);
         Assert.That(Form.PreviewSelectionObject, Is.SameAs(Shop));
+        Assert.That(Shop.Selected, Is.True);
+        foreach (PreviewObject Item in Form.PreviewIndex.Objects)
+        {
+            if (!ReferenceEquals(Item, Shop))
+            {
+                Assert.That(Item.Selected, Is.False);
+            }
+        }
+
         Assert.That(Editor.SelectedText, Is.EqualTo("application-component shop \"Shop\" in box"));
 
         Editor.Select(Editor.Text.IndexOf("shop -flow", StringComparison.Ordinal) + 2, 0);
         Application.DoEvents();
         Assert.That(Form.PreviewSelectionObject, Is.Not.Null);
         Assert.That(Form.PreviewSelectionObject!.RelationshipKind, Is.EqualTo("flow"));
+        Assert.That(Form.PreviewSelectionObject.Selected, Is.True);
+        Assert.That(Shop.Selected, Is.False);
         string Key = Form.PreviewSelectionObject.Key;
 
         Editor.Text = SOURCE + "application-component till \"Till\"\n";
@@ -234,8 +248,10 @@ public sealed class PreviewSelectionTests
         Assert.That(Form.PreviewSelectionObject!.Key, Is.EqualTo(Key));
         Assert.That(Form.PreviewSelectionObject, Is.SameAs(Form.PreviewIndex!.FindObject(Key)));
 
+        PreviewObject Shown = Form.PreviewSelectionObject!;
         Form.PressPreviewEscape();
         Assert.That(Form.PreviewSelectionObject, Is.Null);
+        Assert.That(Shown.Selected, Is.False);
     }
 
     private static void WaitForCurrentIndex(MainForm Form)

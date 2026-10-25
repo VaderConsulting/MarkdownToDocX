@@ -11,6 +11,8 @@ internal sealed class SourceTextBox : RichTextBox
 {
     private const int WM_PAINT = 0x000F;
 
+    private int _LineHeight = 16;
+
     /// <summary>
     /// Creates the editor box.
     /// </summary>
@@ -52,9 +54,30 @@ internal sealed class SourceTextBox : RichTextBox
         }
 
         Point Origin = GetPositionFromCharIndex(Index);
-        int LineHeight = Math.Max(Font.Height, 1);
-        using Graphics Canvas = Graphics.FromHwnd(Handle);
+        int LineHeight = MeasureLine(Index, Origin.Y);
+        using Graphics Canvas = CreateGraphics();
         using Pen Bar = new Pen(Color.FromArgb(0, 122, 204), 2F);
         Canvas.DrawLine(Bar, 1, Origin.Y, 1, Origin.Y + LineHeight);
+    }
+
+    /// <summary>
+    /// Returns the caret line's height from the following line.
+    /// The text box font is not used: while the control is painting, that font can be invalid and its height throws.
+    /// </summary>
+    private int MeasureLine(int Index, int OriginY)
+    {
+        int Line = GetLineFromCharIndex(Index);
+        int Next = GetFirstCharIndexFromLine(Line + 1);
+        if (Next > Index)
+        {
+            int Height = GetPositionFromCharIndex(Next).Y - OriginY;
+            if (Height > 0)
+            {
+                _LineHeight = Height;
+                return Height;
+            }
+        }
+
+        return _LineHeight;
     }
 }

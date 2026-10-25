@@ -28,6 +28,128 @@ internal sealed partial class PreviewHoverIndex
     }
 
     /// <summary>
+    /// Creates an empty index that <see cref="AddObject"/> can fill.
+    /// </summary>
+    /// <returns>An index with no items.</returns>
+    internal static PreviewHoverIndex CreateEmpty()
+    {
+        return new PreviewHoverIndex();
+    }
+
+    /// <summary>
+    /// Builds items from an enterprise script, without a picture.
+    /// </summary>
+    /// <param name="Source">Diagram script.</param>
+    /// <returns>An index of the declared nodes and relationships. Empty when the script is not enterprise.</returns>
+    internal static PreviewHoverIndex FromScript(string? Source)
+    {
+        PreviewHoverIndex Index = new PreviewHoverIndex();
+        if (!EnterpriseParser.IsEnterpriseSource(Source))
+        {
+            return Index;
+        }
+
+        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        foreach (EnterpriseElement Element in Parsed.Document.Elements.Values)
+        {
+            PreviewObject Node = new PreviewObject
+            {
+                Kind = Parsed.Document.Groups.ContainsKey(Element.Id) ? PreviewObjectKind.Container : PreviewObjectKind.Node,
+                Id = Element.Id,
+                LineNumber = Element.LineNumber
+            };
+            Index._Objects.Add(Node);
+        }
+
+        foreach (EnterpriseNote Note in Parsed.Document.Notes.Values)
+        {
+            if (Parsed.Document.Elements.ContainsKey(Note.Id))
+            {
+                continue;
+            }
+
+            Index._Objects.Add(new PreviewObject
+            {
+                Kind = PreviewObjectKind.Node,
+                Id = Note.Id,
+                LineNumber = Note.LineNumber
+            });
+        }
+
+        foreach (EnterpriseRelationship Relationship in Parsed.Document.Relationships)
+        {
+            Index.AddRelationship(Relationship.SourceId, Relationship.TargetId, EnterpriseElementCatalog.GetRelationshipName(Relationship.Kind));
+        }
+
+        foreach (EnterprisePlainConnection Connection in Parsed.Document.PlainConnections)
+        {
+            Index.AddRelationship(Connection.SourceId, Connection.TargetId, PLAIN_CONNECTION);
+        }
+
+        Index.FinishEnterpriseObjects(Parsed.Document);
+        return Index;
+    }
+
+    /// <summary>
+    /// Adds an item. An item that is already present is left where it is.
+    /// </summary>
+    /// <param name="Item">Item to add.</param>
+    /// <returns>False when the item was already present.</returns>
+    internal bool AddObject(PreviewObject Item)
+    {
+        if (Item == null)
+        {
+            throw new ArgumentNullException(nameof(Item));
+        }
+
+        if (_Objects.Contains(Item))
+        {
+            return false;
+        }
+
+        _Objects.Add(Item);
+        return true;
+    }
+
+    /// <summary>
+    /// Removes an item.
+    /// </summary>
+    /// <param name="Item">Item to remove.</param>
+    /// <returns>False when the item was not present.</returns>
+    internal bool RemoveObject(PreviewObject Item)
+    {
+        if (Item == null)
+        {
+            return false;
+        }
+
+        return _Objects.Remove(Item);
+    }
+
+    private void AddRelationship(string SourceId, string TargetId, string KindName)
+    {
+        PreviewObject Line = new PreviewObject
+        {
+            Kind = PreviewObjectKind.Relationship,
+            SourceId = SourceId,
+            TargetId = TargetId,
+            RelationshipKind = KindName
+        };
+        foreach (PreviewObject Earlier in _Objects)
+        {
+            if (Earlier.Kind == PreviewObjectKind.Relationship
+                && string.Equals(Earlier.SourceId, SourceId, StringComparison.Ordinal)
+                && string.Equals(Earlier.TargetId, TargetId, StringComparison.Ordinal)
+                && string.Equals(Earlier.RelationshipKind, Line.RelationshipKind, StringComparison.Ordinal))
+            {
+                Line.Occurrence++;
+            }
+        }
+
+        _Objects.Add(Line);
+    }
+
+    /// <summary>
     /// Returns the object a click at an SVG point selects: the smallest node under it, else the nearest line
     /// within the tolerance, else the smallest container under it.
     /// </summary>

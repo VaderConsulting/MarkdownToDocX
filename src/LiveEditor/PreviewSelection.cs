@@ -28,20 +28,204 @@ internal sealed class PreviewObject
 {
     private readonly List<PreviewOutline> _Outlines = new List<PreviewOutline>();
 
+    private bool _Selected;
+
+    private PreviewObjectKind _Kind;
+
+    private string _Id = string.Empty;
+
+    private string _SourceId = string.Empty;
+
+    private string _TargetId = string.Empty;
+
+    private string _RelationshipKind = string.Empty;
+
+    private Action? _Changed;
+
+    /// <summary>Creates an item with a neutral visual style.</summary>
+    public PreviewObject()
+    {
+        _Style.Changed = RaiseStyleChanged;
+    }
+
+    private PreviewStyle _Style = new PreviewStyle();
+
+    private Action? _StyleChanged;
+
+    private Action? _AppearanceChanged;
+
+    /// <summary>
+    /// Raised when a property that changes the diagram is edited.
+    /// </summary>
+    internal Action? Changed
+    {
+        get
+        {
+            return _Changed;
+        }
+
+        set
+        {
+            _Changed = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether this item is selected. A new item is not selected.
+    /// Several items can be selected together. <see cref="PreviewCanvas.SelectedItems"/> lists them.
+    /// </summary>
+    public bool Selected
+    {
+        get
+        {
+            return _Selected;
+        }
+
+        set
+        {
+            if (_Selected == value)
+            {
+                return;
+            }
+
+            _Selected = value;
+            _AppearanceChanged?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the item's own visual properties.
+    /// Reading them returns these values even while the item is selected.
+    /// </summary>
+    public PreviewStyle Style
+    {
+        get
+        {
+            return _Style;
+        }
+
+        set
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            if (ReferenceEquals(_Style, value))
+            {
+                return;
+            }
+
+            _Style.Changed = null;
+            _Style = value;
+            _Style.Changed = RaiseStyleChanged;
+            RaiseStyleChanged();
+        }
+    }
+
+    /// <summary>Raised when <see cref="Style"/> changes.</summary>
+    internal Action? StyleChanged
+    {
+        get
+        {
+            return _StyleChanged;
+        }
+
+        set
+        {
+            _StyleChanged = value;
+        }
+    }
+
+    /// <summary>Raised when <see cref="Selected"/> changes.</summary>
+    internal Action? AppearanceChanged
+    {
+        get
+        {
+            return _AppearanceChanged;
+        }
+
+        set
+        {
+            _AppearanceChanged = value;
+        }
+    }
+
     /// <summary>Gets or sets the object kind.</summary>
-    public PreviewObjectKind Kind { get; set; }
+    public PreviewObjectKind Kind
+    {
+        get
+        {
+            return _Kind;
+        }
+
+        set
+        {
+            if (_Kind == value)
+            {
+                return;
+            }
+
+            _Kind = value;
+            Changed?.Invoke();
+        }
+    }
 
     /// <summary>Gets or sets the node id; empty for relationships.</summary>
-    public string Id { get; set; } = string.Empty;
+    public string Id
+    {
+        get
+        {
+            return _Id;
+        }
+
+        set
+        {
+            AssignText(ref _Id, value);
+        }
+    }
 
     /// <summary>Gets or sets the relationship source id; empty for nodes.</summary>
-    public string SourceId { get; set; } = string.Empty;
+    public string SourceId
+    {
+        get
+        {
+            return _SourceId;
+        }
+
+        set
+        {
+            AssignText(ref _SourceId, value);
+        }
+    }
 
     /// <summary>Gets or sets the relationship target id; empty for nodes.</summary>
-    public string TargetId { get; set; } = string.Empty;
+    public string TargetId
+    {
+        get
+        {
+            return _TargetId;
+        }
+
+        set
+        {
+            AssignText(ref _TargetId, value);
+        }
+    }
 
     /// <summary>Gets or sets the relationship kind name, such as flow, or connection for a plain line.</summary>
-    public string RelationshipKind { get; set; } = string.Empty;
+    public string RelationshipKind
+    {
+        get
+        {
+            return _RelationshipKind;
+        }
+
+        set
+        {
+            AssignText(ref _RelationshipKind, value);
+        }
+    }
 
     /// <summary>Gets or sets which drawn line with the same source, target and kind this is, from zero.</summary>
     public int Occurrence { get; set; }
@@ -125,6 +309,18 @@ internal sealed class PreviewObject
         return Best;
     }
 
+    private void AssignText(ref string Field, string? Value)
+    {
+        string Next = Value ?? string.Empty;
+        if (string.Equals(Field, Next, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Field = Next;
+        Changed?.Invoke();
+    }
+
     private static double DistanceToSegment(double X, double Y, double X1, double Y1, double X2, double Y2)
     {
         double DeltaX = X2 - X1;
@@ -139,6 +335,11 @@ internal sealed class PreviewObject
         double OffsetX = X - (X1 + (Ratio * DeltaX));
         double OffsetY = Y - (Y1 + (Ratio * DeltaY));
         return Math.Sqrt((OffsetX * OffsetX) + (OffsetY * OffsetY));
+    }
+
+    private void RaiseStyleChanged()
+    {
+        _StyleChanged?.Invoke();
     }
 }
 
@@ -281,9 +482,21 @@ internal static class PreviewSelection
     }
 
     /// <summary>
-    /// Draws the selected object's strokes bold over the picture, and an x on each of its connection points.
+    /// Draws the selected object's strokes over the picture, and an x on each of its connection points.
     /// </summary>
     public static void Paint(Graphics Graphics, PreviewObject Selected, Color Colour, double ScaleX, double ScaleY, double OffsetX, double OffsetY)
+    {
+        PreviewStyle Drawn = new PreviewStyle();
+        Drawn.LineColour = Colour;
+        Drawn.Bold = true;
+        Drawn.Width = LINE_WIDTH;
+        Paint(Graphics, Selected, Drawn, ScaleX, ScaleY, OffsetX, OffsetY);
+    }
+
+    /// <summary>
+    /// Draws an item's own strokes over the picture.
+    /// </summary>
+    public static void Paint(Graphics Graphics, PreviewObject Selected, PreviewStyle Style, double ScaleX, double ScaleY, double OffsetX, double OffsetY)
     {
         SmoothingMode PreviousSmoothing = Graphics.SmoothingMode;
         Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -303,7 +516,7 @@ internal static class PreviewSelection
                     Points[Index] = new PointF((float)(OffsetX + (Point.X * ScaleX)), (float)(OffsetY + (Point.Y * ScaleY)));
                 }
 
-                using Pen Pen = new Pen(Colour, LINE_WIDTH);
+                using Pen Pen = new Pen(Style.LineColour, Style.DrawnWidth);
                 Pen.LineJoin = LineJoin.Round;
                 Pen.StartCap = LineCap.Round;
                 Pen.EndCap = LineCap.Round;
@@ -314,13 +527,19 @@ internal static class PreviewSelection
                     Pen.DashPattern = Pattern;
                 }
 
+                if (Style.FillColour.A > 0 && Points.Length >= 3)
+                {
+                    using SolidBrush Brush = new SolidBrush(Style.FillColour);
+                    Graphics.FillPolygon(Brush, Points);
+                }
+
                 Graphics.DrawLines(Pen, Points);
             }
 
             List<PointF> Marks = ConnectionPoints(Selected);
             if (Marks.Count > 0)
             {
-                using Pen MarkPen = new Pen(Colour, MARK_WIDTH);
+                using Pen MarkPen = new Pen(Style.LineColour, MARK_WIDTH);
                 float Half = MARK_SIZE / 2.0F;
                 foreach (PointF Point in Marks)
                 {
