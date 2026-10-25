@@ -313,6 +313,36 @@ internal sealed class FlowchartLogicalGrid
         internal IReadOnlyDictionary<int, double> ColumnGaps { get; }
         /// <summary>Exact immutable grown row gaps.</summary>
         internal IReadOnlyDictionary<int, double> RowGaps { get; }
+
+        private GapExtraTotals? _ColumnGapTotals;
+
+        private GapExtraTotals? _RowGapTotals;
+
+        private GapExtraTotals ColumnGapTotals =>
+            _ColumnGapTotals ??= GapExtraTotals.Create(ColumnGaps, Owner.Configuration.ColumnGap);
+
+        private GapExtraTotals RowGapTotals =>
+            _RowGapTotals ??= GapExtraTotals.Create(RowGaps, Owner.Configuration.RowGap);
+
+        internal double ColumnExtent(int Start, int Span) =>
+            Span * Owner.Configuration.CellWidth + (Span - 1.0) * Owner.Configuration.ColumnGap
+            + ColumnGapTotals.SumBetween(Start, checked(Start + Span - 1));
+
+        internal double RowExtent(int Start, int Span) =>
+            Span * Owner.Configuration.CellHeight + (Span - 1.0) * Owner.Configuration.RowGap
+            + RowGapTotals.SumBetween(Start, checked(Start + Span - 1));
+
+        internal double ColumnPosition(int Index) =>
+            Index * (Owner.Configuration.CellWidth + Owner.Configuration.ColumnGap)
+            + (Index >= 0
+                ? ColumnGapTotals.SumBetween(0, Index)
+                : -ColumnGapTotals.SumBetween(Index, 0));
+
+        internal double RowPosition(int Index) =>
+            Index * (Owner.Configuration.CellHeight + Owner.Configuration.RowGap)
+            + (Index >= 0
+                ? RowGapTotals.SumBetween(0, Index)
+                : -RowGapTotals.SumBetween(Index, 0));
     }
 
     /// <summary>Returns a node's declared region, independently of drawing geometry.</summary>
@@ -340,8 +370,8 @@ internal sealed class FlowchartLogicalGrid
     {
         State ??= Current;
         if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
-        return (Extent(Region.StartColumn, Region.ColumnSpan, Configuration.CellWidth, Configuration.ColumnGap, State.ColumnGaps),
-            Extent(Region.StartRow, Region.RowSpan, Configuration.CellHeight, Configuration.RowGap, State.RowGaps));
+        return (State.ColumnExtent(Region.StartColumn, Region.ColumnSpan),
+            State.RowExtent(Region.StartRow, Region.RowSpan));
     }
 
     /// <summary>Maps a logical region to its page-down origin without inferring cells from centres.</summary>
@@ -352,31 +382,89 @@ internal sealed class FlowchartLogicalGrid
     {
         State ??= Current;
         if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
-        return (Position(Region.StartColumn, Configuration.CellWidth, Configuration.ColumnGap, State.ColumnGaps),
-            Position(Region.StartRow, Configuration.CellHeight, Configuration.RowGap, State.RowGaps));
+        return (State.ColumnPosition(Region.StartColumn), State.RowPosition(Region.StartRow));
     }
 
-    /// <summary>Measures only internal gaps, using sparse corrections so large spans do not require cell enumeration.</summary>
-    /// <param name="Start">First occupied index.</param>
-    /// <param name="Span">Number of occupied cells.</param>
-    /// <param name="Cell">Fixed cell extent.</param>
-    /// <param name="Gap">Initial gap.</param>
-    /// <param name="Grown">Sparse current gap extents.</param>
-    /// <returns>The continuous region extent.</returns>
-    private static double Extent(int Start, int Span, double Cell, double Gap, IReadOnlyDictionary<int, double> Grown) =>
-        Span * Cell + (Span - 1.0) * Gap
-        + Grown.Where(Pair => Pair.Key >= Start && Pair.Key < (long)Start + Span - 1).Sum(Pair => Pair.Value - Gap);
+    /// <summary>Prefix sums of grown gap corrections for one axis on an immutable snapshot.</summary>
+    private sealed class GapExtraTotals
+    {
+        private readonly int[] _Keys;
 
-    /// <summary>Accumulates grown gaps between the origin and an index, including negative logical coordinates.</summary>
-    /// <param name="Index">Logical row or column.</param>
-    /// <param name="Cell">Fixed cell extent.</param>
-    /// <param name="Gap">Initial gap.</param>
-    /// <param name="Grown">Sparse current gap extents.</param>
-    /// <returns>The physical start coordinate.</returns>
-    private static double Position(int Index, double Cell, double Gap, IReadOnlyDictionary<int, double> Grown) =>
-        Index * (Cell + Gap) + (Index >= 0
-            ? Grown.Where(Pair => Pair.Key >= 0 && Pair.Key < Index).Sum(Pair => Pair.Value - Gap)
-            : -Grown.Where(Pair => Pair.Key >= Index && Pair.Key < 0).Sum(Pair => Pair.Value - Gap));
+        private readonly double[] _Prefix;
+
+        private GapExtraTotals(int[] Keys, double[] Prefix)
+        {
+            _Keys = Keys;
+            _Prefix = Prefix;
+        }
+
+        internal static GapExtraTotals Create(IReadOnlyDictionary<int, double> Grown, double BaseGap)
+        {
+            List<int> Keys = new List<int>();
+            List<double> Extras = new List<double>();
+            foreach (KeyValuePair<int, double> Pair in Grown)
+            {
+                double Extra = Pair.Value - BaseGap;
+                if (Extra == 0)
+                {
+                    continue;
+                }
+
+                Keys.Add(Pair.Key);
+                Extras.Add(Extra);
+            }
+
+            int Count = Keys.Count;
+            if (Count > 1)
+            {
+                int[] KeyArray = Keys.ToArray();
+                double[] ExtraArray = Extras.ToArray();
+                Array.Sort(KeyArray, ExtraArray);
+                Keys = new List<int>(KeyArray);
+                Extras = new List<double>(ExtraArray);
+            }
+
+            double[] Prefix = new double[Count + 1];
+            for (int ExtraIndex = 0; ExtraIndex < Count; ExtraIndex++)
+            {
+                Prefix[ExtraIndex + 1] = Prefix[ExtraIndex] + Extras[ExtraIndex];
+            }
+
+            return new GapExtraTotals(Keys.ToArray(), Prefix);
+        }
+
+        internal double SumBetween(int FromInclusive, int ToExclusive)
+        {
+            if (ToExclusive <= FromInclusive || _Keys.Length == 0)
+            {
+                return 0;
+            }
+
+            int Start = LowerBound(FromInclusive);
+            int End = LowerBound(ToExclusive);
+            return _Prefix[End] - _Prefix[Start];
+        }
+
+        private int LowerBound(int Value)
+        {
+            int Low = 0;
+            int High = _Keys.Length;
+            while (Low < High)
+            {
+                int Middle = (Low + High) / 2;
+                if (_Keys[Middle] < Value)
+                {
+                    Low = Middle + 1;
+                }
+                else
+                {
+                    High = Middle;
+                }
+            }
+
+            return Low;
+        }
+    }
 }
 
 /// <summary>One measured gap increase included in a complete atomic repair assignment.</summary>
