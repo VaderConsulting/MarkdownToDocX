@@ -71,6 +71,8 @@ public partial class MainForm : Form
     private int _RenderGeneration;
     private DiagramMetadata _DiagramMetadata = DiagramMetadata.Empty(0);
     private double _PreviewZoom = 1.0;
+
+    private bool _PositioningZoomButtons;
     private DateTime? _BrokenSince;
 
     /// <summary>
@@ -278,7 +280,7 @@ public partial class MainForm : Form
         PreviewCanvas.MouseLeave += PreviewImage_MouseLeave;
         Deactivate += MainForm_Deactivate;
         Application.AddMessageFilter(_PreviewHoverDismiss);
-        PreviewHost.Resize += PreviewHost_Resize;
+        PreviewHost.Layout += PreviewHost_Layout;
         PreviewZoomInButton.Click += PreviewZoomInButton_Click;
         PreviewZoomOutButton.Click += PreviewZoomOutButton_Click;
         PreviewFitButton.Click += FitPreviewMenuItem_Click;
@@ -1639,26 +1641,41 @@ public partial class MainForm : Form
         PositionPreviewZoomButtons();
     }
 
-    private void PreviewHost_Resize(object? Sender, EventArgs E)
+    private void PreviewHost_Layout(object? Sender, LayoutEventArgs E)
     {
         PositionPreviewZoomButtons();
     }
 
     private void PositionPreviewZoomButtons()
     {
-        const int BUTTON = 32;
-        const int GAP = 4;
-        const int MARGIN = 10;
-        int X = Math.Max(0, PreviewHost.ClientSize.Width - MARGIN - BUTTON);
-        int FitTop = Math.Max(0, PreviewHost.ClientSize.Height - MARGIN - BUTTON);
-        int OutTop = Math.Max(0, FitTop - GAP - BUTTON);
-        int InTop = Math.Max(0, OutTop - GAP - BUTTON);
-        PreviewZoomInButton.SetBounds(X, InTop, BUTTON, BUTTON);
-        PreviewZoomOutButton.SetBounds(X, OutTop, BUTTON, BUTTON);
-        PreviewFitButton.SetBounds(X, FitTop, BUTTON, BUTTON);
-        PreviewZoomInButton.BringToFront();
-        PreviewZoomOutButton.BringToFront();
-        PreviewFitButton.BringToFront();
+        if (_PositioningZoomButtons)
+        {
+            return;
+        }
+
+        _PositioningZoomButtons = true;
+        try
+        {
+            const int BUTTON = 32;
+            const int GAP = 4;
+            const int MARGIN = 10;
+            int Right = PreviewCanvas.Left + PreviewCanvas.ClientSize.Width;
+            int Bottom = PreviewCanvas.Top + PreviewCanvas.ClientSize.Height;
+            int X = Math.Max(PreviewCanvas.Left, Right - MARGIN - BUTTON);
+            int FitTop = Math.Max(PreviewCanvas.Top, Bottom - MARGIN - BUTTON);
+            int OutTop = Math.Max(PreviewCanvas.Top, FitTop - GAP - BUTTON);
+            int InTop = Math.Max(PreviewCanvas.Top, OutTop - GAP - BUTTON);
+            PreviewZoomInButton.SetBounds(X, InTop, BUTTON, BUTTON);
+            PreviewZoomOutButton.SetBounds(X, OutTop, BUTTON, BUTTON);
+            PreviewFitButton.SetBounds(X, FitTop, BUTTON, BUTTON);
+            PreviewZoomInButton.BringToFront();
+            PreviewZoomOutButton.BringToFront();
+            PreviewFitButton.BringToFront();
+        }
+        finally
+        {
+            _PositioningZoomButtons = false;
+        }
     }
 
     /// <summary>
