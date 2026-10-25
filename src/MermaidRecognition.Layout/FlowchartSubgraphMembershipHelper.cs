@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using MermaidRecognition.Contract;
 
@@ -14,6 +15,15 @@ public static class FlowchartSubgraphMembershipHelper
 
     private static readonly AsyncLocal<FixedMembership?> ActiveMembership = new();
 
+    private sealed class ContractMembershipCache
+    {
+        public required Dictionary<string, string?> Parents { get; init; }
+
+        public required Dictionary<string, GroupContract> GroupById { get; init; }
+    }
+
+    private static readonly ConditionalWeakTable<DiagramContract, ContractMembershipCache> ContractCache = new();
+
     private sealed class MembershipScope(FixedMembership? Previous) : IDisposable
     {
         public void Dispose() => ActiveMembership.Value = Previous;
@@ -22,18 +32,8 @@ public static class FlowchartSubgraphMembershipHelper
     internal static IDisposable ReuseFixedMembership(DiagramContract Contract)
     {
         FixedMembership? Previous = ActiveMembership.Value;
-        Dictionary<string, string?> Parents = new(StringComparer.Ordinal);
-        foreach (GroupContract Group in Contract.Groups)
-        {
-            Parents.TryAdd(Group.Id, Group.Id);
-        }
-
-        foreach (NodeContract Node in Contract.Nodes)
-        {
-            Parents.TryAdd(Node.Id, Node.ParentGroupId);
-        }
-
-        ActiveMembership.Value = new(Contract, Parents);
+        ContractMembershipCache Cached = GetOrCreateContractCache(Contract);
+        ActiveMembership.Value = new FixedMembership(Contract, Cached.Parents);
         return new MembershipScope(Previous);
     }
 
@@ -84,14 +84,7 @@ public static class FlowchartSubgraphMembershipHelper
     /// </summary>
     public static Dictionary<string, GroupContract> BuildGroupById(DiagramContract Contract)
     {
-        Dictionary<string, GroupContract> GroupById =
-            new Dictionary<string, GroupContract>(StringComparer.Ordinal);
-        foreach (GroupContract Group in Contract.Groups)
-        {
-            GroupById[Group.Id] = Group;
-        }
-
-        return GroupById;
+        return GetOrCreateContractCache(Contract).GroupById;
     }
 
     /// <summary>
@@ -104,22 +97,44 @@ public static class FlowchartSubgraphMembershipHelper
             return NodeId == null ? null : Membership.Parents.GetValueOrDefault(NodeId);
         }
 
+        ContractMembershipCache Cached = GetOrCreateContractCache(Contract);
+        if (NodeId != null && Cached.Parents.TryGetValue(NodeId, out string? Parent))
+        {
+            return Parent;
+        }
+
+        return null;
+    }
+
+    private static ContractMembershipCache GetOrCreateContractCache(DiagramContract Contract)
+    {
+        return ContractCache.GetValue(Contract, BuildContractCache);
+    }
+
+    private static ContractMembershipCache BuildContractCache(DiagramContract Contract)
+    {
+        Dictionary<string, GroupContract> GroupById =
+            new Dictionary<string, GroupContract>(StringComparer.Ordinal);
         foreach (GroupContract Group in Contract.Groups)
         {
-            if (string.Equals(Group.Id, NodeId, StringComparison.Ordinal))
-            {
-                return Group.Id;
-            }
+            GroupById[Group.Id] = Group;
+        }
+
+        Dictionary<string, string?> Parents = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            Parents.TryAdd(Group.Id, Group.Id);
         }
 
         foreach (NodeContract Node in Contract.Nodes)
         {
-            if (string.Equals(Node.Id, NodeId, StringComparison.Ordinal))
-            {
-                return Node.ParentGroupId;
-            }
+            Parents.TryAdd(Node.Id, Node.ParentGroupId);
         }
 
-        return null;
+        return new ContractMembershipCache
+        {
+            Parents = Parents,
+            GroupById = GroupById
+        };
     }
 }

@@ -108,7 +108,7 @@ internal static class FlowchartFrameTitleBandHelper
     internal static IReadOnlyList<string> FindEnteredBandIds(IReadOnlyList<(double X, double Y)> points,
         IReadOnlyList<Band> bands, string sourceId, string targetId, DiagramContract contract)
     {
-        HashSet<string> entered = new(StringComparer.Ordinal);
+        List<string> entered = [];
         for (int index = 1; index < points.Count; index++)
         {
             (double x1, double y1) = points[index - 1];
@@ -118,26 +118,56 @@ internal static class FlowchartFrameTitleBandHelper
                 // A route connecting a member to a non-member may cross the group's
                 // top outline at a port. Only the one vertical segment that crosses
                 // that outline is exempt; travel along or through the title strip is not.
-                if (IsLegalTopPortCrossing(band, x1, y1, x2, y2, sourceId, targetId, contract)) continue;
-                if (SegmentEnters(band, x1, y1, x2, y2)) entered.Add(band.GroupId);
+                if (IsLegalTopPortCrossing(band, x1, y1, x2, y2, sourceId, targetId, contract))
+                {
+                    continue;
+                }
+
+                if (SegmentEnters(band, x1, y1, x2, y2))
+                {
+                    entered.Add(band.GroupId);
+                }
             }
         }
-        return entered.OrderBy(id => id, StringComparer.Ordinal).ToArray();
+
+        if (entered.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        entered.Sort(StringComparer.Ordinal);
+        return entered.ToArray();
     }
 
     internal static bool IsLegalTopPortCrossing(Band band, double x1, double y1, double x2, double y2,
         string sourceId, string targetId, DiagramContract contract)
     {
-        bool sourceInside = DiagramGridLayout.IsInsideGroup(contract, sourceId, band.GroupId);
-        bool targetInside = DiagramGridLayout.IsInsideGroup(contract, targetId, band.GroupId);
+        if (Math.Abs(x1 - x2) > 0.5)
+        {
+            return false;
+        }
+
+        if (x1 <= band.Left + 0.5 || x1 >= band.Right - 0.5)
+        {
+            return false;
+        }
+
         bool crossesTop = (y1 - band.Top) * (y2 - band.Top) < 0;
         bool startsAtTopPort = Math.Abs(y1 - band.Top) <= 0.5 && y2 < band.Top - 0.5;
         bool endsAtTopPort = Math.Abs(y2 - band.Top) <= 0.5 && y1 < band.Top - 0.5;
-        return sourceInside != targetInside
-            && Math.Abs(x1 - x2) <= 0.5
-            && x1 > band.Left + 0.5 && x1 < band.Right - 0.5
-            && (crossesTop || startsAtTopPort || endsAtTopPort)
-            && SegmentEnters(band, x1, y1, x2, y2);
+        if (!(crossesTop || startsAtTopPort || endsAtTopPort))
+        {
+            return false;
+        }
+
+        if (!SegmentEnters(band, x1, y1, x2, y2))
+        {
+            return false;
+        }
+
+        bool sourceInside = DiagramGridLayout.IsInsideGroup(contract, sourceId, band.GroupId);
+        bool targetInside = DiagramGridLayout.IsInsideGroup(contract, targetId, band.GroupId);
+        return sourceInside != targetInside;
     }
 
     /// <summary>Copies the current obstacle inventory and appends exact title-band rectangles in deterministic order.</summary>
