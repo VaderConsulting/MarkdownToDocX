@@ -186,6 +186,8 @@ internal sealed partial class ElementPalette : UserControl
         _Chosen = null;
         _Snippet = string.Empty;
         _IdEdited = false;
+        PromptLabelBox.Text = string.Empty;
+        PromptIdBox.Text = string.Empty;
         PromptErrorLabel.Visible = false;
         PromptErrorLabel.Text = string.Empty;
         PromptPanel.Visible = false;

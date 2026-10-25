@@ -66,7 +66,7 @@ internal static class ElementStory
         }
 
         string Sentence = SourceName + " " + Verb(Match) + " " + TargetName;
-        if (Match.Label.Length > 0)
+        if (Match.Label.Length > 0 && !LabelOnlyRepeatsRelationshipWording(Match))
         {
             Sentence = Sentence + ": " + Match.Label;
         }
@@ -458,12 +458,107 @@ internal static class ElementStory
     private static string Mention(EnterpriseDocument Document, EnterpriseRelationship Relationship, string OtherId)
     {
         string Name = ParticipantName(Document, OtherId);
-        if (Relationship.Label.Length == 0)
+        if (Relationship.Label.Length == 0 || LabelOnlyRepeatsRelationshipWording(Relationship))
         {
             return Name;
         }
 
         return Name + " (" + Relationship.Label + ")";
+    }
+
+    private static bool LabelOnlyRepeatsRelationshipWording(EnterpriseRelationship Relationship)
+    {
+        string Label = Relationship.Label.Trim();
+        if (Label.Length == 0)
+        {
+            return true;
+        }
+
+        foreach (string Token in RedundantLabelTokens(Relationship))
+        {
+            if (string.Equals(Label, Token, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> RedundantLabelTokens(EnterpriseRelationship Relationship)
+    {
+        yield return EnterpriseElementCatalog.GetRelationshipName(Relationship.Kind);
+        switch (Relationship.Kind)
+        {
+            case EnterpriseRelationshipKind.Composition:
+                yield return "composition";
+                yield return "composed";
+                yield return "composes";
+                break;
+            case EnterpriseRelationshipKind.Aggregation:
+                yield return "aggregation";
+                yield return "aggregates";
+                yield return "aggregate";
+                break;
+            case EnterpriseRelationshipKind.Assignment:
+                yield return "assignment";
+                yield return "assigned";
+                yield return "assigns";
+                break;
+            case EnterpriseRelationshipKind.Realization:
+                yield return "realization";
+                yield return "realisation";
+                yield return "realises";
+                yield return "realizes";
+                break;
+            case EnterpriseRelationshipKind.Serving:
+                yield return "serves";
+                yield return "serve";
+                yield return "serving";
+                break;
+            case EnterpriseRelationshipKind.Specialization:
+                yield return "specialization";
+                yield return "specialisation";
+                yield return "specialises";
+                yield return "specializes";
+                break;
+            case EnterpriseRelationshipKind.Association:
+                if (Relationship.DirectedAssociation)
+                {
+                    yield return "directed";
+                    yield return "direction";
+                }
+                else
+                {
+                    yield return "associated";
+                    yield return "association";
+                }
+
+                break;
+            case EnterpriseRelationshipKind.Access:
+                yield return "access";
+                yield return "accesses";
+                yield return "reads";
+                yield return "writes";
+                break;
+            case EnterpriseRelationshipKind.Flow:
+                yield return "flow";
+                yield return "flows";
+                break;
+            case EnterpriseRelationshipKind.Triggering:
+                yield return "triggering";
+                yield return "triggers";
+                yield return "trigger";
+                yield return "starts";
+                yield return "start";
+                yield return "triggered";
+                break;
+            case EnterpriseRelationshipKind.Influence:
+                yield return "influence";
+                yield return "influences";
+                yield return "influenced";
+                break;
+        }
     }
 
     private static string OtherType(EnterpriseDocument Document, string Id)

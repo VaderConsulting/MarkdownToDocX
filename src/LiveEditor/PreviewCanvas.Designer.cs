@@ -42,7 +42,7 @@ namespace LiveEditor
             Viewport.AutoScroll = true;
             Viewport.BackColor = Color.White;
             Viewport.Controls.Add(DiagramPicture);
-            Viewport.Dock = DockStyle.Fill;
+            Viewport.Dock = DockStyle.None;
             Viewport.Location = new Point(0, 0);
             Viewport.Margin = new Padding(2, 2, 2, 2);
             Viewport.ContextMenuStrip = DiagramMenu;

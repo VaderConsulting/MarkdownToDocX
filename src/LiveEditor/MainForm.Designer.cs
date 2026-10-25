@@ -151,8 +151,8 @@ namespace LiveEditor
             SaveCoArchiFolderMenuItem = new ToolStripMenuItem();
             BodySplit = new SplitContainer();
             EditorSplit = new SplitContainer();
-            SelectionDetails = new SelectionPanel();
             CodeView = new CodeEditor();
+            SelectionDetails = new SelectionPanel();
             Preview = new PreviewCanvas();
             ElementToolbar = new ElementPalette();
             DiagnosticsList = new ListBox();
@@ -181,7 +181,7 @@ namespace LiveEditor
             MainMenu.Location = new Point(0, 0);
             MainMenu.Name = "MainMenu";
             MainMenu.Padding = new Padding(6, 3, 0, 3);
-            MainMenu.Size = new Size(1303, 30);
+            MainMenu.Size = new Size(1317, 30);
             MainMenu.TabIndex = 0;
             // 
             // FileMenu
@@ -1101,7 +1101,7 @@ namespace LiveEditor
             // 
             BodySplit.Panel2.Controls.Add(DiagnosticsList);
             BodySplit.Panel2Collapsed = true;
-            BodySplit.Size = new Size(1303, 852);
+            BodySplit.Size = new Size(1317, 919);
             BodySplit.SplitterDistance = 448;
             BodySplit.SplitterWidth = 3;
             BodySplit.TabIndex = 1;
@@ -1109,36 +1109,26 @@ namespace LiveEditor
             // EditorSplit
             // 
             EditorSplit.Dock = DockStyle.Fill;
-            EditorSplit.Location = new Point(0, 90);
+            EditorSplit.FixedPanel = FixedPanel.Panel1;
+            EditorSplit.Location = new Point(0, 92);
             EditorSplit.Margin = new Padding(2, 3, 2, 3);
             EditorSplit.Name = "EditorSplit";
             // 
             // EditorSplit.Panel1
             // 
-            EditorSplit.Panel1.Controls.Add(SelectionDetails);
             EditorSplit.Panel1.Controls.Add(CodeView);
             EditorSplit.Panel1MinSize = 240;
             // 
             // EditorSplit.Panel2
             // 
+            EditorSplit.Panel2.Controls.Add(SelectionDetails);
             EditorSplit.Panel2.Controls.Add(Preview);
             EditorSplit.Panel2MinSize = 240;
-            EditorSplit.Size = new Size(1303, 762);
-            EditorSplit.SplitterDistance = 341;
+            EditorSplit.Size = new Size(1317, 827);
+            EditorSplit.SplitterDistance = 390;
             EditorSplit.SplitterWidth = 3;
             EditorSplit.TabIndex = 0;
-            // 
-            // SelectionDetails
-            // 
-            SelectionDetails.Dock = DockStyle.Bottom;
-            SelectionDetails.Location = new Point(0, 358);
-            SelectionDetails.Margin = new Padding(0);
-            SelectionDetails.MinimumSize = new Size(320, 404);
-            SelectionDetails.Name = "SelectionDetails";
-            SelectionDetails.Size = new Size(341, 404);
-            SelectionDetails.TabIndex = 6;
-            SelectionDetails.Visible = false;
-            SelectionDetails.ChangeTypeClicked += SelectionDetails_ChangeTypeClicked;
+            EditorSplit.SplitterMoved += EditorSplit_SplitterMoved;
             // 
             // CodeView
             // 
@@ -1146,8 +1136,22 @@ namespace LiveEditor
             CodeView.Location = new Point(0, 0);
             CodeView.Margin = new Padding(0);
             CodeView.Name = "CodeView";
-            CodeView.Size = new Size(341, 762);
+            CodeView.Size = new Size(390, 827);
             CodeView.TabIndex = 0;
+            // 
+            // SelectionDetails
+            // 
+            SelectionDetails.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            SelectionDetails.BackColor = SystemColors.ControlDark;
+            SelectionDetails.Location = new Point(11, 523);
+            SelectionDetails.Margin = new Padding(0);
+            SelectionDetails.MinimumSize = new Size(440, 292);
+            SelectionDetails.Name = "SelectionDetails";
+            SelectionDetails.Padding = new Padding(1);
+            SelectionDetails.Size = new Size(440, 292);
+            SelectionDetails.TabIndex = 6;
+            SelectionDetails.Visible = true;
+            SelectionDetails.ChangeTypeClicked += SelectionDetails_ChangeTypeClicked;
             // 
             // Preview
             // 
@@ -1155,7 +1159,7 @@ namespace LiveEditor
             Preview.Location = new Point(0, 0);
             Preview.Margin = new Padding(2, 3, 2, 3);
             Preview.Name = "Preview";
-            Preview.Size = new Size(959, 762);
+            Preview.Size = new Size(924, 827);
             Preview.TabIndex = 0;
             Preview.PictureMouseMove += Preview_PictureMouseMove;
             Preview.PictureMouseLeave += Preview_PictureMouseLeave;
@@ -1171,7 +1175,7 @@ namespace LiveEditor
             ElementToolbar.Location = new Point(0, 0);
             ElementToolbar.Margin = new Padding(3, 4, 3, 4);
             ElementToolbar.Name = "ElementToolbar";
-            ElementToolbar.Size = new Size(1303, 90);
+            ElementToolbar.Size = new Size(1317, 92);
             ElementToolbar.TabIndex = 2;
             ElementToolbar.InsertRequested += ElementToolbar_InsertRequested;
             ElementToolbar.PromptClosed += ElementToolbar_PromptClosed;
@@ -1180,12 +1184,12 @@ namespace LiveEditor
             // 
             DiagnosticsList.AccessibleName = "Validation diagnostics";
             DiagnosticsList.Dock = DockStyle.Fill;
-            DiagnosticsList.Font = new Font("Consolas", 0.05312664F);
+            DiagnosticsList.Font = new Font("Consolas", 0.0111414632F);
             DiagnosticsList.HorizontalScrollbar = true;
             DiagnosticsList.Location = new Point(0, 0);
             DiagnosticsList.Margin = new Padding(2, 3, 2, 3);
             DiagnosticsList.Name = "DiagnosticsList";
-            DiagnosticsList.Size = new Size(150, 46);
+            DiagnosticsList.Size = new Size(171, 61);
             DiagnosticsList.TabIndex = 0;
             DiagnosticsList.DoubleClick += DiagnosticsList_DoubleClick;
             // 
@@ -1193,16 +1197,16 @@ namespace LiveEditor
             // 
             StatusBar.ImageScalingSize = new Size(20, 20);
             StatusBar.Items.AddRange(new ToolStripItem[] { StatusLabel, SignatureLabel, TimingLabel, CoArchiDirtyLabel });
-            StatusBar.Location = new Point(0, 882);
+            StatusBar.Location = new Point(0, 949);
             StatusBar.Name = "StatusBar";
             StatusBar.Padding = new Padding(1, 0, 11, 0);
-            StatusBar.Size = new Size(1303, 26);
+            StatusBar.Size = new Size(1317, 26);
             StatusBar.TabIndex = 2;
             // 
             // StatusLabel
             // 
             StatusLabel.Name = "StatusLabel";
-            StatusLabel.Size = new Size(1291, 20);
+            StatusLabel.Size = new Size(1305, 20);
             StatusLabel.Spring = true;
             StatusLabel.Text = "Ready";
             StatusLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -1231,7 +1235,7 @@ namespace LiveEditor
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1303, 908);
+            ClientSize = new Size(1317, 975);
             Controls.Add(BodySplit);
             Controls.Add(StatusBar);
             Controls.Add(MainMenu);

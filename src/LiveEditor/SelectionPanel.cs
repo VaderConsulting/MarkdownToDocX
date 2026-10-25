@@ -8,14 +8,30 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace LiveEditor;
 
 /// <summary>
-/// Properties for the selected diagram object, under the preview. It shows the picture, the description,
-/// editor line, connection facts, and a type change.
+/// Properties for the selected diagram object. It shows the picture, the description,
+/// editor line, connection facts, and a type change. Floated over the bottom-left of the diagram preview.
 /// </summary>
 internal sealed partial class SelectionPanel : UserControl
 {
-    private const int CHANGE_TYPE_BUTTON_MIN_WIDTH = 75;
+    /// <summary>Height that fits every row in <see cref="DetailTable"/> plus panel padding.</summary>
+    internal int PreferredFloatingHeight
+    {
+        get
+        {
+            int RowTotal = 0;
+            for (int Index = 0; Index < DetailTable.RowCount; Index++)
+            {
+                RowStyle Style = DetailTable.RowStyles[Index];
+                if (Style.SizeType == SizeType.Absolute)
+                {
+                    RowTotal += (int)Math.Ceiling(Style.Height);
+                }
+            }
 
-    private const int CHANGE_TYPE_BUTTON_MIN_HEIGHT = 23;
+            int Height = RowTotal + Padding.Vertical + 4;
+            return Math.Max(MinimumSize.Height, Height);
+        }
+    }
 
     private Image? _OwnedPicture;
 
@@ -27,62 +43,7 @@ internal sealed partial class SelectionPanel : UserControl
     public SelectionPanel()
     {
         InitializeComponent();
-        LayoutDetailRows();
         ShowNone();
-    }
-
-    protected override void OnDpiChangedAfterParent(EventArgs e)
-    {
-        base.OnDpiChangedAfterParent(e);
-        LayoutDetailRows();
-    }
-
-    protected override void OnFontChanged(EventArgs e)
-    {
-        base.OnFontChanged(e);
-        LayoutDetailRows();
-    }
-
-    private void SelectionPanel_Load(object? Sender, EventArgs e)
-    {
-        LayoutDetailRows();
-    }
-
-    private void LayoutDetailRows()
-    {
-        LayoutTypeRow();
-        LayoutEditorLineRow();
-    }
-
-    private void LayoutTypeRow()
-    {
-        Size ButtonPreferred = ChangeTypeButton.PreferredSize;
-        int ButtonWidth = Math.Max(CHANGE_TYPE_BUTTON_MIN_WIDTH, ButtonPreferred.Width);
-        int ButtonHeight = Math.Max(CHANGE_TYPE_BUTTON_MIN_HEIGHT, ButtonPreferred.Height);
-        ChangeTypeButton.Size = new Size(ButtonWidth, ButtonHeight);
-        int ComboHeight = Math.Max(CHANGE_TYPE_BUTTON_MIN_HEIGHT, TypeCombo.PreferredSize.Height);
-        TypeCombo.Height = ComboHeight;
-        int LabelHeight = TypeLabel.Height;
-        int ContentHeight = Math.Max(ButtonHeight, Math.Max(ComboHeight, LabelHeight));
-        int TypeRowHeight = Math.Max(40, ContentHeight + 8);
-        TypeRow.RowStyles[0] = new RowStyle(SizeType.Absolute, TypeRowHeight);
-        DetailTable.RowStyles[4] = new RowStyle(SizeType.Absolute, TypeRowHeight);
-        int PadTop = (TypeRowHeight - ContentHeight) / 2;
-        TypeLabel.Margin = new Padding(4, PadTop + (ContentHeight - LabelHeight) / 2, 8, 0);
-        TypeCombo.Margin = new Padding(4, PadTop + (ContentHeight - ComboHeight) / 2, 8, 0);
-        ChangeTypeButton.Margin = new Padding(0, PadTop + (ContentHeight - ButtonHeight) / 2, 4, 0);
-        ChangeTypeButton.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-    }
-
-    private void LayoutEditorLineRow()
-    {
-        int RowHeight = (int)EditorLineRow.RowStyles[0].Height;
-        int ValueHeight = EditorLineValue.Height;
-        int CaptionHeight = EditorLineCaption.Height;
-        int ContentHeight = Math.Max(ValueHeight, CaptionHeight);
-        int PadTop = (RowHeight - ContentHeight) / 2;
-        EditorLineCaption.Margin = new Padding(4, PadTop + (ContentHeight - CaptionHeight) / 2, 8, 0);
-        EditorLineValue.Margin = new Padding(4, PadTop + (ContentHeight - ValueHeight) / 2, 0, 0);
     }
 
     /// <summary>
@@ -122,12 +83,12 @@ internal sealed partial class SelectionPanel : UserControl
         try
         {
             TitleLabel.Text = "Selection";
-            DescriptionBox.Text = string.Empty;
+            DescriptionBox.Text = "Nothing selected. Click a shape in the preview or place the caret on a diagram line.";
             SetEditorLine(0);
             FactsBox.Text = string.Empty;
             SetPicture(null);
             TypeRow.Visible = false;
-            Visible = false;
+            Visible = true;
         }
         finally
         {
@@ -247,6 +208,77 @@ internal sealed partial class SelectionPanel : UserControl
     private static int CompareChoices(TypeChoice Left, TypeChoice Right)
     {
         return string.Compare(Left.Caption, Right.Caption, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <inheritdoc />
+    protected override void WndProc(ref Message M)
+    {
+        const int WM_NCHITTEST = 0x0084;
+        const int HTCLIENT = 1;
+        const int HTTRANSPARENT = -1;
+        if (M.Msg == WM_NCHITTEST)
+        {
+            base.WndProc(ref M);
+            if ((int)M.Result == HTCLIENT)
+            {
+                Point Screen = DecodeScreenPoint(M.LParam);
+                Point Client = PointToClient(Screen);
+                if (!ShouldCapturePointer(Client))
+                {
+                    M.Result = (IntPtr)HTTRANSPARENT;
+                }
+            }
+
+            return;
+        }
+
+        base.WndProc(ref M);
+    }
+
+    private static Point DecodeScreenPoint(IntPtr LParam)
+    {
+        int Packed = LParam.ToInt32();
+        return new Point((short)(Packed & 0xFFFF), (short)((Packed >> 16) & 0xFFFF));
+    }
+
+    private bool ShouldCapturePointer(Point Client)
+    {
+        if (!Visible)
+        {
+            return false;
+        }
+
+        if (HitsControl(TitleLabel, Client)
+            || HitsControl(ObjectPicture, Client)
+            || HitsControl(DescriptionBox, Client)
+            || HitsControl(EditorLineRow, Client)
+            || HitsControl(EditorLineCaption, Client)
+            || HitsControl(EditorLineValue, Client)
+            || HitsControl(FactsBox, Client)
+            || HitsControl(RadiosRow, Client)
+            || HitsControl(KeepRelationshipsRadio, Client)
+            || HitsControl(UpdateRelationshipsRadio, Client))
+        {
+            return true;
+        }
+
+        if (!TypeRow.Visible)
+        {
+            return false;
+        }
+
+        return HitsControl(TypeRow, Client) || HitsControl(TypeLabel, Client) || HitsControl(TypeCombo, Client) || HitsControl(ChangeTypeButton, Client);
+    }
+
+    private bool HitsControl(Control Target, Point Client)
+    {
+        if (!Target.Visible)
+        {
+            return false;
+        }
+
+        Rectangle Bounds = RectangleToClient(Target.RectangleToScreen(Target.ClientRectangle));
+        return Bounds.Contains(Client);
     }
 
     private sealed class TypeChoice

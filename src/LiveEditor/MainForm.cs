@@ -54,6 +54,7 @@ public partial class MainForm : Form
     private bool _IgnorePreviewSelection;
     private bool _SyncingSelectionFromPreview;
     private bool _FollowPreviewFromCaret;
+    private bool _ClearPreviewSelectionOnNextRender;
     private int _CaretAtPreviewClear = -1;
     private int _EditorTextVersion;
     private int _PreviewIndexTextVersion = -1;
@@ -68,6 +69,22 @@ public partial class MainForm : Form
     private int _RenderGeneration;
     private DiagramMetadata _DiagramMetadata = DiagramMetadata.Empty(0);
     private DateTime? _BrokenSince;
+
+    private Control? _FloatingSelectionHost;
+
+    private const int FLOATING_SELECTION_MARGIN_PX = 12;
+
+    private const int FLOATING_SELECTION_WIDTH_PX = 600;
+
+    private const int DEFAULT_EDITOR_PANE_PIXELS = 341;
+
+    private const int MINIMUM_EDITOR_PANE_PIXELS = 240;
+
+    private bool _EditorSplitDistanceApplied;
+
+    private bool _LastEditorOnLeft = true;
+
+    private Orientation _LastSplitOrientation = Orientation.Vertical;
 
     /// <summary>
     /// Creates the live editor window.
@@ -116,7 +133,11 @@ public partial class MainForm : Form
 
     private void MainForm_Load(object? Sender, EventArgs E)
     {
-        BeginInvoke(EnsureEditorSplitLayout);
+        BeginInvoke(() =>
+        {
+            EnsureEditorSplitLayout();
+            LayoutFloatingSelectionPanel();
+        });
     }
 
     private void EnsureEditorSplitLayout()
@@ -127,13 +148,53 @@ public partial class MainForm : Form
             return;
         }
 
-        int MinimumPane = Math.Min(240, Math.Max(120, Span / 4));
-        EditorSplit.Panel1MinSize = MinimumPane;
-        EditorSplit.Panel2MinSize = MinimumPane;
-        int PreferredFraction = _Settings.EditorOnLeft ? 42 : 58;
-        int Preferred = (int)Math.Round(Span * PreferredFraction / 100.0);
-        int Maximum = Math.Max(MinimumPane, Span - MinimumPane - EditorSplit.SplitterWidth);
-        EditorSplit.SplitterDistance = Math.Max(MinimumPane, Math.Min(Maximum, Preferred));
+        EditorSplit.Panel1MinSize = MINIMUM_EDITOR_PANE_PIXELS;
+        EditorSplit.Panel2MinSize = MINIMUM_EDITOR_PANE_PIXELS;
+        EditorSplit.FixedPanel = _Settings.EditorOnLeft ? FixedPanel.Panel1 : FixedPanel.Panel2;
+        bool NeedsSplitterDistance = !_EditorSplitDistanceApplied
+            || _LastEditorOnLeft != _Settings.EditorOnLeft
+            || _LastSplitOrientation != EditorSplit.Orientation;
+        if (!NeedsSplitterDistance)
+        {
+            return;
+        }
+
+        int EditorPixels = _Settings.EditorPanePixels > 0 ? _Settings.EditorPanePixels : DEFAULT_EDITOR_PANE_PIXELS;
+        int Maximum = Math.Max(MINIMUM_EDITOR_PANE_PIXELS, Span - MINIMUM_EDITOR_PANE_PIXELS - EditorSplit.SplitterWidth);
+        int ClampedEditor = Math.Max(MINIMUM_EDITOR_PANE_PIXELS, Math.Min(Maximum, EditorPixels));
+        if (_Settings.EditorOnLeft)
+        {
+            EditorSplit.SplitterDistance = ClampedEditor;
+        }
+        else
+        {
+            EditorSplit.SplitterDistance = Math.Max(MINIMUM_EDITOR_PANE_PIXELS, Span - ClampedEditor - EditorSplit.SplitterWidth);
+        }
+
+        _EditorSplitDistanceApplied = true;
+        _LastEditorOnLeft = _Settings.EditorOnLeft;
+        _LastSplitOrientation = EditorSplit.Orientation;
+    }
+
+    private void EditorSplit_SplitterMoved(object? Sender, SplitterEventArgs E)
+    {
+        if (!_PersistSession)
+        {
+            return;
+        }
+
+        _Settings.EditorPanePixels = GetEditorPanePixels();
+    }
+
+    private int GetEditorPanePixels()
+    {
+        Control EditorPane = _Settings.EditorOnLeft ? EditorSplit.Panel1 : EditorSplit.Panel2;
+        if (EditorSplit.Orientation == Orientation.Vertical)
+        {
+            return EditorPane.Width;
+        }
+
+        return EditorPane.Height;
     }
 
     private async void MainForm_Shown(object? Sender, EventArgs E)
@@ -262,6 +323,11 @@ public partial class MainForm : Form
     {
         Application.AddMessageFilter(_PreviewHoverDismiss);
         ElementToolbar.BindSource(CurrentEditorText);
+        CodeView.Editor.TextChanged += Editor_TextChanged;
+        CodeView.Editor.SelectionChanged += Editor_SelectionChanged;
+        CodeView.ColoursRefreshing += CodeView_ColoursRefreshing;
+        CodeView.StatusRequested += CodeView_StatusRequested;
+        CodeView.FontSizeChanged += CodeView_FontSizeChanged;
     }
 
     private void UpdateFeatureAvailability()
@@ -639,7 +705,27 @@ public partial class MainForm : Form
             _LastPngBytes = CopyPng(Preview.Image);
             _LastSvg = Preview.RenderedSvg;
             _PreviewIndexTextVersion = _RenderTextVersion;
-            RestorePreviewSelection();
+            if (_ClearPreviewSelectionOnNextRender)
+            {
+                _ClearPreviewSelectionOnNextRender = false;
+                _IgnorePreviewSelection = true;
+                try
+                {
+                    Preview.SelectedItems = null;
+                    _CaretAtPreviewClear = -1;
+                    HidePreviewHover();
+                    UpdateSelectionPanel();
+                }
+                finally
+                {
+                    _IgnorePreviewSelection = false;
+                }
+            }
+            else
+            {
+                RestorePreviewSelection();
+            }
+
             _BrokenSince = null;
             if (LegacyPreview)
             {
@@ -1149,6 +1235,34 @@ public partial class MainForm : Form
         Preview.ScrollItemIntoView(AtCaret, Centre: false);
     }
 
+    private void ClearPreviewSelectionForNewContent()
+    {
+        RenderTimer.Stop();
+        _RenderCancellation?.Cancel();
+        _RenderCancellation?.Dispose();
+        _RenderCancellation = null;
+        Interlocked.Increment(ref _RenderGeneration);
+        _LastPngBytes = null;
+        _LastSvg = null;
+        _BrokenSince = null;
+        _ClearPreviewSelectionOnNextRender = true;
+        _FollowPreviewFromCaret = false;
+        _CaretAtPreviewClear = -1;
+        _SelectedOccurrences.Clear();
+        _IgnorePreviewSelection = true;
+        try
+        {
+            Preview.HideBanner();
+            Preview.Clear();
+            HidePreviewHover();
+            UpdateSelectionPanel();
+        }
+        finally
+        {
+            _IgnorePreviewSelection = false;
+        }
+    }
+
     private void RestorePreviewSelection()
     {
         List<PreviewObject> Restored = new List<PreviewObject>();
@@ -1196,6 +1310,7 @@ public partial class MainForm : Form
         if (Selected == null || Preview.Index == null)
         {
             SelectionDetails.ShowNone();
+            EnsureFloatingSelectionVisible();
             return;
         }
 
@@ -1203,6 +1318,7 @@ public partial class MainForm : Form
         if (!EnterpriseParser.IsEnterpriseSource(Source))
         {
             SelectionDetails.ShowObject(Selected.Id.Length == 0 ? "Selection" : Selected.Id, "This diagram has no enterprise description.", CropSelection(Selected), Selected.LineNumber, ConnectionFacts(Selected, null), string.Empty);
+            EnsureFloatingSelectionVisible();
             return;
         }
 
@@ -1229,6 +1345,7 @@ public partial class MainForm : Form
         }
 
         SelectionDetails.ShowObject(Title, Description, CropSelection(Selected), Selected.LineNumber, ConnectionFacts(Selected, Parsed.Document), Kebab);
+        EnsureFloatingSelectionVisible();
     }
 
     /// <summary>
@@ -1478,7 +1595,8 @@ public partial class MainForm : Form
         EditorSplit.Dock = DockStyle.Fill;
         Preview.Dock = DockStyle.Fill;
         CodeView.Dock = DockStyle.Fill;
-        SelectionDetails.Dock = DockStyle.Bottom;
+        SelectionDetails.Dock = DockStyle.None;
+        SelectionDetails.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         Control EditorParent = _Settings.EditorOnLeft ? EditorSplit.Panel1 : EditorSplit.Panel2;
         Control PreviewParent = _Settings.EditorOnLeft ? EditorSplit.Panel2 : EditorSplit.Panel1;
         if (!ReferenceEquals(CodeView.Parent, EditorParent))
@@ -1491,9 +1609,9 @@ public partial class MainForm : Form
             PreviewParent.Controls.Add(Preview);
         }
 
-        if (!ReferenceEquals(SelectionDetails.Parent, EditorParent))
+        if (!ReferenceEquals(SelectionDetails.Parent, Preview))
         {
-            EditorParent.Controls.Add(SelectionDetails);
+            Preview.Controls.Add(SelectionDetails);
         }
 
         if (_Settings.WideToolbar)
@@ -1517,9 +1635,86 @@ public partial class MainForm : Form
             PreviewParent.Controls.SetChildIndex(ElementToolbar, PreviewParent.Controls.Count - 1);
         }
 
-        EditorParent.Controls.SetChildIndex(SelectionDetails, EditorParent.Controls.Count - 1);
+        if (_FloatingSelectionHost != null)
+        {
+            _FloatingSelectionHost.Resize -= PreviewHost_Resize;
+        }
+
+        _FloatingSelectionHost = Preview;
+        _FloatingSelectionHost.Resize += PreviewHost_Resize;
+        LayoutFloatingSelectionPanel();
+        EnsureFloatingSelectionVisible();
+
         EditorParent.Controls.SetChildIndex(CodeView, 0);
-        EnsureEditorSplitLayout();
+        ApplyEditorSplitFixedPane();
+    }
+
+    private void ApplyEditorSplitFixedPane()
+    {
+        EditorSplit.Panel1MinSize = MINIMUM_EDITOR_PANE_PIXELS;
+        EditorSplit.Panel2MinSize = MINIMUM_EDITOR_PANE_PIXELS;
+        EditorSplit.FixedPanel = _Settings.EditorOnLeft ? FixedPanel.Panel1 : FixedPanel.Panel2;
+    }
+
+    private void PreviewHost_Resize(object? Sender, EventArgs E)
+    {
+        LayoutFloatingSelectionPanel();
+    }
+
+    private void LayoutFloatingSelectionPanel()
+    {
+        if (_FloatingSelectionHost == null || SelectionDetails.Parent != _FloatingSelectionHost)
+        {
+            return;
+        }
+
+        int HostWidth = _FloatingSelectionHost.ClientSize.Width;
+        int HostHeight = _FloatingSelectionHost.ClientSize.Height;
+        if (HostWidth <= 0 || HostHeight <= 0)
+        {
+            if (IsHandleCreated)
+            {
+                BeginInvoke(LayoutFloatingSelectionPanel);
+            }
+
+            return;
+        }
+
+        int MaxWidth = HostWidth - FLOATING_SELECTION_MARGIN_PX * 2;
+        int Width = Math.Min(FLOATING_SELECTION_WIDTH_PX, MaxWidth);
+        Width = Math.Max(Width, SelectionDetails.MinimumSize.Width);
+        int Height = SelectionDetails.PreferredFloatingHeight;
+        SelectionDetails.Size = new Size(Width, Height);
+        int Y = HostHeight - Height - FLOATING_SELECTION_MARGIN_PX;
+        if (Y < FLOATING_SELECTION_MARGIN_PX)
+        {
+            Y = FLOATING_SELECTION_MARGIN_PX;
+        }
+
+        SelectionDetails.Location = new Point(FLOATING_SELECTION_MARGIN_PX, Y);
+        SyncSelectionFitObstacle();
+    }
+
+    private void SyncSelectionFitObstacle()
+    {
+        Rectangle Obstacle = Rectangle.Empty;
+        if (ReferenceEquals(SelectionDetails.Parent, Preview))
+        {
+            int Left = Math.Max(0, SelectionDetails.Left - FLOATING_SELECTION_MARGIN_PX);
+            int Top = Math.Max(0, SelectionDetails.Top - FLOATING_SELECTION_MARGIN_PX);
+            int Right = SelectionDetails.Right + FLOATING_SELECTION_MARGIN_PX;
+            int Bottom = SelectionDetails.Bottom + FLOATING_SELECTION_MARGIN_PX;
+            Obstacle = Rectangle.FromLTRB(Left, Top, Right, Bottom);
+        }
+
+        Preview.SetFitObstacle(Obstacle);
+    }
+
+    private void EnsureFloatingSelectionVisible()
+    {
+        LayoutFloatingSelectionPanel();
+        SelectionDetails.BringToFront();
+        Preview.EnsureZoomButtonsOnTop();
     }
 
     private string CurrentEditorText()
@@ -1805,6 +2000,7 @@ public partial class MainForm : Form
 
         EditorSplit.Orientation = EditorSplit.Orientation == Orientation.Vertical ? Orientation.Horizontal : Orientation.Vertical;
         _Settings.VerticalSplit = EditorSplit.Orientation == Orientation.Vertical;
+        _EditorSplitDistanceApplied = false;
         EnsureEditorSplitLayout();
     }
 
@@ -2043,6 +2239,7 @@ public partial class MainForm : Form
 
         Dialog.ApplyTo(_Settings);
         Preview.SelectionColour = SessionSettings.ParseColour(_Settings.SelectionColour);
+        _EditorSplitDistanceApplied = false;
         ApplyEditorPreferences();
         ApplyWorkspaceLayout();
         _Settings.Save();
@@ -2202,6 +2399,7 @@ public partial class MainForm : Form
 
     private void LoadSourceFile(string SourcePath, bool Announce)
     {
+        ClearPreviewSelectionForNewContent();
         string Source = File.ReadAllText(SourcePath);
         SetEditorContent(Source, SourcePath, null, IsDirty: false);
         _Settings.RememberFile(SourcePath);
@@ -2425,6 +2623,7 @@ public partial class MainForm : Form
         _Settings.LastFilePath = _CurrentSourcePath;
         _Settings.LastCoArchiFolder = _CurrentCoArchiFolder;
         _Settings.VerticalSplit = EditorSplit.Orientation == Orientation.Vertical;
+        _Settings.EditorPanePixels = GetEditorPanePixels();
         _Settings.DiagnosticsVisible = !BodySplit.Panel2Collapsed;
         _Settings.MinimapVisible = CodeView.MinimapVisible;
         try
@@ -2454,6 +2653,7 @@ public partial class MainForm : Form
             return;
         }
 
+        ClearPreviewSelectionForNewContent();
         try
         {
             string Xml = File.ReadAllText(Dialog.FileName);
@@ -2527,6 +2727,7 @@ public partial class MainForm : Form
             return;
         }
 
+        ClearPreviewSelectionForNewContent();
         if (!ArchiInterop.TryImportArchimateFile(Dialog.FileName, out string MermaidSource, out string WarningSummary, out string ErrorMessage))
         {
             MessageBox.Show(this, ErrorMessage, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -2597,6 +2798,7 @@ public partial class MainForm : Form
             return;
         }
 
+        ClearPreviewSelectionForNewContent();
         if (!ArchiInterop.TryImportCoArchiFolder(Dialog.SelectedPath, out string MermaidSource, out string WarningSummary, out string ErrorMessage))
         {
             MessageBox.Show(this, ErrorMessage, "Open coArchi folder failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -2669,6 +2871,8 @@ public partial class MainForm : Form
 
     private void SetEditorContent(string Source, string? SourcePath, string? CoArchiFolder, bool IsDirty)
     {
+        ClearPreviewSelectionForNewContent();
+        ElementToolbar.ClosePrompt();
         CodeView.IntelliSense.Suppress = true;
         try
         {

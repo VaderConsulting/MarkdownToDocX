@@ -43,6 +43,9 @@ internal sealed class SessionSettings
 
     public bool EditorOnLeft { get; set; } = true;
 
+    /// <summary>Editor pane width in pixels when the split is vertical (or height when horizontal). Zero uses the built-in default.</summary>
+    public int EditorPanePixels { get; set; }
+
     public bool LegacyPreview { get; set; }
 
     public bool PreviewFitToWindow { get; set; } = true;

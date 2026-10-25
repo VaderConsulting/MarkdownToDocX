@@ -28,6 +28,8 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private bool _FitToWindow = true;
 
+    private Rectangle _FitObstacle;
+
     private bool _NavigationEnabled = true;
 
     private bool _PositioningZoomButtons;
@@ -419,6 +421,7 @@ internal sealed partial class PreviewCanvas : UserControl
     /// </summary>
     public void Clear()
     {
+        Interlocked.Increment(ref _LoadSequence);
         DetachItems();
         ClearBitmap();
         _RenderedSvg = null;
@@ -862,6 +865,7 @@ internal sealed partial class PreviewCanvas : UserControl
         Banner.Text = Text;
         Banner.Height = Height;
         Banner.Visible = true;
+        PerformLayout();
     }
 
     /// <summary>Hides the message banner.</summary>
@@ -870,6 +874,7 @@ internal sealed partial class PreviewCanvas : UserControl
         Banner.Visible = false;
         Banner.Height = 0;
         Banner.Text = string.Empty;
+        PerformLayout();
     }
 
     /// <summary>
@@ -887,6 +892,22 @@ internal sealed partial class PreviewCanvas : UserControl
         Banner.ForeColor = DarkTheme ? Color.White : Color.Black;
     }
 
+    /// <summary>
+    /// Sets a bottom-left region (preview client coordinates) kept clear when fitting the diagram to the window.
+    /// Does not shrink the viewport, so no full-width chrome band appears beside a narrow floating panel.
+    /// </summary>
+    /// <param name="Obstacle">Region to avoid when fitting, or <see cref="Rectangle.Empty"/>.</param>
+    public void SetFitObstacle(Rectangle Obstacle)
+    {
+        if (_FitObstacle == Obstacle)
+        {
+            return;
+        }
+
+        _FitObstacle = Obstacle;
+        ApplyView();
+    }
+
     /// <summary>Lays the picture out for the current zoom or fit mode.</summary>
     public void ApplyView()
     {
@@ -902,9 +923,7 @@ internal sealed partial class PreviewCanvas : UserControl
         {
             Viewport.AutoScrollPosition = Point.Empty;
             Viewport.AutoScrollMinSize = Size.Empty;
-            DiagramPicture.Dock = DockStyle.Fill;
-            DiagramPicture.Location = Point.Empty;
-            DiagramPicture.SizeMode = PictureBoxSizeMode.Zoom;
+            LayoutFitToWindowPicture();
         }
         else
         {
@@ -1127,7 +1146,21 @@ internal sealed partial class PreviewCanvas : UserControl
         }
 
         FocusForKeys();
-        ApplyClick(null, Extend: false);
+        bool Extend = (ModifierKeys & Keys.Control) == Keys.Control;
+        Point PicturePoint = DiagramPicture.PointToClient(Viewport.PointToScreen(E.Location));
+        if (DiagramPicture.ClientRectangle.Contains(PicturePoint))
+        {
+            PreviewObject? Hit = null;
+            if (IsOnDiagram(PicturePoint))
+            {
+                Hit = HitItem(PicturePoint);
+            }
+
+            ApplyClick(Hit, Extend);
+            return;
+        }
+
+        ApplyClick(null, Extend);
     }
 
     private void Picture_MouseDown(object? Sender, MouseEventArgs E)
@@ -1446,7 +1479,51 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void PreviewCanvas_Layout(object? Sender, LayoutEventArgs E)
     {
+        LayoutViewport();
         PositionZoomButtons();
+    }
+
+    private void LayoutViewport()
+    {
+        int BannerHeight = Banner.Visible ? Banner.Height : 0;
+        Rectangle Client = ClientRectangle;
+        if (Viewport.Dock != DockStyle.None)
+        {
+            Viewport.Dock = DockStyle.None;
+        }
+
+        Viewport.SetBounds(Client.Left, Client.Top + BannerHeight, Client.Width, Math.Max(1, Client.Height - BannerHeight));
+    }
+
+    private Size GetFitAreaSize()
+    {
+        Size ViewSize = Viewport.ClientSize;
+        int FitWidth = Math.Max(1, ViewSize.Width);
+        int FitHeight = Math.Max(1, ViewSize.Height);
+        if (!_FitObstacle.IsEmpty && _FitObstacle.Top > Viewport.Top)
+        {
+            FitHeight = Math.Max(1, _FitObstacle.Top - Viewport.Top);
+        }
+
+        return new Size(FitWidth, FitHeight);
+    }
+
+    private void LayoutFitToWindowPicture()
+    {
+        Image? Shown = DiagramPicture.Image;
+        if (Shown == null)
+        {
+            return;
+        }
+
+        Size FitArea = GetFitAreaSize();
+        double Scale = Math.Min(FitArea.Width / (double)Shown.Width, FitArea.Height / (double)Shown.Height);
+        int DisplayWidth = Math.Max(1, (int)Math.Round(Shown.Width * Scale));
+        int DisplayHeight = Math.Max(1, (int)Math.Round(Shown.Height * Scale));
+        DiagramPicture.Dock = DockStyle.None;
+        DiagramPicture.SizeMode = PictureBoxSizeMode.StretchImage;
+        DiagramPicture.Size = new Size(DisplayWidth, DisplayHeight);
+        DiagramPicture.Location = new Point((FitArea.Width - DisplayWidth) / 2, (FitArea.Height - DisplayHeight) / 2);
     }
 
     private void Viewport_MouseWheel(object? Sender, MouseEventArgs E)
@@ -1573,7 +1650,7 @@ internal sealed partial class PreviewCanvas : UserControl
         Image Shown = DiagramPicture.Image!;
         if (_FitToWindow)
         {
-            Size Area = Viewport.ClientSize;
+            Size Area = GetFitAreaSize();
             double Fitted = Math.Min(Area.Width / (double)Shown.Width, Area.Height / (double)Shown.Height);
             Fitted = Math.Max(0.0001, Fitted);
             int DisplayWidth = Math.Max(1, (int)Math.Round(Shown.Width * Fitted));
@@ -1600,7 +1677,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
         int ImageWidth = DiagramPicture.Image.Width;
         int ImageHeight = DiagramPicture.Image.Height;
-        Size Area = Viewport.ClientSize;
+        Size Area = GetFitAreaSize();
         if (ImageWidth <= 0 || ImageHeight <= 0 || Area.Width <= 0 || Area.Height <= 0)
         {
             return _Zoom;
@@ -1613,6 +1690,14 @@ internal sealed partial class PreviewCanvas : UserControl
     private static double ClampZoom(double Zoom)
     {
         return Math.Max(MINIMUM_ZOOM, Math.Min(MAXIMUM_ZOOM, Zoom));
+    }
+
+    /// <summary>
+    /// Keeps zoom controls above the diagram and any floating overlays on the preview.
+    /// </summary>
+    internal void EnsureZoomButtonsOnTop()
+    {
+        PositionZoomButtons();
     }
 
     private void PositionZoomButtons()
