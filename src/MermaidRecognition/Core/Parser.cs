@@ -175,5 +175,6 @@ public abstract class Parser
         }
 
         Register(Kinds.Enterprise.EnterpriseParser.Default);
+        Register(Kinds.Flowchart.FlowchartParser.Default);
     }
 }

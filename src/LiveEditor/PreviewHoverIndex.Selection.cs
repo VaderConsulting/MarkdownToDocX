@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace LiveEditor;
@@ -37,13 +38,20 @@ internal sealed partial class PreviewHoverIndex
     }
 
     /// <summary>
-    /// Builds items from an enterprise script, without a picture.
+    /// Builds items from a script, without a picture.
     /// </summary>
     /// <param name="Source">Diagram script.</param>
-    /// <returns>An index of the declared nodes and relationships. Empty when the script is not enterprise.</returns>
+    /// <returns>An index of the declared items. Empty when no parser matches.</returns>
     internal static PreviewHoverIndex FromScript(string? Source)
     {
         PreviewHoverIndex Index = new PreviewHoverIndex();
+        Parser? KindParser = Parser.ForSource(Source);
+        if (KindParser != null && !EnterpriseParser.IsEnterpriseSource(Source))
+        {
+            Index.ApplyParseLines(KindParser.Parse(Source));
+            return Index;
+        }
+
         if (!EnterpriseParser.IsEnterpriseSource(Source))
         {
             return Index;
@@ -415,6 +423,132 @@ internal sealed partial class PreviewHoverIndex
         }
 
         return Line.Occurrence < Lines.Count ? Lines[Line.Occurrence] : Lines[0];
+    }
+
+    /// <summary>
+    /// Copies line numbers and type tokens from a shared parse onto matching preview objects.
+    /// Missing objects are created from the parse alone (no geometry yet).
+    /// </summary>
+    /// <param name="Parsed">Result from <see cref="Parser.Parse"/>.</param>
+    internal void ApplyParseLines(DiagramParseResult Parsed)
+    {
+        if (Parsed == null)
+        {
+            return;
+        }
+
+        foreach (DiagramItem Item in Parsed.Items)
+        {
+            PreviewObject? Match = FindByDiagramItem(Item);
+            if (Match == null)
+            {
+                Match = new PreviewObject
+                {
+                    Kind = ToPreviewKind(Item.Kind),
+                    Id = Item.Name,
+                    SourceId = Item.SourceName,
+                    TargetId = Item.TargetName,
+                    RelationshipKind = Item.Kind == DiagramItemKind.Relationship
+                        ? (Item.TypeToken.Length == 0 ? PLAIN_CONNECTION : Item.TypeToken)
+                        : string.Empty
+                };
+                _Objects.Add(Match);
+            }
+
+            Match.LineNumber = Item.Id;
+        }
+    }
+
+    /// <summary>
+    /// Reads nodes and groups stamped with data-id from any SVG.
+    /// </summary>
+    private void ReadDataIdObjects(string Svg)
+    {
+        int Index = 0;
+        while (Index < Svg.Length)
+        {
+            int Group = Svg.IndexOf("<g ", Index, StringComparison.Ordinal);
+            if (Group < 0)
+            {
+                break;
+            }
+
+            int TagEnd = Svg.IndexOf('>', Group);
+            if (TagEnd < 0)
+            {
+                break;
+            }
+
+            string Tag = Svg.Substring(Group, TagEnd - Group);
+            string Id = ReadExactAttribute(Tag, "data-id");
+            if (Id.Length == 0)
+            {
+                Index = TagEnd + 1;
+                continue;
+            }
+
+            int Close = FindGroupClose(Svg, TagEnd);
+            if (Close < 0)
+            {
+                break;
+            }
+
+            string Body = Svg.Substring(TagEnd + 1, Close - TagEnd - 1);
+            Index = Close + 4;
+            if (!TryBounds(Body, 0, 0, out double Left, out double Top, out double Right, out double Bottom))
+            {
+                continue;
+            }
+
+            string ClassName = ReadExactAttribute(Tag, "class");
+            bool IsGroup = ClassName.IndexOf("group", StringComparison.OrdinalIgnoreCase) >= 0
+                || ClassName.IndexOf("cluster", StringComparison.OrdinalIgnoreCase) >= 0;
+            AddShapeObject(Id, IsGroup, Body, 0, 0, Left, Top, Right, Bottom);
+            _Shapes.Add(new HoverShape
+            {
+                Left = Left,
+                Top = Top,
+                Right = Right,
+                Bottom = Bottom,
+                Text = Id
+            });
+        }
+    }
+
+    private PreviewObject? FindByDiagramItem(DiagramItem Item)
+    {
+        if (Item.Kind == DiagramItemKind.Relationship)
+        {
+            foreach (PreviewObject Candidate in _Objects)
+            {
+                if (Candidate.Kind == PreviewObjectKind.Relationship
+                    && string.Equals(Candidate.SourceId, Item.SourceName, StringComparison.Ordinal)
+                    && string.Equals(Candidate.TargetId, Item.TargetName, StringComparison.Ordinal)
+                    && Candidate.LineNumber == 0)
+                {
+                    return Candidate;
+                }
+            }
+
+            return null;
+        }
+
+        return FindObject("node\u001f" + Item.Name);
+    }
+
+    private static PreviewObjectKind ToPreviewKind(DiagramItemKind Kind)
+    {
+        if (Kind == DiagramItemKind.Container)
+        {
+            return PreviewObjectKind.Container;
+        }
+
+        if (Kind == DiagramItemKind.Relationship)
+        {
+            return PreviewObjectKind.Relationship;
+        }
+
+        return PreviewObjectKind.Node;
     }
 
     /// <summary>

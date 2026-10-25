@@ -1,5 +1,6 @@
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
+using MermaidRecognition.Kinds.Flowchart;
 using NUnit.Framework;
 
 namespace MermaidRecognition.Tests.Core;
@@ -43,5 +44,19 @@ public sealed class ParserTests
         int Shop = SOURCE.IndexOf("shop \"Shop\"", System.StringComparison.Ordinal);
         Assert.That(EnterpriseParser.Default.IsDeclaredLine(SOURCE, Shop), Is.True);
         Assert.That(EnterpriseParser.Default.IsDeclaredLine(SOURCE, 0), Is.False);
+    }
+
+    [Test]
+    public void FlowchartParserGivesLineNumberIds()
+    {
+        const string Flow = "flowchart TD\nA[Start]\nB{Choice}\nA --> B\n";
+        Assert.That(Parser.ForSource(Flow), Is.SameAs(FlowchartParser.Default));
+        DiagramParseResult Result = FlowchartParser.Default.Parse(Flow);
+        Assert.That(Result.ItemAtLine(2)!.Name, Is.EqualTo("A"));
+        Assert.That(Result.ItemAtLine(2)!.Id, Is.EqualTo(2));
+        Assert.That(Result.ItemAtLine(3)!.TypeToken, Is.EqualTo("diamond"));
+        Assert.That(Result.ItemAtLine(4)!.Kind, Is.EqualTo(DiagramItemKind.Relationship));
+        Assert.That(Result.ItemAtLine(4)!.SourceName, Is.EqualTo("A"));
+        Assert.That(Result.ItemAtLine(4)!.TargetName, Is.EqualTo("B"));
     }
 }

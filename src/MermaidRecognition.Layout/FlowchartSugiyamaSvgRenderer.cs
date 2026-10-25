@@ -956,6 +956,9 @@ public static class FlowchartSugiyamaSvgRenderer
         double Height,
         FlowchartResolvedStyle NodeStyle)
     {
+        Builder.Append("<g class=\"node\" data-id=\"");
+        Builder.Append(EscapeXml(Node.Id));
+        Builder.Append("\">");
         bool IsCylinder = string.Equals(Node.Shape, "cylinder", StringComparison.OrdinalIgnoreCase);
         string FillPath = FlowchartShapePathGenerator.GetFillPath(Node.Shape, Left, Top, Width, Height);
 
@@ -973,6 +976,8 @@ public static class FlowchartSugiyamaSvgRenderer
         {
             AppendStyledPath(Builder, StrokeOverlayPath, NodeStyle, FillOpacity: "0", StrokeOverride: null);
         }
+
+        Builder.Append("</g>");
     }
 
     private static void AppendStyledPath(

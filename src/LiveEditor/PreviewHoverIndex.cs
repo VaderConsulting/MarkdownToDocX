@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace LiveEditor;
@@ -48,7 +49,7 @@ internal sealed partial class PreviewHoverIndex
     /// </summary>
     /// <param name="Svg">Last rendered SVG.</param>
     /// <param name="Source">Editor text that produced the SVG.</param>
-    /// <returns>An index, empty when the source is not an enterprise diagram.</returns>
+    /// <returns>An index of selectable items for the diagram kind.</returns>
     public static PreviewHoverIndex Build(string? Svg, string? Source)
     {
         PreviewHoverIndex Index = new PreviewHoverIndex();
@@ -57,17 +58,24 @@ internal sealed partial class PreviewHoverIndex
             return Index;
         }
 
-        if (!EnterpriseParser.IsEnterpriseSource(Source))
+        if (EnterpriseParser.IsEnterpriseSource(Source))
         {
+            EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
             Index.ReadSize(Svg);
-            Index.ReadEdgeObjects(Svg, Source ?? string.Empty);
+            Index.ReadGeometry(Svg, Parsed.Document);
+            Index.FinishEnterpriseObjects(Parsed.Document);
             return Index;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         Index.ReadSize(Svg);
-        Index.ReadGeometry(Svg, Parsed.Document);
-        Index.FinishEnterpriseObjects(Parsed.Document);
+        Index.ReadDataIdObjects(Svg);
+        Index.ReadEdgeObjects(Svg, Source ?? string.Empty);
+        Parser? KindParser = Parser.ForSource(Source);
+        if (KindParser != null)
+        {
+            Index.ApplyParseLines(KindParser.Parse(Source));
+        }
+
         return Index;
     }
 
