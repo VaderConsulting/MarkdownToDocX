@@ -46,10 +46,12 @@ internal sealed class ElementGlyphButton : Control
 
     private static ToolTip CreateTypeTip()
     {
-        ToolTip Tip = new ToolTip();
-        Tip.ShowAlways = true;
-        Tip.InitialDelay = 300;
-        Tip.AutoPopDelay = 8000;
+        ToolTip Tip = new ToolTip
+        {
+            ShowAlways = true,
+            InitialDelay = 300,
+            AutoPopDelay = 8000
+        };
         return Tip;
     }
 

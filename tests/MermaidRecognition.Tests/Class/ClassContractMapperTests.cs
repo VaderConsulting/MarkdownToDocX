@@ -93,12 +93,16 @@ public sealed class ClassContractMapperTests
     [Test]
     public void Apply_LeavesSourceStatementsUnchanged()
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "classDiagram";
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = 2;
-        Statement.LineTypeId = "classDiagram.class";
-        Statement.RawLine = "    class Animal";
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "classDiagram"
+        };
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = 2,
+            LineTypeId = "classDiagram.class",
+            RawLine = "    class Animal"
+        };
         Contract.SourceStatementsMutable.Add(Statement);
 
         int StatementCount = Contract.SourceStatements.Count;

@@ -22,12 +22,16 @@ public sealed class EditorEaseTests
     [SetUp]
     public void SetUp()
     {
-        _Host = new Form();
-        _Host.ShowInTaskbar = false;
-        _Host.ClientSize = new System.Drawing.Size(800, 500);
-        _Editor = new CodeEditor();
-        _Editor.Dock = DockStyle.Fill;
-        _Editor.HighlightDelayMilliseconds = 5000;
+        _Host = new Form
+        {
+            ShowInTaskbar = false,
+            ClientSize = new System.Drawing.Size(800, 500)
+        };
+        _Editor = new CodeEditor
+        {
+            Dock = DockStyle.Fill,
+            HighlightDelayMilliseconds = 5000
+        };
         _Host.Controls.Add(_Editor);
         _Host.Show();
         _Box = _Editor.Editor;

@@ -20,7 +20,7 @@ public sealed class PreviewHoverTests
     public void NodeHoverNamesTheElementType()
     {
         PreviewHoverIndex Index = Build("application-component shop \"Shop\"\napplication-component cart \"Cart\"\nshop -composition-> cart", "composition");
-        Assert.That(Index.Hit(20, 10), Is.EqualTo("Shop is an application component"));
+        Assert.That(Index.Hit(20, 10), Is.EqualTo("Shop is an application component composed of Cart."));
     }
 
     [Test]
@@ -57,7 +57,7 @@ public sealed class PreviewHoverTests
             + "<g class=\"relationship flow\" data-source=\"shop\" data-target=\"cart\"><path d=\"M10,10 L10,80\"/></g>"
             + "</g></svg>";
         PreviewHoverIndex Index = PreviewHoverIndex.Build(Svg, Source);
-        Assert.That(Index.Hit(10, 10), Is.EqualTo("Shop is an application component"));
+        Assert.That(Index.Hit(10, 10), Is.EqualTo("Shop is an application component. It flows to Cart."));
         Assert.That(Index.Hit(10, 50), Is.EqualTo("Shop flows to Cart"));
     }
 
@@ -88,6 +88,100 @@ public sealed class PreviewHoverTests
     }
 
     [Test]
+    [Apartment(ApartmentState.STA)]
+    public void HoverNoteWrapsALongSentence()
+    {
+        using Form Host = new Form();
+        using PreviewHoverWindow Window = new PreviewHoverWindow();
+        Host.Show();
+        string Text = "Web Shop is an application component realised by Order API, Billing and Portal with an application service provided by Integration. It relies on 3 data objects - Bbb, Ccc and Ddd.";
+        Window.ShowNear(Host, Text, new Point(40, 40));
+        Assert.That(Window.ClientSize.Width, Is.LessThanOrEqualTo(476));
+        Assert.That(Window.ClientSize.Height, Is.GreaterThan(30));
+        Window.HideTip();
+    }
+
+    [Test]
+    public void DestinationNodeDescribesIncomingAndOutgoingRelationships()
+    {
+        string Source = "enterprise\n"
+            + "application-component webShop \"Web Shop\"\n"
+            + "application-service orderApi \"Order API\"\n"
+            + "application-service billing \"Billing\"\n"
+            + "application-interface portal \"Portal\"\n"
+            + "application-service integration \"Integration\"\n"
+            + "data-object bbb \"Bbb\"\n"
+            + "data-object ccc \"Ccc\"\n"
+            + "data-object ddd \"Ddd\"\n"
+            + "orderApi -realization-> webShop\n"
+            + "billing -realization-> webShop\n"
+            + "portal -realization-> webShop\n"
+            + "integration -serving-> webShop\n"
+            + "webShop -access-> bbb\n"
+            + "webShop -access-> ccc\n"
+            + "webShop -access-> ddd\n";
+        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        string Story = ElementStory.DescribeElement(Parsed.Document, Parsed.Document.Elements["webShop"]);
+        Assert.That(Story, Is.EqualTo("Web Shop is an application component realised by Billing, Order API and Portal with an application service provided by Integration. It relies on 3 data objects - Bbb, Ccc and Ddd."));
+    }
+
+    [Test]
+    public void NodeStoryOmitsLabelsThatOnlyRepeatTheVerb()
+    {
+        string Source = "enterprise\n"
+            + "application-component webShop \"Web Shop\"\n"
+            + "application-service orderApi \"Order API\"\n"
+            + "application-component partner \"Partner\"\n"
+            + "business-process checkout \"Checkout\"\n"
+            + "application-component neighbour \"Neighbour\"\n"
+            + "webShop -serving-> orderApi \"Serves\"\n"
+            + "webShop -association(directed)-> partner \"Directed\"\n"
+            + "webShop -triggering-> checkout \"Starts\"\n"
+            + "webShop -association-> neighbour\n"
+            + "orderApi -flow-> checkout \"Moves\"\n";
+        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        string Story = ElementStory.DescribeElement(Parsed.Document, Parsed.Document.Elements["webShop"]);
+        Assert.That(Story, Does.Not.Contain("(Serves)"));
+        Assert.That(Story, Does.Not.Contain("(Directed)"));
+        Assert.That(Story, Does.Not.Contain("(Starts)"));
+        Assert.That(Story, Does.Contain("serving Order API"));
+        Assert.That(Story, Does.Contain("directed toward Partner"));
+        Assert.That(Story, Does.Contain("triggers Checkout"));
+        string Checkout = ElementStory.DescribeElement(Parsed.Document, Parsed.Document.Elements["checkout"]);
+        Assert.That(Checkout, Does.Contain("(Moves)"));
+        Assert.That(Checkout, Does.Not.Contain("(Starts)"));
+    }
+
+    [Test]
+    public void ChangeTypeCanKeepOrDropARelationship()
+    {
+        string Source = "enterprise\napplication-service api \"Api\"\napplication-interface portal \"Portal\"\napi -realization-> portal\n";
+        string Replacement = string.Empty;
+        foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
+        {
+            if (string.Equals(Metadata.KebabName, "application-service", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            string Letters = EnterpriseRulesCatalog.Instance.GetAllowedLetters(EnterpriseParser.DEFAULT_VERSION, Metadata.KebabName, "application-interface");
+            if (Letters.IndexOf('r') < 0)
+            {
+                Replacement = Metadata.KebabName;
+                break;
+            }
+        }
+
+        Assert.That(Replacement, Is.Not.Empty);
+        string Kept = ElementTypeChange.Apply(Source, "api", Replacement, false);
+        Assert.That(Kept, Does.Contain(Replacement + " api"));
+        Assert.That(Kept, Does.Contain("realization"));
+        string Dropped = ElementTypeChange.Apply(Source, "api", Replacement, true);
+        Assert.That(Dropped, Does.Contain(Replacement + " api"));
+        Assert.That(Dropped, Does.Not.Contain("realization"));
+    }
+
+    [Test]
     public void RenderedPreviewNamesNodesAndRelationships()
     {
         string Source = "enterprise\n"
@@ -103,10 +197,10 @@ public sealed class PreviewHoverTests
         bool Rendered = MermaidDiagramExport.TryRenderPreviewSvg(Source, out Svg);
         Assert.That(Rendered, Is.True);
         PreviewHoverIndex Index = PreviewHoverIndex.Build(Svg, Source);
-        Assert.That(Find(Index, "Shop is an application component"), Is.True);
-        Assert.That(Find(Index, "Cart is an application component"), Is.True);
-        Assert.That(Find(Index, "Api is an application service"), Is.True);
-        Assert.That(Find(Index, "Till is an application component"), Is.True);
+        Assert.That(Find(Index, "Shop is an application component composed of Cart, realising Api. It flows to Till."), Is.True);
+        Assert.That(Find(Index, "Cart is an application component and is part of Shop."), Is.True);
+        Assert.That(Find(Index, "Api is an application service realised by Shop."), Is.True);
+        Assert.That(Find(Index, "Till is an application component. It has a flow from Shop."), Is.True);
         Assert.That(Find(Index, "Shop is composed of Cart"), Is.True);
         Assert.That(Find(Index, "Shop realises Api"), Is.True);
         Assert.That(Find(Index, "Shop flows to Till"), Is.True);

@@ -292,12 +292,16 @@ public sealed class StateContractMapperTests
     [Test]
     public void Apply_LeavesSourceStatementsUnchanged()
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "stateDiagram";
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = 2;
-        Statement.LineTypeId = "stateDiagram.transition";
-        Statement.RawLine = "    [*] --> Still";
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "stateDiagram"
+        };
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = 2,
+            LineTypeId = "stateDiagram.transition",
+            RawLine = "    [*] --> Still"
+        };
         Contract.SourceStatementsMutable.Add(Statement);
 
         int StatementCount = Contract.SourceStatements.Count;

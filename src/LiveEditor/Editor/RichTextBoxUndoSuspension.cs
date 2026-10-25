@@ -10,6 +10,9 @@ namespace LiveEditor.Editor;
 /// </summary>
 internal sealed class RichTextBoxUndoSuspension : IDisposable
 {
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref IntPtr LParam);
+
     private const int WM_USER = 0x0400;
 
     private const int EM_GETOLEINTERFACE = WM_USER + 60;
@@ -82,7 +85,7 @@ internal sealed class RichTextBoxUndoSuspension : IDisposable
             }
 
             Guid DocumentId = new Guid("8CC497C0-A1DF-11CE-8098-00AA0047BE5D");
-            int Query = Marshal.QueryInterface(OlePointer, ref DocumentId, out IntPtr DocumentPointer);
+            int Query = Marshal.QueryInterface(OlePointer, in DocumentId, out IntPtr DocumentPointer);
             if (Query != 0 || DocumentPointer == IntPtr.Zero)
             {
                 return null;
@@ -109,6 +112,4 @@ internal sealed class RichTextBoxUndoSuspension : IDisposable
         }
     }
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref IntPtr LParam);
 }

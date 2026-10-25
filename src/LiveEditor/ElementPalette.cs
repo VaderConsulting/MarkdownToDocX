@@ -203,9 +203,11 @@ internal sealed partial class ElementPalette : UserControl
     {
         foreach (EnterpriseLayer Layer in Enum.GetValues<EnterpriseLayer>())
         {
-            TabPage Page = new TabPage(LayerName(Layer));
-            Page.Padding = new Padding(0);
-            Page.Margin = new Padding(0);
+            TabPage Page = new TabPage(LayerName(Layer))
+            {
+                Padding = new Padding(0),
+                Margin = new Padding(0)
+            };
             FlowLayoutPanel Flow = new FlowLayoutPanel
             {
                 AutoScroll = false,
@@ -221,8 +223,10 @@ internal sealed partial class ElementPalette : UserControl
 
         foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
         {
-            ElementGlyphButton Button = new ElementGlyphButton();
-            Button.Metadata = Metadata;
+            ElementGlyphButton Button = new ElementGlyphButton
+            {
+                Metadata = Metadata
+            };
             Button.Click += GlyphButton_Click;
             _Buttons.Add(Button);
             _Pages[Metadata.Layer].Controls[0].Controls.Add(Button);
@@ -963,10 +967,12 @@ internal sealed partial class ElementPalette : UserControl
         if (Kind == null || Kind.Toolbar.Length == 0)
         {
             TabPage Missing = new TabPage(DiagramKindCatalog.TitleFor(_DiagramKind));
-            Label Note = new Label();
-            Note.Dock = DockStyle.Fill;
-            Note.TextAlign = ContentAlignment.MiddleCenter;
-            Note.Text = "This diagram type has no toolbar yet.";
+            Label Note = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Text = "This diagram type has no toolbar yet."
+            };
             Missing.Controls.Add(Note);
             _StatementPages.Add(Missing);
             return;
@@ -978,27 +984,33 @@ internal sealed partial class ElementPalette : UserControl
             DiagramToolbarItem Item = Kind.Toolbar[Index];
             if (!Flows.TryGetValue(Item.Tab, out FlowLayoutPanel? Flow))
             {
-                TabPage Page = new TabPage(Item.Tab);
-                Page.Padding = new Padding(0);
-                Flow = new FlowLayoutPanel();
-                Flow.AutoScroll = false;
-                Flow.Dock = DockStyle.Fill;
-                Flow.WrapContents = true;
-                Flow.Padding = new Padding(4, 2, 4, 2);
+                TabPage Page = new TabPage(Item.Tab)
+                {
+                    Padding = new Padding(0)
+                };
+                Flow = new FlowLayoutPanel
+                {
+                    AutoScroll = false,
+                    Dock = DockStyle.Fill,
+                    WrapContents = true,
+                    Padding = new Padding(4, 2, 4, 2)
+                };
                 Flow.Resize += Flow_Resize;
                 Page.Controls.Add(Flow);
                 _StatementPages.Add(Page);
                 Flows[Item.Tab] = Flow;
             }
 
-            Button Choice = new Button();
-            Choice.Name = "Tool_" + Item.Caption.Replace(" ", string.Empty, StringComparison.Ordinal);
-            Choice.AutoSize = true;
-            Choice.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            Choice.Margin = new Padding(3);
-            Choice.Text = Item.Caption;
-            Choice.Tag = Item;
-            Choice.UseVisualStyleBackColor = false;
+            Button Choice = new Button
+            {
+                Name = "Tool_" + Item.Caption.Replace(" ", string.Empty, StringComparison.Ordinal),
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(3),
+                Text = Item.Caption,
+                Tag = Item,
+                UseVisualStyleBackColor = false
+            };
             ToolTip Tip = new ToolTip();
             Tip.SetToolTip(Choice, Item.Tip);
             Choice.Click += StatementButton_Click;

@@ -105,12 +105,12 @@ internal sealed class MermaidDiagramAssist
         {
             if (Regex.IsMatch(Line, @"^\s*subgraph\b", RegexOptions.IgnoreCase))
             {
-                return Make("subgraph <id> [title]", "<id>", "id", "The subgraph identifier, then an optional title in brackets. Close the group with end.");
+                return Make("subgraph <id> [title]", "<id>", "subgraph", "An id, then an optional title in brackets. Close the group with end.");
             }
 
             if (Regex.IsMatch(Line, @"^\s*click\b", RegexOptions.IgnoreCase))
             {
-                return Make("click <id> \"<url>\"", "<id>", "id", "The node to make clickable, then a quoted address or call <callback>().");
+                return Make("click <id> \"<url>\"", "<id>", "click", "The node id, then a quoted address or call <callback>().");
             }
         }
 
@@ -118,23 +118,23 @@ internal sealed class MermaidDiagramAssist
         {
             if (Regex.IsMatch(Line, @"^\s*participant\b", RegexOptions.IgnoreCase))
             {
-                return Make("participant <id> as <label>", "<id>", "id", "The name messages use for this participant. as sets the displayed name.");
+                return Make("participant <id> as <label>", "<id>", "participant", "The id is used in messages. as sets the displayed name.");
             }
 
             if (Regex.IsMatch(Line, @"^\s*note\b", RegexOptions.IgnoreCase))
             {
-                return Make("note <left|right|over> of <id> : <text>", "<left|right|over>", "position", "left of, right of or over a participant.");
+                return Make("note <left|right|over> of <id> : <text>", "<left|right|over>", "note", "left of, right of, or over a participant.");
             }
         }
 
         if (string.Equals(Kind, "class", StringComparison.Ordinal) && Regex.IsMatch(Line, @"^\s*class\b", RegexOptions.IgnoreCase))
         {
-            return Make("class <name>", "<name>", "name", "The class name. Members can follow inside braces.");
+            return Make("class <name>", "<name>", "class", "A class name. Members can follow inside braces.");
         }
 
         if (string.Equals(Kind, "gantt", StringComparison.Ordinal) && Regex.IsMatch(Line, @"^\s*dateFormat\b", RegexOptions.IgnoreCase))
         {
-            return Make("dateFormat <format>", "<format>", "format", "A date pattern such as YYYY-MM-DD.");
+            return Make("dateFormat <format>", "<format>", "dateFormat", "A date pattern such as YYYY-MM-DD.");
         }
 
         if (CaretIsInsideParentheses(Line, Column))
@@ -544,12 +544,14 @@ internal sealed class MermaidDiagramAssist
     private static ParameterHelp Make(string Signature, string BoldText, string Heading, string Body)
     {
         int BoldStart = Signature.IndexOf(BoldText, StringComparison.Ordinal);
-        ParameterHelp Help = new ParameterHelp();
-        Help.Signature = Signature;
-        Help.BoldStart = Math.Max(0, BoldStart);
-        Help.BoldLength = BoldStart < 0 ? 0 : BoldText.Length;
-        Help.Heading = Heading;
-        Help.Body = Body;
+        ParameterHelp Help = new ParameterHelp
+        {
+            Signature = Signature,
+            BoldStart = Math.Max(0, BoldStart),
+            BoldLength = BoldStart < 0 ? 0 : BoldText.Length,
+            Heading = Heading,
+            Body = Body
+        };
         return Help;
     }
 

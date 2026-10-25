@@ -256,12 +256,14 @@ internal sealed partial class PreviewHoverIndex
             return;
         }
 
-        HoverShape Shape = new HoverShape();
-        Shape.Left = Left;
-        Shape.Top = Top;
-        Shape.Right = Right;
-        Shape.Bottom = Bottom;
-        Shape.Text = ShapeSentence(Document, Id);
+        HoverShape Shape = new HoverShape
+        {
+            Left = Left,
+            Top = Top,
+            Right = Right,
+            Bottom = Bottom,
+            Text = ShapeSentence(Document, Id)
+        };
         _Shapes.Add(Shape);
         bool IsGroup = ReadStringAttribute(Tag, "class").Equals("group", StringComparison.Ordinal);
         AddShapeObject(Id, IsGroup, Body, ShiftX, ShiftY, Left, Top, Right, Bottom);
@@ -308,9 +310,11 @@ internal sealed partial class PreviewHoverIndex
             KindName = ClassName.Substring("relationship ".Length).Trim();
         }
 
-        HoverStroke Stroke = new HoverStroke();
-        Stroke.Text = RelationshipSentence(Document, SourceId, TargetId, KindName);
-        Stroke.Segments = Segments;
+        HoverStroke Stroke = new HoverStroke
+        {
+            Text = RelationshipSentence(Document, SourceId, TargetId, KindName),
+            Segments = Segments
+        };
         _Strokes.Add(Stroke);
         AddLineObject(SourceId, TargetId, KindName, ReadOutlines(Body, ShiftX, ShiftY));
     }
@@ -1018,11 +1022,13 @@ internal sealed partial class PreviewHoverIndex
             return;
         }
 
-        HoverSegment Segment = new HoverSegment();
-        Segment.X1 = X1 + ShiftX;
-        Segment.Y1 = Y1 + ShiftY;
-        Segment.X2 = X2 + ShiftX;
-        Segment.Y2 = Y2 + ShiftY;
+        HoverSegment Segment = new HoverSegment
+        {
+            X1 = X1 + ShiftX,
+            Y1 = Y1 + ShiftY,
+            X2 = X2 + ShiftX,
+            Y2 = Y2 + ShiftY
+        };
         Segments.Add(Segment);
     }
 

@@ -209,20 +209,16 @@ internal sealed class DiagramMetadata
     {
         EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
         EnterpriseDocument Document = Parsed.Document;
-        DiagramMetadata Metadata = new DiagramMetadata(Generation, "enterprise");
-        Metadata.Version = Document.Version;
-        Metadata.Title = Document.Title;
-        Metadata.Direction = Document.Direction.ToString().ToUpperInvariant();
+        DiagramMetadata Metadata = new DiagramMetadata(Generation, "enterprise")
+        {
+            Version = Document.Version,
+            Title = Document.Title,
+            Direction = Document.Direction.ToString().ToUpperInvariant()
+        };
 
         List<DiagramNodeInfo> Nodes = new List<DiagramNodeInfo>();
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
-            // The parser also records each group as a grouping element so relationships can end on it. The group is listed once, as a group.
-            if (Document.Groups.ContainsKey(Element.Id))
-            {
-                continue;
-            }
-
             Nodes.Add(new DiagramNodeInfo(DiagramNodeKind.Element, Element.Id, EnterpriseElementCatalog.GetKebabName(Element.ElementType), Element.Label, Element.ParentId, Element.LineNumber));
         }
 

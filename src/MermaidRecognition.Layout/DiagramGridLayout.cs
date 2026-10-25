@@ -148,8 +148,7 @@ public static partial class DiagramGridLayout
             Context.BendReassignmentRemoved = 0;
             if (!Context.UseCellRegions || Context.DisableExpandedBendRepairsForTests) return;
             Context.BendReassignmentRemoved = FlowchartBendRemovingPortRepair.Apply(Contract, Current.Copy);
-            int CrossingSwaps = FlowchartBendRemovingPortRepair.ApplyCrossingSwaps(Contract, Current.Copy);
-            if (Context.BendReassignmentRemoved > 0 || CrossingSwaps > 0) RouteRepairStage.PublishFinal(Current);
+            if (Context.BendReassignmentRemoved > 0) RouteRepairStage.PublishFinal(Current);
         });
         return State.Copy;
 
@@ -885,12 +884,12 @@ public static partial class DiagramGridLayout
                 CenterY = Node.Y,
                 Width = Node.Width,
                 Height = Node.Height,
-                IsFrame = false
+                IsFrame = false,
+                Left = Node.X - (Node.Width / 2.0),
+                Right = Node.X + (Node.Width / 2.0),
+                Bottom = Node.Y - (Node.Height / 2.0),
+                Top = Node.Y + (Node.Height / 2.0)
             };
-            Box.Left = Node.X - (Node.Width / 2.0);
-            Box.Right = Node.X + (Node.Width / 2.0);
-            Box.Bottom = Node.Y - (Node.Height / 2.0);
-            Box.Top = Node.Y + (Node.Height / 2.0);
             return Box;
         }
 

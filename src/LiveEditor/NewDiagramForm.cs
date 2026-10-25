@@ -42,25 +42,31 @@ internal sealed partial class NewDiagramForm : Form
             DiagramKindDefinition Kind = DiagramKindCatalog.Supported[Index];
             if (!Groups.TryGetValue(Kind.Group, out FlowLayoutPanel? Flow))
             {
-                TabPage Page = new TabPage(Kind.Group);
-                Page.Padding = new Padding(0);
-                Flow = new FlowLayoutPanel();
-                Flow.Dock = DockStyle.Fill;
-                Flow.Padding = new Padding(8);
-                Flow.WrapContents = true;
+                TabPage Page = new TabPage(Kind.Group)
+                {
+                    Padding = new Padding(0)
+                };
+                Flow = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    Padding = new Padding(8),
+                    WrapContents = true
+                };
                 Page.Controls.Add(Flow);
                 KindTabs.TabPages.Add(Page);
                 Groups[Kind.Group] = Flow;
             }
 
-            Button Choice = new Button();
-            Choice.Name = "Kind_" + Kind.Id;
-            Choice.AutoSize = true;
-            Choice.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            Choice.Margin = new Padding(4);
-            Choice.Text = Kind.Title;
-            Choice.Tag = Kind;
-            Choice.UseVisualStyleBackColor = false;
+            Button Choice = new Button
+            {
+                Name = "Kind_" + Kind.Id,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(4),
+                Text = Kind.Title,
+                Tag = Kind,
+                UseVisualStyleBackColor = false
+            };
             Choice.Click += Choice_Click;
             Choice.DoubleClick += Choice_DoubleClick;
             Flow.Controls.Add(Choice);

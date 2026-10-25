@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 
@@ -11,6 +13,9 @@ namespace LiveEditor.Editor;
 internal sealed class SessionSettings
 {
     private const int MAX_RECENT = 12;
+
+    /// <summary>Default colour of the preview selection: the diagram's line colour.</summary>
+    public const string DEFAULT_SELECTION_COLOUR = "#1E1E1E";
 
     public bool DarkTheme { get; set; }
 
@@ -44,6 +49,9 @@ internal sealed class SessionSettings
 
     public double PreviewZoom { get; set; } = 1.0;
 
+    /// <summary>Gets or sets the colour of the preview selection outline and connection points, as #RRGGBB.</summary>
+    public string SelectionColour { get; set; } = DEFAULT_SELECTION_COLOUR;
+
     public string? LastFilePath { get; set; }
 
     public string? LastCoArchiFolder { get; set; }
@@ -71,9 +79,7 @@ internal sealed class SessionSettings
                 return new SessionSettings();
             }
 
-            string Json = File.ReadAllText(StorePath);
-            SessionSettings? Loaded = JsonSerializer.Deserialize<SessionSettings>(Json);
-            return Loaded ?? new SessionSettings();
+            return FromJson(File.ReadAllText(StorePath));
         }
         catch
         {
@@ -101,7 +107,48 @@ internal sealed class SessionSettings
 
     public void Save()
     {
-        string Json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(StorePath, Json);
+        File.WriteAllText(StorePath, ToJson());
+    }
+
+    /// <summary>
+    /// Reads settings from the stored JSON.
+    /// </summary>
+    internal static SessionSettings FromJson(string Json)
+    {
+        SessionSettings? Loaded = JsonSerializer.Deserialize<SessionSettings>(Json);
+        return Loaded ?? new SessionSettings();
+    }
+
+    /// <summary>
+    /// Writes the settings as the stored JSON.
+    /// </summary>
+    internal string ToJson()
+    {
+        return JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>
+    /// Reads a #RRGGBB colour, falling back to the default selection colour when it is missing or malformed.
+    /// </summary>
+    public static Color ParseColour(string? Value)
+    {
+        string Text = (Value ?? string.Empty).Trim();
+        if (Text.Length == 7 && Text[0] == '#'
+            && int.TryParse(Text.Substring(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int Rgb))
+        {
+            return Color.FromArgb((Rgb >> 16) & 0xFF, (Rgb >> 8) & 0xFF, Rgb & 0xFF);
+        }
+
+        return ParseColour(DEFAULT_SELECTION_COLOUR);
+    }
+
+    /// <summary>
+    /// Writes a colour as #RRGGBB.
+    /// </summary>
+    public static string FormatColour(Color Value)
+    {
+        return "#" + Value.R.ToString("X2", CultureInfo.InvariantCulture)
+            + Value.G.ToString("X2", CultureInfo.InvariantCulture)
+            + Value.B.ToString("X2", CultureInfo.InvariantCulture);
     }
 }

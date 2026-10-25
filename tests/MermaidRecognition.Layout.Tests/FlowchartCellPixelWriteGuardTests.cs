@@ -13,8 +13,10 @@ public sealed class FlowchartCellPixelWriteGuardTests
     {
         var Coverage = new FlowchartCellWriteCoverage { Nodes = 1 };
         using var Scope = FlowchartCellPixelWriteGuard.ActivateCoverage(Coverage);
-        var Trial = new DiagramGridLayout.GridNode();
-        Trial.X = 12.5;
+        var Trial = new DiagramGridLayout.GridNode
+        {
+            X = 12.5
+        };
         Assert.That(Coverage.Checks, Is.EqualTo(1));
         Assert.That(Coverage.BoundChecks, Is.Zero);
     }
@@ -84,8 +86,11 @@ public sealed class FlowchartCellPixelWriteGuardTests
     public void UnboundWritesDoNotClaimGuardCoverage()
     {
         var Coverage = new FlowchartCellWriteCoverage { Nodes = 1 };
-        var Node = new DiagramGridLayout.GridNode { CellWriteCoverage = Coverage };
-        Node.X = 12.5;
+        var Node = new DiagramGridLayout.GridNode
+        {
+            CellWriteCoverage = Coverage,
+            X = 12.5
+        };
         Assert.That(Node.X, Is.EqualTo(12.5));
         Assert.That(Coverage.Checks, Is.EqualTo(1));
         Assert.That(Coverage.BoundChecks, Is.Zero);

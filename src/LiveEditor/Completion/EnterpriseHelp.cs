@@ -22,13 +22,13 @@ internal sealed class ParameterHelp
     /// <summary>Gets or sets the length of the active parameter.</summary>
     public int BoldLength { get; set; }
 
-    /// <summary>Gets or sets what the whole statement does, shown under the signature as in Visual Studio.</summary>
+    /// <summary>Gets or sets a short statement summary shown above the active parameter.</summary>
     public string Summary { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the name of the active parameter, such as label.</summary>
+    /// <summary>Gets or sets the parameter heading.</summary>
     public string Heading { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the description of the active parameter.</summary>
+    /// <summary>Gets or sets the explanation under the heading.</summary>
     public string Body { get; set; } = string.Empty;
 }
 
@@ -63,8 +63,7 @@ internal static class EnterpriseHelp
     }
 
     /// <summary>Builds the documentation panel for a type token, including an alias such as and-junction.</summary>
-    /// <param name="ForHover">True for the hover, which leaves out the example and the keyboard hint meant for the suggestion list.</param>
-    public static string ElementTypeDocumentation(EnterpriseElementMetadata Metadata, string WrittenName, bool ForHover = false)
+    public static string ElementTypeDocumentation(EnterpriseElementMetadata Metadata, string WrittenName)
     {
         string Name = string.IsNullOrWhiteSpace(WrittenName) ? Metadata.KebabName : WrittenName;
         string Summary = SummaryFor(Name, Metadata);
@@ -87,15 +86,26 @@ internal static class EnterpriseHelp
         AppendField(Lines, "peer", "Required with above, below, left-of, or right-of. An element in the same group.", NameWidth);
         AppendField(Lines, "+n", "Optional after the peer. Extra whole cells beyond the normal gap.", NameWidth);
         AppendField(Lines, "push", "Optional. Push outward: N top, S bottom, E right, W left.", NameWidth);
-        if (!ForHover)
+        Lines.Add(string.Empty);
+        Lines.Add("Relationships");
+        List<string> Relationships = OutgoingRelationshipNames(EnterpriseParser.DEFAULT_VERSION, Metadata.KebabName);
+        if (Relationships.Count == 0)
         {
-            Lines.Add(string.Empty);
-            Lines.Add("Example");
-            Lines.Add(Name + " " + ExampleId + " \"" + ElementShapePainterName(Metadata.KebabName) + "\"");
-            Lines.Add(string.Empty);
-            Lines.Add("Tab to insert. Esc to dismiss.");
+            Lines.Add("This type cannot start a relationship.");
+        }
+        else
+        {
+            foreach (string RelationshipName in Relationships)
+            {
+                Lines.Add(RelationshipName);
+            }
         }
 
+        Lines.Add(string.Empty);
+        Lines.Add("Example");
+        Lines.Add(Name + " " + ExampleId + " \"" + ElementShapePainterName(Metadata.KebabName) + "\"");
+        Lines.Add(string.Empty);
+        Lines.Add("Tab to insert. Esc to dismiss.");
         return Compose(Name, "Element", Lines);
     }
 
@@ -128,8 +138,7 @@ internal static class EnterpriseHelp
     }
 
     /// <summary>Documentation for one relationship name.</summary>
-    /// <param name="ForHover">True for the hover, which leaves out the keyboard hint meant for the suggestion list.</param>
-    public static string RelationshipDocumentation(EnterpriseRelationshipMetadata Metadata, string SourceType, bool ForHover = false)
+    public static string RelationshipDocumentation(EnterpriseRelationshipMetadata Metadata, string SourceType)
     {
         List<string> Lines = new List<string>();
         Lines.Add(RelationshipSignature(Metadata.Name));
@@ -157,12 +166,8 @@ internal static class EnterpriseHelp
         AppendField(Lines, "target", "Required. An existing element that can accept this relationship.", NameWidth);
         AppendField(Lines, "\"label\"", "Optional. Caption drawn on the relationship.", NameWidth);
         AppendField(Lines, "routing", "Optional. leave, enter, or travel, then N, S, E, or W. Example: [leave E, travel S, enter W].", NameWidth);
-        if (!ForHover)
-        {
-            Lines.Add(string.Empty);
-            Lines.Add("Tab to insert. Esc to dismiss.");
-        }
-
+        Lines.Add(string.Empty);
+        Lines.Add("Tab to insert. Esc to dismiss.");
         return Compose(Metadata.Name, "Relationship", Lines);
     }
 
@@ -203,8 +208,7 @@ internal static class EnterpriseHelp
     }
 
     /// <summary>Documentation for a placement word.</summary>
-    /// <param name="ForHover">True for the hover, which leaves out the keyboard hint meant for the suggestion list.</param>
-    public static string PlacementDocumentation(string Hint, bool ForHover = false)
+    public static string PlacementDocumentation(string Hint)
     {
         List<string> Lines = new List<string>();
         if (string.Equals(Hint, "push", StringComparison.Ordinal))
@@ -213,12 +217,8 @@ internal static class EnterpriseHelp
             Lines.Add(string.Empty);
             Lines.Add("Pushes this element outward, just past its siblings.");
             Lines.Add("N is toward the top of the page, S the bottom, E the right, W the left.");
-            if (!ForHover)
-            {
-                Lines.Add(string.Empty);
-                Lines.Add("Tab to insert. Esc to dismiss.");
-            }
-
+            Lines.Add(string.Empty);
+            Lines.Add("Tab to insert. Esc to dismiss.");
             return Compose(Hint, "Placement", Lines);
         }
 
@@ -228,12 +228,8 @@ internal static class EnterpriseHelp
         int NameWidth = FieldWidth("peer", "+n");
         AppendField(Lines, "peer", "Required. An element, group, or note in the same group.", NameWidth);
         AppendField(Lines, "+n", "Optional. Extra whole cells beyond the normal gap.", NameWidth);
-        if (!ForHover)
-        {
-            Lines.Add(string.Empty);
-            Lines.Add("Tab to insert. Esc to dismiss.");
-        }
-
+        Lines.Add(string.Empty);
+        Lines.Add("Tab to insert. Esc to dismiss.");
         return Compose(Hint, "Placement", Lines);
     }
 
@@ -283,17 +279,17 @@ internal static class EnterpriseHelp
         if (EnterpriseElementCatalog.TryResolveElementType(Token, out EnterpriseElementType ElementType)
             && EnterpriseElementCatalog.Elements.TryGetValue(ElementType, out EnterpriseElementMetadata? Metadata))
         {
-            return ElementTypeDocumentation(Metadata, Token, ForHover: true);
+            return ElementTypeDocumentation(Metadata);
         }
 
         if (EnterpriseElementCatalog.TryResolveRelationship(Token, out EnterpriseRelationshipKind Kind))
         {
-            return RelationshipDocumentation(EnterpriseElementCatalog.Relationships[Kind], "the source", ForHover: true);
+            return RelationshipDocumentation(EnterpriseElementCatalog.Relationships[Kind], "the source");
         }
 
         if (IsPlacementWord(Token))
         {
-            return PlacementDocumentation(Token, ForHover: true);
+            return PlacementDocumentation(Token);
         }
 
         if (Document.Elements.TryGetValue(Token, out EnterpriseElement? Element))
@@ -360,7 +356,7 @@ internal static class EnterpriseHelp
         }
 
         string Signature = "direction <TB|TD|BT|LR|RL>";
-        return Make(Signature, "<TB|TD|BT|LR|RL>", "direction", "TB or TD runs top to bottom, BT bottom to top, LR left to right and RL right to left.", "Sets the direction the diagram flows in.");
+        return Make(Signature, "<TB|TD|BT|LR|RL>", "direction - flow of the page", "TB and TD run top to bottom. BT runs bottom to top. LR runs left to right. RL runs right to left.");
     }
 
     private static ParameterHelp? RelationshipHelp(string Line, int Column, EnterpriseDocument Document)
@@ -395,9 +391,8 @@ internal static class EnterpriseHelp
                 return Make(
                     SourceId + " -" + Kind + "(<qualifier>)-> <target> [\"label\"]",
                     "<qualifier>",
-                    "qualifier",
-                    QualifierBody(Kind),
-                    KindSummary(Kind));
+                    "qualifier - " + Kind + " mode",
+                    QualifierBody(Kind));
             }
         }
 
@@ -409,9 +404,8 @@ internal static class EnterpriseHelp
                 return Make(
                     SourceId + " -" + Kind + "-> <target> [\"label\"] [[routing]]",
                     "[[routing]]",
-                    "routing",
-                    "Optional path hints: leave, enter or travel, then N, S, E or W. For example [leave E, travel S, enter W].",
-                    KindSummary(Kind));
+                    "routing - optional path",
+                    "leave, enter, or travel, then N, S, E, or W. Example: [leave E, travel S, enter W]. The statement can end before this.");
             }
 
             if (IsInsideQuotes(Line, Column))
@@ -419,9 +413,8 @@ internal static class EnterpriseHelp
                 return Make(
                     SourceId + " -" + Kind + "-> <target> [\"label\"] [[routing]]",
                     "[\"label\"]",
-                    "label",
-                    "Optional caption drawn on the relationship, in quotes.",
-                    KindSummary(Kind));
+                    "label - optional displayed name",
+                    "Enclose the text in quotes. If omitted, no extra caption is drawn on the relationship.");
             }
 
             string AfterArrow = Line.Substring(Arrow + 2);
@@ -433,20 +426,18 @@ internal static class EnterpriseHelp
                 return Make(
                     SourceId + " -" + Kind + "-> <target> [\"label\"] [[routing]]",
                     "<target>",
-                    "target",
-                    "An element already in this diagram that can accept " + Kind + " from " + SourceId + ".",
-                    KindSummary(Kind));
+                    "target - existing element",
+                    "An element already declared in this diagram. It must be a legal " + Kind + " target for " + SourceId + ".");
             }
 
             return Make(
                 SourceId + " -" + Kind + "-> <target> [\"label\"] [[routing]]",
                 "[\"label\"]",
-                "label",
-                "Optional caption drawn on the relationship, in quotes. Routing hints in square brackets can follow.",
-                KindSummary(Kind));
+                "label - optional displayed name",
+                "Enclose the text in quotes. If omitted, no extra caption is drawn on the relationship. A routing hint can follow, in square brackets.");
         }
 
-        return Make(Signature, "<relationship>", "relationship", "A relationship type that " + SourceId + " can start.", "Connects " + SourceId + " to another element.");
+        return Make(Signature, "<relationship>", "relationship - permitted type", "A relationship this source can have with an element already in the diagram.");
     }
 
     private static ParameterHelp? ElementHelp(string Line, int Column, int LineNumber, EnterpriseDocument Document)
@@ -458,14 +449,10 @@ internal static class EnterpriseHelp
         }
 
         string TypeName = Match.Groups["type"].Value;
-        if (!EnterpriseElementCatalog.TryResolveElementType(TypeName, out EnterpriseElementType ElementType))
+        if (!EnterpriseElementCatalog.TryResolveElementType(TypeName, out _))
         {
             return null;
         }
-
-        string Summary = EnterpriseElementCatalog.Elements.TryGetValue(ElementType, out EnterpriseElementMetadata? Metadata)
-            ? SummaryFor(TypeName, Metadata)
-            : string.Empty;
 
         int TypeEnd = Match.Groups["type"].Index + Match.Groups["type"].Length;
         if (Column <= TypeEnd)
@@ -488,22 +475,22 @@ internal static class EnterpriseHelp
         if (!Match.Groups["id"].Success || Column <= IdEnd)
         {
             string Id = Match.Groups["id"].Success ? Match.Groups["id"].Value : string.Empty;
-            return Make(Signature, "<id>", "id", IdentifierBody(Document, Id, LineNumber), Summary);
+            return Make(Signature, "<id>", "id - required identifier", IdentifierBody(Document, Id, LineNumber));
         }
 
         if (IsInsideQuotes(Line, Column))
         {
-            return Make(Signature, "[\"label\"]", "label", "Optional displayed name, in quotes. Defaults to the identifier.", Summary);
+            return Make(Signature, "[\"label\"]", "label - optional displayed name", "Enclose the text in quotes. If omitted, the identifier is displayed. The statement can end before this.");
         }
 
         if (Regex.IsMatch(AfterId, @"\bin\s+\S*$", RegexOptions.IgnoreCase) && Column > IdEnd)
         {
-            return Make(Signature, "[in <container>]", "container", "Optional group that contains this element.", Summary);
+            return Make(Signature, "[in <container>]", "container - optional group", "The identifier of the group this element belongs to. The statement can end before this.");
         }
 
         if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of)\s+\S*$", RegexOptions.IgnoreCase))
         {
-            return Make(Signature, "<peer>", "peer", "The element, group or note in the same group to place this element against.", Summary);
+            return Make(Signature, "<peer>", "peer - element to place against", "An element, group, or note in the same group. Optional +n adds whole cells beyond the normal gap.");
         }
 
         if (Regex.IsMatch(AfterId, @"\bpush\s+[NSEW]\s*$", RegexOptions.IgnoreCase))
@@ -513,7 +500,7 @@ internal static class EnterpriseHelp
 
         if (Regex.IsMatch(AfterId, @"\bpush\s+\S*$", RegexOptions.IgnoreCase))
         {
-            return Make(Signature, "<N|S|E|W>", "push", "Direction to push this element outward: N top, S bottom, E right, W left.", Summary);
+            return Make(Signature, "<N|S|E|W>", "push - outward direction", "N toward the top of the page, S the bottom, E the right, W the left. The statement can end after the direction.");
         }
 
         if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of)\s+\S+\s+\+\d+\s*$", RegexOptions.IgnoreCase))
@@ -523,21 +510,21 @@ internal static class EnterpriseHelp
 
         if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of)\s+\S+\s+\+?\s*$", RegexOptions.IgnoreCase))
         {
-            return Make(Signature, "[+n]", "+n", "Optional number of extra whole cells beyond the normal gap.", Summary);
+            return Make(Signature, "[+n]", "+n - optional extra cells", "Whole cells beyond the normal gap. Omit it to keep the normal gap. The statement can end here.");
         }
 
         if (Regex.IsMatch(AfterId, @"""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'"))
         {
-            return Make(Signature, "[in <container>]", "container", "Optional group that contains this element. A placement clause can follow.", Summary);
+            return Make(Signature, "[in <container>]", "optional clauses", "The statement can end here. Optional clauses: in <container>, above <peer> [+n], below <peer> [+n], left-of <peer> [+n], right-of <peer> [+n], push <N|S|E|W>.");
         }
 
-        return Make(Signature, "[\"label\"]", "label", "Optional displayed name, in quotes. Defaults to the identifier.", Summary);
+        return Make(Signature, "[\"label\"]", "label - optional displayed name", "Enclose the text in quotes. If omitted, the identifier is displayed. The statement can end before this. After the label: in <container>, above <peer> [+n], below <peer> [+n], left-of <peer> [+n], right-of <peer> [+n], push <N|S|E|W>.");
     }
 
     private static string IdentifierBody(EnterpriseDocument Document, string Id, int LineNumber)
     {
         StringBuilder Builder = new StringBuilder();
-        Builder.AppendLine("The required identifier, unique within this diagram and case-sensitive. Relationships and placement clauses refer to the element by it.");
+        Builder.AppendLine("Must be unique within this diagram. Used to reference this element in relationships and other statements. Identifiers are case-sensitive. Example: ac.");
         if (Id.Length > 0 && Document.Elements.TryGetValue(Id, out EnterpriseElement? Existing) && Existing.LineNumber != LineNumber)
         {
             string TypeName = EnterpriseElementCatalog.GetKebabName(Existing.ElementType);
@@ -661,23 +648,18 @@ internal static class EnterpriseHelp
         return Lines;
     }
 
-    private static ParameterHelp Make(string Signature, string Active, string Heading, string Body, string Summary = "")
+    private static ParameterHelp Make(string Signature, string Active, string Heading, string Body)
     {
         int Start = Signature.IndexOf(Active, StringComparison.Ordinal);
-        ParameterHelp Help = new ParameterHelp();
-        Help.Signature = Signature;
-        Help.Summary = Summary;
-        Help.BoldStart = Math.Max(0, Start);
-        Help.BoldLength = Start < 0 ? 0 : Active.Length;
-        Help.Heading = Heading;
-        Help.Body = Body;
+        ParameterHelp Help = new ParameterHelp
+        {
+            Signature = Signature,
+            BoldStart = Math.Max(0, Start),
+            BoldLength = Start < 0 ? 0 : Active.Length,
+            Heading = Heading,
+            Body = Body
+        };
         return Help;
-    }
-
-    /// <summary>What a relationship statement of this kind does, or nothing when the kind is not recognised.</summary>
-    private static string KindSummary(string Kind)
-    {
-        return EnterpriseElementCatalog.TryResolveRelationship(Kind, out _) ? RelationshipSummary(Kind) : string.Empty;
     }
 
     private static string QualifierBody(string Kind)

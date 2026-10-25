@@ -27,6 +27,7 @@ namespace LiveEditor
             //
             // HoverText
             //
+            HoverText.AutoSize = false;
             HoverText.BackColor = SystemColors.Info;
             HoverText.Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point);
             HoverText.ForeColor = SystemColors.InfoText;

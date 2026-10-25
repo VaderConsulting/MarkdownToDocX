@@ -23,9 +23,10 @@ namespace LiveEditor
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            SourceEditor = new RichTextBox();
+            SourceEditor = new SourceTextBox();
             LineNumberColumn = new LineNumberGutter();
             MinimapBox = new RichTextBox();
+            ScrollMarks = new ScrollMarkStrip();
             HighlightTimer = new Timer(components);
             FindBar = new Panel();
             FindRow = new FlowLayoutPanel();
@@ -86,6 +87,16 @@ namespace LiveEditor
             MinimapBox.Text = "";
             MinimapBox.Visible = false;
             MinimapBox.WordWrap = false;
+            // 
+            // ScrollMarks
+            // 
+            ScrollMarks.AccessibleName = "Scrollbar marks";
+            ScrollMarks.Dock = DockStyle.Right;
+            ScrollMarks.Location = new Point(421, 0);
+            ScrollMarks.Margin = new Padding(0);
+            ScrollMarks.Name = "ScrollMarks";
+            ScrollMarks.Size = new Size(14, 320);
+            ScrollMarks.TabIndex = 2;
             // 
             // HighlightTimer
             // 
@@ -210,6 +221,7 @@ namespace LiveEditor
             AutoScaleMode = AutoScaleMode.None;
             Controls.Add(SourceEditor);
             Controls.Add(LineNumberColumn);
+            Controls.Add(ScrollMarks);
             Controls.Add(MinimapBox);
             Controls.Add(FindBar);
             Name = "CodeEditor";
@@ -224,9 +236,10 @@ namespace LiveEditor
 
         #endregion
 
-        private RichTextBox SourceEditor;
+        private SourceTextBox SourceEditor;
         private LineNumberGutter LineNumberColumn;
         private RichTextBox MinimapBox;
+        private ScrollMarkStrip ScrollMarks;
         private Timer HighlightTimer;
         private Panel FindBar;
         private FlowLayoutPanel FindRow;

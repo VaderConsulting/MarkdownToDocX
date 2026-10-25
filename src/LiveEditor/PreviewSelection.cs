@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using MermaidRecognition.Layout;
 
 namespace LiveEditor;
 
@@ -59,6 +60,9 @@ internal sealed class PreviewObject
 
     /// <summary>Gets or sets the bottom edge of the drawn outline.</summary>
     public double Bottom { get; set; }
+
+    /// <summary>Gets or sets whether the node is a junction, which shows no connection points.</summary>
+    public bool IsJunction { get; set; }
 
     /// <summary>Gets the strokes to draw bold when the object is selected.</summary>
     public List<PreviewOutline> Outlines
@@ -161,8 +165,17 @@ internal static class PreviewSelection
     /// <summary>How far from a line, in screen pixels, a click still selects it.</summary>
     public const double CLICK_TOLERANCE = 6.0;
 
-    /// <summary>Colour of the selection overlay: the diagram's line colour, drawn bold.</summary>
-    public static readonly Color LineColour = Color.FromArgb(0x1E, 0x1E, 0x1E);
+    /// <summary>Width and height of a connection point mark in screen pixels.</summary>
+    public const float MARK_SIZE = 7.0F;
+
+    /// <summary>Line width of a connection point mark in screen pixels.</summary>
+    public const float MARK_WIDTH = 2.0F;
+
+    /// <summary>How far beyond a route end, in SVG user units, an arrowhead or other end marker can reach.</summary>
+    private const double MARKER_REACH = 30.0;
+
+    /// <summary>Rounding allowance, in SVG user units, when checking a port's clearance from a corner.</summary>
+    private const double CORNER_TOLERANCE = 0.01;
 
     /// <summary>
     /// Returns the 1-based logical line that holds a character index. Only line feeds count, so word wrap does not.
@@ -268,9 +281,9 @@ internal static class PreviewSelection
     }
 
     /// <summary>
-    /// Draws the selected object's strokes bold over the picture.
+    /// Draws the selected object's strokes bold over the picture, and an x on each of its connection points.
     /// </summary>
-    public static void Paint(Graphics Graphics, PreviewObject Selected, double ScaleX, double ScaleY, double OffsetX, double OffsetY)
+    public static void Paint(Graphics Graphics, PreviewObject Selected, Color Colour, double ScaleX, double ScaleY, double OffsetX, double OffsetY)
     {
         SmoothingMode PreviousSmoothing = Graphics.SmoothingMode;
         Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -290,7 +303,7 @@ internal static class PreviewSelection
                     Points[Index] = new PointF((float)(OffsetX + (Point.X * ScaleX)), (float)(OffsetY + (Point.Y * ScaleY)));
                 }
 
-                using Pen Pen = new Pen(LineColour, LINE_WIDTH);
+                using Pen Pen = new Pen(Colour, LINE_WIDTH);
                 Pen.LineJoin = LineJoin.Round;
                 Pen.StartCap = LineCap.Round;
                 Pen.EndCap = LineCap.Round;
@@ -303,11 +316,165 @@ internal static class PreviewSelection
 
                 Graphics.DrawLines(Pen, Points);
             }
+
+            List<PointF> Marks = ConnectionPoints(Selected);
+            if (Marks.Count > 0)
+            {
+                using Pen MarkPen = new Pen(Colour, MARK_WIDTH);
+                float Half = MARK_SIZE / 2.0F;
+                foreach (PointF Point in Marks)
+                {
+                    float X = (float)(OffsetX + (Point.X * ScaleX));
+                    float Y = (float)(OffsetY + (Point.Y * ScaleY));
+                    Graphics.DrawLine(MarkPen, X - Half, Y - Half, X + Half, Y + Half);
+                    Graphics.DrawLine(MarkPen, X - Half, Y + Half, X + Half, Y - Half);
+                }
+            }
         }
         finally
         {
             Graphics.SmoothingMode = PreviousSmoothing;
         }
+    }
+
+    /// <summary>
+    /// Works out where lines can attach to the selected object, in SVG user units. A node, note or container gets
+    /// every potential port on each side of its outline box, a relationship gets its two ends, and a junction gets none.
+    /// </summary>
+    public static List<PointF> ConnectionPoints(PreviewObject Selected)
+    {
+        List<PointF> Points = new List<PointF>();
+        if (Selected.Kind == PreviewObjectKind.Relationship)
+        {
+            AddLineEnds(Selected, Points);
+            return Points;
+        }
+
+        if (Selected.IsJunction || Selected.Right <= Selected.Left || Selected.Bottom <= Selected.Top)
+        {
+            return Points;
+        }
+
+        foreach (double Offset in SideOffsets(Selected.Right - Selected.Left))
+        {
+            Points.Add(new PointF((float)(Selected.Left + Offset), (float)Selected.Top));
+            Points.Add(new PointF((float)(Selected.Left + Offset), (float)Selected.Bottom));
+        }
+
+        foreach (double Offset in SideOffsets(Selected.Bottom - Selected.Top))
+        {
+            Points.Add(new PointF((float)Selected.Left, (float)(Selected.Top + Offset)));
+            Points.Add(new PointF((float)Selected.Right, (float)(Selected.Top + Offset)));
+        }
+
+        return Points;
+    }
+
+    /// <summary>
+    /// Places the ports on a side counting out from its centre: the midpoint, then every line_spacing either side
+    /// of it, keeping only those at least line_spacing from both corners.
+    /// </summary>
+    /// <returns>Distances from the start of the side in ascending order; empty when the side is too short for a port.</returns>
+    internal static List<double> SideOffsets(double Length)
+    {
+        List<double> Offsets = new List<double>();
+        double Spacing = LineSpacing();
+        double Middle = Length / 2.0;
+        if (Spacing <= 0 || Middle < Spacing - CORNER_TOLERANCE)
+        {
+            return Offsets;
+        }
+
+        int Steps = (int)Math.Floor(((Middle - Spacing) + CORNER_TOLERANCE) / Spacing);
+        for (int Step = -Steps; Step <= Steps; Step++)
+        {
+            Offsets.Add(Middle + (Step * Spacing));
+        }
+
+        return Offsets;
+    }
+
+    /// <summary>
+    /// Reads line_spacing from the layout rules. The layout project only exposes it through the side length that
+    /// holds one port, which is a line_spacing clearance either side of it.
+    /// </summary>
+    private static double LineSpacing()
+    {
+        return DiagramGridMetrics.MinSideLengthForPorts(1) / 2.0;
+    }
+
+    /// <summary>
+    /// Adds the two ends of a relationship: where its route starts and stops, or the tip of a marker drawn beyond it.
+    /// </summary>
+    private static void AddLineEnds(PreviewObject Line, List<PointF> Points)
+    {
+        PreviewOutline? Route = null;
+        double Longest = -1;
+        foreach (PreviewOutline Outline in Line.Outlines)
+        {
+            double Length = 0;
+            for (int Index = 1; Index < Outline.Points.Count; Index++)
+            {
+                Length += PointDistance(Outline.Points[Index - 1], Outline.Points[Index]);
+            }
+
+            if (Length > Longest)
+            {
+                Longest = Length;
+                Route = Outline;
+            }
+        }
+
+        if (Route == null || Route.Points.Count < 2)
+        {
+            return;
+        }
+
+        int Last = Route.Points.Count - 1;
+        Points.Add(MarkerTip(Line, Route.Points[1], Route.Points[0]));
+        Points.Add(MarkerTip(Line, Route.Points[Last - 1], Route.Points[Last]));
+    }
+
+    /// <summary>
+    /// Returns the furthest point of the line's drawing that lies straight on beyond a route end, such as an
+    /// arrowhead tip touching the target outline, or the route end itself when nothing is drawn beyond it.
+    /// </summary>
+    private static PointF MarkerTip(PreviewObject Line, PointF Before, PointF End)
+    {
+        double Length = PointDistance(Before, End);
+        if (Length <= 0)
+        {
+            return End;
+        }
+
+        double DirectionX = (End.X - Before.X) / Length;
+        double DirectionY = (End.Y - Before.Y) / Length;
+        PointF Best = End;
+        double BestAhead = 0;
+        foreach (PreviewOutline Outline in Line.Outlines)
+        {
+            foreach (PointF Point in Outline.Points)
+            {
+                double OffsetX = Point.X - End.X;
+                double OffsetY = Point.Y - End.Y;
+                double Ahead = (OffsetX * DirectionX) + (OffsetY * DirectionY);
+                double Across = Math.Abs((OffsetX * DirectionY) - (OffsetY * DirectionX));
+                if (Ahead > BestAhead && Ahead <= MARKER_REACH && Across <= 0.5)
+                {
+                    Best = Point;
+                    BestAhead = Ahead;
+                }
+            }
+        }
+
+        return Best;
+    }
+
+    private static double PointDistance(PointF From, PointF To)
+    {
+        double DeltaX = To.X - From.X;
+        double DeltaY = To.Y - From.Y;
+        return Math.Sqrt((DeltaX * DeltaX) + (DeltaY * DeltaY));
     }
 
     /// <summary>

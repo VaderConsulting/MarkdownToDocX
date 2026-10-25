@@ -100,6 +100,7 @@ namespace LiveEditor
             PreviewZoomInButton = new Button();
             PreviewZoomOutButton = new Button();
             PreviewFitButton = new Button();
+            SelectionDetails = new SelectionPanel();
             DiagnosticsList = new ListBox();
             StatusBar = new StatusStrip();
             StatusLabel = new ToolStripStatusLabel();
@@ -619,6 +620,7 @@ namespace LiveEditor
             PreviewHost.Controls.Add(PreviewZoomInButton);
             PreviewHost.Controls.Add(PreviewZoomOutButton);
             PreviewHost.Controls.Add(PreviewFitButton);
+            PreviewHost.Controls.Add(SelectionDetails);
             PreviewHost.Dock = DockStyle.Fill;
             PreviewHost.Location = new Point(0, 0);
             PreviewHost.Margin = new Padding(2, 2, 2, 2);
@@ -697,6 +699,15 @@ namespace LiveEditor
             PreviewFitButton.Size = new Size(23, 20);
             PreviewFitButton.TabIndex = 5;
             PreviewFitButton.UseVisualStyleBackColor = true;
+            // 
+            // SelectionDetails
+            // 
+            SelectionDetails.Dock = DockStyle.Bottom;
+            SelectionDetails.Location = new Point(0, 250);
+            SelectionDetails.Margin = new Padding(0);
+            SelectionDetails.Name = "SelectionDetails";
+            SelectionDetails.Size = new Size(240, 176);
+            SelectionDetails.TabIndex = 6;
             // 
             // DiagnosticsList
             // 
@@ -873,6 +884,7 @@ namespace LiveEditor
         private Button PreviewZoomInButton;
         private Button PreviewZoomOutButton;
         private Button PreviewFitButton;
+        private SelectionPanel SelectionDetails;
         private System.ComponentModel.IContainer components;
     }
 }

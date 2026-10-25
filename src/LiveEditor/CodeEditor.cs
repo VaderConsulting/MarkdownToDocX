@@ -61,7 +61,11 @@ internal sealed partial class CodeEditor : UserControl
         ReplaceAllButton.Click += ReplaceAllButton_Click;
         CloseFindButton.Click += CloseFindButton_Click;
         QueryBox.KeyDown += QueryBox_KeyDown;
+        QueryBox.TextChanged += QueryBox_TextChanged;
+        MatchCaseCheckBox.CheckedChanged += QueryBox_TextChanged;
         ReplaceBox.KeyDown += QueryBox_KeyDown;
+        ScrollMarks.LineChosen += ScrollMarks_LineChosen;
+        SourceEditor.VScroll += SourceEditor_ScrollChanged;
         _EditorWheel = new EditorMouseWheel(this);
         SourceEditor.HandleCreated += SourceEditor_HandleCreated;
         SourceEditor.HandleDestroyed += SourceEditor_HandleDestroyed;
@@ -86,6 +90,8 @@ internal sealed partial class CodeEditor : UserControl
     private bool _DuplicateChord;
 
     private readonly List<int> _DiagnosticLines = new List<int>();
+
+    private readonly List<int> _FindLines = new List<int>();
 
     private readonly EditorMouseWheel _EditorWheel;
 
@@ -323,6 +329,7 @@ internal sealed partial class CodeEditor : UserControl
         SourceEditor.ForeColor = Foreground;
         MinimapBox.BackColor = Background;
         MinimapBox.ForeColor = Foreground;
+        ScrollMarks.UseDarkChrome(DarkTheme);
     }
 
     /// <summary>
@@ -389,6 +396,101 @@ internal sealed partial class CodeEditor : UserControl
         }
 
         MermaidSyntaxHighlighter.TintLines(SourceEditor, LineNumbers, _DarkTheme);
+        RefreshScrollMarks();
+    }
+
+    /// <summary>
+    /// Loads source, indents a trailing blank line, and leaves the caret on the first line.
+    /// </summary>
+    /// <param name="Source">File or sample text.</param>
+    internal void SetSource(string Source)
+    {
+        string Text = EditorEditing.IndentTrailingBlankLine(Source ?? string.Empty);
+        _IntelliSense.Suppress = true;
+        try
+        {
+            SourceEditor.Text = Text;
+            SourceEditor.Select(0, 0);
+            SourceEditor.ScrollToCaret();
+        }
+        finally
+        {
+            _IntelliSense.Suppress = false;
+        }
+
+        RefreshFindLines();
+        RefreshScrollMarks();
+    }
+
+    private void SourceEditor_ScrollChanged(object? Sender, EventArgs E)
+    {
+        RefreshScrollMarks();
+    }
+
+    private void QueryBox_TextChanged(object? Sender, EventArgs E)
+    {
+        RefreshFindLines();
+        RefreshScrollMarks();
+    }
+
+    private void ScrollMarks_LineChosen(object? Sender, int Line)
+    {
+        int Start = SourceEditor.GetFirstCharIndexFromLine(Line);
+        if (Start < 0)
+        {
+            return;
+        }
+
+        SourceEditor.Select(Start, 0);
+        SourceEditor.ScrollToCaret();
+        SourceEditor.Focus();
+    }
+
+    private void RefreshFindLines()
+    {
+        _FindLines.Clear();
+        if (!FindBar.Visible || _GoToLineMode || string.IsNullOrEmpty(QueryBox.Text))
+        {
+            return;
+        }
+
+        string Text = SourceText();
+        string Query = QueryBox.Text;
+        StringComparison Comparison = MatchCaseCheckBox.Checked ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        int From = 0;
+        while (From < Text.Length)
+        {
+            int Found = Text.IndexOf(Query, From, Comparison);
+            if (Found < 0)
+            {
+                break;
+            }
+
+            _FindLines.Add(LineIndexAt(LineStartsOf(Text), Found));
+            From = Found + Math.Max(1, Query.Length);
+        }
+    }
+
+    private void RefreshScrollMarks()
+    {
+        if (SourceEditor.IsDisposed || !SourceEditor.IsHandleCreated)
+        {
+            return;
+        }
+
+        string Text = SourceText();
+        List<int> Starts = LineStartsOf(Text);
+        int CaretLine = LineIndexAt(Starts, Math.Max(0, Math.Min(SourceEditor.SelectionStart, Text.Length)));
+        int First = SourceEditor.GetLineFromCharIndex(SourceEditor.GetCharIndexFromPosition(new Point(1, 1)));
+        int Last = SourceEditor.GetLineFromCharIndex(SourceEditor.GetCharIndexFromPosition(new Point(1, Math.Max(1, SourceEditor.ClientSize.Height - 1))));
+        if (Last < First)
+        {
+            int Swap = First;
+            First = Last;
+            Last = Swap;
+        }
+
+        ScrollMarks.ShowMarks(Starts.Count, CaretLine, First, Math.Max(1, Last - First + 1), _FindLines, _DiagnosticLines);
     }
 
     /// <summary>
@@ -398,6 +500,7 @@ internal sealed partial class CodeEditor : UserControl
     {
         Controls.SetChildIndex(FindBar, Controls.Count - 1);
         Controls.SetChildIndex(LineNumberColumn, Controls.Count - 1);
+        Controls.SetChildIndex(ScrollMarks, Controls.Count - 1);
         Controls.SetChildIndex(MinimapBox, Controls.Count - 1);
         Controls.SetChildIndex(SourceEditor, 0);
     }
@@ -411,6 +514,8 @@ internal sealed partial class CodeEditor : UserControl
 
         ClearMarkedId();
         QueueHighlight();
+        RefreshFindLines();
+        RefreshScrollMarks();
     }
 
     private void SourceEditor_SelectionChanged(object? Sender, EventArgs E)
@@ -440,6 +545,8 @@ internal sealed partial class CodeEditor : UserControl
 
             ApplyEditorColours();
         }
+
+        RefreshScrollMarks();
     }
 
     private void SourceEditor_MouseDoubleClick(object? Sender, MouseEventArgs E)
@@ -1106,6 +1213,8 @@ internal sealed partial class CodeEditor : UserControl
 
         QueryBox.Focus();
         QueryBox.SelectAll();
+        RefreshFindLines();
+        RefreshScrollMarks();
     }
 
     private void FindInDirection(bool Forward)
@@ -1313,6 +1422,8 @@ internal sealed partial class CodeEditor : UserControl
     {
         FindBar.Visible = false;
         _GoToLineMode = false;
+        _FindLines.Clear();
+        RefreshScrollMarks();
         SourceEditor.Focus();
     }
 

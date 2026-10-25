@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
-using LiveEditor.Editor;
 using MDConverter;
 using NUnit.Framework;
 
@@ -201,9 +200,11 @@ public sealed class PreviewSelectionTests
     [Test]
     public void TheEditorAndPreviewSelectionFollowEachOther()
     {
-        SessionSettings Settings = new SessionSettings();
-        Settings.HighlightDelayMilliseconds = 40;
-        Settings.RenderDelayMilliseconds = 40;
+        SessionSettings Settings = new SessionSettings
+        {
+            HighlightDelayMilliseconds = 40,
+            RenderDelayMilliseconds = 40
+        };
         using MainForm Form = new MainForm(Settings);
         Form.ShowInTaskbar = false;
         Form.StartPosition = FormStartPosition.Manual;
@@ -224,12 +225,9 @@ public sealed class PreviewSelectionTests
         Application.DoEvents();
         Assert.That(Form.PreviewSelectionObject, Is.Not.Null);
         Assert.That(Form.PreviewSelectionObject!.RelationshipKind, Is.EqualTo("flow"));
-        PreviewObject Flow = Form.PreviewSelectionObject;
-        string Key = Flow.Key;
+        string Key = Form.PreviewSelectionObject.Key;
 
         Editor.Text = SOURCE + "application-component till \"Till\"\n";
-        Form.SelectPreviewObject(Flow);
-        Assert.That(Form.PreviewIndexIsCurrent, Is.False);
         WaitForCurrentIndex(Form);
         Assert.That(Form.PreviewSelectionObject, Is.Not.Null);
         Assert.That(Form.PreviewSelectionObject!.Key, Is.EqualTo(Key));

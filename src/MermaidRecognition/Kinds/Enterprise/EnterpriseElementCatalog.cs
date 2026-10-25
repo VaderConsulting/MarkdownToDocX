@@ -1,3 +1,5 @@
+using System;
+
 namespace MermaidRecognition.Kinds.Enterprise;
 
 /// <summary>
@@ -84,6 +86,31 @@ public static class EnterpriseElementCatalog
     public static string GetKebabName(EnterpriseElementType ElementType)
     {
         return _ByType[ElementType].KebabName;
+    }
+
+    /// <summary>
+    /// Returns the type token written in source for an element. Junctions keep and-junction or or-junction.
+    /// </summary>
+    /// <param name="Element">Declared element.</param>
+    /// <returns>Source type token.</returns>
+    public static string GetSourceToken(EnterpriseElement Element)
+    {
+        if (Element == null)
+        {
+            throw new ArgumentNullException(nameof(Element));
+        }
+
+        if (Element.ElementType == EnterpriseElementType.Junction)
+        {
+            if (Element.JunctionKind == EnterpriseJunctionKind.Or)
+            {
+                return "or-junction";
+            }
+
+            return "and-junction";
+        }
+
+        return GetKebabName(Element.ElementType);
     }
 
     /// <summary>

@@ -151,9 +151,11 @@ internal sealed partial class PreviewHoverIndex
             Outlines.Add(Box);
         }
 
-        PreviewObject Shape = new PreviewObject();
-        Shape.Kind = IsGroup ? PreviewObjectKind.Container : PreviewObjectKind.Node;
-        Shape.Id = Id;
+        PreviewObject Shape = new PreviewObject
+        {
+            Kind = IsGroup ? PreviewObjectKind.Container : PreviewObjectKind.Node,
+            Id = Id
+        };
         Shape.Outlines.AddRange(Outlines);
         MeasureOutlines(Shape);
         PreviewObject? Existing = FindObject(Shape.Key);
@@ -178,11 +180,13 @@ internal sealed partial class PreviewHoverIndex
             return;
         }
 
-        PreviewObject Line = new PreviewObject();
-        Line.Kind = PreviewObjectKind.Relationship;
-        Line.SourceId = SourceId;
-        Line.TargetId = TargetId;
-        Line.RelationshipKind = KindName.Length == 0 ? PLAIN_CONNECTION : KindName;
+        PreviewObject Line = new PreviewObject
+        {
+            Kind = PreviewObjectKind.Relationship,
+            SourceId = SourceId,
+            TargetId = TargetId,
+            RelationshipKind = KindName.Length == 0 ? PLAIN_CONNECTION : KindName
+        };
         foreach (PreviewObject Earlier in _Objects)
         {
             if (Earlier.Kind == PreviewObjectKind.Relationship
@@ -486,8 +490,10 @@ internal sealed partial class PreviewHoverIndex
                 continue;
             }
 
-            PreviewOutline Outline = new PreviewOutline();
-            Outline.Dash = Dash;
+            PreviewOutline Outline = new PreviewOutline
+            {
+                Dash = Dash
+            };
             if (Name == "rect")
             {
                 double RadiusX = Number(Tag, "rx");
@@ -514,10 +520,10 @@ internal sealed partial class PreviewHoverIndex
             }
             else if (Name == "polygon" || Name == "polyline")
             {
-                List<double> Coordinates = Numbers(ReadExactAttribute(Tag, "points"));
-                for (int Point = 0; Point + 1 < Coordinates.Count; Point += 2)
+                List<double> PointNumbers = Numbers(ReadExactAttribute(Tag, "points"));
+                for (int Point = 0; Point + 1 < PointNumbers.Count; Point += 2)
                 {
-                    Outline.Points.Add(new PointF((float)(Coordinates[Point] + ShiftX), (float)(Coordinates[Point + 1] + ShiftY)));
+                    Outline.Points.Add(new PointF((float)(PointNumbers[Point] + ShiftX), (float)(PointNumbers[Point + 1] + ShiftY)));
                 }
 
                 if (Name == "polygon" && Outline.Points.Count > 2)
@@ -560,8 +566,10 @@ internal sealed partial class PreviewHoverIndex
             PointF To = new PointF((float)Segment.X2, (float)Segment.Y2);
             if (Current == null || !Near(Current.Points[Current.Points.Count - 1], From))
             {
-                Current = new PreviewOutline();
-                Current.Dash = Dash;
+                Current = new PreviewOutline
+                {
+                    Dash = Dash
+                };
                 Current.Points.Add(From);
                 Outlines.Add(Current);
             }

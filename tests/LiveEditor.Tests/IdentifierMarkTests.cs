@@ -77,18 +77,22 @@ public sealed class IdentifierMarkTests
 
     private static MainForm OpenEditor()
     {
-        SessionSettings Settings = new SessionSettings();
-        Settings.DiagnosticsVisible = false;
-        Settings.HighlightDelayMilliseconds = 5000;
-        Settings.RenderDelayMilliseconds = 60000;
-        Settings.WideToolbar = true;
-        Settings.EditorOnLeft = true;
-        Settings.VerticalSplit = true;
-        MainForm Form = new MainForm(Settings);
-        Form.ShowInTaskbar = false;
-        Form.StartPosition = FormStartPosition.Manual;
-        Form.Location = new Point(30, 30);
-        Form.ClientSize = new Size(1000, 700);
+        SessionSettings Settings = new SessionSettings
+        {
+            DiagnosticsVisible = false,
+            HighlightDelayMilliseconds = 5000,
+            RenderDelayMilliseconds = 60000,
+            WideToolbar = true,
+            EditorOnLeft = true,
+            VerticalSplit = true
+        };
+        MainForm Form = new MainForm(Settings)
+        {
+            ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual,
+            Location = new Point(30, 30),
+            ClientSize = new Size(1000, 700)
+        };
         Form.Show();
         Application.DoEvents();
         RichTextBox Editor = Require<RichTextBox>(Form, "SourceEditor");

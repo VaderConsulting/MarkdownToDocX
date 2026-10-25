@@ -342,9 +342,9 @@ internal static partial class DagreLayoutEngine
 
             DagreNodeLabel Proxy = new DagreNodeLabel
             {
-                Rank = Rank
+                Rank = Rank,
+                EdgeObj = Edge
             };
-            Proxy.EdgeObj = Edge;
             AddDummyNode(Graph, Context, "edge-proxy", Proxy, "_ep");
         }
     }

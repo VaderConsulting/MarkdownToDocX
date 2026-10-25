@@ -22,10 +22,14 @@ public sealed class LineMoveTests
     [SetUp]
     public void SetUp()
     {
-        _Host = new Form();
-        _Host.ShowInTaskbar = false;
-        _Editor = new CodeEditor();
-        _Editor.Dock = DockStyle.Fill;
+        _Host = new Form
+        {
+            ShowInTaskbar = false
+        };
+        _Editor = new CodeEditor
+        {
+            Dock = DockStyle.Fill
+        };
         _Host.Controls.Add(_Editor);
         _Host.Show();
         _Box = _Editor.Editor;

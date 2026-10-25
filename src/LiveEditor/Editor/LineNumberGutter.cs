@@ -52,6 +52,7 @@ internal sealed class LineNumberGutter : Panel
         _Editor.BackColorChanged += Editor_ColourChanged;
         _Editor.ForeColorChanged += Editor_ColourChanged;
         _Editor.MouseWheel += Editor_Changed;
+        _Editor.SelectionChanged += Editor_Changed;
         MatchEditorFont();
         MatchEditorColours();
     }
@@ -145,8 +146,18 @@ internal sealed class LineNumberGutter : Panel
             Point Position = _Editor.GetPositionFromCharIndex(Index);
             Row.Y = Position.Y;
             Row.Height = Math.Max(Font.Height, _Editor.Font.Height);
+            bool Current = Line == _Editor.GetLineFromCharIndex(_Editor.SelectionStart);
+            if (Current)
+            {
+                bool Dark = BackColor.R < 80 && BackColor.G < 80 && BackColor.B < 80;
+                using SolidBrush Band = new SolidBrush(Dark ? Color.FromArgb(7, 48, 77) : Color.FromArgb(228, 242, 252));
+                E.Graphics.FillRectangle(Band, 0, Row.Y, ClientSize.Width, Row.Height);
+                using SolidBrush Bar = new SolidBrush(Color.FromArgb(0, 122, 204));
+                E.Graphics.FillRectangle(Bar, 0, Row.Y, 3, Row.Height);
+            }
+
             string Label = (Line + 1).ToString(CultureInfo.InvariantCulture);
-            TextRenderer.DrawText(E.Graphics, Label, Font, Row, ForeColor, Flags);
+            TextRenderer.DrawText(E.Graphics, Label, Font, Row, Current ? Color.FromArgb(0, 122, 204) : ForeColor, Flags);
         }
     }
 
@@ -231,6 +242,7 @@ internal sealed class LineNumberGutter : Panel
         _Editor.BackColorChanged -= Editor_ColourChanged;
         _Editor.ForeColorChanged -= Editor_ColourChanged;
         _Editor.MouseWheel -= Editor_Changed;
+        _Editor.SelectionChanged -= Editor_Changed;
         _Editor = null;
     }
 

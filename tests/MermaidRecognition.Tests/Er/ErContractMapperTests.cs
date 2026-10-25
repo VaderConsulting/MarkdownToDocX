@@ -60,12 +60,16 @@ public sealed class ErContractMapperTests
     [Test]
     public void Apply_LeavesSourceStatementsUnchanged()
     {
-        DiagramContract Contract = new DiagramContract();
-        Contract.Kind = "erDiagram";
-        SourceStatementContract Statement = new SourceStatementContract();
-        Statement.LineNumber = 2;
-        Statement.LineTypeId = "erDiagram.relationship";
-        Statement.RawLine = "    CUSTOMER ||--o{ ORDER : places";
+        DiagramContract Contract = new DiagramContract
+        {
+            Kind = "erDiagram"
+        };
+        SourceStatementContract Statement = new SourceStatementContract
+        {
+            LineNumber = 2,
+            LineTypeId = "erDiagram.relationship",
+            RawLine = "    CUSTOMER ||--o{ ORDER : places"
+        };
         Contract.SourceStatementsMutable.Add(Statement);
 
         int StatementCount = Contract.SourceStatements.Count;

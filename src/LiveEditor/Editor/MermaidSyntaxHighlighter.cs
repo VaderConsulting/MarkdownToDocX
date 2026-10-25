@@ -213,8 +213,10 @@ internal static class MermaidSyntaxHighlighter
     /// <param name="Editor">Editor whose current selection is cleared.</param>
     private static void ClearCharacterBackground(RichTextBox Editor)
     {
-        CharacterFormat Format = new CharacterFormat();
-        Format.FaceName = string.Empty;
+        CharacterFormat Format = new CharacterFormat
+        {
+            FaceName = string.Empty
+        };
         Format.Size = Marshal.SizeOf(Format);
         Format.Mask = CFM_BACKCOLOR;
         Format.Effects = CFE_AUTOBACKCOLOR;

@@ -84,9 +84,11 @@ public sealed class DiagramMetadataTests
     [Test]
     public void TheEditorAttachesMetadataToItsDiagramAndFinishesAtOneHundredPercent()
     {
-        SessionSettings Settings = new SessionSettings();
-        Settings.HighlightDelayMilliseconds = 40;
-        Settings.RenderDelayMilliseconds = 40;
+        SessionSettings Settings = new SessionSettings
+        {
+            HighlightDelayMilliseconds = 40,
+            RenderDelayMilliseconds = 40
+        };
         using MainForm Form = new MainForm(Settings);
         Form.ShowInTaskbar = false;
         Form.StartPosition = FormStartPosition.Manual;

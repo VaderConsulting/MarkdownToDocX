@@ -256,18 +256,22 @@ public sealed class EnterpriseNodeEditingTests
 
     private static MainForm OpenEditor()
     {
-        SessionSettings Settings = new SessionSettings();
-        Settings.DiagnosticsVisible = true;
-        Settings.HighlightDelayMilliseconds = 40;
-        Settings.RenderDelayMilliseconds = 60000;
-        Settings.WideToolbar = true;
-        Settings.EditorOnLeft = true;
-        Settings.VerticalSplit = true;
-        MainForm Form = new MainForm(Settings);
-        Form.ShowInTaskbar = false;
-        Form.StartPosition = FormStartPosition.Manual;
-        Form.Location = new Point(40, 40);
-        Form.ClientSize = new Size(1200, 800);
+        SessionSettings Settings = new SessionSettings
+        {
+            DiagnosticsVisible = true,
+            HighlightDelayMilliseconds = 40,
+            RenderDelayMilliseconds = 60000,
+            WideToolbar = true,
+            EditorOnLeft = true,
+            VerticalSplit = true
+        };
+        MainForm Form = new MainForm(Settings)
+        {
+            ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual,
+            Location = new Point(40, 40),
+            ClientSize = new Size(1200, 800)
+        };
         Form.Show();
         Application.DoEvents();
         RichTextBox Editor = Require<RichTextBox>(Form, "SourceEditor");

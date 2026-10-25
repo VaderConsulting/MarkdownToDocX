@@ -55,6 +55,10 @@
 
     </AssemblyAttribute>
 
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>LiveEditor</_Parameter1>
+    </AssemblyAttribute>
+
   </ItemGroup>
 
 

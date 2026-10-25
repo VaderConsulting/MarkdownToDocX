@@ -33,9 +33,11 @@ internal static class EditorEditing
     /// <summary>Finds the next or previous match.</summary>
     public static TextChange Find(string Text, int SelectionStart, int SelectionLength, string Query, bool Forward, bool MatchCase)
     {
-        TextChange Change = new TextChange();
-        Change.SelectionStart = SelectionStart;
-        Change.SelectionLength = SelectionLength;
+        TextChange Change = new TextChange
+        {
+            SelectionStart = SelectionStart,
+            SelectionLength = SelectionLength
+        };
         if (string.IsNullOrEmpty(Query))
         {
             Change.Status = "Enter text to find.";
@@ -65,6 +67,49 @@ internal static class EditorEditing
         Change.SelectionStart = Found;
         Change.SelectionLength = Query.Length;
         return Change;
+    }
+
+    /// <summary>
+    /// Gives a trailing blank line the same leading whitespace as the line above it.
+    /// A file or sample that ends with a newline otherwise shows that line at column zero.
+    /// </summary>
+    /// <param name="Source">Text being loaded.</param>
+    /// <returns>The same text, with the trailing blank line indented when the line above is indented.</returns>
+    public static string IndentTrailingBlankLine(string Source)
+    {
+        if (string.IsNullOrEmpty(Source))
+        {
+            return Source ?? string.Empty;
+        }
+
+        bool WindowsNewlines = Source.Contains("\r\n", StringComparison.Ordinal);
+        string Text = Source.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        if (!Text.EndsWith('\n'))
+        {
+            return Source;
+        }
+
+        int ContentEnd = Text.Length - 1;
+        int PreviousBreak = Text.LastIndexOf('\n', ContentEnd - 1);
+        int PreviousStart = PreviousBreak < 0 ? 0 : PreviousBreak + 1;
+        int IndentEnd = PreviousStart;
+        while (IndentEnd < ContentEnd && (Text[IndentEnd] == ' ' || Text[IndentEnd] == '\t'))
+        {
+            IndentEnd++;
+        }
+
+        if (IndentEnd == PreviousStart)
+        {
+            return Source;
+        }
+
+        string Indented = Text + Text.Substring(PreviousStart, IndentEnd - PreviousStart);
+        if (WindowsNewlines)
+        {
+            return Indented.Replace("\n", "\r\n", StringComparison.Ordinal);
+        }
+
+        return Indented;
     }
 
     /// <summary>Replaces the current match when it is selected, then finds the next one.</summary>
@@ -199,9 +244,11 @@ internal static class EditorEditing
             Updated = Text + "\n" + Block;
         }
 
-        TextChange Change = new TextChange();
-        Change.Succeeded = true;
-        Change.Text = Updated;
+        TextChange Change = new TextChange
+        {
+            Succeeded = true,
+            Text = Updated
+        };
         int CopyStart = BlockEndsWithNewline || Span.End < Text.Length ? Span.End : Text.Length + 1;
         Change.SelectionStart = CopyStart + (SelectionStart - Span.Start);
         Change.SelectionLength = SelectionLength;
@@ -219,9 +266,11 @@ internal static class EditorEditing
             RemoveStart--;
         }
 
-        TextChange Change = new TextChange();
-        Change.Succeeded = true;
-        Change.Text = Text.Substring(0, RemoveStart) + Text.Substring(Math.Min(RemoveEnd, Text.Length));
+        TextChange Change = new TextChange
+        {
+            Succeeded = true,
+            Text = Text.Substring(0, RemoveStart) + Text.Substring(Math.Min(RemoveEnd, Text.Length))
+        };
         Change.SelectionStart = Math.Min(RemoveStart, Change.Text.Length);
         Change.SelectionLength = 0;
         return Change;
@@ -230,8 +279,10 @@ internal static class EditorEditing
     /// <summary>Selects the next diagnostic line after the caret, wrapping to the first.</summary>
     public static TextChange NextDiagnostic(string Text, int SelectionStart, IReadOnlyList<int> LineNumbers, bool Forward)
     {
-        TextChange Change = new TextChange();
-        Change.SelectionStart = SelectionStart;
+        TextChange Change = new TextChange
+        {
+            SelectionStart = SelectionStart
+        };
         if (LineNumbers == null || LineNumbers.Count == 0)
         {
             Change.Status = "No errors.";
@@ -350,11 +401,13 @@ internal static class EditorEditing
             Rewritten += "\n";
         }
 
-        TextChange Change = new TextChange();
-        Change.Succeeded = true;
-        Change.Text = Text.Substring(0, Span.Start) + Rewritten + Text.Substring(Span.End);
-        Change.SelectionStart = Span.Start;
-        Change.SelectionLength = Rewritten.Length;
+        TextChange Change = new TextChange
+        {
+            Succeeded = true,
+            Text = Text.Substring(0, Span.Start) + Rewritten + Text.Substring(Span.End),
+            SelectionStart = Span.Start,
+            SelectionLength = Rewritten.Length
+        };
         return Change;
     }
 
@@ -412,9 +465,11 @@ internal static class EditorEditing
             EndLine--;
         }
 
-        LineSpan Span = new LineSpan();
-        Span.Start = Starts[StartLine];
-        Span.End = EndLine + 1 < Starts.Count ? Starts[EndLine + 1] : Text.Length;
+        LineSpan Span = new LineSpan
+        {
+            Start = Starts[StartLine],
+            End = EndLine + 1 < Starts.Count ? Starts[EndLine + 1] : Text.Length
+        };
         return Span;
     }
 
