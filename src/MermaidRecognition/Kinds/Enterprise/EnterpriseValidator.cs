@@ -136,7 +136,7 @@ public static class EnterpriseValidator
     /// <returns>Parse result plus validation diagnostics.</returns>
     public static EnterpriseAnalysisResult Analyze(string Source)
     {
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         List<EnterpriseDiagnostic> Combined = new List<EnterpriseDiagnostic>(Parsed.Diagnostics);
         if (!Parsed.HasErrors)
         {

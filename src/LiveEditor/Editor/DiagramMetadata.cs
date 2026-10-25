@@ -207,7 +207,7 @@ internal sealed class DiagramMetadata
 
     private static DiagramMetadata BuildEnterprise(string Source, int Generation)
     {
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         EnterpriseDocument Document = Parsed.Document;
         DiagramMetadata Metadata = new DiagramMetadata(Generation, "enterprise")
         {

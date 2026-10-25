@@ -24,7 +24,7 @@ internal static class ElementTypeChange
             return Source ?? string.Empty;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         if (!Parsed.Document.Elements.TryGetValue(ElementId, out EnterpriseElement? Element))
         {
             return Source;
@@ -53,7 +53,7 @@ internal static class ElementTypeChange
             return Replaced;
         }
 
-        EnterpriseParseResult Again = EnterpriseParser.Parse(Replaced);
+        EnterpriseParseResult Again = EnterpriseParser.ParseDocument(Replaced);
         List<int> Remove = new List<int>();
         foreach (EnterpriseRelationship Relationship in Again.Document.Relationships)
         {

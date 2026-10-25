@@ -9,7 +9,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void NotesAndPlainConnections_AreDrawingItemsWithHints()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("""
             enterprise
             group area
             application-component shop in area
@@ -31,7 +31,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void ClosingDashes_SetRelationshipMinLength()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("""
             enterprise
             application-component shop
             application-service api
@@ -53,7 +53,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void PlainConnectionDashes_SetMinLength()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("""
             enterprise
             application-component shop
             note explanation "Read this"
@@ -69,7 +69,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void PlainConnection_RequiresANoteEnd()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("""
             enterprise
             application-component a
             application-component b
@@ -83,7 +83,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_PlacementAndRoutingHints_RecordsTypedValues()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component anchor "Anchor"
@@ -111,7 +111,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_InvalidPlacementPeersAndCycle_ReportWarningsWithoutFailing()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               group one "One"
@@ -137,7 +137,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_GroupIds_AreValidRelationshipEndpoints()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component outside "Outside"
@@ -153,7 +153,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_AllStatementForms_ReadsTitleVersionDirectionGroupElementAndRelationship()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               title Web shop
@@ -183,7 +183,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_OmitsOptionalFields_DefaultsVersionDirectionAndLabels()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop
@@ -223,7 +223,7 @@ public sealed class EnterpriseParserTests
     [TestCase("o", EnterpriseRelationshipKind.Association)]
     public void Parse_RelationshipNameOrLetter_ResolvesKind(string Token, EnterpriseRelationshipKind Expected)
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             $"""
             enterprise
               application-component a "A"
@@ -241,7 +241,7 @@ public sealed class EnterpriseParserTests
     [TestCase("access", EnterpriseAccessKind.Access)]
     public void Parse_AccessQualifier_SetsAccessKind(string Qualifier, EnterpriseAccessKind Expected)
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             $"""
             enterprise
               application-function checkout "Checkout"
@@ -261,7 +261,7 @@ public sealed class EnterpriseParserTests
     [TestCase("-3")]
     public void Parse_InfluenceQualifier_SetsStrength(string Qualifier)
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             $"""
             enterprise
               application-component a "A"
@@ -276,7 +276,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_DirectedAssociation_SetsFlag()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               communication-network lan "LAN"
@@ -291,7 +291,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_InvalidQualifier_ReportsLineNumber()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component a "A"
@@ -307,7 +307,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_UnknownElementType_ReportsLineNumber()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               foobar-widget ghost "Ghost"
@@ -328,7 +328,7 @@ public sealed class EnterpriseParserTests
     [TestCase("or-junction", EnterpriseElementType.Junction)]
     public void Parse_NewLayerType_ResolvesElement(string Token, EnterpriseElementType Expected)
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             "enterprise\n  " + Token + " item \"Item\"");
         Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
         Assert.That(Result.Document.Elements["item"].ElementType, Is.EqualTo(Expected));
@@ -344,7 +344,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_GroupStatement_CreatesGroupingElement()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               group store "Store"
@@ -359,7 +359,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_DuplicateElementId_ReportsLineNumber()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "One"
@@ -373,7 +373,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_SameTypeRedeclaration_DoesNotUpdateTheElement()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "One"
@@ -387,7 +387,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_ExactDuplicateRelationship_ReportsAnError()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "Web Shop"
@@ -403,7 +403,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_DifferentAccessQualifier_IsNotADuplicate()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "Web Shop"
@@ -419,7 +419,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_UnknownRelationshipEndpoint_ReportsLineNumber()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "Web Shop"
@@ -433,7 +433,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_UnknownInTarget_ReportsLineNumber()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-function checkout "Checkout" in missingParent
@@ -446,7 +446,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_CountsBlankAndCommentLines_ForErrorLineNumbers()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
 
@@ -462,7 +462,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_QuotedEscape_UnescapesLabel()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "Web \"Shop\""
@@ -475,7 +475,7 @@ public sealed class EnterpriseParserTests
     [Test]
     public void Parse_ApplicationLayerSample_IsValid()
     {
-        EnterpriseParseResult Result = EnterpriseParser.Parse(EnterpriseSamplePaths.ReadSample("01-application-layer.mmd"));
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(EnterpriseSamplePaths.ReadSample("01-application-layer.mmd"));
         Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
         Assert.That(Result.Document.Elements, Has.Count.EqualTo(10));
         Assert.That(Result.Document.Relationships, Has.Count.EqualTo(13));
@@ -499,7 +499,7 @@ public sealed class EnterpriseParserTests
     [TestCase("declared -serving-> missing", "declared->missing")]
     public void Parse_UnknownEndpoint_KeepsRelationshipOnOneDiagnosticLine(string Relationship, string Identity)
     {
-        var Result = EnterpriseParser.Parse("enterprise\napplication-component declared \"Declared\"\n" + Relationship);
+        var Result = EnterpriseParser.ParseDocument("enterprise\napplication-component declared \"Declared\"\n" + Relationship);
         Assert.That(Result.Diagnostics, Has.Count.EqualTo(1));
         Assert.That(Result.Diagnostics[0].Message, Does.Contain(Identity));
         Assert.That(Result.Diagnostics[0].Message, Does.Not.Contain("\n"));

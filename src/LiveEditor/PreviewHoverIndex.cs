@@ -64,7 +64,7 @@ internal sealed partial class PreviewHoverIndex
             return Index;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         Index.ReadSize(Svg);
         Index.ReadGeometry(Svg, Parsed.Document);
         Index.FinishEnterpriseObjects(Parsed.Document);

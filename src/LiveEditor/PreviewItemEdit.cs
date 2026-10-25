@@ -152,7 +152,7 @@ internal static class PreviewItemEdit
             return 0;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         if (Parsed.Document.Elements.TryGetValue(Item.Id, out EnterpriseElement? Element))
         {
             return Element.LineNumber;

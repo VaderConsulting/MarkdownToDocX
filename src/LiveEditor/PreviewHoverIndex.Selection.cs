@@ -49,7 +49,7 @@ internal sealed partial class PreviewHoverIndex
             return Index;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         foreach (EnterpriseElement Element in Parsed.Document.Elements.Values)
         {
             PreviewObject Node = new PreviewObject

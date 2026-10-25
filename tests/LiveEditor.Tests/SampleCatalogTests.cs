@@ -67,7 +67,7 @@ public sealed class SampleCatalogTests
         }
 
         Assert.That(Enterprise, Is.Not.Null);
-        EnterpriseParseResult Result = EnterpriseParser.Parse(Enterprise!.FullSource);
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(Enterprise!.FullSource);
         List<string> Errors = new List<string>();
         for (int Index = 0; Index < Result.Diagnostics.Count; Index++)
         {

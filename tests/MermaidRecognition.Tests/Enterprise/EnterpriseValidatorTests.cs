@@ -79,7 +79,7 @@ public sealed class EnterpriseValidatorTests
     [Test]
     public void Validate_NestedElementWithoutRelationship_WarnsAndDoesNotHideUnrelatedEdges()
     {
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "Web Shop"
@@ -100,7 +100,7 @@ public sealed class EnterpriseValidatorTests
     [Test]
     public void Validate_NestedAssignment_HidesTheNestingRelationship()
     {
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(
             """
             enterprise
               application-component webShop "Web Shop"
@@ -116,7 +116,7 @@ public sealed class EnterpriseValidatorTests
     [Test]
     public void Validate_NestedInGrouping_DoesNotWarn()
     {
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(
             """
             enterprise
               group store "Store"

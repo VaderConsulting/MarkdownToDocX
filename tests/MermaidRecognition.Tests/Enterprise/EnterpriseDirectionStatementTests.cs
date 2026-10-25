@@ -12,7 +12,7 @@ public sealed class EnterpriseDirectionStatementTests
     [TestCase("RL", EnterpriseDiagramDirection.Rl)]
     public void LastDirectionStatement_Wins(string Token, EnterpriseDiagramDirection Expected)
     {
-        var Result = EnterpriseParser.Parse($"enterprise\ndirection LR\ndirection {Token}\napplication-component first");
+        var Result = EnterpriseParser.ParseDocument($"enterprise\ndirection LR\ndirection {Token}\napplication-component first");
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Direction, Is.EqualTo(Expected));
     }
@@ -20,7 +20,7 @@ public sealed class EnterpriseDirectionStatementTests
     [Test]
     public void GroupDirection_IsScopedAndMembersKeepTheirContainer()
     {
-        var Result = EnterpriseParser.Parse("enterprise LR\ngroup outer {\ndirection BT\ngroup inner {\ndirection RL\napplication-component child\n}\n}\napplication-component outside");
+        var Result = EnterpriseParser.ParseDocument("enterprise LR\ngroup outer {\ndirection BT\ngroup inner {\ndirection RL\napplication-component child\n}\n}\napplication-component outside");
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Direction, Is.EqualTo(EnterpriseDiagramDirection.Lr));
         Assert.That(Result.Document.Groups["outer"].Direction, Is.EqualTo(EnterpriseDiagramDirection.Bt));

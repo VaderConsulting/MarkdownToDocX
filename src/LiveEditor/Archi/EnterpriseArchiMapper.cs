@@ -31,7 +31,7 @@ internal static class EnterpriseArchiMapper
             return false;
         }
 
-        EnterpriseParseResult ParseResult = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult ParseResult = EnterpriseParser.ParseDocument(Source);
         if (HasBlockingErrors(ParseResult))
         {
             ErrorMessage = FirstErrorMessage(ParseResult) ?? "Enterprise diagram has parse errors.";

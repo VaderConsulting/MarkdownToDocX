@@ -828,7 +828,7 @@ internal sealed partial class ElementPalette : UserControl
             return;
         }
 
-        EnterpriseParseResult Result = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(Source);
         foreach (string Identifier in Result.Document.Elements.Keys)
         {
             Used.Add(Identifier);

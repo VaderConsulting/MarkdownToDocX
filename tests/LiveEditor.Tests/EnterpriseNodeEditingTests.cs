@@ -55,7 +55,7 @@ public sealed class EnterpriseNodeEditingTests
 
         Settle();
         Assert.That(DiagnosticText(Diagnostics), Does.Not.Contain("Error:"));
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Editor.Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Editor.Text);
         Assert.That(Parsed.Document.Elements.Count, Is.EqualTo(Types.Count));
         Index = 0;
         foreach (EnterpriseElementMetadata Metadata in Types)
@@ -116,7 +116,7 @@ public sealed class EnterpriseNodeEditingTests
         Assert.That(Editor.Text, Does.Not.Contain("clerk"));
         Assert.That(DiagnosticText(Diagnostics), Does.Not.Contain("Error:"));
         Assert.That(Editor.Focused, Is.True);
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Editor.Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Editor.Text);
         Assert.That(Parsed.Document.Elements.ContainsKey("shop"), Is.True);
         Assert.That(Parsed.Document.Elements.ContainsKey("order"), Is.True);
         Assert.That(Parsed.Document.Elements.ContainsKey("clerk"), Is.False);
@@ -144,7 +144,7 @@ public sealed class EnterpriseNodeEditingTests
         Assert.That(Editor.Text, Does.Contain("business-actor clerk \"Clerk\""));
         Assert.That(DiagnosticText(Diagnostics), Does.Not.Contain("Error:"));
         Assert.That(Editor.Focused, Is.True);
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Editor.Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Editor.Text);
         Assert.That(Parsed.Document.Elements["shop"].ElementType, Is.EqualTo(EnterpriseElementType.BusinessRole));
         Assert.That(Parsed.Document.Elements["shop"].Label, Is.EqualTo("Web Shop"));
         Assert.That(Parsed.Document.Elements["clerk"].ElementType, Is.EqualTo(EnterpriseElementType.BusinessActor));
@@ -168,7 +168,7 @@ public sealed class EnterpriseNodeEditingTests
         Assert.That(Editor.Text, Does.Contain("device shopFloor"));
         Assert.That(Editor.Text, Does.Not.Contain("\""));
         Assert.That(DiagnosticText(Diagnostics), Does.Not.Contain("Error:"));
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Editor.Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Editor.Text);
         Assert.That(Parsed.Document.Elements["shopFloor"].ElementType, Is.EqualTo(EnterpriseElementType.Device));
         Assert.That(Parsed.Document.Elements["shopFloor"].Label, Is.EqualTo("shopFloor"));
         Assert.That(Editor.Focused, Is.True);
@@ -191,7 +191,7 @@ public sealed class EnterpriseNodeEditingTests
         Settle();
 
         Assert.That(DiagnosticText(Diagnostics), Does.Not.Contain("Error:"));
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Editor.Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Editor.Text);
         Assert.That(Parsed.Document.Elements["shop"].ElementType, Is.EqualTo(EnterpriseElementType.ApplicationComponent));
         Assert.That(Parsed.Document.Elements["shop"].Label, Is.EqualTo("Web Shop"));
         Assert.That(Parsed.Document.Elements["cart"].ElementType, Is.EqualTo(EnterpriseElementType.ApplicationComponent));
@@ -249,7 +249,7 @@ public sealed class EnterpriseNodeEditingTests
         Assert.That(Editor.Text, Does.Contain("shop -association-> api"));
         Assert.That(DiagnosticText(Diagnostics), Does.Contain("not a declared element"));
         Assert.That(Editor.Focused, Is.True);
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Editor.Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Editor.Text);
         Assert.That(Parsed.Document.Elements.ContainsKey("shop"), Is.True);
         Assert.That(Parsed.Document.Elements.ContainsKey("api"), Is.False);
     }

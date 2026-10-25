@@ -12,7 +12,7 @@ public sealed class EnterpriseExplicitLabelBreakTests
     public void QuotedLabels_DecodeExplicitBreaksForEveryStatementKind(string Separator)
     {
         string Label = "Alpha" + Separator + "Beta";
-        var Result = EnterpriseParser.Parse($"enterprise\n group g \"{Label}\"\n application-component a \"{Label}\" in g\n application-component b \"Target\"\n a -flow-> b \"{Label}\"");
+        var Result = EnterpriseParser.ParseDocument($"enterprise\n group g \"{Label}\"\n application-component a \"{Label}\" in g\n application-component b \"Target\"\n a -flow-> b \"{Label}\"");
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Groups["g"].Label, Is.EqualTo("Alpha\nBeta"));
         Assert.That(Result.Document.Elements["a"].Label, Is.EqualTo("Alpha\nBeta"));

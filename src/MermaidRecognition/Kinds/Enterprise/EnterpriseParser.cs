@@ -9,8 +9,23 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// <summary>
 /// Parses the native <c>enterprise</c> diagram syntax.
 /// </summary>
-public static class EnterpriseParser
+public sealed class EnterpriseParser : Parser
 {
+    /// <summary>Shared instance used by static helpers and <see cref="Parser.ForSource"/>.</summary>
+    public static EnterpriseParser Default { get; } = new EnterpriseParser();
+
+    static EnterpriseParser()
+    {
+        Parser.Register(Default);
+    }
+
+    /// <summary>
+    /// Creates an enterprise parser.
+    /// </summary>
+    public EnterpriseParser()
+    {
+    }
+
     /// <summary>Default rule-table version when the source omits <c>version</c>.</summary>
     public const string DEFAULT_VERSION = "3.2";
 
@@ -72,6 +87,12 @@ public static class EnterpriseParser
     /// <returns>True when the source is an enterprise diagram.</returns>
     public static bool IsEnterpriseSource(string? Source)
     {
+        return Default.Detect(Source);
+    }
+
+    /// <inheritdoc />
+    public override bool Detect(string? Source)
+    {
         if (string.IsNullOrWhiteSpace(Source))
         {
             return false;
@@ -93,11 +114,27 @@ public static class EnterpriseParser
     }
 
     /// <summary>
-    /// Parses an enterprise diagram block.
+    /// Parses an enterprise diagram block into the ArchiMate document.
     /// </summary>
     /// <param name="Source">Diagram source. Line 1 is the first line of the block.</param>
     /// <returns>Document and parser diagnostics.</returns>
-    public static EnterpriseParseResult Parse(string? Source)
+    public static EnterpriseParseResult ParseDocument(string? Source)
+    {
+        return Default.ParseDocumentCore(Source);
+    }
+
+    /// <inheritdoc />
+    public override DiagramParseResult Parse(string? Source)
+    {
+        return ToDiagramResult(ParseDocumentCore(Source));
+    }
+
+    /// <summary>
+    /// Parses an enterprise diagram block into the ArchiMate document.
+    /// </summary>
+    /// <param name="Source">Diagram source. Line 1 is the first line of the block.</param>
+    /// <returns>Document and parser diagnostics.</returns>
+    public EnterpriseParseResult ParseDocumentCore(string? Source)
     {
         EnterpriseDocument Document = new EnterpriseDocument();
         List<EnterpriseDiagnostic> Diagnostics = new List<EnterpriseDiagnostic>();
@@ -882,6 +919,90 @@ public static class EnterpriseParser
         }
 
         return false;
+    }
+
+    private static DiagramParseResult ToDiagramResult(EnterpriseParseResult Parsed)
+    {
+        List<DiagramItem> Items = new List<DiagramItem>();
+        EnterpriseDocument Document = Parsed.Document;
+        foreach (EnterpriseElement Element in Document.Elements.Values)
+        {
+            if (Element.LineNumber < 1)
+            {
+                continue;
+            }
+
+            DiagramItemKind Kind = Document.Groups.ContainsKey(Element.Id) ? DiagramItemKind.Container : DiagramItemKind.Node;
+            string Label = string.IsNullOrWhiteSpace(Element.Label) ? string.Empty : Element.Label;
+            Items.Add(new DiagramItem(
+                Element.LineNumber,
+                Kind,
+                Element.Id,
+                Label,
+                EnterpriseElementCatalog.GetSourceToken(Element),
+                string.Empty,
+                string.Empty));
+        }
+
+        foreach (EnterpriseNote Note in Document.Notes.Values)
+        {
+            if (Note.LineNumber < 1 || Document.Elements.ContainsKey(Note.Id))
+            {
+                continue;
+            }
+
+            Items.Add(new DiagramItem(
+                Note.LineNumber,
+                DiagramItemKind.Node,
+                Note.Id,
+                Note.Label ?? string.Empty,
+                "note",
+                string.Empty,
+                string.Empty));
+        }
+
+        foreach (EnterpriseRelationship Relationship in Document.Relationships)
+        {
+            if (Relationship.LineNumber < 1 || Relationship.HiddenByNesting)
+            {
+                continue;
+            }
+
+            string KindName = EnterpriseElementCatalog.GetRelationshipName(Relationship.Kind);
+            Items.Add(new DiagramItem(
+                Relationship.LineNumber,
+                DiagramItemKind.Relationship,
+                string.Empty,
+                Relationship.Label ?? string.Empty,
+                KindName,
+                Relationship.SourceId,
+                Relationship.TargetId));
+        }
+
+        foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
+        {
+            if (Connection.LineNumber < 1)
+            {
+                continue;
+            }
+
+            Items.Add(new DiagramItem(
+                Connection.LineNumber,
+                DiagramItemKind.Relationship,
+                string.Empty,
+                string.Empty,
+                "connection",
+                Connection.SourceId,
+                Connection.TargetId));
+        }
+
+        List<string> Messages = new List<string>();
+        foreach (EnterpriseDiagnostic Diagnostic in Parsed.Diagnostics)
+        {
+            Messages.Add(Diagnostic.Message);
+        }
+
+        return new DiagramParseResult(Items, Messages);
     }
 
     private static EnterpriseDiagnostic CreateError(int LineNumber, string Message)

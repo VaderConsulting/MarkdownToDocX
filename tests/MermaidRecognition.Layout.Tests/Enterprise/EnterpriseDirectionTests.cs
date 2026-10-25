@@ -10,7 +10,7 @@ public sealed class EnterpriseDirectionTests
     [Test]
     public void LocalDirection_IsCarriedToGroupContractsAndSource()
     {
-        var Document = EnterpriseParser.Parse("enterprise LR\ngroup container {\ndirection BT\napplication-component first\napplication-component second\nfirst -flow-> second\n}").Document;
+        var Document = EnterpriseParser.ParseDocument("enterprise LR\ngroup container {\ndirection BT\napplication-component first\napplication-component second\nfirst -flow-> second\n}").Document;
         Assert.That(EnterpriseFlowchartContractMapper.Build(Document).Groups.Single().Direction, Is.EqualTo("BT"));
         Assert.That(EnterpriseFlowchartSourceWriter.Write(Document), Does.Contain("direction BT"));
     }
@@ -21,7 +21,7 @@ public sealed class EnterpriseDirectionTests
     [TestCase("RL", true, -1)]
     public void HeaderDirection_ReachesLayout(string Direction, bool Horizontal, int Sign)
     {
-        var Document = EnterpriseParser.Parse($"enterprise {Direction}; application-component first; application-component second; first -flow-> second").Document;
+        var Document = EnterpriseParser.ParseDocument($"enterprise {Direction}; application-component first; application-component second; first -flow-> second").Document;
         var Contract = EnterpriseFlowchartContractMapper.Build(Document);
         Assert.That(Contract.Direction, Is.EqualTo(Direction));
         Assert.That(EnterpriseFlowchartSourceWriter.Write(Document), Does.StartWith("flowchart " + Direction));
@@ -35,8 +35,8 @@ public sealed class EnterpriseDirectionTests
     [Test]
     public void LongerClosingDashes_IncreaseTheFlowGap()
     {
-        var ShortDocument = EnterpriseParser.Parse("enterprise TB\napplication-component first\napplication-component second\nfirst -flow-> second").Document;
-        var LongDocument = EnterpriseParser.Parse("enterprise TB\napplication-component first\napplication-component second\nfirst -flow---> second").Document;
+        var ShortDocument = EnterpriseParser.ParseDocument("enterprise TB\napplication-component first\napplication-component second\nfirst -flow-> second").Document;
+        var LongDocument = EnterpriseParser.ParseDocument("enterprise TB\napplication-component first\napplication-component second\nfirst -flow---> second").Document;
         var ShortContract = EnterpriseFlowchartContractMapper.Build(ShortDocument);
         var LongContract = EnterpriseFlowchartContractMapper.Build(LongDocument);
         Assert.That(ShortContract.Edges.Single().MinLength, Is.EqualTo(1));
@@ -56,8 +56,8 @@ public sealed class EnterpriseDirectionTests
     {
         string ShortSource = "enterprise\napplication-component webShop \"Web Shop\"\napplication-service orderApi \"Order API\"\ndata-object order \"Order\"\nwebShop -serving-> orderApi\norderApi -access(write)-> order";
         string LongSource = "enterprise\napplication-component webShop \"Web Shop\"\napplication-service orderApi \"Order API\"\ndata-object order \"Order\"\nwebShop -serving------> orderApi\norderApi -access(write)----> order";
-        EnterpriseDocument ShortDocument = EnterpriseParser.Parse(ShortSource).Document;
-        EnterpriseDocument LongDocument = EnterpriseParser.Parse(LongSource).Document;
+        EnterpriseDocument ShortDocument = EnterpriseParser.ParseDocument(ShortSource).Document;
+        EnterpriseDocument LongDocument = EnterpriseParser.ParseDocument(LongSource).Document;
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(EnterpriseFlowchartContractMapper.Build(ShortDocument), out FlowchartLayoutResult ShortLayout), Is.True);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(EnterpriseFlowchartContractMapper.Build(LongDocument), out FlowchartLayoutResult LongLayout), Is.True);
         double ShortServing = FlowGap(ShortLayout, "webShop", "orderApi");

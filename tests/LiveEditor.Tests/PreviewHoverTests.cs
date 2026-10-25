@@ -120,7 +120,7 @@ public sealed class PreviewHoverTests
             + "webShop -access-> bbb\n"
             + "webShop -access-> ccc\n"
             + "webShop -access-> ddd\n";
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         string Story = ElementStory.DescribeElement(Parsed.Document, Parsed.Document.Elements["webShop"]);
         Assert.That(Story, Is.EqualTo("Web Shop is an application component realised by Billing, Order API and Portal with an application service provided by Integration. It relies on 3 data objects - Bbb, Ccc and Ddd."));
     }
@@ -139,7 +139,7 @@ public sealed class PreviewHoverTests
             + "webShop -triggering-> checkout \"Starts\"\n"
             + "webShop -association-> neighbour\n"
             + "orderApi -flow-> checkout \"Moves\"\n";
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         string Story = ElementStory.DescribeElement(Parsed.Document, Parsed.Document.Elements["webShop"]);
         Assert.That(Story, Does.Not.Contain("(Serves)"));
         Assert.That(Story, Does.Not.Contain("(Directed)"));

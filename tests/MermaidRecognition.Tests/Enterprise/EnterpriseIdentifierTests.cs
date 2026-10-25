@@ -13,7 +13,7 @@ public sealed class EnterpriseIdentifierTests
     [TestCase("directionService")]
     public void BareIdentifier_IsSharedByDeclarationsContainersAndRelationships(string Id)
     {
-        var Result = EnterpriseParser.Parse($"""
+        var Result = EnterpriseParser.ParseDocument($"""
             enterprise
               group {Id} "Container"
               application-component child "Child" in {Id}
@@ -29,6 +29,6 @@ public sealed class EnterpriseIdentifierTests
     [TestCase("\"two words\"")]
     public void InvalidBareIdentifier_IsRejected(string Id)
     {
-        Assert.That(EnterpriseParser.Parse($"enterprise\napplication-component {Id}").HasErrors, Is.True);
+        Assert.That(EnterpriseParser.ParseDocument($"enterprise\napplication-component {Id}").HasErrors, Is.True);
     }
 }

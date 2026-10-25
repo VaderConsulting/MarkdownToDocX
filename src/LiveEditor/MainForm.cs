@@ -564,7 +564,7 @@ public partial class MainForm : Form
         DiagnosticsList.Items.Clear();
         if (EnterpriseParser.IsEnterpriseSource(CodeView.Editor.Text))
         {
-            EnterpriseParseResult Result = EnterpriseParser.Parse(CodeView.Editor.Text);
+            EnterpriseParseResult Result = EnterpriseParser.ParseDocument(CodeView.Editor.Text);
             foreach (EnterpriseDiagnostic Diagnostic in Result.Diagnostics)
             {
                 _Diagnostics.Add(Diagnostic);
@@ -1181,7 +1181,7 @@ public partial class MainForm : Form
             return _CaretDocument;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Text);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Text);
         _CaretDocument = Parsed.Document;
         _CaretDocumentVersion = _EditorTextVersion;
         return _CaretDocument;
@@ -1285,7 +1285,7 @@ public partial class MainForm : Form
             return;
         }
 
-        EnterpriseParseResult Parsed = EnterpriseParser.Parse(Source);
+        EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
         string Title;
         string Description;
         string Kebab = string.Empty;

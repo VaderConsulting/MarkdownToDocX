@@ -127,7 +127,7 @@ internal sealed class EnterpriseCompletionEngine
             return;
         }
 
-        EnterpriseParseResult ParseResult = EnterpriseParser.Parse(Normalised);
+        EnterpriseParseResult ParseResult = EnterpriseParser.ParseDocument(Normalised);
         _CachedDocument = ParseResult.Document;
     }
 
