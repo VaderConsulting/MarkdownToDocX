@@ -1127,7 +1127,7 @@ public static partial class DiagramGridLayout
                 FlowchartLayoutEdgeRoute? route = Layout.EdgeRoutes.FirstOrDefault(candidate =>
                     string.Equals(candidate.EdgeId, edgeId, StringComparison.Ordinal));
                 IReadOnlyList<FlowchartFrameTitleBandHelper.Band> bands =
-                    FlowchartFrameTitleBandHelper.Build(State.Contract, Bounds);
+                    FlowchartFrameTitleBandHelper.Get(State.Contract, Bounds);
                 bool repaired = route?.Points.Count >= 2
                     && !Layout.RenderContext.LayoutStageViolations.Any(failure =>
                         failure.Kind == "NoLegalRoute" && failure.InvolvedIds.Contains(edgeId))
@@ -1229,7 +1229,7 @@ public static partial class DiagramGridLayout
                             item.Rule == "3.1" && item.Subject == edgeId)
                         && (State.Placed.Any(Node => Node.CellNode != null)
                             ? !FlowchartFrameTitleBandHelper.RouteEntersAny(route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
-                                FlowchartFrameTitleBandHelper.Build(State.Contract, Bounds), route.SourceId, route.TargetId, State.Contract)
+                                FlowchartFrameTitleBandHelper.Get(State.Contract, Bounds), route.SourceId, route.TargetId, State.Contract)
                             : !HasTitleBandRoute(State, Bounds))
                         && !HasIllegalRouteGeometry(State.Contract, State.Copy, edgeId);
                     FlowchartLayoutScore.Result score = FlowchartLayoutScore.Measure(
@@ -1316,7 +1316,7 @@ public static partial class DiagramGridLayout
                 IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> bounds)
             {
                 IReadOnlyList<FlowchartFrameTitleBandHelper.Band> bands =
-                    FlowchartFrameTitleBandHelper.Build(state.Contract, bounds);
+                    FlowchartFrameTitleBandHelper.Get(state.Contract, bounds);
                 return state.Copy.EdgeRoutes.Any(route => route.Points.Count >= 2
                     && FlowchartFrameTitleBandHelper.FindEnteredBandIds(
                         route.Points.Select(point => (point.X, point.Y)).ToArray(), bands,
@@ -1475,7 +1475,7 @@ public static partial class DiagramGridLayout
                     || Math.Abs(candidate[^1].X - points[^1].X) > Tolerance
                     || Math.Abs(candidate[^1].Y - points[^1].Y) > Tolerance
                     || FlowchartFrameTitleBandHelper.RouteEntersAny(candidate,
-                        FlowchartFrameTitleBandHelper.Build(contract, bounds), route.SourceId,
+                        FlowchartFrameTitleBandHelper.Get(contract, bounds), route.SourceId,
                         route.TargetId, contract)) continue;
                 StateCorrectionLog(layout, route.EdgeId);
                 route.Points.Clear();
@@ -1508,7 +1508,7 @@ public static partial class DiagramGridLayout
         {
             bool horizontal = direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
             IReadOnlyList<FlowchartFrameTitleBandHelper.Band> titleBands =
-                FlowchartFrameTitleBandHelper.Build(contract, bounds);
+                FlowchartFrameTitleBandHelper.Get(contract, bounds);
             foreach (FlowchartLayoutEdgeRoute route in layout.EdgeRoutes)
             {
                 EdgeContract? edge = FindContractEdge(contract, route);
@@ -1544,7 +1544,7 @@ public static partial class DiagramGridLayout
             IReadOnlyDictionary<string, NodeContract> nodes)
         {
             IReadOnlyList<FlowchartFrameTitleBandHelper.Band> titleBands =
-                FlowchartFrameTitleBandHelper.Build(state.Contract, bounds);
+                FlowchartFrameTitleBandHelper.Get(state.Contract, bounds);
             Dictionary<string, FlowchartLayoutNodeBounds> nodeBodies = state.Copy.NodeBounds
                 .GroupBy(box => box.NodeId, StringComparer.Ordinal)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
@@ -1739,7 +1739,7 @@ public static partial class DiagramGridLayout
             Dictionary<string, FlowchartLayoutNodeBounds> Bounds, bool includeHinted = false)
         {
             IReadOnlyList<FlowchartFrameTitleBandHelper.Band> Bands =
-                FlowchartFrameTitleBandHelper.Build(State.Contract, Bounds);
+                FlowchartFrameTitleBandHelper.Get(State.Contract, Bounds);
             if (Bands.Count == 0) return;
             bool horizontal = State.Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
             foreach (FlowchartLayoutEdgeRoute Route in State.Copy.EdgeRoutes)
@@ -1841,7 +1841,7 @@ public static partial class DiagramGridLayout
                             foreach (string groupId in entered)
                                 changed |= GrowFrameTitleClearance(State, Bounds, groupId);
                             if (!changed) break;
-                            Bands = FlowchartFrameTitleBandHelper.Build(State.Contract, Bounds);
+                            Bands = FlowchartFrameTitleBandHelper.Get(State.Contract, Bounds);
                         }
                         if (FlowchartFrameTitleBandHelper.RouteEntersAny(Existing, Bands,
                             Route.SourceId, Route.TargetId, State.Contract))
@@ -1876,7 +1876,7 @@ public static partial class DiagramGridLayout
             // geometry and all unhinted routes are stable.
             while (true)
             {
-                Bands = FlowchartFrameTitleBandHelper.Build(State.Contract, Bounds);
+                Bands = FlowchartFrameTitleBandHelper.Get(State.Contract, Bounds);
                 List<(FlowchartLayoutEdgeRoute Route, string[] Groups)> conflicts = State.Copy.EdgeRoutes
                     .Where(Route => Route.Points.Count >= 2)
                     .Select(Route => (Route, FlowchartFrameTitleBandHelper.FindEnteredBandIds(
@@ -1998,7 +1998,7 @@ public static partial class DiagramGridLayout
             List<FlowchartLayoutQualityFailure> Findings)
         {
             IReadOnlyList<FlowchartFrameTitleBandHelper.Band> Bands =
-                FlowchartFrameTitleBandHelper.Build(Contract, Bounds);
+                FlowchartFrameTitleBandHelper.Get(Contract, Bounds);
             if (Bands.Count == 0) return;
             foreach (EdgeContract Edge in Contract.Edges.Where(IsVisible))
             {

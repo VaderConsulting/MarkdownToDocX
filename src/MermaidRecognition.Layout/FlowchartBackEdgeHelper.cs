@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 using MermaidRecognition.Contract;
 
@@ -11,6 +12,13 @@ namespace MermaidRecognition.Layout;
 /// </summary>
 public static class FlowchartBackEdgeHelper
 {
+    private sealed class CachedBackEdges
+    {
+        public required HashSet<EdgeContract> Items { get; init; }
+    }
+
+    private static readonly ConditionalWeakTable<DiagramContract, CachedBackEdges> ContractCache = new();
+
     /// <summary>
     /// Returns the visible edges that point back to a node still on the depth-first path.
     /// The walk starts from nodes in the order their first edge was declared and follows outgoing edges in declaration order.
@@ -19,10 +27,15 @@ public static class FlowchartBackEdgeHelper
     /// <returns>The back edges. Empty when the flowchart has no loops.</returns>
     public static HashSet<EdgeContract> FindBackEdges(DiagramContract Contract)
     {
+        return ContractCache.GetValue(Contract, ComputeBackEdges).Items;
+    }
+
+    private static CachedBackEdges ComputeBackEdges(DiagramContract Contract)
+    {
         HashSet<EdgeContract> BackEdges = new HashSet<EdgeContract>();
         if (Contract == null || Contract.Edges.Count == 0)
         {
-            return BackEdges;
+            return new CachedBackEdges { Items = BackEdges };
         }
 
         List<EdgeContract> VisibleEdges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).OrderBy(Edge => Edge.CreationIndex).ToList();
@@ -78,6 +91,6 @@ public static class FlowchartBackEdgeHelper
             }
         }
 
-        return BackEdges;
+        return new CachedBackEdges { Items = BackEdges };
     }
 }
