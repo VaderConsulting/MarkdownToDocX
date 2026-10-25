@@ -16,11 +16,11 @@ public sealed class FlowchartParser : Parser
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex NodeLineRegex = new Regex(
-        @"^(?<id>[A-Za-z][\w-]*)\s*(?<shape>\[\[(?<label>[^\]]*)\]\]|\[\((?<label>[^\)]*)\)\]|\(\[(?<label>[^\]]*)\]\)|\(\((?<label>[^\)]*)\)\)|\{(?<label>[^\}]*)\}|\{\{(?<label>[^\}]*)\}\}|\((?<label>[^\)]*)\)|\[(?<label>[^\]]*)\]|\>\s*(?<label>[^\]]*)\]|(?<label>))?\s*$",
+        @"^(?<id>[A-Za-z][\w-]*)(?<rest>\s*.*)?$",
         RegexOptions.Compiled);
 
     private static readonly Regex LinkLineRegex = new Regex(
-        @"^(?<src>[A-Za-z][\w-]*)\s*(?:\[.*?\]|\(.*?\)|\{.*?\})?\s*(?<arrow>--+|==+|-\.+|~~+)\s*(?:\|(?<elabel>[^\|]*)\|)?\s*(?<tgt>[A-Za-z][\w-]*)",
+        @"^(?<src>[A-Za-z][\w-]*)(?:\s*(?:\[\[[^\]]*\]\]|\[\([^\)]*\)\]|\(\[[^\]]*\]\)|\(\([^\)]*\)\)|\{\{[^\}]*\}\}|\{[^\}]*\}|\([^\)]*\)|\[[^\]]*\]))?\s*(?<arrow>(?:--+|==+|-\.+|~~+)>?)\s*(?:\|(?<elabel>[^\|]*)\|)?\s*(?<tgt>[A-Za-z][\w-]*)",
         RegexOptions.Compiled);
 
     private static readonly Regex SubgraphRegex = new Regex(
@@ -116,11 +116,12 @@ public sealed class FlowchartParser : Parser
             }
 
             Match Node = NodeLineRegex.Match(Trimmed);
-            if (Node.Success && Node.Groups["id"].Success)
+            if (Node.Success)
             {
                 string Id = Node.Groups["id"].Value;
-                string Label = Node.Groups["label"].Success ? Node.Groups["label"].Value : Id;
-                string Shape = ShapeToken(Node.Groups["shape"].Value);
+                string Rest = Node.Groups["rest"].Success ? Node.Groups["rest"].Value.Trim() : string.Empty;
+                string Label = NodeLabel(Rest, Id);
+                string Shape = ShapeToken(Rest);
                 Items.Add(new DiagramItem(LineNumber, DiagramItemKind.Node, Id, Label, Shape, string.Empty, string.Empty));
             }
         }
@@ -149,8 +150,53 @@ public sealed class FlowchartParser : Parser
         };
     }
 
-    private static string ShapeToken(string ShapeMarkup)
+    private static string NodeLabel(string Rest, string Id)
     {
+        if (string.IsNullOrEmpty(Rest))
+        {
+            return Id;
+        }
+
+        int Start = Rest.IndexOfAny(new char[] { '[', '(', '{' });
+        if (Start < 0)
+        {
+            return Id;
+        }
+
+        int End = Rest.LastIndexOfAny(new char[] { ']', ')', '}' });
+        if (End <= Start)
+        {
+            return Id;
+        }
+
+        string Inner = Rest.Substring(Start + 1, End - Start - 1).Trim();
+        while (Inner.Length > 0 && (Inner[0] == '[' || Inner[0] == '(' || Inner[0] == '{'))
+        {
+            Inner = Inner.Substring(1);
+        }
+
+        while (Inner.Length > 0)
+        {
+            char Last = Inner[Inner.Length - 1];
+            if (Last != ']' && Last != ')' && Last != '}')
+            {
+                break;
+            }
+
+            Inner = Inner.Substring(0, Inner.Length - 1);
+        }
+
+        if (Inner.Length >= 2 && Inner[0] == '"' && Inner[Inner.Length - 1] == '"')
+        {
+            Inner = Inner.Substring(1, Inner.Length - 2);
+        }
+
+        return Inner.Length == 0 ? Id : Inner;
+    }
+
+    private static string ShapeToken(string Rest)
+    {
+        string ShapeMarkup = Rest.TrimStart();
         if (string.IsNullOrEmpty(ShapeMarkup))
         {
             return "rectangle";
