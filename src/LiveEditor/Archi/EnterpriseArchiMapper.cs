@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using MermaidRecognition.Diagnostics;
+using MermaidRecognition.Kinds;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace LiveEditor.Archi;
@@ -90,7 +91,8 @@ internal static class EnterpriseArchiMapper
                 Kind = Relationship.Kind,
                 Label = Relationship.Label,
                 AccessKind = Relationship.AccessKind,
-                DirectedAssociation = Relationship.DirectedAssociation
+                DirectedAssociation = Relationship.DirectedAssociation,
+                MinLength = Relationship.MinLength
             };
             Model.Relationships.Add(Mapped);
             RelationshipIndex++;
@@ -185,7 +187,8 @@ internal static class EnterpriseArchiMapper
                 Builder.Append(')');
             }
 
-            Builder.Append("-> ");
+            Builder.Append(MermaidLinkLength.Arrow(Relationship.MinLength, 1));
+            Builder.Append(' ');
             Builder.Append(Relationship.TargetMermaidId);
             if (!string.IsNullOrWhiteSpace(Relationship.Label))
             {

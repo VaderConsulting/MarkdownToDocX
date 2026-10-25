@@ -81,6 +81,52 @@ internal sealed class EditorIntelliSenseController : IDisposable
     /// <summary>Gets or sets whether editor events are ignored, such as while colours are applied.</summary>
     public bool Pause { get; set; }
 
+    /// <summary>
+    /// True when Up and Down should move the suggestion list instead of the caret.
+    /// A relationship line never takes those keys, so the caret can leave from the kind, the qualifier, or the target.
+    /// </summary>
+    internal bool OwnsVerticalArrows()
+    {
+        if (_Popup.Surface != AssistSurface.Members)
+        {
+            return false;
+        }
+
+        CompletionContext Context = _Assist.BuildMembers(_Editor.Text, _Editor.SelectionStart);
+        if (Context.TokenKind == CompletionTokenKind.RelationshipKind
+            || Context.TokenKind == CompletionTokenKind.RelationshipTarget
+            || Context.TokenKind == CompletionTokenKind.Qualifier)
+        {
+            return false;
+        }
+
+        if (Context.Items.Count == 0)
+        {
+            return false;
+        }
+
+        int Caret = _Editor.SelectionStart;
+        if (Caret < Context.ReplaceStart || Caret > Context.ReplaceEnd)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(Context.Prefix))
+        {
+            return true;
+        }
+
+        foreach (CompletionItem Item in Context.Items)
+        {
+            if (string.Equals(Item.InsertText.Trim(), Context.Prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>Gets whether a hover Quick Info is waiting.</summary>
     public bool HoverPending
     {
@@ -380,7 +426,9 @@ internal sealed class EditorIntelliSenseController : IDisposable
 
     private void Editor_PreviewKeyDown(object? Sender, PreviewKeyDownEventArgs E)
     {
-        if (_Popup.IsVisible && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Up || E.KeyCode == Keys.Down || E.KeyCode == Keys.Escape))
+        bool ListOwnsArrows = OwnsVerticalArrows() && (E.KeyCode == Keys.Up || E.KeyCode == Keys.Down);
+        bool AcceptOrDismiss = _Popup.IsVisible && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Escape);
+        if (ListOwnsArrows || AcceptOrDismiss)
         {
             E.IsInputKey = true;
         }
@@ -427,6 +475,12 @@ internal sealed class EditorIntelliSenseController : IDisposable
         if (E.KeyCode == Keys.Escape)
         {
             _Popup.Hide();
+        }
+
+        if ((E.KeyCode == Keys.Up || E.KeyCode == Keys.Down) && _Popup.Surface == AssistSurface.Members && !OwnsVerticalArrows())
+        {
+            _Popup.Hide();
+            return;
         }
 
         if (_Popup.TryHandleKey(E.KeyData))

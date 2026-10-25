@@ -70,6 +70,7 @@ public sealed class EnterpriseKindRecognizer : IKindRecognizer
                 SourceId = Relationship.SourceId,
                 TargetId = Relationship.TargetId,
                 Label = Relationship.Label,
+                MinLength = Relationship.MinLength,
                 RoutingHint = Relationship.RoutingHint
             };
             Contract.EdgesMutable.Add(Edge);

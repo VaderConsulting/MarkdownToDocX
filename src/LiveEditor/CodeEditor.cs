@@ -592,7 +592,12 @@ internal sealed partial class CodeEditor : UserControl
             E.IsInputKey = true;
         }
 
-        if ((_IntelliSense.Popup.IsVisible || _GhostContext != null) && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Up || E.KeyCode == Keys.Down || E.KeyCode == Keys.Escape))
+        if (_IntelliSense.OwnsVerticalArrows() && (E.KeyCode == Keys.Up || E.KeyCode == Keys.Down))
+        {
+            E.IsInputKey = true;
+        }
+
+        if ((_IntelliSense.Popup.IsVisible || _GhostContext != null) && (E.KeyCode == Keys.Tab || E.KeyCode == Keys.Enter || E.KeyCode == Keys.Escape))
         {
             E.IsInputKey = true;
         }

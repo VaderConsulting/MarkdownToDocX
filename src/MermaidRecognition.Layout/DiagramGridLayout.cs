@@ -135,6 +135,7 @@ public static partial class DiagramGridLayout
         Run("placement-hints-2.21", PlacementHintStage.Apply);
         Run("automatic-node-placement-2.x", NodePlacementStage.Apply);
         Run("group-frame-fitting", GroupFrameStage.Apply);
+        Run("relationship-length", State => FlowchartRelationshipLength.Apply(State.Contract, State.Placed, State.Horizontal));
         Run("route-coordinate-preparation", RouteCoordinateStage.Apply);
         Run("joint-port-allocation-4.7", JointPortAllocationStage.Apply);
         Run("line-routing-hints-3.1-3.7", RoutingHintStage.Apply);

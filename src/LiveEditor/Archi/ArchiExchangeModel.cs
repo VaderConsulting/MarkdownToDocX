@@ -236,4 +236,7 @@ internal sealed class ArchiExchangeRelationship
 
     /// <summary>Gets or sets whether an association is directed.</summary>
     public bool DirectedAssociation { get; set; }
+
+    /// <summary>Gets or sets the Mermaid minimum rank span. Archi files do not store this, so import leaves it at 1.</summary>
+    public int MinLength { get; set; } = 1;
 }

@@ -1,3 +1,4 @@
+using MermaidRecognition.Kinds;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace MermaidRecognition.Tests.Enterprise;
@@ -25,6 +26,44 @@ public sealed class EnterpriseParserTests
         Assert.That(Result.Document.PlainConnections, Has.Count.EqualTo(1));
         Assert.That(Result.Document.PlainConnections[0].RoutingHint!.Leave, Is.EqualTo(LayoutHintDirection.West));
         Assert.That(Result.Document.PlainConnections[0].RoutingHint!.Enter, Is.EqualTo(LayoutHintDirection.East));
+    }
+
+    [Test]
+    public void ClosingDashes_SetRelationshipMinLength()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+            enterprise
+            application-component shop
+            application-service api
+            data-object order
+            shop -serving-> api
+            shop -serving--> order
+            api -access(read)---> order
+            api -flow------------> shop
+            """);
+
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.Relationships[0].MinLength, Is.EqualTo(1));
+        Assert.That(Result.Document.Relationships[1].MinLength, Is.EqualTo(1));
+        Assert.That(Result.Document.Relationships[2].Kind, Is.EqualTo(EnterpriseRelationshipKind.Access));
+        Assert.That(Result.Document.Relationships[2].MinLength, Is.EqualTo(2));
+        Assert.That(Result.Document.Relationships[3].MinLength, Is.EqualTo(MermaidLinkLength.MAXIMUM));
+    }
+
+    [Test]
+    public void PlainConnectionDashes_SetMinLength()
+    {
+        EnterpriseParseResult Result = EnterpriseParser.Parse("""
+            enterprise
+            application-component shop
+            note explanation "Read this"
+            explanation --- shop
+            explanation ---- shop
+            """);
+
+        Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Item => Item.Message)));
+        Assert.That(Result.Document.PlainConnections[0].MinLength, Is.EqualTo(1));
+        Assert.That(Result.Document.PlainConnections[1].MinLength, Is.EqualTo(2));
     }
 
     [Test]

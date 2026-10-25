@@ -31,6 +31,8 @@ public sealed class EnterpriseRelationship
 
     private bool _HiddenByNesting;
 
+    private int _MinLength = 1;
+
     /// <summary>Gets or sets the source element id.</summary>
     public string SourceId
     {
@@ -132,6 +134,21 @@ public sealed class EnterpriseRelationship
         set
         {
             _DirectedAssociation = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum rank span, from the closing dashes. 1 is a normal link.
+    /// </summary>
+    public int MinLength
+    {
+        get
+        {
+            return _MinLength;
+        }
+        set
+        {
+            _MinLength = value < 1 ? 1 : value;
         }
     }
 

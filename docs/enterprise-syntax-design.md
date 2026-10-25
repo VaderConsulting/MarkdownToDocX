@@ -119,8 +119,8 @@ enterprise | enterprise-beta [TB|TD|BT|LR|RL]
   end
   <element-type> <id> [<label>] <clauses>
   note <id> <quoted> <clauses>
-  <src> -<relationship>[(qualifier)]-> <tgt> [<quoted>] [<line-hint>]
-  <a> --- <b> [<line-hint>]                         one end must be a note
+  <src> -<relationship>[(qualifier)]-+> <tgt> [<quoted>] [<line-hint>]
+  <a> ---+ <b> [<line-hint>]                        one end must be a note; at least three dashes
   classDef … | class … | style … | linkStyle …
   %% comment
 
@@ -144,6 +144,8 @@ Keywords are case-insensitive in every position: the header, statement words, `i
 ### 4.2 Element types and relationships (unchanged)
 
 There are 61 element types. Each can be written in kebab-case, without hyphens, or in CamelCase, in any letter case (E:55). The relationships are composition `c`, aggregation `g`, assignment `i`, realization `r`, serving `v`, access `a(read|write|readwrite|access)` (write by default), influence `n(+|-|++|--|±n)`, triggering `t`, flow `f`, specialization `s` and association `o(directed)`. Every relationship is checked against `enterprise-rules.json`.
+
+The dashes immediately before `>` set the minimum rank span, using the same rule as a Mermaid flowchart arrow (`docs/Mermaid_Specification.md` §6.3). Count those dashes, subtract 1, and keep the result between 1 and 10. `->` and `-->` are length 1. `--->` is length 2. `---->` is length 3. A qualifier sits before that dash run: `-access(write)--->`. A plain note line uses the same idea on the whole dash run, so `---` stays length 1 and `----` is length 2. Bare `A --> B` is still not a modelling relationship.
 
 ### 4.3 Syntax examples
 

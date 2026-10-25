@@ -211,13 +211,13 @@ public static class EnterpriseSvgRenderer
             Key.Append("r|").Append(Relationship.SourceId).Append('|').Append(Relationship.TargetId).Append('|').Append(Relationship.Kind);
             Key.Append('|').Append(Relationship.Label).Append('|').Append(Relationship.IsMarkdownLabel).Append('|').Append(Relationship.AccessKind);
             Key.Append('|').Append(Relationship.InfluenceStrength).Append('|').Append(Relationship.DirectedAssociation);
-            Key.Append('|').Append(Relationship.HiddenByNesting).Append('|');
+            Key.Append('|').Append(Relationship.HiddenByNesting).Append('|').Append(Relationship.MinLength).Append('|');
             AppendRouting(Key, Relationship.RoutingHint);
         }
 
         foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
         {
-            Key.Append("p|").Append(Connection.SourceId).Append('|').Append(Connection.TargetId).Append('|');
+            Key.Append("p|").Append(Connection.SourceId).Append('|').Append(Connection.TargetId).Append('|').Append(Connection.MinLength).Append('|');
             AppendRouting(Key, Connection.RoutingHint);
         }
 

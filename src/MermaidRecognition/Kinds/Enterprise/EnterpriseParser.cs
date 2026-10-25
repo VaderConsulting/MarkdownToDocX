@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
+using MermaidRecognition.Kinds;
 
 namespace MermaidRecognition.Kinds.Enterprise;
 
@@ -45,11 +46,11 @@ public static class EnterpriseParser
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex RelationshipRegex = new Regex(
-        @"^(?<source>" + ID_PATTERN + @")\s+-(?<kind>[A-Za-z]+)(?:\((?<qualifier>[^)]*)\))?->\s+(?<target>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+\[(?<routing>[^\]]+)\])?$",
+        @"^(?<source>" + ID_PATTERN + @")\s+-(?<kind>[A-Za-z]+)(?:\((?<qualifier>[^)]*)\))?(?<arrow>-+)>\s+(?<target>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+\[(?<routing>[^\]]+)\])?$",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex PlainConnectionRegex = new Regex(
-        @"^(?<source>" + ID_PATTERN + @")\s+---\s+(?<target>" + ID_PATTERN + @")(?:\s+\[(?<routing>[^\]]+)\])?$",
+        @"^(?<source>" + ID_PATTERN + @")\s+(?<dashes>-{3,})\s+(?<target>" + ID_PATTERN + @")(?:\s+\[(?<routing>[^\]]+)\])?$",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
     private static readonly Regex NoteRegex = new Regex(
@@ -428,6 +429,7 @@ public static class EnterpriseParser
             SourceId = ConnectionMatch.Groups["source"].Value,
             TargetId = ConnectionMatch.Groups["target"].Value,
             LineNumber = LineNumber,
+            MinLength = MermaidLinkLength.FromStrokeRun(ConnectionMatch.Groups["dashes"].Value.Length - 1),
             RoutingHint = ParseRoutingHint(ConnectionMatch, LineNumber, Diagnostics)
         });
     }
@@ -467,6 +469,7 @@ public static class EnterpriseParser
             Label = QuotedLabel ?? string.Empty,
             IsMarkdownLabel = IsMarkdown(RelationshipMatch.Groups["label"].Value),
             LineNumber = LineNumber,
+            MinLength = MermaidLinkLength.FromStrokeRun(RelationshipMatch.Groups["arrow"].Value.Length),
             RoutingHint = ParseRoutingHint(RelationshipMatch, LineNumber, Diagnostics)
         };
 
@@ -488,7 +491,7 @@ public static class EnterpriseParser
         {
             if (IsSameRelationship(Existing, Relationship))
             {
-                Diagnostics.Add(CreateError(LineNumber, "duplicate relationship \"" + SourceId + " -" + EnterpriseElementCatalog.GetRelationshipName(Kind) + "-> " + TargetId + "\""));
+                Diagnostics.Add(CreateError(LineNumber, "duplicate relationship \"" + SourceId + " -" + EnterpriseElementCatalog.GetRelationshipName(Kind) + MermaidLinkLength.Arrow(Relationship.MinLength, 1) + " " + TargetId + "\""));
                 return;
             }
         }

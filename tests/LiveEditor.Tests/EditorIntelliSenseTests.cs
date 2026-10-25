@@ -204,6 +204,35 @@ public sealed class EditorIntelliSenseTests
     }
 
     [Test]
+    public void UpOnAFinishedRelationshipLeavesTheCaretFree()
+    {
+        SetSource("enterprise\r\n  application-component webShop \"Web Shop\"\r\n  application-service orderApi \"Order API\"\r\n  data-object order \"Order\"\r\n  webShop -serving------> orderApi\r\n  orderApi -access(write)----> order");
+        AssertArrowLeaves("-> order", 3);
+        AssertArrowLeaves("-serving", 4);
+        AssertArrowLeaves("-access(write)", 9);
+    }
+
+    private void AssertArrowLeaves(string Marker, int Offset)
+    {
+        int Index = _Editor.Text.IndexOf(Marker, StringComparison.Ordinal);
+        Assert.That(Index, Is.GreaterThanOrEqualTo(0));
+        _Editor.Select(Index + Offset, 0);
+        Application.DoEvents();
+        _Controller.Refresh(Force: false);
+        Application.DoEvents();
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Members), Marker);
+        int Caret = _Editor.SelectionStart;
+        KeyEventArgs Up = new KeyEventArgs(Keys.Up);
+        _Editor.RaiseKeyDown(Up);
+        Application.DoEvents();
+
+        Assert.That(_Controller.OwnsVerticalArrows(), Is.False, Marker);
+        Assert.That(Up.Handled, Is.False, Marker);
+        Assert.That(_Editor.SelectionStart, Is.EqualTo(Caret), Marker);
+    }
+
+    [Test]
     public void UpAndDownChangeTheHighlightedRow()
     {
         SetSource("enterprise\r\n  ");
@@ -428,6 +457,16 @@ public sealed class EditorIntelliSenseTests
         Assert.That(Notes, Does.Contain("read"));
         Assert.That(Notes, Does.Contain("write"));
         Assert.That(Notes, Does.Contain("Default when omitted: write."));
+    }
+
+    [Test]
+    public void LongerRelationshipArrowStillListsTargets()
+    {
+        SetSource("enterprise\r\n  application-service orderApi \"Order API\"\r\n  data-object order \"Order\"\r\n  orderApi -access(read)---> ");
+
+        Assert.That(_Controller.Popup.Surface, Is.EqualTo(AssistSurface.Members));
+        Assert.That(string.Join("\n", _Controller.Popup.MemberLabels), Does.Contain("order"));
+        Assert.That(_Controller.Popup.SignatureText, Does.Contain("<target>"));
     }
 
     [Test]

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
+using MermaidRecognition.Kinds;
 using MermaidRecognition.Kinds.Enterprise;
 
 namespace MermaidRecognition.Layout.Enterprise;
@@ -63,12 +64,26 @@ public static class EnterpriseFlowchartSourceWriter
             Builder.Append("  ");
             Builder.Append(Relationship.SourceId);
             string Label = EnterpriseFlowchartContractMapper.EdgeLabel(Relationship);
-            Builder.Append(Label.Length == 0 ? " --> " : " -->|");
-
-            if (Label.Length > 0)
+            string Arrow = MermaidLinkLength.Arrow(Relationship.MinLength, 2);
+            if (Label.Length == 0)
             {
+                Builder.Append(' ');
+                Builder.Append(Arrow);
+                Builder.Append(' ');
+            }
+            else if (Relationship.MinLength <= 1)
+            {
+                Builder.Append(" -->|");
                 Builder.Append(EscapeLabel(Label));
                 Builder.Append("| ");
+            }
+            else
+            {
+                Builder.Append(" -- ");
+                Builder.Append(EscapeLabel(Label));
+                Builder.Append(' ');
+                Builder.Append(Arrow);
+                Builder.Append(' ');
             }
 
             Builder.Append(Relationship.TargetId);

@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
+using LiveEditor.Editor;
 using MDConverter;
 using NUnit.Framework;
 

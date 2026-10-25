@@ -143,7 +143,7 @@ internal static class EnterpriseHelp
         List<string> Lines = new List<string>();
         Lines.Add(RelationshipSignature(Metadata.Name));
         Lines.Add(string.Empty);
-        Lines.AddRange(Wrap(RelationshipSummary(Metadata.Name), NOTE_WIDTH));
+        Lines.AddRange(Wrap(RelationshipSummary(Metadata.Name) + " Extra dashes before > lengthen the link, the same way a Mermaid arrow does.", NOTE_WIDTH));
         Lines.Add(string.Empty);
         Lines.AddRange(Wrap("Permitted because " + SourceType + " can start this relationship.", NOTE_WIDTH));
         Lines.Add("The target list keeps only elements that accept it.");
@@ -381,7 +381,7 @@ internal static class EnterpriseHelp
 
         string Signature = SourceId + " -<relationship>-> <target> [\"label\"] [[routing]]";
         int QualifierStart = Line.IndexOf('(', Dash);
-        int Arrow = Line.IndexOf("->", Dash, StringComparison.Ordinal);
+        int Arrow = ClosingArrowIndex(Line, Dash);
         if (QualifierStart >= 0 && (Arrow < 0 || QualifierStart < Arrow) && Column > QualifierStart)
         {
             int QualifierEnd = Line.IndexOf(')', QualifierStart);
@@ -396,7 +396,8 @@ internal static class EnterpriseHelp
             }
         }
 
-        if (Arrow >= 0 && Column > Arrow + 1)
+        int Greater = Arrow < 0 ? -1 : Line.IndexOf('>', Arrow);
+        if (Arrow >= 0 && Greater > Arrow && Column > Greater)
         {
             string Kind = KindToken(Line, Dash);
             if (IsInsideBrackets(Line, Column))
@@ -417,8 +418,8 @@ internal static class EnterpriseHelp
                     "Enclose the text in quotes. If omitted, no extra caption is drawn on the relationship.");
             }
 
-            string AfterArrow = Line.Substring(Arrow + 2);
-            int LocalColumn = Column - (Arrow + 2);
+            string AfterArrow = Line.Substring(Greater + 1);
+            int LocalColumn = Column - (Greater + 1);
             Match Target = Regex.Match(AfterArrow, @"^\s*(?<tgt>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)");
             int TargetEnd = Target.Success ? Target.Length : 0;
             if (!Target.Success || LocalColumn <= TargetEnd)
@@ -675,6 +676,24 @@ internal static class EnterpriseHelp
         }
 
         return "directed gives the association a direction. Omit it for an undirected association.";
+    }
+
+    /// <summary>Index of the first dash in the closing arrow, or -1.</summary>
+    private static int ClosingArrowIndex(string Line, int Dash)
+    {
+        int Greater = Line.IndexOf('>', Dash);
+        if (Greater <= Dash || Line[Greater - 1] != '-')
+        {
+            return -1;
+        }
+
+        int RunStart = Greater - 1;
+        while (RunStart > Dash && Line[RunStart - 1] == '-')
+        {
+            RunStart--;
+        }
+
+        return RunStart;
     }
 
     private static string KindToken(string Line, int Dash)

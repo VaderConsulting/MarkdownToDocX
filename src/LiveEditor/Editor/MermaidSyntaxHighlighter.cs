@@ -26,7 +26,7 @@ internal static class MermaidSyntaxHighlighter
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex RelationshipRegex = new Regex(
-        @"-(composition|aggregation|assignment|realization|serving|access|influence|triggering|flow|specialization|association|[cgiavnrtfso])(?:\([^)]*\))?->",
+        @"-(composition|aggregation|assignment|realization|serving|access|influence|triggering|flow|specialization|association|[cgiavnrtfso])(?:\([^)]*\))?-+>",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static string? _ElementTypePattern;

@@ -313,6 +313,8 @@ Added between each pair of ranks when a labelled edge crosses that boundary. TB 
 
 **Do not** derive `minlen` from label width (see §6.2 / F25).
 
+**Enterprise:** a named relationship keeps its kind between the opening `-` and the closing dash run (`-serving--->`). That closing run uses this same formula and the same cap of 10. `->` and `-->` are length 1. Plain note lines (`---`, `----`) use the open-line reading of the same rule, so three dashes stay length 1.
+
 **Cycles (LR retry loop, `A→B→D→A`):** Dagre layout runs on an acyclic copy of the graph (back edges reversed with **endpoint swap** on `LayoutEdge`). Restore original edge direction **before** `RouteEdges`, then route; if an edge still has no polyline, fall back to straight shape attach points.
 
 **Cross-boundary / compound edges (LR sibling subgraphs):** `TryComputeStraightFlowchartEdgePoints` uses diagram **direction** (LR: exit right → enter left with optional Manhattan elbow; TB/BT: bottom → top) instead of centre-to-centre shape intersection only, so sibling-subgraph links stay on the outer LR spine.

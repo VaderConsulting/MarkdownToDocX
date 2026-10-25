@@ -238,6 +238,19 @@ public sealed class FlowchartLinkVariantTests
     }
 
     [Test]
+    public void VeryLongDashLink_CapsMinLengthAtTen()
+    {
+        DiagramContract Contract = FlowchartRecognizer.Parse(
+            """
+            flowchart TD
+                A ------------> B
+            """);
+
+        EdgeContract Edge = Contract.Edges.Single();
+        Assert.That(Edge.MinLength, Is.EqualTo(10));
+    }
+
+    [Test]
     public void PipeEdgeLabel_IsPreserved()
     {
         DiagramContract Contract = FlowchartRecognizer.Parse(

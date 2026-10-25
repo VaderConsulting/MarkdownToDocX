@@ -17,7 +17,7 @@ internal sealed class EnterpriseCompletionEngine
         RegexOptions.Compiled);
 
     private static readonly Regex TargetContextRegex = new Regex(
-        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s+-(?<kind>[A-Za-z]+)(?:\([^)]*\))?->\s*(?<tgt>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?\s*$",
+        @"^(?<indent>\s*)(?<src>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)\s+-(?<kind>[A-Za-z]+)(?:\([^)]*\))?-+>\s*(?<tgt>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?\s*$",
         RegexOptions.Compiled);
 
     private static readonly Regex QualifierContextRegex = new Regex(

@@ -112,6 +112,7 @@ public static class EnterpriseFlowchartContractMapper
                 MarkerStart = EdgeEndpointMarker.None,
                 MarkerEnd = EdgeEndpointMarker.None,
                 CreationIndex = CreationIndex,
+                MinLength = Relationship.MinLength,
                 RoutingHint = Relationship.RoutingHint
             };
             Edge.MetadataMutable["enterpriseRelationshipKind"] = new RawMetadata("enterpriseRelationshipKind", Relationship.Kind.ToString());
@@ -130,6 +131,7 @@ public static class EnterpriseFlowchartContractMapper
                 MarkerStart = EdgeEndpointMarker.None,
                 MarkerEnd = EdgeEndpointMarker.None,
                 CreationIndex = CreationIndex,
+                MinLength = Connection.MinLength,
                 RoutingHint = Connection.RoutingHint
             };
             Edge.MetadataMutable["enterprisePlainConnection"] = new RawMetadata("enterprisePlainConnection", "true");

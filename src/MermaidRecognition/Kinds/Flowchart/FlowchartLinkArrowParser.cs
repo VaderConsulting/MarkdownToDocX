@@ -1,3 +1,5 @@
+using MermaidRecognition.Kinds;
+
 namespace MermaidRecognition.Kinds.Flowchart;
 
 /// <summary>
@@ -21,7 +23,7 @@ public static class FlowchartLinkArrowParser
             Token.Stroke = "invisible";
             Token.MarkerStart = EdgeEndpointMarker.None;
             Token.MarkerEnd = EdgeEndpointMarker.None;
-            Token.MinLength = CountChar('~', Text);
+            Token.MinLength = MermaidLinkLength.Clamp(CountChar('~', Text));
             return;
         }
 
@@ -271,6 +273,8 @@ public static class FlowchartLinkArrowParser
             Stroke = "dotted";
             Length = DotCount;
         }
+
+        Length = MermaidLinkLength.Clamp(Length);
 
         LinkEndFacts Facts = new LinkEndFacts
         {
