@@ -256,28 +256,31 @@ public static class FlowchartPaddedVisibilityRouter
             double SearchTop = Math.Min(FullMaxY, MaxY + Margin);
             List<PaddedBox> LocalBoxes = Spatial.Query(SearchLeft, SearchBottom, SearchRight, SearchTop);
             List<(double X, double Y)> Vertices = [ (StartX, StartY), (EndX, EndY) ];
+            HashSet<long> VertexKeys = [];
+            VertexKeys.Add(PackVertexKey(StartX, StartY));
+            VertexKeys.Add(PackVertexKey(EndX, EndY));
             List<double> CornerXs = [], CornerYs = [];
             foreach (PaddedBox Box in LocalBoxes)
             {
                 CornerXs.Add(Box.Left); CornerXs.Add(Box.Right);
                 CornerYs.Add(Box.Bottom); CornerYs.Add(Box.Top);
-                AddVertex(Vertices, Box.Left, Box.Bottom);
-                AddVertex(Vertices, Box.Left, Box.Top);
-                AddVertex(Vertices, Box.Right, Box.Bottom);
-                AddVertex(Vertices, Box.Right, Box.Top);
+                AddVertex(Vertices, VertexKeys, Box.Left, Box.Bottom);
+                AddVertex(Vertices, VertexKeys, Box.Left, Box.Top);
+                AddVertex(Vertices, VertexKeys, Box.Right, Box.Bottom);
+                AddVertex(Vertices, VertexKeys, Box.Right, Box.Top);
             }
             SortUnique(CornerXs); SortUnique(CornerYs);
             // Add only endpoint projections to the obstacle-corner visibility graph.
             // This keeps candidate vertices linear in the local obstacle count.
             foreach (double X in CornerXs)
             {
-                AddVertex(Vertices, X, StartY);
-                AddVertex(Vertices, X, EndY);
+                AddVertex(Vertices, VertexKeys, X, StartY);
+                AddVertex(Vertices, VertexKeys, X, EndY);
             }
             foreach (double Y in CornerYs)
             {
-                AddVertex(Vertices, StartX, Y);
-                AddVertex(Vertices, EndX, Y);
+                AddVertex(Vertices, VertexKeys, StartX, Y);
+                AddVertex(Vertices, VertexKeys, EndX, Y);
             }
             // Keep only candidates inside this search window; endpoints always remain.
             Vertices = Vertices.Where((Point, Index) => Index < 2
@@ -423,17 +426,31 @@ public static class FlowchartPaddedVisibilityRouter
             Bounds.CenterY - (Bounds.Height / 2.0) - PaddingPx);
     }
 
-    private static void AddVertex(List<(double X, double Y)> Vertices, double X, double Y)
+    private static void AddVertex(List<(double X, double Y)> Vertices, HashSet<long> VertexKeys, double X, double Y)
     {
+        long Key = PackVertexKey(X, Y);
+        if (!VertexKeys.Add(Key))
+        {
+            return;
+        }
+
         foreach ((double ExistingX, double ExistingY) in Vertices)
         {
             if (Math.Abs(ExistingX - X) <= VERTEX_MERGE_PX && Math.Abs(ExistingY - Y) <= VERTEX_MERGE_PX)
             {
+                VertexKeys.Remove(Key);
                 return;
             }
         }
 
         Vertices.Add((X, Y));
+    }
+
+    private static long PackVertexKey(double X, double Y)
+    {
+        int PackedX = (int)Math.Round(X / VERTEX_MERGE_PX);
+        int PackedY = (int)Math.Round(Y / VERTEX_MERGE_PX);
+        return ((long)PackedX << 32) | (uint)PackedY;
     }
 
     private static void SortUnique(List<double> Values)
@@ -823,7 +840,7 @@ public static class FlowchartPaddedVisibilityRouter
         return Math.Sqrt((Dx * Dx) + (Dy * Dy));
     }
 
-    private readonly struct PaddedBox
+    private readonly struct PaddedBox : IEquatable<PaddedBox>
     {
         public PaddedBox(double Left, double Right, double Top, double Bottom)
         {
@@ -840,6 +857,14 @@ public static class FlowchartPaddedVisibilityRouter
         public double Top { get; }
 
         public double Bottom { get; }
+
+        public bool Equals(PaddedBox Other) =>
+            Left == Other.Left && Right == Other.Right && Top == Other.Top && Bottom == Other.Bottom;
+
+        public override bool Equals(object? Obj) => Obj is PaddedBox Other && Equals(Other);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(Left, Right, Top, Bottom);
     }
 
     /// <summary>Cell index used by the grid visibility search for local point and segment checks.</summary>
@@ -882,16 +907,49 @@ public static class FlowchartPaddedVisibilityRouter
         public List<PaddedBox> Query(double Left, double Bottom, double Right, double Top)
         {
             (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Bottom, Right, Top);
-            HashSet<PaddedBox> Found = [];
+            List<PaddedBox> Found = [];
+            HashSet<PaddedBox> Seen = [];
             for (int CellX = MinX; CellX <= MaxX; CellX++)
             for (int CellY = MinY; CellY <= MaxY; CellY++)
             {
-                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items))
+                {
+                    continue;
+                }
+
                 foreach (PaddedBox Box in Items)
-                    if (Box.Left <= Right && Box.Right >= Left && Box.Bottom <= Top && Box.Top >= Bottom)
+                {
+                    if (Box.Left <= Right && Box.Right >= Left && Box.Bottom <= Top && Box.Top >= Bottom
+                        && Seen.Add(Box))
+                    {
                         Found.Add(Box);
+                    }
+                }
             }
-            return Found.ToList();
+
+            Found.Sort(static (First, Second) =>
+            {
+                int Compare = First.Left.CompareTo(Second.Left);
+                if (Compare != 0)
+                {
+                    return Compare;
+                }
+
+                Compare = First.Bottom.CompareTo(Second.Bottom);
+                if (Compare != 0)
+                {
+                    return Compare;
+                }
+
+                Compare = First.Right.CompareTo(Second.Right);
+                if (Compare != 0)
+                {
+                    return Compare;
+                }
+
+                return First.Top.CompareTo(Second.Top);
+            });
+            return Found;
         }
 
         public bool SegmentClears(double X1, double Y1, double X2, double Y2)
