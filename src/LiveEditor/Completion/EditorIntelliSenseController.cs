@@ -83,11 +83,21 @@ internal sealed class EditorIntelliSenseController : IDisposable
 
     /// <summary>
     /// True when Up and Down should move the suggestion list instead of the caret.
-    /// A relationship line never takes those keys, so the caret can leave from the kind, the qualifier, or the target.
+    /// A line that already declares an item never takes those keys, so the caret can leave it.
     /// </summary>
     internal bool OwnsVerticalArrows()
     {
+        if (_Editor.SelectionLength > 0)
+        {
+            return false;
+        }
+
         if (_Popup.Surface != AssistSurface.Members)
+        {
+            return false;
+        }
+
+        if (_Assist.IsDeclaredLine(_Editor.Text, _Editor.SelectionStart))
         {
             return false;
         }

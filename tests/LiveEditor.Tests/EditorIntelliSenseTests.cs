@@ -233,6 +233,26 @@ public sealed class EditorIntelliSenseTests
     }
 
     [Test]
+    public void UpOnADeclaredElementLeavesTheCaretFree()
+    {
+        SetSource("enterprise\r\n  application-component webShop \"Web Shop\"\r\n  application-service orderApi \"Order API\"\r\n");
+        int Index = _Editor.Text.IndexOf("webShop", StringComparison.Ordinal);
+        _Editor.Select(Index + 2, 0);
+        Application.DoEvents();
+        _Controller.Refresh(Force: false);
+        Application.DoEvents();
+
+        int Caret = _Editor.SelectionStart;
+        KeyEventArgs Up = new KeyEventArgs(Keys.Up);
+        _Editor.RaiseKeyDown(Up);
+        Application.DoEvents();
+
+        Assert.That(_Controller.OwnsVerticalArrows(), Is.False);
+        Assert.That(Up.Handled, Is.False);
+        Assert.That(_Editor.SelectionStart, Is.EqualTo(Caret));
+    }
+
+    [Test]
     public void UpAndDownChangeTheHighlightedRow()
     {
         SetSource("enterprise\r\n  ");

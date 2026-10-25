@@ -53,6 +53,62 @@ internal sealed class EnterpriseCompletionEngine
     private string _CachedSource = string.Empty;
 
     /// <summary>
+    /// True when the caret sits on a line that already declares an element, group, note, or relationship.
+    /// </summary>
+    public bool IsDeclaredLine(string Source, int CaretIndex)
+    {
+        RefreshDocument(Source);
+        if (_CachedDocument == null || string.IsNullOrEmpty(Source))
+        {
+            return false;
+        }
+
+        int Limit = Math.Max(0, Math.Min(CaretIndex, Source.Length));
+        int Line = 1;
+        for (int Index = 0; Index < Limit; Index++)
+        {
+            if (Source[Index] == '\n')
+            {
+                Line++;
+            }
+        }
+
+        foreach (EnterpriseElement Element in _CachedDocument.Elements.Values)
+        {
+            if (Element.LineNumber == Line)
+            {
+                return true;
+            }
+        }
+
+        foreach (EnterpriseGroup Group in _CachedDocument.Groups.Values)
+        {
+            if (Group.LineNumber == Line)
+            {
+                return true;
+            }
+        }
+
+        foreach (EnterpriseNote Note in _CachedDocument.Notes.Values)
+        {
+            if (Note.LineNumber == Line)
+            {
+                return true;
+            }
+        }
+
+        foreach (EnterpriseRelationship Relationship in _CachedDocument.Relationships)
+        {
+            if (Relationship.LineNumber == Line && !Relationship.HiddenByNesting)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Refreshes the cached enterprise document when the source changed.
     /// </summary>
     /// <param name="Source">Full editor text.</param>

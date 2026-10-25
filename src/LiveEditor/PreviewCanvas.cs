@@ -78,6 +78,7 @@ internal sealed partial class PreviewCanvas : UserControl
         FitButton.Click += FitButton_Click;
         FitButton.Paint += FitButton_Paint;
         FocusSink.EscapePressed += FocusSink_EscapePressed;
+        FocusSink.LineStepPressed += FocusSink_LineStepPressed;
         DiagramMenu.Opening += DiagramMenu_Opening;
         ClearMenuItem.Click += ClearMenuItem_Click;
         RefreshMenuItem.Click += RefreshMenuItem_Click;
@@ -99,6 +100,9 @@ internal sealed partial class PreviewCanvas : UserControl
 
     /// <summary>Raised when Esc is pressed while the preview has focus.</summary>
     public event EventHandler? EscapePressed;
+
+    /// <summary>Raised when Up or Down is pressed while the preview has focus.</summary>
+    public event EventHandler<KeyEventArgs>? LineStepRequested;
 
     /// <summary>Raised after the zoom factor or fit mode changes.</summary>
     public event EventHandler? ZoomChanged;
@@ -1406,6 +1410,11 @@ internal sealed partial class PreviewCanvas : UserControl
     private void FocusSink_EscapePressed(object? Sender, EventArgs E)
     {
         EscapePressed?.Invoke(this, E);
+    }
+
+    private void FocusSink_LineStepPressed(object? Sender, KeyEventArgs E)
+    {
+        LineStepRequested?.Invoke(this, E);
     }
 
     private void ZoomInButton_Click(object? Sender, EventArgs E)

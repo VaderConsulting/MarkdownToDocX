@@ -274,6 +274,7 @@ public partial class MainForm : Form
         Preview.PictureMouseMove += Preview_PictureMouseMove;
         Preview.PictureMouseLeave += Preview_PictureMouseLeave;
         Preview.EscapePressed += Preview_EscapePressed;
+        Preview.LineStepRequested += Preview_LineStepRequested;
         Preview.SelectedItemsChanged += Preview_SelectedItemsChanged;
         Preview.ZoomChanged += Preview_ZoomChanged;
         Preview.RefreshRequested += Preview_RefreshRequested;
@@ -872,6 +873,79 @@ public partial class MainForm : Form
         SelectPreviewObject(null, SyncEditor: false);
     }
 
+    private void Preview_LineStepRequested(object? Sender, KeyEventArgs E)
+    {
+        int Direction = E.KeyCode == Keys.Up ? -1 : 1;
+        if (!TryStepEditorLine(Direction))
+        {
+            return;
+        }
+
+        SyncPreviewSelectionFromCaret(false);
+    }
+
+    /// <summary>
+    /// Moves the editor caret one line. The column is kept, and a selected line is left from its end.
+    /// </summary>
+    /// <param name="Direction">-1 for the previous line, 1 for the next.</param>
+    /// <returns>False when there is no further line.</returns>
+    private bool TryStepEditorLine(int Direction)
+    {
+        RichTextBox Editor = CodeView.Editor;
+        string Text = Editor.Text;
+        if (Text.Length == 0)
+        {
+            return false;
+        }
+
+        int End = Editor.SelectionStart;
+        if (Editor.SelectionLength > 0)
+        {
+            End = Editor.SelectionStart + Editor.SelectionLength;
+            if (End > Editor.SelectionStart && End <= Text.Length && (Text[End - 1] == '\n' || Text[End - 1] == '\r'))
+            {
+                End--;
+            }
+        }
+
+        int Probe = Math.Max(0, Math.Min(End, Text.Length - 1));
+        int Line = Editor.GetLineFromCharIndex(Probe);
+        int LineStart = Editor.GetFirstCharIndexFromLine(Line);
+        int Column = Math.Max(0, End - LineStart);
+        int Target = Line + Direction;
+        if (Target < 0)
+        {
+            return false;
+        }
+
+        int TargetStart = Editor.GetFirstCharIndexFromLine(Target);
+        if (TargetStart < 0)
+        {
+            return false;
+        }
+
+        int NextStart = Editor.GetFirstCharIndexFromLine(Target + 1);
+        int TargetLength = NextStart < 0 ? Text.Length - TargetStart : NextStart - TargetStart;
+        while (TargetLength > 0 && (Text[TargetStart + TargetLength - 1] == '\n' || Text[TargetStart + TargetLength - 1] == '\r'))
+        {
+            TargetLength--;
+        }
+
+        int NewIndex = TargetStart + Math.Min(Column, TargetLength);
+        _SyncingSelectionFromPreview = true;
+        try
+        {
+            Editor.Select(NewIndex, 0);
+            Editor.ScrollToCaret();
+        }
+        finally
+        {
+            _SyncingSelectionFromPreview = false;
+        }
+
+        return true;
+    }
+
     private void Preview_SelectedItemsChanged(object? Sender, EventArgs E)
     {
         UpdateSelectionPanel();
@@ -1115,7 +1189,12 @@ public partial class MainForm : Form
 
     private void SyncPreviewSelectionFromCaret()
     {
-        if (_IgnorePreviewSelection || _SyncingSelectionFromPreview || !CodeView.Editor.Focused || CodeView.IsApplyingFormatting || Preview.Index == null || !PreviewIndexIsCurrent)
+        SyncPreviewSelectionFromCaret(true);
+    }
+
+    private void SyncPreviewSelectionFromCaret(bool RequireEditorFocus)
+    {
+        if (_IgnorePreviewSelection || _SyncingSelectionFromPreview || (RequireEditorFocus && !CodeView.Editor.Focused) || CodeView.IsApplyingFormatting || Preview.Index == null || !PreviewIndexIsCurrent)
         {
             return;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using LiveEditor.Editor;
@@ -253,6 +254,49 @@ public sealed class PreviewSelectionTests
         Assert.That(Form.PreviewSelectionObject, Is.Null);
         Assert.That(Shown.Selected, Is.False);
     }
+
+    [Test]
+    public void UpAndDownLeaveTheLineOfASelectedItem()
+    {
+        SessionSettings Settings = new SessionSettings
+        {
+            HighlightDelayMilliseconds = 40,
+            RenderDelayMilliseconds = 40
+        };
+        using MainForm Form = new MainForm(Settings);
+        Form.ShowInTaskbar = false;
+        Form.StartPosition = FormStartPosition.Manual;
+        Form.Location = new Point(40, 40);
+        Form.ClientSize = new Size(1200, 800);
+        Form.Show();
+        Application.DoEvents();
+        RichTextBox Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+        Editor.Text = SOURCE;
+        WaitForCurrentIndex(Form);
+        PreviewObject Shop = Form.PreviewIndex!.FindObject("node\u001fshop")!;
+        Form.SelectPreviewObject(Shop);
+        Application.DoEvents();
+
+        Control Sink = Form.Controls.Find("FocusSink", true)[0];
+        Sink.Focus();
+        Application.DoEvents();
+        Assert.That(Editor.Focused, Is.False);
+        int LineBefore = Editor.GetLineFromCharIndex(Editor.SelectionStart);
+        SendMessage(Sink.Handle, WM_KEYDOWN, (IntPtr)VK_DOWN, (IntPtr)0x01500001);
+        Application.DoEvents();
+        int LineAfter = Editor.GetLineFromCharIndex(Editor.SelectionStart);
+        Assert.That(LineAfter, Is.GreaterThan(LineBefore));
+        Assert.That(Editor.SelectionLength, Is.EqualTo(0));
+        Assert.That(Form.PreviewSelectionObject, Is.Not.Null);
+        Assert.That(Form.PreviewSelectionObject!.Id, Is.EqualTo("cart"));
+    }
+
+    private const int WM_KEYDOWN = 0x0100;
+
+    private const int VK_DOWN = 0x28;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
 
     private static void WaitForCurrentIndex(MainForm Form)
     {

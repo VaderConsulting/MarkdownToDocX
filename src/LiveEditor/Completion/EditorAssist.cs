@@ -44,6 +44,19 @@ internal sealed class EditorAssist
         return _Mermaid.BuildQuickInfo(Source, CaretIndex);
     }
 
+    /// <summary>
+    /// True when the caret line already declares an element, group, note, or relationship.
+    /// </summary>
+    public bool IsDeclaredLine(string Source, int CaretIndex)
+    {
+        if (!EnterpriseParser.IsEnterpriseSource(Source))
+        {
+            return false;
+        }
+
+        return _Enterprise.IsDeclaredLine(Source, CaretIndex);
+    }
+
     /// <summary>One-line signature for the status bar.</summary>
     public string BuildSignatureHelp(string Source, int CaretIndex)
     {
