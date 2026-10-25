@@ -21,6 +21,7 @@
     <Project Path="tools/FixtureProbe/FixtureProbe.csproj" />
     <Project Path="tools/NativeCompareDocx/NativeCompareDocx.csproj" />
     <Project Path="tools/RuleValidationHarness/RuleValidationHarness.csproj" />
+    <Project Path="tools/LayoutCatalogueBench/LayoutCatalogueBench.csproj" />
   </Folder>
   <Folder Name="/extern/">
     <!-- Naiad still renders every non-flowchart diagram type. Remove once the native renderer covers them. -->
