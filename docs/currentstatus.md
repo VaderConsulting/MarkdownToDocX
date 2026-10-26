@@ -51,6 +51,7 @@ Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate
 | DR-06 | Phase 3 item 9 worklist (4.12)? | **Defer** | Prior worklist attempt broke `BendRemovingPortRepairTests`; finish after next profiling slice. |
 | DR-07 | Next lever toward **75%**? | **Phase 5** nested completion on full graphs; **view layers** (status § View layers) when layers are off; **approved** Phase 4 re-baseline if stress patience is widened. **LiveEditor preview parked.** | In-gate render sum unchanged (~**181** s); stress tier alone does not close the gap. |
 | DR-08 | View layers vs engine speed-up? | **Complementary.** Layers shrink the laid-out graph when hidden; they do not fix nested full-pipeline search when everything is visible (VL-10). | See view-layer to-do table VL-1–VL-10. |
+| DR-09 | Phase 5 nested completion this session? | **Defer.** A central `ApplyFinalMoveBeforeDetour` guard during `IsEvaluatingCellRouteCandidate` is parity-safe in theory (nested cell search already returns zero) but `FlowchartCellMoveSearchTests.FrameOverlapRepairMovesWholeMemberRegions` fails on current `HEAD` without that change; scoped `CompleteAffectedCellRoutes` for `WholeRouteSet` trials broke many cell tests. Next design: cache or reuse `CompleteReferenceCellCandidate` in final repair (see `DiagramGridLayoutFinalRepair.cs`), or band-wrap placement pre-rank (review item 11). | Stress timings below. |
 
 | Milestone | Status | Notes |
 |-----------|--------|--------|
@@ -66,7 +67,17 @@ Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate
 | Phase 4 patience (rules.yaml) | **Done (local)** | `repair_search_patience` + stress tier; hash gate green in-gate. Bench emits `LayoutMilliseconds`. |
 | Phases 4 deadline / Phase 5 | **Next** | See decision register DR-05, DR-07. |
 
-**Next actions:** Profile **A104**, **A115**, **A142** with stress patience; Phase 5 nested completion for measurable **75%** on full graphs. View layers (below) are the main lever when a viewpoint hides part of the model. LiveEditor preview optimisations remain **parked**. Finish 4.12 worklist when parity design is ready. README-only commit when asked. Strip `Co-authored-by` before push.
+**Stress profile (26 Oct 2026, Release, stress patience build `90f55c5`, bench third-arg filter):**
+
+| Id | Render ms | Layout ms (bench stage sum) |
+|----|----------:|----------------------------:|
+| A104 | 37,259 | 72,944 |
+| A115 | 19,326 | 38,296 |
+| A113 | 21,701 | 42,044 |
+
+In-gate hash gate still green vs `catalogue-baseline.jsonl` (`catalogue-verify-stress-patience.jsonl`). Layout ms sums nested `ApplyCore` passes per render and exceeds wall time on heavy diagrams.
+
+**Next actions:** Phase 5 via final-repair completion cache or band-wrap pre-rank (item 11); fix or record `FrameOverlapRepairMovesWholeMemberRegions` failure on `HEAD`. View layers stay todo-only. LiveEditor preview **parked**. Finish 4.12 worklist when parity design is ready. README-only commit when asked. Strip `Co-authored-by` before push.
 
 ## View layers and viewpoints — to do
 
