@@ -1,6 +1,6 @@
 # Layout catalogue benchmark
 
-Records SVG render time and SHA-256 for diagrams in `enterprise.md`, `flow.md`, and `EIP.md`. This matches the harness described in `docs/ENGINE-REVIEW.md` Phase 0.
+Records SVG render time and SHA-256 for diagrams in `enterprise.md`, `flow.md`, and `EIP.md`. This matches the harness described in `docs/ENGINE-REVIEW.md` (baseline captured before engine speed work).
 
 Some catalogue scenarios are **skipped** (not rendered, not counted as failures). The rules live in `tools/LayoutCatalogueBench/CatalogueBenchExclusions.cs` and follow the gate text in the markdown catalogues:
 
@@ -21,7 +21,7 @@ Optional arguments: output path, per-diagram cap in milliseconds (default 90000)
 
 ## Compare
 
-Re-run after engine changes and diff `SvgSha256` per `Id`. Phases 1-3 require zero differences against the Phase 0 baseline file you capture after the port-rule work lands.
+Re-run after engine changes and diff `SvgSha256` per `Id`. Engine changes that must leave every diagram unchanged require zero differences against the local baseline file you capture after the port-rule work lands.
 
 ```powershell
 dotnet run -c Release --project tools/LayoutCatalogueBench/LayoutCatalogueBench.csproj docs/bench/catalogue-verify.jsonl

@@ -1,13 +1,13 @@
 # MarkdownToDocX diagram layout and routing engine: performance review
 
 - **Repo / commit reviewed:** VaderConsulting/MarkdownToDocX `master` at `2f5ff0159934aa8a1b0d135121ca444f2c56c8c5` ("Attach metadata to the diagram in the editor", 24 Oct 2026, 21:48 AWST). Fresh read-only clone on the box. Nothing was committed, pushed or posted.
-- **Measurement box:** an 8-core Linux x64 machine running .NET SDK 10.0.401, a Release build, warm and in-process. Only the SVG step was timed (`DocxWriter.TryRenderDiagramSvg`), with a 90 s cap per diagram. **These are not timings from Dave's ARM laptop.** Treat them as relative evidence.
-- **Harness:** `/workspace/review/bench` (Program.cs, run.sh). It records the time, the allocated bytes, the existing stage-timing observers and an SVG SHA for every diagram, so before/after output identity can be checked byte for byte.
+- **Measurement box:** an 8-core Linux x64 machine running .NET SDK 10.0.401, a Release build, warm and in-process. Only the SVG step was timed (`MermaidDiagramExport.TryRenderPreviewSvg` in the committed harness), with a 90 s cap per diagram. Treat catalogue numbers as relative evidence, not as the ARM laptop timings used for day-to-day development.
+- **Harness:** `tools/LayoutCatalogueBench` and `docs/bench` (see `docs/bench/README.md`). It records render time and an SVG SHA-256 for each in-gate catalogue diagram so before/after output identity can be checked.
 - **Profiler:** `dotnet-trace` sampled thread-time profiles of A104, A115 and A142, analysed from the speedscope evented export (`bench/prof/*.speedscope.json`, using agg.py, self.py, callers.py, nest.py and path.py).
 
 ## Apply order (least disruption, least repetition)
 
-**Starting point.** Cursor's port-rule work (the centre-out 15 px grid) lands first. Every step below is measured against the catalogue output *after* that work. The item numbers are the ranked recommendations in §5.
+**Starting point.** The centre-out 15 px port-rule work lands first. Every step below is measured against the catalogue output *after* that work. The item numbers are the ranked recommendations in §5.
 
 **Code facts that set this order** (checked at `2f5ff015`):
 
@@ -75,7 +75,7 @@
 
 Compare the Phase 3 timings with the 10 s target and the A142 watchdog. Then decide which of items 6, 10 and 11 are still needed, and how big they need to be.
 
-### Phase 4: re-baseline 1; search limits (Dave's approval, rules.yaml first)
+### Phase 4: re-baseline 1; search limits (explicit approval, rules.yaml first)
 
 - **Items:**
   - Item 7: a deadline that returns the best legal layout so far.
@@ -83,9 +83,9 @@ Compare the Phase 3 timings with the 10 s target and the A142 watchdog. Then dec
 - **Why together:** both are limits in the rule 5.10 section of rules.yaml, so they share one rule edit, one regeneration and one baseline capture.
 - **Why after Phase 3:** measured on the faster engine, the budgets can probably stay higher.
 - **Check:** this is a new baseline. Report the bend and crossing changes per diagram for approval.
-- **Afterwards:** re-time on Dave's ARM laptop and record the worst case in rules.yaml, as the rules require.
+- **Afterwards:** re-time on the ARM development laptop and record the worst case in rules.yaml, as the rules require.
 
-### Phase 5: re-baseline 2; restructure candidate evaluation (Dave's approval, rules.yaml first if 5.10 wording changes)
+### Phase 5: re-baseline 2; restructure candidate evaluation (explicit approval, rules.yaml first if 5.10 wording changes)
 
 - **Items:**
   - Item 10: no full completion nested inside a candidate's completion.
@@ -140,14 +140,14 @@ Compare the Phase 3 timings with the 10 s target and the A142 watchdog. Then dec
 >
 > Phase 3 must stay identical: all catalogue SVGs match Phase 0. Re-time the catalogue and A142, re-profile, then stop and report before Phase 4.
 >
-> **Phase 4: only with Dave's approval; rules.yaml first, then regenerate**
+> **Phase 4: only with explicit approval; rules.yaml first, then regenerate**
 >
 > 11. Add an overall layout deadline that returns the best legal layout found so far.
 > 12. Make the search budgets scale with diagram size, with a stop after k non-improving candidates.
 >
-> Phase 4 is a new baseline. Report the per-diagram bend and crossing changes, then re-time on Dave's ARM laptop and record the worst case in rules.yaml.
+> Phase 4 is a new baseline. Report the per-diagram bend and crossing changes, then re-time on the ARM development laptop and record the worst case in rules.yaml.
 >
-> **Phase 5: only with Dave's approval**
+> **Phase 5: only with explicit approval**
 >
 > 13. Stop running a full `ModelRouteCompletionStage.Apply` inside a candidate's completion (`ApplyFinalMoveBeforeDetour` → `SearchCellAssignmentsCore`).
 > 14. In `ApplyWithRoutedBands`, rank wrap widths using placement alone, fully route only the top few, and adopt the winner without re-running it.
@@ -158,7 +158,7 @@ Compare the Phase 3 timings with the 10 s target and the A142 watchdog. Then dec
 >
 > Report back after each phase: the commits, the catalogue time before and after, the A142, A104, A115 and F153 times, the number of differing SVGs (zero for Phases 1–3), and the new top five profile entries.
 
-**Steer or queue:** queue Phases 0–3 for straight after the port-rule run lands. Hold Phases 4–5 until Dave approves them after seeing the Phase 3 numbers.
+**Steer or queue:** queue Phases 0–3 for straight after the port-rule run lands. Hold Phases 4–5 until they are approved after seeing the Phase 3 numbers.
 
 
 ## 1. Pipeline (call path)
@@ -406,13 +406,13 @@ See the final message for the ranked list. The one-line forms:
 7. Add a global deadline (yFiles stopDuration style) that returns the best legal layout so far. This prevents A142-type hangs, and it also needs a rules.yaml entry.
 8. 4.12: add a dirty-node worklist, compute the baseline score lazily, reuse obstacles and bands for the whole pass, and cache the reference intersections in `InteractionsDoNotGrow`. These are the repo's own proposals 1–3, and they are exact.
 9. `FlowchartDistinctTrackRepair`: build the path cache once, use a segment spatial index, and replace per-candidate `Check`/`Measure` with local deltas. In the long term, replace trial translation with ELK/libavoid one-pass slot ordering and nudging.
-10. Stop nested completion. Inside a candidate completion, do not run `ApplyFinalMoveBeforeDetour`'s full `SearchCellAssignmentsCore` (43.5 % of A104 is at depth 2). Use affected-route completion with one exact confirmation, and require byte-identical output or Dave's approval because of the earlier rejection in docs/cell-incremental-score-rejected.md.
+10. Stop nested completion. Inside a candidate completion, do not run `ApplyFinalMoveBeforeDetour`'s full `SearchCellAssignmentsCore` (43.5 % of A104 is at depth 2). Use affected-route completion with one exact confirmation, and require byte-identical output or explicit approval because of the earlier rejection in docs/cell-incremental-score-rejected.md.
 11. Band wraps: rank candidates with a placement-only pre-pass, fully route only the top k, adopt the winner without re-running it, and then parallelise with cloned hint state.
 12. Housekeeping: replace JSON and string keys with 64-bit hashes, cache `PaddedBoxSpatialIndex` per obstacle set, hash-dedup `AddVertex`, and remove LINQ from hot loops. Also give `TryTranslateInternalRun` a spatial index.
 
 ## 6. Interaction with the approved port rule (24 Oct 2026, being implemented now)
 
-- The centre-out 15 px slot grid gives a small, fixed set of candidates per side. That favours **precomputed slot tables** and ELK-style one-pass slot assignment, and it shrinks 4.12's candidate set. Expect the port rule itself to change outputs, so take the byte-identity baseline **after** Cursor's port-rule run lands.
+- The centre-out 15 px slot grid gives a small, fixed set of candidates per side. That favours **precomputed slot tables** and ELK-style one-pass slot assignment, and it shrinks 4.12's candidate set. Expect the port rule itself to change outputs, so take the byte-identity baseline **after** the port-rule work lands.
 - Recommendations 1–5 are independent of port placement; they only cache pure functions. Recommendations 8–9 should be implemented on top of the new slot model, not before it.
 - Recommendation 6 (budgets) interacts most: the port rule's "fallback to any free grid point" adds candidates, so re-time budgets after it lands.
 
@@ -422,7 +422,7 @@ See the final message for the ranked list. The one-line forms:
 - `exp16/bench/r16.jsonl`: old budgets.
 - `expmem/bench/rmem.jsonl`: membership cache.
 - `bench/prof/{a104,a115,a142}.*`: traces and speedscope files.
-- The experiment copies are under `/workspace/review/exp16` and `/workspace/review/expmem`. They are box-only and uncommitted.
+- Experiment copies from the original review box were not committed to this repository.
 
 ## 8. Not done
 

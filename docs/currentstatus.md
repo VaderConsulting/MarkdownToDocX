@@ -32,20 +32,22 @@ Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
 
 | Milestone | Status | Notes |
 |-----------|--------|--------|
-| Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Sort plus adjacent unique; `FlowchartEnteredTitleBandTests` passes. Catalogue hash check still pending (baseline incomplete). |
-| Step 2: Safe per-contract caches | **Committed** `92119bf` | `FindBackEdges` returns `IReadOnlySet`; `BuildGroupById` returns `IReadOnlyDictionary`; `DiagramContractLayoutCacheGuard` in DEBUG. |
-| Catalogue baseline capture | **Done** | `catalogue-baseline-run-5.log`: **261** rendered, **46** skipped, **0** failed, ~**181** s CPU total. Output: `docs/bench/catalogue-baseline.jsonl`. Skips follow `CatalogueBenchExclusions.cs`. **A127** needed a parser fix (same-type redeclaration merges label/container per `enterprise.md` decision 30); uncommitted with bench exclusion tool changes. |
-| Phase 2 checklist vs review | **Complete** | No uncached `FlowchartFrameTitleBandHelper.Build` in model checks; caches, memo, hash keys and spatial index landed in `5a774d7` / `92119bf`. |
-| Phase 3 item 9 (4.12 bend-removing) | **Partial** | Reference-interaction cache in `InteractionsDoNotGrow` (`f954b5e` follow-up commit). Worklist, lazy scoring and per-pass obstacle reuse still open. |
-| Catalogue hash gate | **Green** | `catalogue-baseline.jsonl` vs `catalogue-verify.jsonl`: **261** diagrams, zero SHA-256 diffs (local baseline, not in git). |
-| Step 4 docs wording | **Not started** | `ENGINE-REVIEW.md` and `docs/bench/README.md` only. |
-| Step 6 README commit | **Waiting** | `README.md` staged content approved; commit alone when asked. |
+| Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Catalogue hashes unchanged. |
+| Step 2: Safe per-contract caches | **Committed** `92119bf` | Read-only cache surfaces plus DEBUG contract guard. |
+| Catalogue baseline capture | **Done** | `catalogue-baseline-run-5.log`: **261** rendered, **46** skipped, **0** failed, ~**181** s summed render time. Local `docs/bench/catalogue-baseline.jsonl` (not in git). |
+| Phase 2 (review) | **Complete** | `5a774d7`, `92119bf`, `c26555f` on the path; checklist grep clean. |
+| Phase 3 item 9 (4.12 bend-removing) | **Partial** | `6221f48` reference-interaction cache; `a648ef3` lazy cell scorer. Mid-sweep worklist attempt broke `BendRemovingPortRepairTests` and was reverted; needs a parity-safe design. |
+| Phase 3 item 10 (distinct-track) | **Committed** `b94230f` | Path cache and segment spatial index. |
+| Phase 3 hash gate | **Green** | Latest verify ~**181** s summed, **261** diagrams, zero SHA-256 diffs vs baseline. Spot check **A115** ~**20.6** s (Release, in-gate). |
+| Step 4 docs wording | **Committed** (pending) | `ENGINE-REVIEW.md` and `docs/bench/README.md` edits staged for next commit. |
+| Step 6 README commit | **Waiting** | Approved `README.md` only; commit when asked. |
+| Phases 4–5 | **Stopped** | Need explicit approval and `rules.yaml` first per `ENGINE-REVIEW.md`. |
 
-**Next actions:** Continue Phase 3 item 9 (dirty-node worklist and per-pass caches in `FlowchartBendRemovingPortRepair.Apply`, without changing candidate order). Re-time catalogue and profile **A115** / stress ids with a raised cap when optimisations stack. Docs-only ENGINE-REVIEW and bench README wording (step 4); README-only commit still waiting.
+**Next actions:** Stop engine speed work at Phase 3 partial (report). Optional: profile stress ids (`A104`, `A142` with raised cap) on demand. README-only commit when asked. Strip `Co-authored-by` before push.
 
 ## Engine speed-up and follow-up work, in order — 26 October 2026
 
-Do these in the order below. Steps 1 and 2 are committed locally (`77716de`, `92119bf`); confirm output with a full catalogue bench before Phase 3 speed work. Master on GitHub is at `c26555f`. Local master is five commits ahead of `origin/master` (not pushed).
+Do these in the order below. Steps 1–2 and Phases 2–3 (partial) are committed locally; catalogue hash gate is green on **261** in-gate diagrams. `origin/master` remains at `c26555f` (not pushed).
 
 Rules for all of this work:
 
@@ -56,7 +58,7 @@ Rules for all of this work:
 - Commit each step on its own, following `docs/Instructions/COMMIT-MESSAGE-STYLE.md` (see step 5).
 - Do not push. Dave says when to push.
 
-### 1. Restore de-duplication in `FindEnteredBandIds` — **done locally; commit and catalogue check pending**
+### 1. Restore de-duplication in `FindEnteredBandIds` — **committed** (`77716de`)
 
 `1efe4cd` changed `FlowchartFrameTitleBandHelper.FindEnteredBandIds` to collect band ids in a `List` instead of a `HashSet`. A route with two segments that enter the same title band now lists that band twice, but the old code listed it once. The callers in `DiagramGridLayoutModelChecks.cs` (around lines 1837, 1990 and 2005) use the result for findings, so the output can change in a step that had to keep it identical.
 
@@ -64,7 +66,7 @@ Rules for all of this work:
 - Add a focused test: a route whose two segments both enter one band returns that band id once.
 - Re-run the catalogue benchmark and compare against the baseline (see step 3). Every SVG hash must match.
 
-### 2. Make the per-contract caches safe — **done locally; commit and catalogue check pending**
+### 2. Make the per-contract caches safe — **committed** (`92119bf`)
 
 `1efe4cd`, `c26555f` and `5a774d7` cache results per `DiagramContract` in a `ConditionalWeakTable` (`FlowchartSubgraphMembershipHelper`, `FlowchartBackEdgeHelper`) or per geometry hash. They assume that a contract's nodes, groups and edges never change after the first lookup. Nothing enforces that yet. The planned LiveEditor work, which updates only the items affected by an edit, will rely on it.
 
