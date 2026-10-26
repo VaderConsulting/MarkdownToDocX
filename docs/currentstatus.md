@@ -26,7 +26,7 @@ Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
 | Baseline SVG hashes (local, not in git) | `docs/bench/catalogue-baseline.jsonl` |
 | Hash compare after a bench run | `powershell -File docs/bench/Compare-CatalogueHashes.ps1` |
 | Latest full bench run | `docs/bench/catalogue-baseline-run-5.log` / `docs/bench/catalogue-baseline.jsonl` (**261** hashes) |
-| Unpushed engine commits | `git log origin/master..HEAD` |
+| Unpushed engine commits | `git log origin/master..HEAD` (bench skips, A127 parser, cache safety, 4.12 cache slice) |
 
 ## Progress log — 26 October 2026 (engine follow-up)
 
@@ -35,12 +35,13 @@ Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
 | Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Sort plus adjacent unique; `FlowchartEnteredTitleBandTests` passes. Catalogue hash check still pending (baseline incomplete). |
 | Step 2: Safe per-contract caches | **Committed** `92119bf` | `FindBackEdges` returns `IReadOnlySet`; `BuildGroupById` returns `IReadOnlyDictionary`; `DiagramContractLayoutCacheGuard` in DEBUG. |
 | Catalogue baseline capture | **Done** | `catalogue-baseline-run-5.log`: **261** rendered, **46** skipped, **0** failed, ~**181** s CPU total. Output: `docs/bench/catalogue-baseline.jsonl`. Skips follow `CatalogueBenchExclusions.cs`. **A127** needed a parser fix (same-type redeclaration merges label/container per `enterprise.md` decision 30); uncommitted with bench exclusion tool changes. |
-| Phase 2 checklist vs review | **Likely complete** | No `FlowchartFrameTitleBandHelper.Build` calls left in `DiagramGridLayoutModelChecks.cs`; prior commits cover memo, keys and spatial index. |
-| Phase 3 item 8 (4.12 bend-removing) | **Not started** | Prior experiments broke `BendRemovingPortRepairTests`; approach must stay conservative. |
+| Phase 2 checklist vs review | **Complete** | No uncached `FlowchartFrameTitleBandHelper.Build` in model checks; caches, memo, hash keys and spatial index landed in `5a774d7` / `92119bf`. |
+| Phase 3 item 9 (4.12 bend-removing) | **Partial** | Reference-interaction cache in `InteractionsDoNotGrow` (`f954b5e` follow-up commit). Worklist, lazy scoring and per-pass obstacle reuse still open. |
+| Catalogue hash gate | **Green** | `catalogue-baseline.jsonl` vs `catalogue-verify.jsonl`: **261** diagrams, zero SHA-256 diffs (local baseline, not in git). |
 | Step 4 docs wording | **Not started** | `ENGINE-REVIEW.md` and `docs/bench/README.md` only. |
 | Step 6 README commit | **Waiting** | `README.md` staged content approved; commit alone when asked. |
 
-**Next actions:** Re-run **A142** with a higher ms cap for timing only; decide how to treat the 24 other catalogue failures for hash parity (fixture/rules vs bench harness). Compare **Ok:true** diagrams only once a known-good baseline exists. Start Phase 3 item 8 only after zero SVG hash diffs on the agreed set.
+**Next actions:** Continue Phase 3 item 9 (dirty-node worklist and per-pass caches in `FlowchartBendRemovingPortRepair.Apply`, without changing candidate order). Re-time catalogue and profile **A115** / stress ids with a raised cap when optimisations stack. Docs-only ENGINE-REVIEW and bench README wording (step 4); README-only commit still waiting.
 
 ## Engine speed-up and follow-up work, in order — 26 October 2026
 
