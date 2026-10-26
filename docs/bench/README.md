@@ -1,6 +1,13 @@
 # Layout catalogue benchmark
 
-Records SVG render time and SHA-256 for every diagram in `enterprise.md`, `flow.md`, and `EIP.md`. This matches the harness described in `docs/ENGINE-REVIEW.md` Phase 0.
+Records SVG render time and SHA-256 for diagrams in `enterprise.md`, `flow.md`, and `EIP.md`. This matches the harness described in `docs/ENGINE-REVIEW.md` Phase 0.
+
+Some catalogue scenarios are **skipped** (not rendered, not counted as failures). The rules live in `tools/LayoutCatalogueBench/CatalogueBenchExclusions.cs` and follow the gate text in the markdown catalogues:
+
+- **enterprise.md** — expected-diagnostic scenarios (Level 15 and others listed under *Expected-diagnostic scenarios*); Level **17** layout stress (`A104`–`A112`); grid stress **`A142`**; hint stress **`A154`–`A163`** (rule 2.21 stress tests).
+- **flow.md** — fences that are fully **`%%`** remarked (`F65`, `F70`, `F87`, `F88`); Level **17** wrap stress (`F151`–`F153`).
+
+Pass an explicit diagram id as the third argument to render a skipped stress diagram anyway (for example profiling `A142` with a higher time cap).
 
 ## Run
 

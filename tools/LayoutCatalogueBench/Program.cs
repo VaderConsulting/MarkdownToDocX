@@ -28,6 +28,7 @@ internal static class Program
         long TotalMilliseconds = 0;
         int Rendered = 0;
         int Failed = 0;
+        int Skipped = 0;
         foreach (string MarkdownFile in MarkdownFiles)
         {
             string PathOnDisk = Path.Combine(RepositoryRoot, MarkdownFile);
@@ -46,6 +47,13 @@ internal static class Program
                 }
 
                 string Source = Section.Groups["source"].Value;
+                if (IdFilter == null && CatalogueBenchExclusions.TryGetSkipReason(Id, Source, out string SkipReason))
+                {
+                    Skipped++;
+                    Console.WriteLine($"{Id} skip {SkipReason}");
+                    continue;
+                }
+
                 Stopwatch Timer = Stopwatch.StartNew();
                 bool Ok = false;
                 string? Svg = null;
@@ -96,7 +104,7 @@ internal static class Program
             }
         }
 
-        Console.WriteLine($"Rendered {Rendered}, failed {Failed}, total {TotalMilliseconds} ms");
+        Console.WriteLine($"Rendered {Rendered}, failed {Failed}, skipped {Skipped}, total {TotalMilliseconds} ms");
         Console.WriteLine($"Wrote {OutputPath}");
         return Failed > 0 ? 1 : 0;
     }
