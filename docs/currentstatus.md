@@ -49,7 +49,8 @@ Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate
 | DR-04 | Any faster patience without re-baseline? | **Stress tier:** `repair_search_patience_stress=16` when **not** `EnterpriseBands` and `EdgeRoutes.Count >= repair_search_patience_stress_min_routes` (**80**). | In-gate hashes still match (`catalogue-verify-stress-patience.jsonl`, ~**181** s render sum). Stress ids stay excluded from the gate; profile **A104** separately before tightening. |
 | DR-05 | Layout deadline (review item 7) now? | **Defer** | Measure stress patience on Dave's laptop and on **A104** / **A115** / **A142** first; deadline can change output under load. |
 | DR-06 | Phase 3 item 9 worklist (4.12)? | **Defer** | Prior worklist attempt broke `BendRemovingPortRepairTests`; finish after next profiling slice. |
-| DR-07 | Next lever toward **75%**? | **Phase 5** nested completion, LiveEditor preview path (status §3 step 4), or an **approved** Phase 4 re-baseline if stress patience is widened (lower `stress_min_routes` or global patience 16). | In-gate render sum unchanged (~**181** s); stress tier alone does not close the gap. |
+| DR-07 | Next lever toward **75%**? | **Phase 5** nested completion on full graphs; **view layers** (status § View layers) when layers are off; **approved** Phase 4 re-baseline if stress patience is widened. **LiveEditor preview parked.** | In-gate render sum unchanged (~**181** s); stress tier alone does not close the gap. |
+| DR-08 | View layers vs engine speed-up? | **Complementary.** Layers shrink the laid-out graph when hidden; they do not fix nested full-pipeline search when everything is visible (VL-10). | See view-layer to-do table VL-1–VL-10. |
 
 | Milestone | Status | Notes |
 |-----------|--------|--------|
@@ -65,7 +66,30 @@ Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate
 | Phase 4 patience (rules.yaml) | **Done (local)** | `repair_search_patience` + stress tier; hash gate green in-gate. Bench emits `LayoutMilliseconds`. |
 | Phases 4 deadline / Phase 5 | **Next** | See decision register DR-05, DR-07. |
 
-**Next actions:** Profile **A104**, **A115**, **A142** with stress patience; Phase 5 or LiveEditor preview for measurable **75%** progress. Finish 4.12 worklist when parity design is ready. README-only commit when asked. Strip `Co-authored-by` before push.
+**Next actions:** Profile **A104**, **A115**, **A142** with stress patience; Phase 5 nested completion for measurable **75%** on full graphs. View layers (below) are the main lever when a viewpoint hides part of the model. LiveEditor preview optimisations remain **parked**. Finish 4.12 worklist when parity design is ready. README-only commit when asked. Strip `Co-authored-by` before push.
+
+## View layers and viewpoints — to do
+
+**Status:** Not started (concept agreed 26 Oct 2026). **Parked:** LiveEditor screen-scale preview / render queue (see §3 step 4).
+
+**What this is:** Visio or Paint.NET-style **document layers** with metadata: each layer holds a slice of the model; the user (or an ArchiMate **viewpoint**) turns layers or **systems** on or off. Layout and routing run on the **visible derived diagram**, not on hidden elements. This is **not** Sugiyama rank layers, **not** the spec’s recognition/layout/routing **pipeline** layers (§11.1.7), and **not** the same as ArchiMate **aspect** styling (`Render.Layer.Business`, `Render.Layer.Technology`, etc.), though a view may filter by aspect.
+
+**Why:** Full viewpoint support needs hide/show without re-authoring the whole diagram. When layers are off, layout cost should drop roughly with the active node and edge count (major win for the **75%** goal on real editing, separate from nested-completion fixes on an all-layers-on graph).
+
+| # | To do | Done when |
+|---|--------|-----------|
+| VL-1 | **Write the view model** in `docs/spec.md` (or a linked note): **repository** (full declared model), **view** (ordered layers + visibility + metadata), **derived diagram** (what layout sees). Stable element and relationship ids across views. | Spec reviewed; no implementation yet. |
+| VL-2 | **Define interaction closure** per view: which nodes and edges belong when a layer is on (default: both endpoints visible; document alternatives for strict intra-layer-only vs allowed cross-layer relationship types). | Closure rules cited by parser tests and by the filter in VL-5. |
+| VL-3 | **Cross-layer boundaries:** when one endpoint is hidden, specify stub, interface node, collapsed reference, or drop edge (ArchiMate-consistent default documented). | Rule in spec; at least one catalogue-style example. |
+| VL-4 | **Recognition and contract:** syntax or metadata for layer id, display name, system id, viewpoint id, lock, default visibility; map members (nodes, groups, relationships) to layers. Extend `DiagramContract` (or a parallel repository model) without breaking single-block enterprise/flow today. | Parser emits layer membership; existing fences unchanged when no layers declared. |
+| VL-5 | **Filter before layout:** build derived `DiagramContract` (or view-scoped contract) **before** `EnterpriseLayoutEngine` / `FlowchartSugiyamaLayoutEngine` / `DiagramGridLayout.Apply`. Hidden items never enter placement, grid, routing or repair. | Bench or test: same source with layer off vs on yields smaller route count and faster render; hashes stable per view definition. |
+| VL-6 | **LiveEditor and export:** layer list UI (visibility toggles, metadata); preview respects active view; DOCX/Markdown export documents which view was rendered (or exports one view per section). | Manual check on a multi-layer sample; tests for toggle does not mutate repository text. |
+| VL-7 | **Cache keys:** layout/render cache includes view id + visible layer set + settings that affect output; invalidate when any member of a touched layer changes. | Documented key shape; aligns with incremental LiveEditor edits later. |
+| VL-8 | **Bench and fixtures:** add enterprise samples that mirror `layered-compaction.mmd` with explicit layer declarations; time **full stack on** vs **single aspect/system on** (e.g. compare to stress ids **A104** / **A142** when only one layer visible). | Timings recorded in this file; no change to in-gate **261** hash baseline unless Dave approves a view baseline. |
+| VL-9 | **ArchiMate viewpoints:** map standard viewpoint names to default layer visibility and allowed relationship sets (defer matrix detail until VL-2 is stable). | Table viewpoint → layer preset in spec or `docs/enterprise/`. |
+| VL-10 | **Engine interaction:** view layers do **not** remove the need for Phase 5 / incremental routing when **all** layers are on; record that in the decision register when VL-5 lands. | DR entry or cross-link from DR-07. |
+
+**Order:** VL-1 → VL-2 → VL-3 → VL-4 → VL-5 before VL-6–VL-9; VL-8 can start once VL-5 exists; VL-10 is documentation whenever full-stack performance is re-profiled.
 
 ## Engine speed-up and follow-up work, in order — 26 October 2026
 
