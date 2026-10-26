@@ -39,7 +39,7 @@ Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
 | Phase 3 item 9 (4.12 bend-removing) | **Partial** | `6221f48` reference-interaction cache; `a648ef3` lazy cell scorer. Mid-sweep worklist attempt broke `BendRemovingPortRepairTests` and was reverted; needs a parity-safe design. |
 | Phase 3 item 10 (distinct-track) | **Committed** `b94230f` | Path cache and segment spatial index. |
 | Phase 3 hash gate | **Green** | Latest verify ~**181** s summed, **261** diagrams, zero SHA-256 diffs vs baseline. Spot check **A115** ~**20.6** s (Release, in-gate). |
-| Step 4 docs wording | **Committed** (pending) | `ENGINE-REVIEW.md` and `docs/bench/README.md` edits staged for next commit. |
+| Step 4 docs wording | **Committed** `868be48` | `ENGINE-REVIEW.md` and `docs/bench/README.md` (with status log in same commit). |
 | Step 6 README commit | **Waiting** | Approved `README.md` only; commit when asked. |
 | Phases 4–5 | **Stopped** | Need explicit approval and `rules.yaml` first per `ENGINE-REVIEW.md`. |
 
