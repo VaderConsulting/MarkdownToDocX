@@ -388,21 +388,49 @@ public sealed class EnterpriseParser : Parser
             Diagnostics.Add(CreateError(LineNumber, "reserved word cannot be an id: \"" + Id + "\""));
             return;
         }
+        string? QuotedLabel = ElementMatch.Groups["label"].Success ? Unquote(ElementMatch.Groups["label"].Value) : null;
+        string? ParentId = ElementMatch.Groups["parent"].Success ? ElementMatch.Groups["parent"].Value : null;
+        PlacementHintContract? PlacementHint = ParsePlacementHint(ElementMatch, LineNumber);
+        if (Document.Elements.TryGetValue(Id, out EnterpriseElement? Existing))
+        {
+            if (Existing.ElementType != ElementType)
+            {
+                Diagnostics.Add(CreateError(LineNumber, "duplicate element id \"" + Id + "\""));
+                return;
+            }
+
+            if (ElementMatch.Groups["label"].Success)
+            {
+                Existing.Label = QuotedLabel ?? Id;
+                Existing.IsMarkdownLabel = IsMarkdown(ElementMatch.Groups["label"].Value);
+            }
+
+            if (ElementMatch.Groups["parent"].Success)
+            {
+                Existing.ParentId = ParentId;
+            }
+
+            if (PlacementHint != null)
+            {
+                Existing.PlacementHint = PlacementHint;
+            }
+
+            Existing.LineNumber = LineNumber;
+            return;
+        }
+
         if (Document.HasDrawingItem(Id))
         {
             Diagnostics.Add(CreateError(LineNumber, "duplicate element id \"" + Id + "\""));
             return;
         }
 
-        string? QuotedLabel = ElementMatch.Groups["label"].Success ? Unquote(ElementMatch.Groups["label"].Value) : null;
-        string? ParentId = ElementMatch.Groups["parent"].Success ? ElementMatch.Groups["parent"].Value : null;
-        PlacementHintContract? PlacementHint = ParsePlacementHint(ElementMatch, LineNumber);
         EnterpriseElement Element = new EnterpriseElement
         {
             Id = Id,
             ElementType = ElementType,
             Label = QuotedLabel ?? Id,
-            IsMarkdownLabel = IsMarkdown(ElementMatch.Groups["label"].Value),
+            IsMarkdownLabel = ElementMatch.Groups["label"].Success && IsMarkdown(ElementMatch.Groups["label"].Value),
             ParentId = ParentId,
             LineNumber = LineNumber,
             PlacementHint = PlacementHint

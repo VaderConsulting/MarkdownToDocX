@@ -371,7 +371,7 @@ public sealed class EnterpriseParserTests
     }
 
     [Test]
-    public void Parse_SameTypeRedeclaration_DoesNotUpdateTheElement()
+    public void Parse_SameTypeRedeclaration_UpdatesLabel()
     {
         EnterpriseParseResult Result = EnterpriseParser.ParseDocument(
             """
@@ -380,8 +380,8 @@ public sealed class EnterpriseParserTests
               application-component webShop "Two"
             """);
 
-        Assert.That(Result.Diagnostics[0].Message, Does.Contain("line 3: duplicate element id \"webShop\""));
-        Assert.That(Result.Document.Elements["webShop"].Label, Is.EqualTo("One"));
+        Assert.That(Result.HasErrors, Is.False);
+        Assert.That(Result.Document.Elements["webShop"].Label, Is.EqualTo("Two"));
     }
 
     [Test]
