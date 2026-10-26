@@ -136,7 +136,31 @@ internal static class FlowchartFrameTitleBandHelper
         }
 
         entered.Sort(StringComparer.Ordinal);
-        return entered.ToArray();
+        int uniqueCount = 0;
+        for (int index = 0; index < entered.Count; index++)
+        {
+            if (index == 0 || !string.Equals(entered[index], entered[index - 1], StringComparison.Ordinal))
+            {
+                uniqueCount++;
+            }
+        }
+
+        if (uniqueCount == entered.Count)
+        {
+            return entered.ToArray();
+        }
+
+        string[] unique = new string[uniqueCount];
+        int writeIndex = 0;
+        for (int index = 0; index < entered.Count; index++)
+        {
+            if (index == 0 || !string.Equals(entered[index], entered[index - 1], StringComparison.Ordinal))
+            {
+                unique[writeIndex++] = entered[index];
+            }
+        }
+
+        return unique;
     }
 
     internal static bool IsLegalTopPortCrossing(Band band, double x1, double y1, double x2, double y2,
