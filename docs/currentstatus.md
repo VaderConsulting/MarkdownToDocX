@@ -12,7 +12,7 @@ This is the only status file. It describes what is true now and what is still to
 | Baseline SVG hashes (local, not in git) | `docs/bench/catalogue-baseline.jsonl` |
 | Hash compare after a bench run | `powershell -File docs/bench/Compare-CatalogueHashes.ps1` |
 | Latest bench console log | `docs/bench/catalogue-baseline-run-3.log` (or newest `catalogue-baseline-run-*.log`) |
-| Unpushed engine commits | `git log origin/master..HEAD` (four commits ahead: `5a774d7`, `b94230f`, `77716de`, `12c7011`) |
+| Unpushed engine commits | `git log origin/master..HEAD` (four commits ahead: `5a774d7`, `b94230f`, `77716de`, `92119bf`) |
 | Title-band dedupe test | `tests/MermaidRecognition.Layout.Tests/FlowchartEnteredTitleBandTests.cs` |
 | Live editor (separate track) | `src/LiveEditor` |
 
@@ -21,7 +21,7 @@ This is the only status file. It describes what is true now and what is still to
 | Milestone | Status | Notes |
 |-----------|--------|--------|
 | Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Sort plus adjacent unique; `FlowchartEnteredTitleBandTests` passes. Catalogue hash check still pending (baseline incomplete). |
-| Step 2: Safe per-contract caches | **Committed** `12c7011` | `FindBackEdges` returns `IReadOnlySet`; `BuildGroupById` returns `IReadOnlyDictionary`; `DiagramContractLayoutCacheGuard` in DEBUG. |
+| Step 2: Safe per-contract caches | **Committed** `92119bf` | `FindBackEdges` returns `IReadOnlySet`; `BuildGroupById` returns `IReadOnlyDictionary`; `DiagramContractLayoutCacheGuard` in DEBUG. |
 | Catalogue baseline capture | **Blocked** | `docs/bench/catalogue-baseline.jsonl` has 120 lines and ends mid-record at **A120** (truncated). Re-run bench after killing stray `LayoutCatalogueBench` processes. |
 | Phase 2 checklist vs review | **Likely complete** | No `FlowchartFrameTitleBandHelper.Build` calls left in `DiagramGridLayoutModelChecks.cs`; prior commits cover memo, keys and spatial index. |
 | Phase 3 item 8 (4.12 bend-removing) | **Not started** | Prior experiments broke `BendRemovingPortRepairTests`; approach must stay conservative. |
@@ -32,7 +32,7 @@ This is the only status file. It describes what is true now and what is still to
 
 ## Engine speed-up and follow-up work, in order — 26 October 2026
 
-Do these in the order below. Steps 1 and 2 are committed locally (`77716de`, `12c7011`); confirm output with a full catalogue bench before Phase 3 speed work. Master on GitHub is at `c26555f`. Local master is four commits ahead (`5a774d7`, `b94230f`, `77716de`, `12c7011`, not pushed).
+Do these in the order below. Steps 1 and 2 are committed locally (`77716de`, `92119bf`); confirm output with a full catalogue bench before Phase 3 speed work. Master on GitHub is at `c26555f`. Local master is four commits ahead (`5a774d7`, `b94230f`, `77716de`, `92119bf`, not pushed).
 
 Rules for all of this work:
 
