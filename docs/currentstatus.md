@@ -30,6 +30,27 @@ Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
 
 ## Progress log — 26 October 2026 (engine follow-up)
 
+**Performance goal (Dave):** at least **75% reduction in render and/or layout time** on the agreed catalogue baseline. Either metric can satisfy the goal when the other is already a small share of wall time; report **both** each time you re-time.
+
+| Metric | Baseline to beat | Target (75% off) | How measured today |
+|--------|------------------|------------------|-------------------|
+| **Render** (end-to-end preview SVG) | ~**181** s summed over **261** in-gate diagrams (`catalogue-baseline-run-5.log`) | ~**45** s or less (same gate and skips) | `tools/LayoutCatalogueBench` → `MermaidDiagramExport.TryRenderPreviewSvg` |
+| **Layout** (attributable engine time) | Not yet summed on the in-gate bench; review box full catalogue ~**535** s render before Phases 1–3 | ~**134** s render equivalent, or layout sum reduced 75% once layout is split out | `DiagramGridLayout.LayoutStageTimingObserver` (flowchart `ApplyCore` stages), `EnterpriseSvgRenderer` / bridge observers (`enterprise-layout`, `enterprise-edge-routing`, analysis). See `docs/LiveEditor-render-chokepoints.md`. |
+
+Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate render sum alone. The review experiment at **repair_candidate_moves** 16 instead of 48 saved ~**45%** catalogue time with identical output on heavy ids such as **A104**; **patience**, deadlines, and Phase 5 nested-completion work are still on the table for the remainder, with hash or re-baseline gates as in `docs/ENGINE-REVIEW.md`.
+
+### Decision register (engine speed-up)
+
+| ID | Question | Decision | Rationale |
+|----|----------|----------|-----------|
+| DR-01 | Start Phase 4 (`rules.yaml` search patience) without a separate approval wait? | **Yes** | Delegated 26 Oct: continue and record decisions here. Patience is reversible via `repair_search_patience=0`. |
+| DR-02 | Global `repair_search_patience=16`? | **No** | Broke **8** in-gate SVG hashes (A18, A24, A36, A151, F34, F73, F124, F143). Includes enterprise-band layouts that share `DiagramGridLayout`. |
+| DR-03 | Default patience when output must stay identical? | **`repair_search_patience=48`** (same as move cap; early stop only after a full non-improving streak that would exhaust the pass anyway on typical 48-cap searches). | Hash gate green on **261** diagrams (`catalogue-verify-patience48.jsonl`). |
+| DR-04 | Any faster patience without re-baseline? | **Stress tier:** `repair_search_patience_stress=16` when **not** `EnterpriseBands` and `EdgeRoutes.Count >= repair_search_patience_stress_min_routes` (**80**). | In-gate hashes still match (`catalogue-verify-stress-patience.jsonl`, ~**181** s render sum). Stress ids stay excluded from the gate; profile **A104** separately before tightening. |
+| DR-05 | Layout deadline (review item 7) now? | **Defer** | Measure stress patience on Dave's laptop and on **A104** / **A115** / **A142** first; deadline can change output under load. |
+| DR-06 | Phase 3 item 9 worklist (4.12)? | **Defer** | Prior worklist attempt broke `BendRemovingPortRepairTests`; finish after next profiling slice. |
+| DR-07 | Next lever toward **75%**? | **Phase 5** nested completion, LiveEditor preview path (status §3 step 4), or an **approved** Phase 4 re-baseline if stress patience is widened (lower `stress_min_routes` or global patience 16). | In-gate render sum unchanged (~**181** s); stress tier alone does not close the gap. |
+
 | Milestone | Status | Notes |
 |-----------|--------|--------|
 | Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Catalogue hashes unchanged. |
@@ -41,9 +62,10 @@ Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
 | Phase 3 hash gate | **Green** | Latest verify ~**181** s summed, **261** diagrams, zero SHA-256 diffs vs baseline. Spot check **A115** ~**20.6** s (Release, in-gate). |
 | Step 4 docs wording | **Committed** `868be48` | `ENGINE-REVIEW.md` and `docs/bench/README.md` (with status log in same commit). |
 | Step 6 README commit | **Waiting** | Approved `README.md` only; commit when asked. |
-| Phases 4–5 | **Stopped** | Need explicit approval and `rules.yaml` first per `ENGINE-REVIEW.md`. |
+| Phase 4 patience (rules.yaml) | **Done (local)** | `repair_search_patience` + stress tier; hash gate green in-gate. Bench emits `LayoutMilliseconds`. |
+| Phases 4 deadline / Phase 5 | **Next** | See decision register DR-05, DR-07. |
 
-**Next actions:** Stop engine speed work at Phase 3 partial (report). Optional: profile stress ids (`A104`, `A142` with raised cap) on demand. README-only commit when asked. Strip `Co-authored-by` before push.
+**Next actions:** Profile **A104**, **A115**, **A142** with stress patience; Phase 5 or LiveEditor preview for measurable **75%** progress. Finish 4.12 worklist when parity design is ready. README-only commit when asked. Strip `Co-authored-by` before push.
 
 ## Engine speed-up and follow-up work, in order — 26 October 2026
 

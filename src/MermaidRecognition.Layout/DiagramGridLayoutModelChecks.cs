@@ -393,6 +393,7 @@ public static partial class DiagramGridLayout
             // already have an authoritative score, so neither case requires
             // remeasuring the same baseline before the next bounded option.
             var BeforeScore = FlowchartLayoutScore.Measure(State.Contract, State.Copy, IncludeArrangementCheck: false);
+            FlowchartRepairSearchPatience Patience = new FlowchartRepairSearchPatience(State.Copy.EdgeRoutes.Count, State.EnterpriseBands);
             // Changing one terminal may expose that the old opposite-side
             // fallback was only necessary for the superseded departure. Offer
             // the complete facing pair as well, under the same named budget.
@@ -492,7 +493,28 @@ public static partial class DiagramGridLayout
                 RouteRepairCandidateObserver?.Invoke("facing-assignment",
                     $"lines={Affected.Length};complete={Complete};sides={Before.Count(Finding => Finding.Rule is "4.11" or "5.8")}->{After.Count(Finding => Finding.Rule is "4.11" or "5.8")};new={string.Join(",", After.GroupBy(Finding => Finding.Rule).Where(Group => Group.Count() > Before.Count(Finding => Finding.Rule == Group.Key)).Select(Group => Group.Key + ":" + Group.Count()))}",
                     AfterScore.Cost, Keep);
-                if (Keep) { Before = After; BeforeScore = AfterScore; continue; }
+                if (Keep)
+                {
+                    Patience.Reset();
+                    Before = After;
+                    BeforeScore = AfterScore;
+                    continue;
+                }
+
+                if (Patience.RegisterNonImprovement())
+                {
+                    foreach (var Item in Saved)
+                    {
+                        Item.Route.ExitSide = Item.ExitSide; Item.Route.EntrySide = Item.EntrySide;
+                        Item.Route.ExitNormalX = Item.ExitNormalX; Item.Route.ExitNormalY = Item.ExitNormalY;
+                        Item.Route.EntryNormalX = Item.EntryNormalX; Item.Route.EntryNormalY = Item.EntryNormalY;
+                        Item.Route.Points.Clear();
+                        foreach (var Point in Item.Points) Item.Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                    }
+
+                    break;
+                }
+
                 foreach (var Item in Saved)
                 {
                     Item.Route.ExitSide = Item.ExitSide; Item.Route.EntrySide = Item.EntrySide;

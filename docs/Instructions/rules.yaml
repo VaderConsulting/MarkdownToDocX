@@ -485,6 +485,21 @@ parameters:
     unit: "changed lines in one complete fan-hub candidate"
     source: "Rule 5.10; the number of declared lines in the fan, evaluated per candidate so a hub move can reroute its whole fan atomically"
     used_by: ["5.10"]
+  - id: "repair_search_patience"
+    value: 48
+    unit: "consecutive scored candidates without improvement"
+    source: "Rule 5.10; MinQuit-style early stop while repair_candidate_moves remains the hard cap; set to 0 to disable"
+    used_by: ["5.10"]
+  - id: "repair_search_patience_stress"
+    value: 16
+    unit: "consecutive scored candidates without improvement"
+    source: "Rule 5.10; tighter early stop for dense closed flowcharts only; enterprise band layout keeps repair_search_patience"
+    used_by: ["5.10"]
+  - id: "repair_search_patience_stress_min_routes"
+    value: 80
+    unit: "declared edge routes on the layout result"
+    source: "Rule 5.10; minimum route count before repair_search_patience_stress applies on non-enterprise band layouts"
+    used_by: ["5.10"]
   - id: "frame_gap_growth"
     value: 1
     unit: "grid steps"
@@ -1787,7 +1802,7 @@ rules:
     stage: "X1"
     status: "active"
     pointer: ""
-    params: ["score_bend","score_repair_length_per_grid_step","score_repair_moved_line","repair_candidate_moves","repair_chain_depth","repair_chain_lines","repair_chain_lines_fan_hub"]
+    params: ["score_bend","score_repair_length_per_grid_step","score_repair_moved_line","repair_candidate_moves","repair_chain_depth","repair_chain_lines","repair_chain_lines_fan_hub","repair_search_patience","repair_search_patience_stress","repair_search_patience_stress_min_routes"]
     refs: ["1.2","1.7","2.13","2.21","4.2","5.7","5.8","5.9","1.3"]
     outranks: ["4.2","5.8","5.9"]
     yields: ["2.21"]

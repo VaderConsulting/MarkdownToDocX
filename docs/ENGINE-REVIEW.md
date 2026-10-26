@@ -3,6 +3,7 @@
 - **Repo / commit reviewed:** VaderConsulting/MarkdownToDocX `master` at `2f5ff0159934aa8a1b0d135121ca444f2c56c8c5` ("Attach metadata to the diagram in the editor", 24 Oct 2026, 21:48 AWST). Fresh read-only clone on the box. Nothing was committed, pushed or posted.
 - **Measurement box:** an 8-core Linux x64 machine running .NET SDK 10.0.401, a Release build, warm and in-process. Only the SVG step was timed (`MermaidDiagramExport.TryRenderPreviewSvg` in the committed harness), with a 90 s cap per diagram. Treat catalogue numbers as relative evidence, not as the ARM laptop timings used for day-to-day development.
 - **Harness:** `tools/LayoutCatalogueBench` and `docs/bench` (see `docs/bench/README.md`). It records render time and an SVG SHA-256 for each in-gate catalogue diagram so before/after output identity can be checked.
+- **Success criterion (product):** at least **75% reduction in render and/or layout time** versus the frozen catalogue baseline. **Render** is the harness wall time (`TryRenderPreviewSvg`). **Layout** is attributable engine time (flowchart `DiagramGridLayout` stages, enterprise layout and routing observers). Report both; either may carry the win when the other is already cheap.
 - **Profiler:** `dotnet-trace` sampled thread-time profiles of A104, A115 and A142, analysed from the speedscope evented export (`bench/prof/*.speedscope.json`, using agg.py, self.py, callers.py, nest.py and path.py).
 
 ## Apply order (least disruption, least repetition)

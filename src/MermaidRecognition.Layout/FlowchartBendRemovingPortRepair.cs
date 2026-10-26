@@ -79,6 +79,8 @@ internal static class FlowchartBendRemovingPortRepair
                 Dictionary<(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second), (int Crossings, double Overlap)> ReferenceInteractions =
                     new Dictionary<(FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute), (int, double)>();
                 Saved[]? Best = null; var BestCost = Initial.Cost; int BestRemoved = 0; string BestKind = "";
+                bool EnterpriseBands = Layout.RenderContext.EnterpriseBandWrapWidths.Count > 0;
+                FlowchartRepairSearchPatience Patience = new FlowchartRepairSearchPatience(Layout.EdgeRoutes.Count, EnterpriseBands);
                 foreach (var Change in Changes)
                 {
                     Restore(Original); Change.Apply();
@@ -112,10 +114,25 @@ internal static class FlowchartBendRemovingPortRepair
                     FlowchartLayoutScore.Result Score = Scorer.Measure(Affected);
                     if (Score.Cost >= BestCost)
                     {
+                        if (Patience.RegisterNonImprovement())
+                        {
+                            break;
+                        }
+
                         continue;
                     }
                     var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
-                    if (Findings.Any(Finding => !InitialFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject))) continue;
+                    if (Findings.Any(Finding => !InitialFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject)))
+                    {
+                        if (Patience.RegisterNonImprovement())
+                        {
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    Patience.Reset();
                     BestCost = Score.Cost; Best = Save(Routes); BestRemoved = Reduction; BestKind = Change.Kind;
                 }
                 Restore(Original);

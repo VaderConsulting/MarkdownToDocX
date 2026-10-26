@@ -597,6 +597,7 @@ public static partial class DiagramGridLayout
             ulong Signature = FlowchartLayoutGeometryHash.HashCellRepairSignature(CellState);
             var CandidateGrid = State.Placed[0].CellNode!.Grid;
             int SeenBandRejections = CandidateGrid.RegionConventionRejections;
+            FlowchartRepairSearchPatience Patience = new FlowchartRepairSearchPatience(State.Copy.EdgeRoutes.Count, State.EnterpriseBands);
             foreach (var Option in Options)
             {
                 int PreflightSpent = SpendBandPreflightSlots(State, ReferenceCompletion ? "reference-recovery" : "cell-candidate-trials",
@@ -668,7 +669,17 @@ public static partial class DiagramGridLayout
                     if (!Legal || Remaining > BestShortfall
                         || Remaining == BestShortfall && Cost.CompareTo(BestScore) > 0
                         || Remaining == BestShortfall && Cost.CompareTo(BestScore) == 0
-                            && ChainTie >= BestChainTie - 0.001) continue;
+                            && ChainTie >= BestChainTie - 0.001)
+                    {
+                        if (Patience.RegisterNonImprovement())
+                        {
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    Patience.Reset();
                     BestShortfall = Remaining;
                     BestScore = Cost;
                     BestChainTie = ChainTie;

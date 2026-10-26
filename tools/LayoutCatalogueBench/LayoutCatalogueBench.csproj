@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MDConverter\MDConverter.csproj" />
+    <ProjectReference Include="..\..\src\MermaidRecognition.Layout\MermaidRecognition.Layout.csproj" />
   </ItemGroup>
 
 </Project>

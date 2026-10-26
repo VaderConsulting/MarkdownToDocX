@@ -26,6 +26,7 @@ internal static class Program
         List<string> MarkdownFiles = new List<string> { "enterprise.md", "flow.md", "EIP.md" };
         using StreamWriter Writer = new StreamWriter(OutputPath, false, Encoding.UTF8);
         long TotalMilliseconds = 0;
+        long TotalLayoutMilliseconds = 0;
         int Rendered = 0;
         int Failed = 0;
         int Skipped = 0;
@@ -58,10 +59,15 @@ internal static class Program
                 bool Ok = false;
                 string? Svg = null;
                 string? Error = null;
+                long LayoutMs = 0;
                 try
                 {
-                    Ok = MermaidDiagramExport.TryRenderPreviewSvg(Source, out string RenderedSvg);
-                    Svg = RenderedSvg;
+                    using (CatalogueLayoutTiming LayoutTiming = new CatalogueLayoutTiming())
+                    {
+                        Ok = MermaidDiagramExport.TryRenderPreviewSvg(Source, out string RenderedSvg);
+                        Svg = RenderedSvg;
+                        LayoutMs = LayoutTiming.LayoutMilliseconds;
+                    }
                 }
                 catch (Exception Ex)
                 {
@@ -85,12 +91,14 @@ internal static class Program
                     SourceFile = MarkdownFile,
                     Ok = Ok,
                     Milliseconds = Elapsed,
+                    LayoutMilliseconds = LayoutMs,
                     SvgBytes = Svg?.Length ?? 0,
                     SvgSha256 = Sha,
                     Error = Error
                 };
                 Writer.WriteLine(JsonSerializer.Serialize(Record));
                 TotalMilliseconds += Elapsed;
+                TotalLayoutMilliseconds += LayoutMs;
                 if (Ok)
                 {
                     Rendered++;
@@ -104,7 +112,7 @@ internal static class Program
             }
         }
 
-        Console.WriteLine($"Rendered {Rendered}, failed {Failed}, skipped {Skipped}, total {TotalMilliseconds} ms");
+        Console.WriteLine($"Rendered {Rendered}, failed {Failed}, skipped {Skipped}, total {TotalMilliseconds} ms, layout {TotalLayoutMilliseconds} ms");
         Console.WriteLine($"Wrote {OutputPath}");
         return Failed > 0 ? 1 : 0;
     }
@@ -134,6 +142,8 @@ internal static class Program
         public bool Ok { get; set; }
 
         public long Milliseconds { get; set; }
+
+        public long LayoutMilliseconds { get; set; }
 
         public int SvgBytes { get; set; }
 
