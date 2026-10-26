@@ -53,7 +53,7 @@ internal static class FlowchartBendRemovingPortRepair
         var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         var Hinted = Layout.EdgeRoutes.Where(Route => DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
             .Select(Route => (string?)Route.EdgeId).ToHashSet();
-        var Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         int Removed = 0;
         bool Progress;
         do
@@ -70,9 +70,9 @@ internal static class FlowchartBendRemovingPortRepair
                 var Original = Save(Routes);
                 var Changes = Candidates(Id, Ends, Hinted, Contract, Layout, Bounds, Nodes).Take(FlowchartLayoutRules.RepairCandidateMoves).ToArray();
                 if (Changes.Length == 0) continue;
-                var Initial = FlowchartLayoutScore.Measure(Contract, Layout, false);
-                var Scorer = new FlowchartLayoutScore.CellMovementContext(Contract, Layout);
-                var InitialFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+                FlowchartLayoutScore.Result Initial = FlowchartLayoutScore.Measure(Contract, Layout, false);
+                FlowchartLayoutScore.CellMovementContext? Scorer = null;
+                IReadOnlyList<FlowchartRouteRuleChecker.Finding> InitialFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
                 IReadOnlyDictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> Reference = Layout.EdgeRoutes.ToDictionary(
                     Route => Route,
                     Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray());
@@ -108,8 +108,12 @@ internal static class FlowchartBendRemovingPortRepair
                         if (Change.Kind == "swap") SwapDecisionObserver?.Invoke(Id, "crossing-rejected");
                         continue;
                     }
-                    var Score = Scorer.Measure(Affected);
-                    if (Score.Cost >= BestCost) continue;
+                    Scorer ??= new FlowchartLayoutScore.CellMovementContext(Contract, Layout);
+                    FlowchartLayoutScore.Result Score = Scorer.Measure(Affected);
+                    if (Score.Cost >= BestCost)
+                    {
+                        continue;
+                    }
                     var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
                     if (Findings.Any(Finding => !InitialFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject))) continue;
                     BestCost = Score.Cost; Best = Save(Routes); BestRemoved = Reduction; BestKind = Change.Kind;
@@ -117,10 +121,16 @@ internal static class FlowchartBendRemovingPortRepair
                 Restore(Original);
                 if (Best == null) continue;
                 Restore(Best); Removed += BestRemoved; Progress = true;
-                foreach (var Saved in Original.Where(Saved => Corners(Saved.Points) > FlowchartLayoutScore.CountCorners(Saved.Route.Points)))
-                    Accepted?.Invoke(new(Saved.Route.EdgeId, Corners(Saved.Points), FlowchartLayoutScore.CountCorners(Saved.Route.Points),
-                        Saved.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()));
-                if (BestKind == "swap") SwapDecisionObserver?.Invoke(Id, "accepted");
+                foreach (Saved Item in Original.Where(Saved => Corners(Saved.Points) > FlowchartLayoutScore.CountCorners(Saved.Route.Points)))
+                {
+                    Accepted?.Invoke(new(Item.Route.EdgeId, Corners(Item.Points), FlowchartLayoutScore.CountCorners(Item.Route.Points),
+                        Item.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()));
+                }
+
+                if (BestKind == "swap")
+                {
+                    SwapDecisionObserver?.Invoke(Id, "accepted");
+                }
             }
         } while (Progress);
         return Removed;
