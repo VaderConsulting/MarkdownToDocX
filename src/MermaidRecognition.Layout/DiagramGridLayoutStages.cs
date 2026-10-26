@@ -60,9 +60,10 @@ public static partial class DiagramGridLayout
         public HashSet<string> CrossGroupRouteStates { get; } = new(StringComparer.Ordinal);
         public HashSet<string> ConvergenceRouteStates { get; } = new(StringComparer.Ordinal);
         /// <summary>Exact ordered obstacle geometry associated with the final side-search route cache.</summary>
-        public string? FacingRouteGeometry { get; set; }
+        public ulong? FacingRouteGeometryHash { get; set; }
+
         /// <summary>Immutable built paths for allocated terminals against the current obstacle geometry.</summary>
-        public Dictionary<string, List<(double X, double Y)>> FacingRoutePaths { get; } = new(StringComparer.Ordinal);
+        public Dictionary<ulong, List<(double X, double Y)>> FacingRoutePaths { get; } = new();
         public FlowchartRenderContext.RepairSearchBudget MoveBudget { get; }
         public bool RepairExteriorCrossings { get; set; }
         public List<GridFrame> Frames { get; } = [];

@@ -22,7 +22,17 @@ internal static partial class FlowchartLayoutScore
 
     internal static Result Measure(DiagramContract Contract, FlowchartLayoutResult Layout,
         bool IncludeArrangementCheck = true)
-        => MeasureCore(Contract, Layout, IncludeArrangementCheck, null, null);
+    {
+        ulong GeometrySignature = FlowchartLayoutGeometryHash.HashLayoutGeometry(Layout);
+        if (Layout.TryGetMemoizedMeasure(GeometrySignature, IncludeArrangementCheck, out Result Cached))
+        {
+            return Cached;
+        }
+
+        Result Measured = MeasureCore(Contract, Layout, IncludeArrangementCheck, null, null);
+        Layout.StoreMemoizedMeasure(GeometrySignature, IncludeArrangementCheck, Measured);
+        return Measured;
+    }
 
     private static Result MeasureCore(DiagramContract Contract, FlowchartLayoutResult Layout,
         bool IncludeArrangementCheck, int? Crossings, int? Bends,

@@ -36,12 +36,12 @@ public static partial class DiagramGridLayout
         {
             for (int RightIndex = LeftIndex + 1; RightIndex < Routes.Count; RightIndex++)
             {
-                NudgeOffSharedRun(Routes[LeftIndex], Routes[RightIndex], Placed, Contract);
+                NudgeOffSharedRun(Routes[LeftIndex], Routes[RightIndex], Placed, Contract, Copy);
             }
         }
     }
 
-    private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract)
+    private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract, FlowchartLayoutResult? LayoutOwner)
     {
         if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true) return;
         for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
@@ -91,9 +91,9 @@ public static partial class DiagramGridLayout
                 var Obstacles = Contract == null ? Placed : Placed.Where(Node =>
                     !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.SourceId)
                     && !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.TargetId)).ToList();
-                if (!TryTranslateInternalRun(Mover, Index, Vertical, Offset, Obstacles))
+                if (!TryTranslateInternalRun(Mover, Index, Vertical, Offset, Obstacles, LayoutOwner))
                 {
-                    TryTranslateInternalRun(Mover, Index, Vertical, -Offset, Obstacles);
+                    TryTranslateInternalRun(Mover, Index, Vertical, -Offset, Obstacles, LayoutOwner);
                 }
             }
         }
@@ -102,7 +102,8 @@ public static partial class DiagramGridLayout
     // A bend belongs to both adjoining runs. Moving just one point creates a
     // diagonal, so only translate a complete internal run between two elbows.
     internal static bool TryTranslateInternalRun(
-        FlowchartLayoutEdgeRoute Route, int Index, bool Vertical, double Offset, List<GridNode> Placed)
+        FlowchartLayoutEdgeRoute Route, int Index, bool Vertical, double Offset, List<GridNode> Placed,
+        FlowchartLayoutResult? LayoutOwner = null)
     {
         if (Index < 1 || Index + 2 >= Route.Points.Count)
         {
@@ -142,21 +143,20 @@ public static partial class DiagramGridLayout
         bool Clear = BeforeRun * OldBeforeRun > 0 && AfterRun * OldAfterRun > 0
             && Math.Abs(BeforeRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX
             && Math.Abs(AfterRun) >= DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+        GridNodeObstacleIndex ObstacleIndex = new GridNodeObstacleIndex(Placed);
         for (int Segment = Index; Segment <= Index + 2 && Clear; Segment++)
         {
-            foreach (GridNode Node in Placed)
+            FlowchartLayoutPoint A = Route.Points[Segment - 1];
+            FlowchartLayoutPoint B = Route.Points[Segment];
+            foreach (GridNode Node in ObstacleIndex.QuerySegment(A.X, A.Y, B.X, B.Y, Route.SourceId, Route.TargetId))
             {
-                if (Node.Id == Route.SourceId || Node.Id == Route.TargetId)
+                FlowchartLayoutNodeBounds Bounds = new FlowchartLayoutNodeBounds
                 {
-                    continue;
-                }
-
-                FlowchartLayoutNodeBounds Bounds = new()
-                {
-                    CenterX = Node.X, CenterY = Node.Y, Width = Node.Width, Height = Node.Height
+                    CenterX = Node.X,
+                    CenterY = Node.Y,
+                    Width = Node.Width,
+                    Height = Node.Height
                 };
-                FlowchartLayoutPoint A = Route.Points[Segment - 1];
-                FlowchartLayoutPoint B = Route.Points[Segment];
                 if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Bounds))
                 {
                     Clear = false;
@@ -167,11 +167,94 @@ public static partial class DiagramGridLayout
 
         if (!Clear)
         {
-            if (Vertical) { Start.X = OldStart; End.X = OldEnd; }
-            else { Start.Y = OldStart; End.Y = OldEnd; }
+            if (Vertical)
+            {
+                Start.X = OldStart;
+                End.X = OldEnd;
+            }
+            else
+            {
+                Start.Y = OldStart;
+                End.Y = OldEnd;
+            }
+
+            return false;
         }
 
-        return Clear;
+        LayoutOwner?.BumpGeometryVersion();
+        return true;
+    }
+
+    private sealed class GridNodeObstacleIndex
+    {
+        private const double CELL_SIZE = 120.0;
+
+        private readonly record struct Cell(int X, int Y);
+
+        private readonly Dictionary<Cell, List<GridNode>> _Cells = new Dictionary<Cell, List<GridNode>>();
+
+        internal GridNodeObstacleIndex(List<GridNode> Placed)
+        {
+            foreach (GridNode Node in Placed)
+            {
+                (int MinX, int MinY, int MaxX, int MaxY) = CellRange(
+                    Node.X - (Node.Width / 2.0),
+                    Node.Y - (Node.Height / 2.0),
+                    Node.X + (Node.Width / 2.0),
+                    Node.Y + (Node.Height / 2.0));
+                for (int CellX = MinX; CellX <= MaxX; CellX++)
+                {
+                    for (int CellY = MinY; CellY <= MaxY; CellY++)
+                    {
+                        Cell Key = new Cell(CellX, CellY);
+                        if (!_Cells.TryGetValue(Key, out List<GridNode>? Items))
+                        {
+                            _Cells[Key] = Items = new List<GridNode>();
+                        }
+
+                        Items.Add(Node);
+                    }
+                }
+            }
+        }
+
+        internal IEnumerable<GridNode> QuerySegment(double X1, double Y1, double X2, double Y2, string SourceId, string TargetId)
+        {
+            (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Math.Min(X1, X2), Math.Min(Y1, Y2), Math.Max(X1, X2), Math.Max(Y1, Y2));
+            HashSet<GridNode> Seen = new HashSet<GridNode>();
+            for (int CellX = MinX; CellX <= MaxX; CellX++)
+            {
+                for (int CellY = MinY; CellY <= MaxY; CellY++)
+                {
+                    if (!_Cells.TryGetValue(new Cell(CellX, CellY), out List<GridNode>? Items))
+                    {
+                        continue;
+                    }
+
+                    foreach (GridNode Node in Items)
+                    {
+                        if (Node.Id == SourceId || Node.Id == TargetId)
+                        {
+                            continue;
+                        }
+
+                        if (Seen.Add(Node))
+                        {
+                            yield return Node;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static (int MinX, int MinY, int MaxX, int MaxY) CellRange(double Left, double Bottom, double Right, double Top)
+        {
+            int MinX = (int)Math.Floor(Left / CELL_SIZE) - 1;
+            int MinY = (int)Math.Floor(Bottom / CELL_SIZE) - 1;
+            int MaxX = (int)Math.Floor(Right / CELL_SIZE) + 1;
+            int MaxY = (int)Math.Floor(Top / CELL_SIZE) + 1;
+            return (MinX, MinY, MaxX, MaxY);
+        }
     }
 
     private static bool InsideAny(List<GridNode> Placed, double X, double Y)
@@ -250,8 +333,8 @@ public static partial class DiagramGridLayout
                         double Near = Vertical ? Left - STUB_PX - Point.X : Bottom - STUB_PX - Point.Y;
                         double Far = Vertical ? Right + STUB_PX - Point.X : Top + STUB_PX - Point.Y;
                         if (Math.Abs(Far) < Math.Abs(Near)) { (Near, Far) = (Far, Near); }
-                        if (TryTranslateInternalRun(Route, Run, Vertical, Near, Placed)
-                            || TryTranslateInternalRun(Route, Run, Vertical, Far, Placed))
+                        if (TryTranslateInternalRun(Route, Run, Vertical, Near, Placed, Copy)
+                            || TryTranslateInternalRun(Route, Run, Vertical, Far, Placed, Copy))
                         {
                             break;
                         }

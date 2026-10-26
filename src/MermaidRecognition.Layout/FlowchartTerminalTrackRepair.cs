@@ -92,7 +92,7 @@ internal static class FlowchartTerminalTrackRepair
                     Restore(Route, Original);
                     int Index = Run.Source ? 1 : Route.Points.Count - 3;
                     if (!DiagramGridLayout.TryTranslateInternalRun(Route, Index, Run.Horizontal,
-                            Track - Run.Bend, Placed)) { Observer?.Invoke("blocked-track", Key(Run), "geometry"); continue; }
+                            Track - Run.Bend, Placed, Layout)) { Observer?.Invoke("blocked-track", Key(Run), "geometry"); continue; }
                     var Candidate = Points(Route);
                     var After = Measure(Candidate, Others);
                     if (After.Crossings > Before.Crossings || After.Shared > Before.Shared

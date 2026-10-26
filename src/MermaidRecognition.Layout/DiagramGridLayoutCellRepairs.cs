@@ -594,15 +594,7 @@ public static partial class DiagramGridLayout
             string? WinnerKey = null;
             var ExaminedOptions = new List<CellRepairOption>();
             var CellState = FlowchartCellRepair.Capture(State.Placed);
-            string Signature = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                Regions = CellState.Regions.OrderBy(Pair => Pair.Key, StringComparer.Ordinal).Select(Pair => new
-                {
-                    Pair.Key, Pair.Value.StartRow, Pair.Value.StartColumn,
-                    Pair.Value.RowSpan, Pair.Value.ColumnSpan
-                }),
-                Columns = CellState.ColumnGaps.OrderBy(Pair => Pair.Key), Rows = CellState.RowGaps.OrderBy(Pair => Pair.Key)
-            });
+            ulong Signature = FlowchartLayoutGeometryHash.HashCellRepairSignature(CellState);
             var CandidateGrid = State.Placed[0].CellNode!.Grid;
             int SeenBandRejections = CandidateGrid.RegionConventionRejections;
             foreach (var Option in Options)
@@ -625,7 +617,8 @@ public static partial class DiagramGridLayout
                     > FlowchartLayoutRules.RepairChainLines)
                 { if (Option.Key.StartsWith("gap|", StringComparison.Ordinal)) FlowchartTerminalTrackRepair.Observer?.Invoke("gap-rejected", Option.Key,
                     "lines=" + State.Copy.EdgeRoutes.Count(Route => Ids.Contains(Route.SourceId) || Ids.Contains(Route.TargetId))); continue; }
-                if (!ReferenceCompletion && !Attempted.Add("cells|" + Signature + "|" + CellAssignmentIdentity(Option.Assignment))) continue;
+                if (!ReferenceCompletion && !Attempted.Add("cells|" + FlowchartLayoutGeometryHash.FormatKey(Signature)
+                    + "|" + FlowchartLayoutGeometryHash.FormatKey(CellAssignmentIdentity(Option.Assignment)))) continue;
                 Examined++;
                 if (NeedsHardRepair) ExaminedOptions.Add(Option);
                 if (!ReferenceCompletion) State.MoveBudget.CandidateMoves++;
@@ -761,17 +754,8 @@ public static partial class DiagramGridLayout
         /// <summary>Identifies actual complete target changes so equivalent proposals cannot consume the budget twice.</summary>
         /// <param name="Assignment">Validated immutable source and target states.</param>
         /// <returns>Exact ordered region/span and gap deltas, independent of the generating family.</returns>
-        private static string CellAssignmentIdentity(FlowchartCellRepair.Assignment Assignment) =>
-            System.Text.Json.JsonSerializer.Serialize(new
-            {
-                Regions = Assignment.After.Regions.Where(Pair => !Assignment.Before.Regions.TryGetValue(Pair.Key, out var Old) || Old != Pair.Value)
-                    .OrderBy(Pair => Pair.Key, StringComparer.Ordinal).Select(Pair => new
-                    {
-                        Pair.Key, Pair.Value.StartRow, Pair.Value.StartColumn, Pair.Value.RowSpan, Pair.Value.ColumnSpan
-                    }),
-                Columns = Assignment.After.ColumnGaps.OrderBy(Pair => Pair.Key),
-                Rows = Assignment.After.RowGaps.OrderBy(Pair => Pair.Key)
-            });
+        private static ulong CellAssignmentIdentity(FlowchartCellRepair.Assignment Assignment) =>
+            FlowchartLayoutGeometryHash.HashCellAssignmentIdentity(Assignment);
 
         /// <summary>Completes one previously examined assignment with the original routing sequence for safe recovery.</summary>
         /// <param name="State">Applied private candidate; the caller owns exact rollback.</param>

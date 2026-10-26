@@ -47,7 +47,7 @@ internal static class FlowchartDistinctTrackRepair
                     Restore(Route, Original);
                     double Step = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
                     if (!DiagramGridLayout.TryTranslateInternalRun(Route, Index, Vertical,
-                            Sign * Distance * Step, Placed)) continue;
+                            Sign * Distance * Step, Placed, Layout)) continue;
                     var Candidate = Measure(Route, Others, Paths);
                     bool CompletesSeparation = Candidate.Shared == 0 && GlobalShared == Before.Shared;
                     if (Candidate.Shared > Before.Shared || Candidate.Crossings > Before.Crossings && !CompletesSeparation) continue;

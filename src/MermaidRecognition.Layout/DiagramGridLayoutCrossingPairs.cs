@@ -168,10 +168,10 @@ public static partial class DiagramGridLayout
                     {
                     yield return ("track", () => Run + 1 < Route.Points.Count - 1
                         && TryTranslateInternalRun(Route, Run, Math.Abs(Route.Points[Run].X - Route.Points[Run + 1].X) < 0.001,
-                            Offset, State.Placed));
+                            Offset, State.Placed, State.Copy));
                     yield return ("joint-track", () => Run + 1 < Route.Points.Count - 1 && Other.Points.Count >= 4
                         && TryTranslateInternalRun(Route, Run, Math.Abs(Route.Points[Run].X - Route.Points[Run + 1].X) < 0.001,
-                            Offset, State.Placed)
+                            Offset, State.Placed, State.Copy)
                         && TranslateOther());
 
                     bool TranslateOther()
@@ -179,7 +179,7 @@ public static partial class DiagramGridLayout
                         int OtherRun = Runs(Other, Route).FirstOrDefault();
                         return OtherRun > 0 && TryTranslateInternalRun(Other, OtherRun,
                             Math.Abs(Other.Points[OtherRun].X - Other.Points[OtherRun + 1].X) < 0.001,
-                            -Offset, State.Placed);
+                            -Offset, State.Placed, State.Copy);
                     }
                     }
                 }

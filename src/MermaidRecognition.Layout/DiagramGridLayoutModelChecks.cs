@@ -375,13 +375,10 @@ public static partial class DiagramGridLayout
             // A route search depends on allocated terminals and obstacles, not
             // the other connectors being scored. Preserve obstacle order as
             // well as exact doubles so cached results retain search tie order.
-            string Geometry = System.Text.Json.JsonSerializer.Serialize(Bounds.Select(Item => new
+            ulong GeometryHash = FlowchartLayoutGeometryHash.HashBounds(Bounds);
+            if (State.FacingRouteGeometryHash != GeometryHash)
             {
-                Item.Key, Item.Value.CenterX, Item.Value.CenterY, Item.Value.Width, Item.Value.Height
-            }));
-            if (State.FacingRouteGeometry != Geometry)
-            {
-                State.FacingRouteGeometry = Geometry;
+                State.FacingRouteGeometryHash = GeometryHash;
                 State.FacingRoutePaths.Clear();
             }
             var Plans = Faulty.SelectMany(Route => new[] { (Node: Route.SourceId, Source: true, Route),
@@ -434,18 +431,15 @@ public static partial class DiagramGridLayout
                     var Changed = Item.Route;
                     if (!Bounds.TryGetValue(Changed.SourceId, out var From) || !Bounds.TryGetValue(Changed.TargetId, out var To)) { Complete = false; break; }
                     var Edge = FindContractEdge(State.Contract, Changed);
-                    string PathKey = System.Text.Json.JsonSerializer.Serialize(new
-                    {
-                        Changed.SourceId, Changed.TargetId, Changed.ExitSide, Changed.EntrySide,
-                        StartX = Changed.Points[0].X, StartY = Changed.Points[0].Y,
-                        EndX = Changed.Points[^1].X, EndY = Changed.Points[^1].Y,
-                        Changed.ExitNormalX, Changed.ExitNormalY, Changed.EntryNormalX, Changed.EntryNormalY,
-                        SourceShape = State.Nodes.GetValueOrDefault(Changed.SourceId)?.Shape,
-                        TargetShape = State.Nodes.GetValueOrDefault(Changed.TargetId)?.Shape,
-                        State.Direction, State.Horizontal, Edge?.RoutingHint?.Travel,
-                        HintActive = Edge?.RoutingHint?.IsActive
-                    });
-                    if (!State.FacingRoutePaths.TryGetValue(PathKey, out var Path))
+                    ulong PathKey = FlowchartLayoutGeometryHash.HashFacingPathKey(
+                        Changed,
+                        State.Nodes.GetValueOrDefault(Changed.SourceId)?.Shape,
+                        State.Nodes.GetValueOrDefault(Changed.TargetId)?.Shape,
+                        State.Direction,
+                        State.Horizontal,
+                        Edge?.RoutingHint?.Travel,
+                        Edge?.RoutingHint?.IsActive);
+                    if (!State.FacingRoutePaths.TryGetValue(PathKey, out List<(double X, double Y)>? Path))
                     {
                         FlowchartRenderContext.ReportOperationCount("facing-route-cache-misses", 1);
                         Path = DiagramGridRouteBuilder.BuildRoute(Changed.Points[0].X, Changed.Points[0].Y,
@@ -462,7 +456,12 @@ public static partial class DiagramGridLayout
                     else FlowchartRenderContext.ReportOperationCount("facing-route-cache-hits", 1);
                     if (Path.Count < 2) { Complete = false; break; }
                     Changed.Points.Clear();
-                    foreach (var Point in Path) Changed.Points.Add(new() { X = Point.X, Y = Point.Y });
+                    foreach ((double X, double Y) Point in Path)
+                    {
+                        Changed.Points.Add(new FlowchartLayoutPoint { X = Point.X, Y = Point.Y });
+                    }
+
+                    State.Copy.BumpGeometryVersion();
                 }
                 var After = Complete ? FlowchartRouteRuleChecker.Check(State.Contract, State.Copy) : Before;
                 if (Complete && !After.Any(Finding => Finding.Rule == "10")

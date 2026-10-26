@@ -1245,6 +1245,7 @@ public static class FlowchartDagrePresentation
             GraphWidth = Source.GraphWidth,
             GraphHeight = Source.GraphHeight
         };
+        Copy.SuppressGeometryBump = true;
         foreach (FlowchartLayoutNodeBounds Bounds in Source.NodeBounds)
         {
             Copy.NodeBoundsMutable.Add(new FlowchartLayoutNodeBounds
@@ -1295,6 +1296,7 @@ public static class FlowchartDagrePresentation
             Copy.EdgeRoutesMutable.Add(Clone);
         }
 
+        Copy.SuppressGeometryBump = false;
         return Copy;
     }
 

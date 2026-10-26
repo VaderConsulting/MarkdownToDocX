@@ -459,6 +459,7 @@ public static partial class DiagramGridLayout
 
     private static void WriteBack(FlowchartLayoutResult Copy, List<GridNode> Placed, List<GridFrame> Frames)
     {
+        Copy.SuppressGeometryBump = true;
         Copy.NodeBoundsMutable.Clear();
         foreach (GridNode Node in Placed)
         {
@@ -495,6 +496,9 @@ public static partial class DiagramGridLayout
             MaxX = Math.Max(MaxX, Node.X + (Node.Width / 2.0));
             MaxY = Math.Max(MaxY, Node.Y + (Node.Height / 2.0));
         }
+
+        Copy.SuppressGeometryBump = false;
+        Copy.BumpGeometryVersion();
     }
 
     private static List<GridNode> NodesInRank(List<GridNode> Placed, int Rank)
@@ -687,6 +691,7 @@ public static partial class DiagramGridLayout
             GraphHeight = Source.GraphHeight,
             RenderContext = Source.RenderContext
         };
+        Copy.SuppressGeometryBump = true;
         foreach (FlowchartLayoutNodeBounds Bounds in Source.NodeBounds)
         {
             Copy.NodeBoundsMutable.Add(new FlowchartLayoutNodeBounds
@@ -738,6 +743,7 @@ public static partial class DiagramGridLayout
             Copy.EdgeRoutesMutable.Add(Clone);
         }
 
+        Copy.SuppressGeometryBump = false;
         return Copy;
     }
 

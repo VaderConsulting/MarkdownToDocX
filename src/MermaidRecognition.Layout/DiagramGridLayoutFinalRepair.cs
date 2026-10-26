@@ -298,7 +298,8 @@ public static partial class DiagramGridLayout
                     Guide.Edge.Id, Guide.RouteKind, Points = Guide.Points.Select(Point => new { Point.X, Point.Y })
                 }).ToArray() : null
             });
-            return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Value)));
+            byte[] Bytes = System.Text.Encoding.UTF8.GetBytes(Value);
+            return FlowchartLayoutGeometryHash.FormatKey(System.IO.Hashing.XxHash64.HashToUInt64(Bytes));
         }
 
         /// <summary>Measures all finished lines, including crossings remote from the candidate's dependency closure.</summary>

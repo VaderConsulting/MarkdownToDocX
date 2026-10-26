@@ -19,6 +19,12 @@ public static class FlowchartRouteRuleChecker
     {
         ArgumentNullException.ThrowIfNull(contract);
         ArgumentNullException.ThrowIfNull(layout);
+        ulong GeometrySignature = FlowchartLayoutGeometryHash.HashLayoutGeometry(layout);
+        if (layout.TryGetMemoizedCheck(GeometrySignature, out IReadOnlyList<Finding> Cached))
+        {
+            return Cached;
+        }
+
         List<Finding> findings = [];
         Dictionary<string, FlowchartLayoutNodeBounds> boxes = layout.NodeBounds
             .Concat(layout.ClusterBounds).GroupBy(box => box.NodeId, StringComparer.Ordinal)
@@ -73,6 +79,7 @@ public static class FlowchartRouteRuleChecker
                     paths[Left], paths[Right]).Overlap > 0.001)
                 findings.Add(new("5.1", EdgeName(A.Edge) + " x " + EdgeName(B.Edge), "routes share a positive-length track"));
         }
+        layout.StoreMemoizedCheck(GeometrySignature, findings);
         return findings;
     }
 
