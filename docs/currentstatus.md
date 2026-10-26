@@ -4,17 +4,29 @@ This is the only status file. It describes what is true now and what is still to
 
 ## Where to check status visually
 
+**LiveEditor (parse + preview on screen)** - from the repository root on Windows:
+
+```powershell
+dotnet run -c Release --project src/LiveEditor/LiveEditor.csproj
+```
+
+Or open `src/LiveEditor/LiveEditor.csproj` in Visual Studio and press F5.
+
+1. **Built-in samples** - menu **Samples** → pick a kind (for example **Flowchart** → *Start to done (Simple)* or *Shapes, links, and groups (Complete)*; **Enterprise** → *Web shop (Simple)* or *Clauses and relationships (Complete)*). The left pane is source; the right pane is the live preview after parse and layout.
+2. **Catalogue markdown** - **File → Open** and choose `flow.md`, `enterprise.md`, or `EIP.md` at the repo root. Use the diagram list or caret in the editor to move between fenced `mermaid` blocks; preview updates per block (large files can take time on heavy diagrams such as A142).
+3. **What to look for** - preview matches intent; inline squiggles and **View → Diagnostics** (if enabled) for parse errors; status bar after open; **Selection** panel when you click a shape in the preview (line sync both ways).
+
 | What | Where |
 |------|--------|
+| Live editor app | `src/LiveEditor` (run command above) |
+| Sample definitions (menu text and source) | `src/LiveEditor/Editor/SampleCatalog.cs` |
 | Plan, milestones and this log | `docs/currentstatus.md` (sections below) |
 | Phased engine plan | `docs/ENGINE-REVIEW.md` |
-| Bench commands | `docs/bench/README.md` |
+| Bench commands (batch SVG hashes, not the UI) | `docs/bench/README.md` |
 | Baseline SVG hashes (local, not in git) | `docs/bench/catalogue-baseline.jsonl` |
 | Hash compare after a bench run | `powershell -File docs/bench/Compare-CatalogueHashes.ps1` |
-| Latest bench console log | `docs/bench/catalogue-baseline-run-3.log` (or newest `catalogue-baseline-run-*.log`) |
-| Unpushed engine commits | `git log origin/master..HEAD` (four commits ahead: `5a774d7`, `b94230f`, `77716de`, `92119bf`) |
-| Title-band dedupe test | `tests/MermaidRecognition.Layout.Tests/FlowchartEnteredTitleBandTests.cs` |
-| Live editor (separate track) | `src/LiveEditor` |
+| Latest full bench run | `docs/bench/catalogue-baseline-run-5.log` / `docs/bench/catalogue-baseline.jsonl` (**261** hashes) |
+| Unpushed engine commits | `git log origin/master..HEAD` |
 
 ## Progress log — 26 October 2026 (engine follow-up)
 
@@ -22,17 +34,17 @@ This is the only status file. It describes what is true now and what is still to
 |-----------|--------|--------|
 | Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Sort plus adjacent unique; `FlowchartEnteredTitleBandTests` passes. Catalogue hash check still pending (baseline incomplete). |
 | Step 2: Safe per-contract caches | **Committed** `92119bf` | `FindBackEdges` returns `IReadOnlySet`; `BuildGroupById` returns `IReadOnlyDictionary`; `DiagramContractLayoutCacheGuard` in DEBUG. |
-| Catalogue baseline capture | **Blocked** | `docs/bench/catalogue-baseline.jsonl` has 120 lines and ends mid-record at **A120** (truncated). Re-run bench after killing stray `LayoutCatalogueBench` processes. |
+| Catalogue baseline capture | **Done** | `catalogue-baseline-run-5.log`: **261** rendered, **46** skipped, **0** failed, ~**181** s CPU total. Output: `docs/bench/catalogue-baseline.jsonl`. Skips follow `CatalogueBenchExclusions.cs`. **A127** needed a parser fix (same-type redeclaration merges label/container per `enterprise.md` decision 30); uncommitted with bench exclusion tool changes. |
 | Phase 2 checklist vs review | **Likely complete** | No `FlowchartFrameTitleBandHelper.Build` calls left in `DiagramGridLayoutModelChecks.cs`; prior commits cover memo, keys and spatial index. |
 | Phase 3 item 8 (4.12 bend-removing) | **Not started** | Prior experiments broke `BendRemovingPortRepairTests`; approach must stay conservative. |
 | Step 4 docs wording | **Not started** | `ENGINE-REVIEW.md` and `docs/bench/README.md` only. |
 | Step 6 README commit | **Waiting** | `README.md` staged content approved; commit alone when asked. |
 
-**Next actions:** Finish a full catalogue bench run and compare hashes (no push). Start Phase 3 item 8 only after zero hash diffs.
+**Next actions:** Re-run **A142** with a higher ms cap for timing only; decide how to treat the 24 other catalogue failures for hash parity (fixture/rules vs bench harness). Compare **Ok:true** diagrams only once a known-good baseline exists. Start Phase 3 item 8 only after zero SVG hash diffs on the agreed set.
 
 ## Engine speed-up and follow-up work, in order — 26 October 2026
 
-Do these in the order below. Steps 1 and 2 are committed locally (`77716de`, `92119bf`); confirm output with a full catalogue bench before Phase 3 speed work. Master on GitHub is at `c26555f`. Local master is four commits ahead (`5a774d7`, `b94230f`, `77716de`, `92119bf`, not pushed).
+Do these in the order below. Steps 1 and 2 are committed locally (`77716de`, `92119bf`); confirm output with a full catalogue bench before Phase 3 speed work. Master on GitHub is at `c26555f`. Local master is five commits ahead of `origin/master` (not pushed).
 
 Rules for all of this work:
 
