@@ -15,3 +15,8 @@ Optional arguments: output path, per-diagram cap in milliseconds (default 90000)
 ## Compare
 
 Re-run after engine changes and diff `SvgSha256` per `Id`. Phases 1-3 require zero differences against the Phase 0 baseline file you capture after the port-rule work lands.
+
+```powershell
+dotnet run -c Release --project tools/LayoutCatalogueBench/LayoutCatalogueBench.csproj docs/bench/catalogue-verify.jsonl
+powershell -File docs/bench/Compare-CatalogueHashes.ps1 -Baseline docs/bench/catalogue-baseline.jsonl -Candidate docs/bench/catalogue-verify.jsonl
+```

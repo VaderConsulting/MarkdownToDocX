@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using MDConverter.Pipeline;
+using MDConverter;
 
 namespace LayoutCatalogueBench;
 
@@ -52,7 +52,7 @@ internal static class Program
                 string? Error = null;
                 try
                 {
-                    Ok = DocxWriter.TryRenderDiagramSvg(Source, out string RenderedSvg);
+                    Ok = MermaidDiagramExport.TryRenderPreviewSvg(Source, out string RenderedSvg);
                     Svg = RenderedSvg;
                 }
                 catch (Exception Ex)

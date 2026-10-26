@@ -17,100 +17,163 @@ internal static class FlowchartDistinctTrackRepair
     internal static bool Apply(DiagramContract Contract, FlowchartLayoutResult Layout,
         List<DiagramGridLayout.GridNode> Placed, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
-        if (OnlyRoutes is { Count: 0 }) return false;
+        if (OnlyRoutes is { Count: 0 })
+        {
+            return false;
+        }
+
+        FlowchartLayoutEdgeRoute[] AllRoutes = Layout.EdgeRoutes.ToArray();
+        Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> PathCache = new Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]>();
+        foreach (FlowchartLayoutEdgeRoute Route in AllRoutes)
+        {
+            PathCache[Route] = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        }
+
         bool Changed = false;
         int GlobalShared = FlowchartRouteRuleChecker.Check(Contract, Layout).Count(Finding => Finding.Rule == "5.1");
-        foreach (var Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 4 && (OnlyRoutes == null || OnlyRoutes.Contains(Route))))
+        foreach (FlowchartLayoutEdgeRoute Route in AllRoutes.Where(Route => Route.Points.Count >= 4 && (OnlyRoutes == null || OnlyRoutes.Contains(Route))))
         {
-            // Entry/exit hints constrain the unchanged terminals. A travel hint
-            // also constrains the interior, so that family is left untouched.
-            if (DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint is { IsActive: true, Travel: not null }) continue;
-            var Others = Layout.EdgeRoutes.Where(Other => Other != Route && Other.Points.Count >= 2).ToArray();
-            var Paths = Others.Select(Other => Other.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
-            var Original = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-            var Before = Measure(Route, Others, Paths);
-            if (Before.Shared == 0) continue;
-            var Best = Before;
-            var BestCompleteCost = FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
+            if (DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint is { IsActive: true, Travel: not null })
+            {
+                continue;
+            }
+
+            FlowchartLayoutEdgeRoute[] Others = AllRoutes.Where(Other => Other != Route && Other.Points.Count >= 2).ToArray();
+            (double X, double Y)[][] OtherPaths = Others.Select(Other => PathCache[Other]).ToArray();
+            FlowchartRouteSegmentSpatialIndex SegmentIndex = new FlowchartRouteSegmentSpatialIndex(OtherPaths);
+            (double X, double Y)[] Original = PathCache[Route];
+            (int Shared, int Crossings, double Length) Before = Measure(Route, Others, PathCache, SegmentIndex);
+            if (Before.Shared == 0)
+            {
+                continue;
+            }
+
+            (int Shared, int Crossings, double Length) Best = Before;
+            FlowchartLayoutScore.ComparisonCost BestCompleteCost = FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
             (double X, double Y)[]? BestPoints = null;
             int Examined = 0;
-            var Runs = Enumerable.Range(1, Original.Length - 3).Where(Index => Paths.Any(Path =>
-                FlowchartBranchRouteOrder.Intersections(new[] { Original[Index], Original[Index + 1] }, Path).Overlap > 0.001)).ToArray();
-            if (Runs.Length == 0) continue;
-            for (int Distance = 1; Examined < FlowchartLayoutRules.RepairCandidateMoves; Distance++)
-            foreach (int Index in Runs)
+            int[] Runs = Enumerable.Range(1, Original.Length - 3)
+                .Where(Index => SegmentIndex.SegmentOverlapsAnyPath(Original[Index].X, Original[Index].Y, Original[Index + 1].X, Original[Index + 1].Y))
+                .ToArray();
+            if (Runs.Length == 0)
             {
-                bool Vertical = Math.Abs(Original[Index].X - Original[Index + 1].X) < 0.5;
-                foreach (int Sign in new[] { -1, 1 })
+                continue;
+            }
+
+            for (int Distance = 1; Examined < FlowchartLayoutRules.RepairCandidateMoves; Distance++)
+            {
+                foreach (int Index in Runs)
                 {
-                    if (Examined++ >= FlowchartLayoutRules.RepairCandidateMoves) break;
-                    Restore(Route, Original);
-                    double Step = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
-                    if (!DiagramGridLayout.TryTranslateInternalRun(Route, Index, Vertical,
-                            Sign * Distance * Step, Placed, Layout)) continue;
-                    var Candidate = Measure(Route, Others, Paths);
-                    bool CompletesSeparation = Candidate.Shared == 0 && GlobalShared == Before.Shared;
-                    if (Candidate.Shared > Before.Shared || Candidate.Crossings > Before.Crossings && !CompletesSeparation) continue;
-                    var CompleteCost = CompletesSeparation
-                        ? FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false).Cost
-                            + RouteLength(Route) / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
-                        : FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
-                    // Shared tracks are a legality failure. Once all are gone,
-                    // compare complete candidates with the existing whole-layout
-                    // score and repair-length weight, including any added crossing.
-                    if (CompletesSeparation ? CompleteCost >= BestCompleteCost : Candidate.CompareTo(Best) >= 0) continue;
-                    var Trial = new FlowchartLayoutResult();
-                    Trial.NodeBoundsMutable.AddRange(Layout.NodeBounds);
-                    Trial.ClusterBoundsMutable.AddRange(Layout.ClusterBounds);
-                    Trial.EdgeRoutesMutable.Add(Route);
-                    if (FlowchartRouteRuleChecker.Check(Contract, Trial).Any(Finding =>
-                            Finding.Subject == Route.EdgeId && Finding.Rule is "10" or "3.1" or "4.1")) continue;
-                    Best = Candidate;
-                    if (CompletesSeparation) BestCompleteCost = CompleteCost;
-                    BestPoints = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                    bool Vertical = Math.Abs(Original[Index].X - Original[Index + 1].X) < 0.5;
+                    foreach (int Sign in new[] { -1, 1 })
+                    {
+                        if (Examined++ >= FlowchartLayoutRules.RepairCandidateMoves)
+                        {
+                            break;
+                        }
+
+                        Restore(Route, Original);
+                        double Step = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
+                        if (!DiagramGridLayout.TryTranslateInternalRun(Route, Index, Vertical, Sign * Distance * Step, Placed, Layout))
+                        {
+                            continue;
+                        }
+
+                        PathCache[Route] = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                        (int Shared, int Crossings, double Length) Candidate = Measure(Route, Others, PathCache, SegmentIndex);
+                        bool CompletesSeparation = Candidate.Shared == 0 && GlobalShared == Before.Shared;
+                        if (Candidate.Shared > Before.Shared || Candidate.Crossings > Before.Crossings && !CompletesSeparation)
+                        {
+                            continue;
+                        }
+
+                        FlowchartLayoutScore.ComparisonCost CompleteCost = CompletesSeparation
+                            ? FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false).Cost
+                                + RouteLength(Route) / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
+                            : FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
+                        if (CompletesSeparation ? CompleteCost >= BestCompleteCost : Candidate.CompareTo(Best) >= 0)
+                        {
+                            continue;
+                        }
+
+                        FlowchartLayoutResult Trial = new FlowchartLayoutResult();
+                        Trial.NodeBoundsMutable.AddRange(Layout.NodeBounds);
+                        Trial.ClusterBoundsMutable.AddRange(Layout.ClusterBounds);
+                        Trial.EdgeRoutesMutable.Add(Route);
+                        if (FlowchartRouteRuleChecker.Check(Contract, Trial).Any(Finding =>
+                                Finding.Subject == Route.EdgeId && Finding.Rule is "10" or "3.1" or "4.1"))
+                        {
+                            continue;
+                        }
+
+                        Best = Candidate;
+                        if (CompletesSeparation)
+                        {
+                            BestCompleteCost = CompleteCost;
+                        }
+
+                        BestPoints = PathCache[Route];
+                    }
                 }
             }
+
             Restore(Route, BestPoints ?? Original);
-            if (BestPoints != null) GlobalShared += Best.Shared - Before.Shared;
+            PathCache[Route] = BestPoints ?? Original;
+            if (BestPoints != null)
+            {
+                GlobalShared += Best.Shared - Before.Shared;
+            }
+
             Changed |= BestPoints != null;
         }
+
         return Changed;
     }
 
-    /// <summary>Measures the changed connector's travelled length for the existing repair-length score.</summary>
-    /// <param name="Route">The complete candidate, including its unchanged allocated terminals.</param>
-    /// <returns>The polyline length in pixels.</returns>
     private static double RouteLength(FlowchartLayoutEdgeRoute Route) => Route.Points.Zip(Route.Points.Skip(1))
         .Sum(Pair => Math.Sqrt(Math.Pow(Pair.Second.X - Pair.First.X, 2) + Math.Pow(Pair.Second.Y - Pair.First.Y, 2)));
 
-    /// <summary>Measures the same positive shared segments and proper crossing pairs used by the audit.</summary>
-    /// <param name="Route">The changed route currently installed in the layout.</param>
-    /// <param name="Others">Unchanged routes paired with the candidate.</param>
-    /// <param name="Paths">Their cached immutable geometry.</param>
-    /// <returns>Pair counts followed by shared length for a stable improvement among equal pair counts.</returns>
     private static (int Shared, int Crossings, double Length) Measure(FlowchartLayoutEdgeRoute Route,
-        FlowchartLayoutEdgeRoute[] Others, (double X, double Y)[][] Paths)
+        FlowchartLayoutEdgeRoute[] Others, Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> PathCache,
+        FlowchartRouteSegmentSpatialIndex SegmentIndex)
     {
-        var Path = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        int Shared = 0, Crossings = 0;
+        (double X, double Y)[] Path = PathCache[Route];
+        int Shared = 0;
+        int Crossings = 0;
         double Length = 0;
+        HashSet<int> Relevant = new HashSet<int>(SegmentIndex.PathsOverlapping(Path));
+        bool ScanAll = Relevant.Count == 0 && Path.Length >= 2;
         for (int Index = 0; Index < Others.Length; Index++)
         {
-            double Overlap = FlowchartBranchRouteOrder.Intersections(Path, Paths[Index]).Overlap;
-            if (Overlap > 0.001) Shared++;
+            if (!ScanAll && !Relevant.Contains(Index))
+            {
+                continue;
+            }
+
+            (double X, double Y)[] OtherPath = PathCache[Others[Index]];
+            double Overlap = FlowchartBranchRouteOrder.Intersections(Path, OtherPath).Overlap;
+            if (Overlap > 0.001)
+            {
+                Shared++;
+            }
+
             Length += Overlap;
             if ((Route.SourceId != Others[Index].SourceId || Route.TargetId != Others[Index].TargetId)
-                && FlowchartRouteRuleChecker.HasProperCrossing(Route, Others[Index])) Crossings++;
+                && FlowchartRouteRuleChecker.HasProperCrossing(Route, Others[Index]))
+            {
+                Crossings++;
+            }
         }
+
         return (Shared, Crossings, Length);
     }
 
-    /// <summary>Restores exact coordinates without rounding fractional port slots.</summary>
-    /// <param name="Route">The mutable route whose exact geometry is restored.</param>
-    /// <param name="Points">The saved baseline or complete winning candidate.</param>
     private static void Restore(FlowchartLayoutEdgeRoute Route, (double X, double Y)[] Points)
     {
         Route.Points.Clear();
-        foreach (var Point in Points) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+        foreach ((double X, double Y) Point in Points)
+        {
+            Route.Points.Add(new FlowchartLayoutPoint { X = Point.X, Y = Point.Y });
+        }
     }
 }
