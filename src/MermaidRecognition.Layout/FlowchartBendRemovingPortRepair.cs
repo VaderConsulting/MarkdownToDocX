@@ -73,7 +73,11 @@ internal static class FlowchartBendRemovingPortRepair
                 var Initial = FlowchartLayoutScore.Measure(Contract, Layout, false);
                 var Scorer = new FlowchartLayoutScore.CellMovementContext(Contract, Layout);
                 var InitialFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
-                var Reference = Layout.EdgeRoutes.ToDictionary(Route => Route, Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray());
+                IReadOnlyDictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> Reference = Layout.EdgeRoutes.ToDictionary(
+                    Route => Route,
+                    Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray());
+                Dictionary<(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second), (int Crossings, double Overlap)> ReferenceInteractions =
+                    new Dictionary<(FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute), (int, double)>();
                 Saved[]? Best = null; var BestCost = Initial.Cost; int BestRemoved = 0; string BestKind = "";
                 foreach (var Change in Changes)
                 {
@@ -98,7 +102,7 @@ internal static class FlowchartBendRemovingPortRepair
                     // for this repair: every changed line must lose a bend.
                     int Reduction = Affected.Sum(Route => Corners(Reference[Route]) - FlowchartLayoutScore.CountCorners(Route.Points));
                     if (Reduction <= 0) continue;
-                    if (!InteractionsDoNotGrow(Layout, Affected, Reference))
+                    if (!InteractionsDoNotGrow(Layout, Affected, Reference, ReferenceInteractions))
                     {
                         Restore(Original);
                         if (Change.Kind == "swap") SwapDecisionObserver?.Invoke(Id, "crossing-rejected");
@@ -396,15 +400,46 @@ internal static class FlowchartBendRemovingPortRepair
     /// <param name="Affected">Only rerouted lines.</param>
     /// <param name="Reference">Exact unchanged base polylines.</param>
     /// <returns>Whether every pair preserves or reduces crossings and overlap.</returns>
-    private static bool InteractionsDoNotGrow(FlowchartLayoutResult Layout, IReadOnlySet<FlowchartLayoutEdgeRoute> Affected,
-        IReadOnlyDictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> Reference)
+    private static bool InteractionsDoNotGrow(
+        FlowchartLayoutResult Layout,
+        IReadOnlySet<FlowchartLayoutEdgeRoute> Affected,
+        IReadOnlyDictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> Reference,
+        Dictionary<(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second), (int Crossings, double Overlap)>? ReferenceInteractions = null)
     {
-        foreach (var A in Affected) foreach (var B in Layout.EdgeRoutes.Where(Route => Route != A))
+        foreach (FlowchartLayoutEdgeRoute A in Affected)
         {
-            var Before = FlowchartBranchRouteOrder.Intersections(Reference[A], Reference[B]);
-            var After = FlowchartBranchRouteOrder.Intersections(A.Points.Select(Point => (Point.X, Point.Y)).ToArray(), B.Points.Select(Point => (Point.X, Point.Y)).ToArray());
-            if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + 0.001) return false;
+            (double X, double Y)[] AfterA = A.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            foreach (FlowchartLayoutEdgeRoute B in Layout.EdgeRoutes)
+            {
+                if (B == A)
+                {
+                    continue;
+                }
+
+                (int Crossings, double Overlap) Before;
+                if (ReferenceInteractions != null)
+                {
+                    (FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second) Key = (A, B);
+                    if (!ReferenceInteractions.TryGetValue(Key, out Before))
+                    {
+                        Before = FlowchartBranchRouteOrder.Intersections(Reference[A], Reference[B]);
+                        ReferenceInteractions[Key] = Before;
+                    }
+                }
+                else
+                {
+                    Before = FlowchartBranchRouteOrder.Intersections(Reference[A], Reference[B]);
+                }
+
+                (double X, double Y)[] AfterB = B.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(AfterA, AfterB);
+                if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + 0.001)
+                {
+                    return false;
+                }
+            }
         }
+
         return true;
     }
 
