@@ -39,7 +39,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
 
         Diagram.Layout["SiblingSubgraphCrossBoundarySpineAligned"] = true;
 
-        Dictionary<string, GroupContract> ContractGroupById =
+        IReadOnlyDictionary<string, GroupContract> ContractGroupById =
             FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
 
         List<GroupContract> CrossBoundaryGroups = Contract.Groups

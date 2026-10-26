@@ -57,7 +57,7 @@ public static class FlowchartLoopBackRouteHelper
             return false;
         }
 
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         if (!BackEdges.Contains(Edge))
         {
             return false;
@@ -122,7 +122,7 @@ public static class FlowchartLoopBackRouteHelper
         EdgeContract Edge,
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        HashSet<EdgeContract> BackEdges,
+        IReadOnlySet<EdgeContract> BackEdges,
         double Side,
         double StubX,
         double SpanMinY,
@@ -219,7 +219,7 @@ public static class FlowchartLoopBackRouteHelper
             return false;
         }
 
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         if (BackEdges.Count == 0 || BackEdges.Contains(Edge))
         {
             return false;
@@ -333,7 +333,7 @@ public static class FlowchartLoopBackRouteHelper
         EdgeContract Edge,
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById,
-        HashSet<EdgeContract> BackEdges,
+        IReadOnlySet<EdgeContract> BackEdges,
         FlowchartLayoutNodeBounds SourceBounds,
         FlowchartLayoutNodeBounds TargetBounds)
     {

@@ -57,7 +57,7 @@ public static class FlowchartCrossSubgraphRouteHelper
         double GuideX,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> BoundsById)
     {
-        Dictionary<string, GroupContract> GroupById =
+        IReadOnlyDictionary<string, GroupContract> GroupById =
             FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         Dictionary<string, FlowchartSubgraphLayoutRect> RectByGroupId =
             FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById)

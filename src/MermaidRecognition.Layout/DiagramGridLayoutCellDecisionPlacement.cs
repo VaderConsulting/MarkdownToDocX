@@ -170,7 +170,7 @@ public static partial class DiagramGridLayout
         Dictionary<string, FlowchartCellRegion> Targets =
             new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
         bool Changed = false;

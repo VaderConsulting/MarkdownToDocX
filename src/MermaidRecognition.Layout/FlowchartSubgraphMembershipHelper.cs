@@ -44,7 +44,7 @@ public static class FlowchartSubgraphMembershipHelper
         string NodeId,
         GroupContract Group,
         DiagramContract Contract,
-        Dictionary<string, GroupContract> GroupById)
+        IReadOnlyDictionary<string, GroupContract> GroupById)
     {
         foreach (string ChildNodeId in Group.ChildNodeIds)
         {
@@ -81,10 +81,13 @@ public static class FlowchartSubgraphMembershipHelper
 
     /// <summary>
     /// Builds a lookup of group contracts by id.
+    /// The contract must not change after the first lookup; parse edits into a new contract instead.
     /// </summary>
-    public static Dictionary<string, GroupContract> BuildGroupById(DiagramContract Contract)
+    public static IReadOnlyDictionary<string, GroupContract> BuildGroupById(DiagramContract Contract)
     {
-        return GetOrCreateContractCache(Contract).GroupById;
+        ContractMembershipCache Cached = GetOrCreateContractCache(Contract);
+        DiagramContractLayoutCacheGuard.AssertUnchanged(Contract);
+        return Cached.GroupById;
     }
 
     /// <summary>
@@ -108,7 +111,9 @@ public static class FlowchartSubgraphMembershipHelper
 
     private static ContractMembershipCache GetOrCreateContractCache(DiagramContract Contract)
     {
-        return ContractCache.GetValue(Contract, BuildContractCache);
+        ContractMembershipCache Cached = ContractCache.GetValue(Contract, BuildContractCache);
+        DiagramContractLayoutCacheGuard.AssertUnchanged(Contract);
+        return Cached;
     }
 
     private static ContractMembershipCache BuildContractCache(DiagramContract Contract)

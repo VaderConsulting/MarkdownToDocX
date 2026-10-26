@@ -610,7 +610,7 @@ public static class FlowchartRenderedSvgQualityGate
             return;
         }
 
-        Dictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        IReadOnlyDictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         foreach (SvgNodeRect GroupRect in GroupRects)
         {
             foreach (ParsedEdgeStroke Stroke in Strokes)
@@ -698,7 +698,7 @@ public static class FlowchartRenderedSvgQualityGate
         IReadOnlyList<SvgNodeRect> GroupRects,
         List<FlowchartLayoutQualityFailure> Violations)
     {
-        Dictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        IReadOnlyDictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             if (Stroke.Samples.Count < 2)
@@ -1660,7 +1660,7 @@ public static class FlowchartRenderedSvgQualityGate
 
     private static bool IsEndpointInGroup(
         DiagramContract Contract,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         string EndpointId,
         string GroupId)
     {

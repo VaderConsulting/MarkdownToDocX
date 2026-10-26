@@ -76,7 +76,7 @@ public static class FlowchartGeometryGraphBuilder
             NodesById[NodeContract.Id] = LayoutNode;
         }
 
-        HashSet<EdgeContract> SkippedBackEdges = SwapLayoutDimensions ? new HashSet<EdgeContract>() : FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> SkippedBackEdges = SwapLayoutDimensions ? new HashSet<EdgeContract>() : FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (EdgeContract EdgeContract in Contract.Edges)
         {
             if (SkippedBackEdges.Contains(EdgeContract) && !string.Equals(EdgeContract.SourceId, EdgeContract.TargetId, StringComparison.Ordinal) && !HasReverseEdge(Contract, EdgeContract))

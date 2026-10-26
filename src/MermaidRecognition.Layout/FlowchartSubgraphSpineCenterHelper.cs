@@ -414,7 +414,7 @@ public static class FlowchartSubgraphSpineCenterHelper
 
     private static HashSet<string> CollectMemberNodeIds(GroupContract Group, DiagramContract Contract)
     {
-        Dictionary<string, GroupContract> GroupById =
+        IReadOnlyDictionary<string, GroupContract> GroupById =
             FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         HashSet<string> MemberNodeIds = new HashSet<string>(StringComparer.Ordinal);
         CollectMemberNodeIdsRecursive(Group, Contract, GroupById, MemberNodeIds);
@@ -424,7 +424,7 @@ public static class FlowchartSubgraphSpineCenterHelper
     private static void CollectMemberNodeIdsRecursive(
         GroupContract Group,
         DiagramContract Contract,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         HashSet<string> MemberNodeIds)
     {
         foreach (string NodeId in Group.ChildNodeIds)

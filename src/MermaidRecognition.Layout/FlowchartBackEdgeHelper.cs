@@ -14,7 +14,9 @@ public static class FlowchartBackEdgeHelper
 {
     private sealed class CachedBackEdges
     {
-        public required HashSet<EdgeContract> Items { get; init; }
+        public required HashSet<EdgeContract> MutableItems { get; init; }
+
+        public IReadOnlySet<EdgeContract> Items => MutableItems;
     }
 
     private static readonly ConditionalWeakTable<DiagramContract, CachedBackEdges> ContractCache = new();
@@ -22,12 +24,15 @@ public static class FlowchartBackEdgeHelper
     /// <summary>
     /// Returns the visible edges that point back to a node still on the depth-first path.
     /// The walk starts from nodes in the order their first edge was declared and follows outgoing edges in declaration order.
+    /// The contract must not change after the first lookup; parse edits into a new contract instead.
     /// </summary>
     /// <param name="Contract">The parsed flowchart.</param>
     /// <returns>The back edges. Empty when the flowchart has no loops.</returns>
-    public static HashSet<EdgeContract> FindBackEdges(DiagramContract Contract)
+    public static IReadOnlySet<EdgeContract> FindBackEdges(DiagramContract Contract)
     {
-        return ContractCache.GetValue(Contract, ComputeBackEdges).Items;
+        CachedBackEdges Cached = ContractCache.GetValue(Contract, ComputeBackEdges);
+        DiagramContractLayoutCacheGuard.AssertUnchanged(Contract);
+        return Cached.Items;
     }
 
     private static CachedBackEdges ComputeBackEdges(DiagramContract Contract)
@@ -35,7 +40,7 @@ public static class FlowchartBackEdgeHelper
         HashSet<EdgeContract> BackEdges = new HashSet<EdgeContract>();
         if (Contract == null || Contract.Edges.Count == 0)
         {
-            return new CachedBackEdges { Items = BackEdges };
+            return new CachedBackEdges { MutableItems = BackEdges };
         }
 
         List<EdgeContract> VisibleEdges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).OrderBy(Edge => Edge.CreationIndex).ToList();
@@ -91,6 +96,6 @@ public static class FlowchartBackEdgeHelper
             }
         }
 
-        return new CachedBackEdges { Items = BackEdges };
+        return new CachedBackEdges { MutableItems = BackEdges };
     }
 }

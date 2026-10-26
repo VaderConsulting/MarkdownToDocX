@@ -196,7 +196,7 @@ public static partial class DiagramGridLayout
     private static void AlignTwoWayDecisionSideTargets(DiagramContract Contract, List<GridNode> Placed)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (GridNode Decision in Placed)
         {
             if (!Decision.IsDiamond)
@@ -387,7 +387,7 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
             && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
         foreach (GridNode Decision in Placed.Where(Node => Node.IsDiamond))
@@ -925,7 +925,7 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (GridNode Target in Placed)
         {
             List<GridNode> Parents = [];
@@ -974,7 +974,7 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         Dictionary<string, HashSet<string>> Parents = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         Dictionary<string, HashSet<string>> Children = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         foreach (EdgeContract Edge in Contract.Edges)
@@ -1080,7 +1080,7 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (GridNode Parent in Placed)
         {
             if (!Parent.IsDiamond)
@@ -1183,7 +1183,7 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
 
@@ -1284,7 +1284,7 @@ public static partial class DiagramGridLayout
         // cell occupancy, legality and bend cost decide swaps after routing.
         if (Placed.Any(Node => Node.CellNode != null)) return;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         Dictionary<string, int> ParentCount = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (EdgeContract Edge in Contract.Edges)
         {

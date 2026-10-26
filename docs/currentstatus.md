@@ -2,6 +2,120 @@
 
 This is the only status file. It describes what is true now and what is still to do. Old history is in `MarkdownToDocx-Backup\Old briefs\currentstatus-history-20261013.md` and in git.
 
+## Where to check status visually
+
+| What | Where |
+|------|--------|
+| Plan, milestones and this log | `docs/currentstatus.md` (sections below) |
+| Phased engine plan | `docs/ENGINE-REVIEW.md` |
+| Bench commands | `docs/bench/README.md` |
+| Baseline SVG hashes (local, not in git) | `docs/bench/catalogue-baseline.jsonl` |
+| Hash compare after a bench run | `powershell -File docs/bench/Compare-CatalogueHashes.ps1` |
+| Latest bench console log | `docs/bench/catalogue-baseline-run-3.log` (or newest `catalogue-baseline-run-*.log`) |
+| Unpushed engine commits | `git log origin/master..HEAD` (four commits ahead: `5a774d7`, `b94230f`, `77716de`, `12c7011`) |
+| Title-band dedupe test | `tests/MermaidRecognition.Layout.Tests/FlowchartEnteredTitleBandTests.cs` |
+| Live editor (separate track) | `src/LiveEditor` |
+
+## Progress log — 26 October 2026 (engine follow-up)
+
+| Milestone | Status | Notes |
+|-----------|--------|--------|
+| Step 1: `FindEnteredBandIds` de-dupe | **Committed** `77716de` | Sort plus adjacent unique; `FlowchartEnteredTitleBandTests` passes. Catalogue hash check still pending (baseline incomplete). |
+| Step 2: Safe per-contract caches | **Committed** `12c7011` | `FindBackEdges` returns `IReadOnlySet`; `BuildGroupById` returns `IReadOnlyDictionary`; `DiagramContractLayoutCacheGuard` in DEBUG. |
+| Catalogue baseline capture | **Blocked** | `docs/bench/catalogue-baseline.jsonl` has 120 lines and ends mid-record at **A120** (truncated). Re-run bench after killing stray `LayoutCatalogueBench` processes. |
+| Phase 2 checklist vs review | **Likely complete** | No `FlowchartFrameTitleBandHelper.Build` calls left in `DiagramGridLayoutModelChecks.cs`; prior commits cover memo, keys and spatial index. |
+| Phase 3 item 8 (4.12 bend-removing) | **Not started** | Prior experiments broke `BendRemovingPortRepairTests`; approach must stay conservative. |
+| Step 4 docs wording | **Not started** | `ENGINE-REVIEW.md` and `docs/bench/README.md` only. |
+| Step 6 README commit | **Waiting** | `README.md` staged content approved; commit alone when asked. |
+
+**Next actions:** Finish a full catalogue bench run and compare hashes (no push). Start Phase 3 item 8 only after zero hash diffs.
+
+## Engine speed-up and follow-up work, in order — 26 October 2026
+
+Do these in the order below. Steps 1 and 2 are committed locally (`77716de`, `12c7011`); confirm output with a full catalogue bench before Phase 3 speed work. Master on GitHub is at `c26555f`. Local master is four commits ahead (`5a774d7`, `b94230f`, `77716de`, `12c7011`, not pushed).
+
+Rules for all of this work:
+
+- `docs/Instructions/rules.yaml` is the only source of the layout and routing rules. Change a rule there first, then regenerate `LAYOUT-RULEBOOK.md` with `docs/Instructions/Build-Rulebook.ps1`. Never edit the rulebook by hand.
+- Fix the engine, never the checkers. Never loosen, skip or rewrite a test to make it pass.
+- F53 is protected. Its approved output and `F53ProtectedLayoutReferenceTests` must not change.
+- Change no search budget or limit unless step 3 below allows it.
+- Commit each step on its own, following `docs/Instructions/COMMIT-MESSAGE-STYLE.md` (see step 5).
+- Do not push. Dave says when to push.
+
+### 1. Restore de-duplication in `FindEnteredBandIds` — **done locally; commit and catalogue check pending**
+
+`1efe4cd` changed `FlowchartFrameTitleBandHelper.FindEnteredBandIds` to collect band ids in a `List` instead of a `HashSet`. A route with two segments that enter the same title band now lists that band twice, but the old code listed it once. The callers in `DiagramGridLayoutModelChecks.cs` (around lines 1837, 1990 and 2005) use the result for findings, so the output can change in a step that had to keep it identical.
+
+- Return each band id once, sorted by ordinal order, as before. Keep the speed gain: for example, skip an id already added (the list is short), or sort and then remove adjacent duplicates. Keep `Array.Empty` for the case where no band is entered.
+- Add a focused test: a route whose two segments both enter one band returns that band id once.
+- Re-run the catalogue benchmark and compare against the baseline (see step 3). Every SVG hash must match.
+
+### 2. Make the per-contract caches safe — **done locally; commit and catalogue check pending**
+
+`1efe4cd`, `c26555f` and `5a774d7` cache results per `DiagramContract` in a `ConditionalWeakTable` (`FlowchartSubgraphMembershipHelper`, `FlowchartBackEdgeHelper`) or per geometry hash. They assume that a contract's nodes, groups and edges never change after the first lookup. Nothing enforces that yet. The planned LiveEditor work, which updates only the items affected by an edit, will rely on it.
+
+- `FlowchartBackEdgeHelper.FindBackEdges` returns the cached `HashSet<EdgeContract>` itself, so any caller that adds to it or removes from it silently changes the cache for every later caller. Return a read-only view (`IReadOnlySet<EdgeContract>`) and update the callers. They only call `Contains` today. If a caller really needs a set it can change, it makes its own copy.
+- Do the same check for anything else these caches hand out: membership maps, group-by-id maps and cached band lists. Nothing cached may be returned as a mutable collection.
+- State the assumption in each cache's XML doc comment: the contract must not change after layout starts, and a changed diagram must be parsed into a new contract. Add a debug-only guard that records the node, group and edge counts (or a cheap signature) when an entry is created, and asserts that they are unchanged on each hit.
+- Output must stay identical: every catalogue SVG hash matches the baseline.
+
+### 3. Engine speed-up: progress and next steps
+
+The plan is `docs/ENGINE-REVIEW.md`, section "Apply order". Phases 0 to 3 must keep the output identical, so after each step every SVG hash from `tools/LayoutCatalogueBench` must match the baseline in `docs/bench/catalogue-baseline.jsonl`. Check this with `docs/bench/Compare-CatalogueHashes.ps1`. A difference means a stale cache or a changed order. Fix the code; never replace the baseline to make a difference go away. The baseline file stays the only reference until Dave approves Phase 4.
+
+Done so far (from git):
+
+- Phase 0, the baseline: the benchmark tool (`ec28bbc`), with a baseline captured in `docs/bench/` (not committed).
+- Phase 1, local hot spots: membership cache and top-port test order (`1efe4cd`, but see step 1), grid gap prefix sums (`ce216e9`), and `PaddedBox` hashing with vertex de-duplication in the padded router (`8de9083`).
+- Phase 2, shared caches: back edges and cached title bands in the model checks (`c26555f`), and memoised checks and scores from a geometry hash, compact cache keys and faster obstacle queries in internal route moves (`5a774d7`, local).
+- Phase 3, item 9: the distinct-track repair path cache and segment grid (`b94230f`, local).
+
+Next:
+
+1. Confirm that Phase 2 is complete against the review's list: all 10 uncached `FlowchartFrameTitleBandHelper.Build` calls in `DiagramGridLayoutModelChecks.cs` replaced, `FindBackEdges` and `BuildGroupById` cached, `Check` and `Measure` memoised, the JSON and string cache keys replaced (`SearchCellAssignmentsCore`, `RepairFinalFacingSides`, `FinalReferenceIdentity` and the frame-overlap loop key), and the spatial index in `TryTranslateInternalRun`. Finish anything missing.
+2. Phase 3, item 8: in `FlowchartBendRemovingPortRepair.Apply` (rule 4.12), use a worklist of changed nodes and lazy scoring, build obstacles and title bands once per pass, and cache the reference intersections in `InteractionsDoNotGrow`. Keep the candidate order, tie-breaks and rejection rules unchanged. If `ApplyCrossingSwaps` is wired back into `DiagramGridLayout`, give it the same worklist and per-pass caches.
+3. After Phase 3, re-time the whole catalogue and A142, re-profile A104, A115 and A142, and record the results here: the catalogue time before and after, the A142, A104, A115 and F153 times, the number of differing SVGs (must be zero) and the new top five profile entries.
+4. LiveEditor preview, which can run alongside Phases 1 to 3. These steps are not in the committed review, so they are listed here. They touch only `src/LiveEditor` and one new preview raster entry point. Diagram SVG and DOCX output must stay byte-identical, and the LiveEditor tests must pass unchanged.
+    - **Screen-scale preview.** `PreviewCanvas.Prepare` uses the 4× DOCX raster (`DocxWriter.TryRasterizeSvgToPng`), encodes a PNG, decodes it on the UI thread (`ShowPng`), and then `MainForm.CompleteRender` encodes it again (`CopyPng`). Instead, draw the `SKPicture` straight into a bitmap at zoom × DPI and give it to `DiagramPicture`, redrawing when the zoom changes. Build PNG bytes only for Export PNG or copy. Keep the `dotnet run` harness fallback off the live path. Hit-testing must use the new picture size. This saves about 0.3 s (A32) to 3.5 s (A104) of mostly UI-thread time per edit.
+    - **One render at a time.** `StartRender` starts a new `Task.Run` each time the timer fires, and cancellation does not stop the work already running. Keep at most one `RenderWorker` running, plus one slot for the latest pending text, which replaces any older pending text. Render at once if the last render took under about 150 ms; otherwise wait for a pause in typing. Pass the cancellation token into `PreviewCanvas.Load`. The engine-side token checks come later with the Phase 4 deadline. Set `Preview.UseLegacyRenderer` on the UI thread, not from the worker.
+    - **A larger render cache.** `EnterpriseSvgRenderer.Render` keeps only the last geometry, so undo and redo pay for a full layout again (A104: about 36 s). Make it a small most-recently-used cache (for example 8 entries, keyed on the geometry and the settings that affect the output), and cache the screen bitmap per (SVG hash, zoom).
+    - Record the per-edit times for A14 and A104 before and after.
+5. Stop here and report to Dave. Phases 4 and 5 change the output and need his approval first. Phase 4 adds the layout deadline and the size-scaled search budgets. Phase 5 removes the nested route completion and ranks wrap widths before routing. Both start with a `rules.yaml` change and a regenerated rulebook, and each sets a new baseline.
+
+### 4. Clean the wording in the committed review and benchmark notes
+
+Do this as one separate commit that changes only these two files.
+
+- `docs/ENGINE-REVIEW.md` names people and agents, and refers to a review machine and `/workspace/...` paths that do not exist in this repository. Describe the measurements without naming people, agents or machines ("measured on an 8-core x64 Linux machine"). Remove the `/workspace` paths, or replace them with the repository paths of the committed tools (`tools/LayoutCatalogueBench`, `docs/bench`).
+- `docs/bench/README.md` says "Phase 0" and "Phases 1-3". Say what they mean instead: "the baseline taken before the engine changes" and "changes that must leave every diagram unchanged".
+- Change no other text, code or data.
+
+### 5. Commit messages
+
+Every commit must follow `docs/Instructions/COMMIT-MESSAGE-STYLE.md`: one imperative subject, capitalised, about 50 characters and at most 72, with no full stop. No review item numbers, phase names or other codes. Never mention people or agents, so leave out the `Co-authored-by` trailer. The body is plain sentences that say what changed and why.
+
+- The six pushed commits `d4cbccc`, `ec28bbc`, `1efe4cd`, `ce216e9`, `8de9083` and `c26555f` do not follow the style: their subjects end with a full stop and include item and phase codes. Dave has replacement messages for them. Do not reword or force-push them unless Dave says so.
+- The local commits `5a774d7` and `b94230f` have good subjects but carry the `Co-authored-by: Cursor` trailer. They are not pushed yet, so remove the trailer before the next push. Do not change their content.
+
+### 6. Commit the new README
+
+`README.md` in the working tree already holds Dave's approved new version (an uncommitted change). Commit only `README.md`, on its own, with exactly this message:
+
+```text
+Update the README to match the current code
+
+The README still described dagre-only flowchart placement and left out
+the enterprise kind, native pie charts, the live editor and the layout
+and legend settings. Describe the current render paths, the Converter
+command line and the rules.yaml workflow, and add PowerShell to the
+requirements. Fix the commit style link and drop the stale pull request
+note.
+```
+
+- Do not edit the file. Leave `README.old.md` and every other untracked file out of the commit.
+- Push it with the next push Dave asks for.
+
 ## Profile routing phases and reuse fixed trial geometry — 18 October 2026
 
 Production activation is committed as 597bde3. Production cells remain ON;

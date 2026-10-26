@@ -74,7 +74,7 @@ public static class FlowchartOrdinaryFanOutRouteBuilder
     {
         // A direct link that skips part of a chain is a bypass, not an
         // independent fan-out branch. Keep it on obstacle-aware routing.
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         HashSet<string> Targets = new(Outgoing.ConvertAll(Edge => Edge.TargetId), StringComparer.Ordinal);
         foreach (string Target in Targets)
         {

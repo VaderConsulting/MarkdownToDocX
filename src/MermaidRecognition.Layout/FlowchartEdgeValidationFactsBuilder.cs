@@ -734,7 +734,7 @@ public static class FlowchartEdgeValidationFactsBuilder
             return false;
         }
 
-        Dictionary<string, GroupContract> GroupById =
+        IReadOnlyDictionary<string, GroupContract> GroupById =
             FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         Dictionary<string, FlowchartSubgraphLayoutRect> RectByGroupId =
             FlowchartSubgraphBoundsBuilder.BuildOrderedRects(Contract, BoundsById)

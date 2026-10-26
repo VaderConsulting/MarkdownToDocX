@@ -24,7 +24,7 @@ internal static class FlowchartDecisionBranchRouteRepair
         Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
             .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.ToList())
         {

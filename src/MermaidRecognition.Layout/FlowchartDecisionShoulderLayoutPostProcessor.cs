@@ -296,7 +296,7 @@ public static class FlowchartDecisionShoulderLayoutPostProcessor
 
     private static List<string> GetVisibleSuccessorIds(DiagramContract Contract, string NodeId)
     {
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<string> SuccessorIds = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {

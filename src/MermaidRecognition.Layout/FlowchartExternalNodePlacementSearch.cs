@@ -111,7 +111,7 @@ public static class FlowchartExternalNodePlacementSearch
         IReadOnlyList<string> Movable)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> Seed = Copy(Source);
-        Dictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        IReadOnlyDictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         foreach (string NodeId in Movable)
         {
             if (!TryChooseFacingSlot(Contract, Seed, GroupById, NodeId, out double CenterX, out double CenterY))
@@ -132,7 +132,7 @@ public static class FlowchartExternalNodePlacementSearch
     private static bool TryChooseFacingSlot(
         DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> ById,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         string NodeId,
         out double CenterX,
         out double CenterY)
@@ -330,7 +330,7 @@ public static class FlowchartExternalNodePlacementSearch
             }
         }
 
-        Dictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        IReadOnlyDictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         foreach (GroupContract Group in Contract.Groups)
         {
             if (!ById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds GroupBounds))
@@ -589,7 +589,7 @@ public static class FlowchartExternalNodePlacementSearch
             }
         }
 
-        Dictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        IReadOnlyDictionary<string, GroupContract> GroupById = FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         foreach (GroupContract Group in Contract.Groups)
         {
             if (!ById.TryGetValue(Group.Id, out FlowchartLayoutNodeBounds GroupBounds))
@@ -764,7 +764,7 @@ public static class FlowchartExternalNodePlacementSearch
 
     private static bool IsEndpointInGroup(
         DiagramContract Contract,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         string EndpointId,
         string GroupId)
     {

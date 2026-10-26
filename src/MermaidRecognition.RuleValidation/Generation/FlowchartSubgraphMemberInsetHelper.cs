@@ -189,7 +189,7 @@ public static class FlowchartSubgraphMemberInsetHelper
 
     private static List<string> CollectAllDescendantMemberNodeIds(GroupContract Group, DiagramContract Contract)
     {
-        Dictionary<string, GroupContract> GroupById =
+        IReadOnlyDictionary<string, GroupContract> GroupById =
             FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         HashSet<string> MemberNodeIds = new HashSet<string>(StringComparer.Ordinal);
         CollectDescendantMemberNodeIdsRecursive(Group, Contract, GroupById, MemberNodeIds);
@@ -199,7 +199,7 @@ public static class FlowchartSubgraphMemberInsetHelper
     private static void CollectDescendantMemberNodeIdsRecursive(
         GroupContract Group,
         DiagramContract Contract,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         HashSet<string> MemberNodeIds)
     {
         foreach (string NodeId in Group.ChildNodeIds)

@@ -805,7 +805,7 @@ public static class FlowchartLayoutPostProcessor
     {
         Dictionary<string, List<string>> SourceIdsByTargetId =
             new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
@@ -868,7 +868,7 @@ public static class FlowchartLayoutPostProcessor
             || Direction == FlowchartDirection.RightToLeft;
 
         Dictionary<string, double> CrossAxisAdjustments = new Dictionary<string, double>(StringComparer.Ordinal);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (NodeContract Node in Contract.Nodes)
         {
@@ -991,7 +991,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> ForwardEdges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) && !BackEdges.Contains(Edge) && !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal)).ToList();
         bool Changed = false;
 
@@ -1093,7 +1093,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (IsDecisionShape(Node.Shape))
@@ -1173,7 +1173,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
             List<EdgeContract> IncomingEdges = Contract.Edges
@@ -1248,7 +1248,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
             if (!IsDecisionShape(Node.Shape))
@@ -1318,7 +1318,7 @@ public static class FlowchartLayoutPostProcessor
     /// </summary>
     private static void MoveStraightChainWithBranch(
         DiagramContract Contract,
-        HashSet<EdgeContract> BackEdges,
+        IReadOnlySet<EdgeContract> BackEdges,
         Dictionary<string, FlowchartLayoutNodeBounds> MutableById,
         string BranchTargetId,
         double PreviousCross,
@@ -1359,7 +1359,7 @@ public static class FlowchartLayoutPostProcessor
         }
     }
 
-    private static List<string> GetForwardNeighbourIds(DiagramContract Contract, HashSet<EdgeContract> BackEdges, string NodeId, bool Successors)
+    private static List<string> GetForwardNeighbourIds(DiagramContract Contract, IReadOnlySet<EdgeContract> BackEdges, string NodeId, bool Successors)
     {
         List<string> NeighbourIds = [];
         foreach (EdgeContract Edge in Contract.Edges)
@@ -1630,7 +1630,7 @@ public static class FlowchartLayoutPostProcessor
             || Direction == FlowchartDirection.RightToLeft;
 
         Dictionary<string, double> CrossAxisAdjustments = new Dictionary<string, double>(StringComparer.Ordinal);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (NodeContract Node in Contract.Nodes)
         {

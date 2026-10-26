@@ -384,7 +384,7 @@ public static class FlowchartSpineGraphHelper
 
     private static List<EdgeContract> GetVisibleOutgoingEdges(DiagramContract Contract, string SourceNodeId)
     {
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         List<EdgeContract> OutgoingEdges = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {

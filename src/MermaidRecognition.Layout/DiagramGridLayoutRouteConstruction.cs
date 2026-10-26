@@ -225,7 +225,7 @@ public static partial class DiagramGridLayout
         }
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         HashSet<string> HasForwardIncoming = new HashSet<string>(StringComparer.Ordinal);
         foreach (EdgeContract Edge in Contract.Edges)
         {
@@ -339,7 +339,7 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed)
     {
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) || !BackEdges.Contains(Edge))
@@ -388,7 +388,7 @@ public static partial class DiagramGridLayout
         FlowchartDirection Direction)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
 
@@ -439,7 +439,7 @@ public static partial class DiagramGridLayout
         FlowchartDirection Direction)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
 
@@ -616,7 +616,7 @@ public static partial class DiagramGridLayout
         FlowchartDirection Direction)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildPlacedBounds(Placed, Frames);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
 
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {

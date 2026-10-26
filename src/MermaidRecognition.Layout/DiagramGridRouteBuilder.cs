@@ -149,7 +149,7 @@ public static class DiagramGridRouteBuilder
         IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
-        HashSet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
