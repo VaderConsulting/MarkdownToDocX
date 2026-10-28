@@ -1,6 +1,6 @@
 # Incremental diagram editing and readable layout
 
-Status: proposed implementation plan. 28 October 2026.
+Status: implementation in progress. Updated 28 October 2026. Stable source relationship identity reconciliation is implemented internally; LiveEditor integration remains pending.
 
 Progress: the plan is committed in `9ab0801`; default-off AF/AG/AH switches, request options, scoped Enterprise propagation and geometry-cache isolation are implemented in `700dbcb`. The benchmark and initial baseline are committed in `ad3ac08`. The first AH experiment adds single-layer and vertical rank-row candidates and target-width selection. At a 700 px target the same-layer fan changes from 1006 x 1396 to 586 x 736, with bends 4 to 13, crossings 0 and hard findings 0. The Complete sample remains 2146 x 1666 because existing group/hint/rank constraints still limit its candidates. Width presets, final-label-aware selection, broader constrained packing and incremental edit operations remain unfinished. See `tools/DiagramLayoutBench/README.md` and the baseline/results JSON under `docs/bench`.
 
@@ -146,3 +146,11 @@ Phases 1 and 2 can be developed independently after the baseline. Construction a
 | Width and wrapping | `src/MermaidRecognition.Layout/DiagramGridLayoutBandWraps.cs`, `Enterprise/EnterpriseBandPlan.cs`, chain/component wrapping helpers |
 | Scoring and context | `src/MermaidRecognition.Layout/FlowchartLayoutScore.cs`, `FlowchartRenderContext.cs` |
 | Existing measurements | `docs/LiveEditor-layout-trace.md`, `docs/LiveEditor-render-chokepoints.md`, `tools/LayoutCatalogueBench` |
+
+## Completed step - source relationship identities (28 October 2026)
+
+Implemented the engine-side CORE-2 reconciliation service, `DiagramRelationshipIdentityMap`. Immutable per-document maps preserve relationship identities across reparsing, insertion, deletion, reordering, unique reconnects and uniquely attributable label/port edits. Explicit identities take precedence; generated parser IDs and source positions are metadata. Distinct parallel relationships remain separate. Unchanged indistinguishable parallel declarations use documented occurrence order; ambiguous multiplicity/content/reconnect changes return a reason and no successor. Rejected or discarded candidates leave the accepted map and its identity allocation untouched. The API does not mutate parsed contracts or call placement/routing.
+
+Validation: all 28 new identity cases and 39 selected retained-session, layout-option and width regression cases pass (67 total). See [diagram-source-identities.md](diagram-source-identities.md) for matching/publication rules, the test command and remaining integration limits; the local test log is `out/identity-map-regressions.log`. Feature defaults and existing rendering entry points are unchanged.
+
+Remaining next step: apply reconciled bindings in the shared source update service, classify source changes, resolve typed placement hints to retained cell transactions, and publish identities, source metadata and accepted geometry together under document/source/layout revision checks. LiveEditor integration, GUI gestures, undo/redo and export are pending. CORE-2 and the other CORE checkboxes remain open until their complete editor-facing acceptance criteria pass.
