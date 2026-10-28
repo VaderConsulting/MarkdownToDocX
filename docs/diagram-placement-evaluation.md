@@ -12,4 +12,18 @@ Contained-member trials may use vacant cells inside their existing group frames.
 
 Trial results own their candidate state privately. Each `CopyCandidate` returns fresh model, route and grid objects, so rendering or scoring a copy cannot corrupt another trial. Origin revisions describe the accepted scene; they do not authorize publishing the result into a newer scene. A later selected suggestion must pass the ordinary source/revision transaction again.
 
-QUALITY-2 provides candidate generation, local routing and rejection evidence. Whole-diagram ranking, verified suggestions, visual preview and undoable source publication are the following tasks. Evaluating a legal candidate alone makes no quality or speed claim.
+QUALITY-2 provides candidate generation, local routing and rejection evidence. Evaluating a legal candidate alone makes no quality or speed claim.
+
+## Complete candidate comparison (QUALITY-3)
+
+`DiagramPlacementScorer` captures the accepted origin, geometry, options and padding. It compares a trial against that exact baseline. Topology, node geometry requests, mandatory hints and options must remain the same. Item/region inventories, exact frame bounds, non-target node bounds and routes outside the declared closure are checked independently of the candidate's own success result. A different document/revision or failed trial cannot qualify.
+
+Every comparison measures the complete routed scene with `FlowchartLayoutScore.Measure`, the independent route checker and stable route diagnostics. It rejects new independent failures and new quality-failure identities/counts, and requires the complete hint inventory. Crossing-pair totals are counted once; the canonical scorer retains its existing event counts, shared-endpoint handling, forced-crossing allowance and weights. Per-route partner lists are never summed as a whole-diagram crossing score.
+
+Comparisons expose immutable before/after canonical costs/faults, route diagnostics, model width/height including captured padding, complete stored route length, moved-node count and displacement in cells/pixels. Changed relationships receive the existing moved-line repair charge; extra total length receives the existing repair-length charge. These charges are shown separately from the canonical totals. A selected-route benefit that cancels out elsewhere is not a verified improvement.
+
+Routing-fault/hint precedence remains authoritative. With AH off, comparison reuses the existing complete repair-cost policy. With AH on, it shares the width experiment's comparator: overflow of the captured target, weighted bend/crossing cost, height, then complete cost. A narrower legal candidate may therefore qualify at a visible bend cost only under AH. The real two-node regression exercises this trade-off with AF/AG off. Defaults and canonical weights do not change.
+
+An improvement can retain documented baseline findings; it does not imply that every pre-existing defect is fixed. Existing and remaining findings stay in the measurements. Width/height here are complete **model** bounds and padding, not a claim of final glyph/title/marker SVG extents; WIDTH-3 remains responsible for that integration. All scoring is full-scene and currently copies state. Latency/memory claims require the pending benchmarks.
+
+Verified candidate search/selection, oscillation limits, visual preview and undoable source publication remain subsequent tasks. A comparison never commits the trial.

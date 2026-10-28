@@ -5,7 +5,7 @@ namespace MermaidRecognition.Layout;
 public static partial class DiagramGridLayout
 {
     /// <summary>Experimental width-first selection among already legal, hint-preserving complete candidates.</summary>
-    private static bool PreferWidthCandidate(FlowchartLayoutScore.Result Candidate, FlowchartLayoutScore.Result Incumbent,
+    internal static bool PreferWidthCandidate(FlowchartLayoutScore.Result Candidate, FlowchartLayoutScore.Result Incumbent,
         double TargetWidth, double Padding)
     {
         double CandidateOverflow = Math.Max(0, Candidate.Width + (2 * Padding) - TargetWidth);
