@@ -6,11 +6,12 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class AlignedReturnPortTests
 {
-    [TestCase("TB")]
-    [TestCase("BT")]
-    public void VerticalCyclicChainReturn_UsesClearOrthogonalRunsAndSquareAttachments(string Direction)
+    [TestCase("TB", false), TestCase("BT", false)]
+    [TestCase("TB", true), TestCase("BT", true)]
+    public void VerticalCyclicChainReturn_UsesClearOrthogonalRunsAndSquareAttachments(string Direction, bool DownstreamOccupied)
     {
-        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart {Direction}\na --> b\nb --> c\nd --> a\nc --- a");
+        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart {Direction}\na --> b\nb --> c\nd --> a\nc --- a"
+            + (DownstreamOccupied ? "\nc --> e" : ""));
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
         FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Route => Route.SourceId == "c" && Route.TargetId == "a");
         Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
@@ -25,10 +26,10 @@ public sealed class AlignedReturnPortTests
         }
         CheckEnd(Bounds[Route.SourceId], Route.Points[0], Route.Points[1], Route.ExitSide, 40);
         CheckEnd(Bounds[Route.TargetId], Route.Points[^1], Route.Points[^2], Route.EntrySide, 30);
-        if (Route.Points.Count > 2)
-        {
-            Assert.That(Route.EntrySide, Is.EqualTo(Route.ExitSide), "An aligned blocked return uses one side corridor.");
-        }
+        Assert.That(Route.EntrySide, Is.EqualTo("right"), "Rule 5.4: the branch-free tie uses the right return track.");
+        Assert.That(Route.ExitSide, Is.EqualTo(DownstreamOccupied ? Route.EntrySide : Direction == "TB" ? "bottom" : "top"),
+            "Rule 5.3: use a free downstream departure, otherwise face the return track.");
+        Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Finding => Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
     }
 
     private static void CheckEnd(FlowchartLayoutNodeBounds Box, FlowchartLayoutPoint End,

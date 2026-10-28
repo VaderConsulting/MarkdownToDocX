@@ -108,7 +108,10 @@ public sealed class FinishedBendGeometryTests
     private static void Repair(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
         using IDisposable Active = FlowchartRenderContext.Activate(Layout.RenderContext);
-        FlowchartBendRemovingPortRepair.Apply(Contract, Layout);
+        FlowchartBendRemovingPortRepair.CandidateDecisionObserver = (Id, Kind, Reason) =>
+            TestContext.Out.WriteLine($"port {Id} {Kind}: {Reason}");
+        try { FlowchartBendRemovingPortRepair.Apply(Contract, Layout); }
+        finally { FlowchartBendRemovingPortRepair.CandidateDecisionObserver = null; }
         FlowchartFinishedLayoutBendRepair.Apply(Contract, Layout);
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Finding => Finding.Rule is "10" or "4.1" or "5.1"), Is.Empty);
     }

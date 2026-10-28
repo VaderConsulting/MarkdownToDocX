@@ -9,6 +9,54 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture, NonParallelizable]
 public sealed class BendRemovingPortRepairTests
 {
+    [Test]
+    public void JointFacingTrialsPreserveHintedPortsAndIndependentGeometry()
+    {
+        var (Contract, Layout) = FinishedBendGeometryTests.Fixture("TB",
+            [("hub", 2, 2), ("left", 2, 0), ("right", 2, 4), ("top", 0, 2), ("bottom", 4, 2), ("x", 0, 8), ("y", 2, 8)]);
+        foreach (var Pair in new[] { ("left", "right"), ("right", "left"), ("top", "bottom"), ("bottom", "top") })
+            FinishedBendGeometryTests.AddLine(Contract, Layout, Pair.Item1, Pair.Item1, "hub", Pair.Item2, Pair.Item2);
+        var Independent = FinishedBendGeometryTests.AddLine(Contract, Layout, "xy", "x", "y", "bottom", "top");
+        var Pinned = Layout.EdgeRoutes.Single(Route => Route.EdgeId == "left");
+        Contract.Edges.Single(Edge => Edge.Id == "left").RoutingHint = new() { Leave = LayoutHintDirection.East, Enter = LayoutHintDirection.East };
+        string BeforeNodes = JsonSerializer.Serialize(Layout.NodeBounds);
+        string BeforePinned = JsonSerializer.Serialize(Pinned), BeforeIndependent = JsonSerializer.Serialize(Independent);
+        using var Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
+        FlowchartBendRemovingPortRepair.Apply(Contract, Layout);
+        Assert.That(JsonSerializer.Serialize(Layout.NodeBounds), Is.EqualTo(BeforeNodes));
+        Assert.That(JsonSerializer.Serialize(Pinned), Is.EqualTo(BeforePinned));
+        Assert.That(JsonSerializer.Serialize(Independent), Is.EqualTo(BeforeIndependent));
+    }
+
+    [Test]
+    public void JointFacingHubTrialsMatchIndependentWholeLayoutScores()
+    {
+        var (Contract, Layout) = FinishedBendGeometryTests.Fixture("TB",
+            [("hub", 2, 2), ("left", 2, 0), ("right", 2, 4), ("top", 0, 2), ("bottom", 4, 2)]);
+        foreach (var Pair in new[] { ("left", "right"), ("right", "left"), ("top", "bottom"), ("bottom", "top") })
+            FinishedBendGeometryTests.AddLine(Contract, Layout, Pair.Item1, Pair.Item1, "hub", Pair.Item2, Pair.Item2);
+        int Measurements = 0;
+        FlowchartBendRemovingPortRepair.CandidateMeasurementObserver = Score =>
+        {
+            Measurements++;
+            var Reference = FlowchartLayoutScore.Measure(Contract, Layout, false);
+            Assert.That(Score.Cost.Primary, Is.EqualTo(Reference.Cost.Primary).Within(0.000001));
+            Assert.That(Score.Cost.WeightedLength, Is.EqualTo(Reference.Cost.WeightedLength).Within(0.000001));
+            Assert.That(Score.Bends, Is.EqualTo(Reference.Bends));
+            Assert.That(Score.Crossings, Is.EqualTo(Reference.Crossings));
+            Assert.That(Score.Disconnections, Is.EqualTo(Reference.Disconnections));
+        };
+        try
+        {
+            using var Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
+            Assert.That(FlowchartBendRemovingPortRepair.Apply(Contract, Layout), Is.GreaterThan(0));
+            Assert.That(Measurements, Is.GreaterThan(1));
+            Assert.That(Layout.EdgeRoutes.All(Route => Route.Points.Count == 2), Is.True);
+            Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout), Is.Empty);
+        }
+        finally { FlowchartBendRemovingPortRepair.CandidateMeasurementObserver = null; }
+    }
+
     /// <summary>A straightening trial cannot move either lone port away from its allocated side centre.</summary>
     [Test]
     public void AlignmentKeepsLonePortsAtTheirAllocatedSideCentres()

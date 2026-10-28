@@ -12,6 +12,10 @@ internal static class FlowchartBendRemovingPortRepair
 {
     /// <summary>Observes a completed swap decision after its exact restore or final acceptance, for focused regressions.</summary>
     internal static Action<string, string>? SwapDecisionObserver;
+    /// <summary>Reports why a bounded port assignment was rejected or selected.</summary>
+    internal static Action<string, string, string>? CandidateDecisionObserver;
+    /// <summary>Exposes completed incremental measurements for independent score checks.</summary>
+    internal static Action<FlowchartLayoutScore.Result>? CandidateMeasurementObserver;
     /// <summary>A proven whole-assignment improvement, including its exact better allocated port pair.</summary>
     /// <param name="LineId">Declared line whose bends fell.</param>
     /// <param name="Before">Bends before the complete assignment.</param>
@@ -78,7 +82,7 @@ internal static class FlowchartBendRemovingPortRepair
                 }
 
                 FlowchartLayoutScore.Result Initial = FlowchartLayoutScore.Measure(Contract, Layout, false);
-                FlowchartLayoutScore.CellMovementContext? Scorer = null;
+                FlowchartLayoutScore.CellMovementContext Scorer = new(Contract, Layout);
                 IReadOnlyList<FlowchartRouteRuleChecker.Finding> InitialFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
                 IReadOnlyDictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> Reference = Layout.EdgeRoutes.ToDictionary(
                     Route => Route,
@@ -112,6 +116,7 @@ internal static class FlowchartBendRemovingPortRepair
                     }
                     if (!Valid || !Separated(Ends))
                     {
+                        CandidateDecisionObserver?.Invoke(Id, Change.Kind, Valid ? "port-separation" : "path-or-bends");
                         continue;
                     }
                     // Flow and EIP may change only on lines independently flagged
@@ -119,11 +124,13 @@ internal static class FlowchartBendRemovingPortRepair
                     int Reduction = Affected.Sum(Route => Corners(Reference[Route]) - FlowchartLayoutScore.CountCorners(Route.Points));
                     if (Reduction <= 0)
                     {
+                        CandidateDecisionObserver?.Invoke(Id, Change.Kind, "no-bend-reduction");
                         continue;
                     }
 
                     if (!InteractionsDoNotGrow(Layout, Affected, Reference, ReferenceInteractions))
                     {
+                        CandidateDecisionObserver?.Invoke(Id, Change.Kind, "interaction-increase");
                         Restore(Original);
                         if (Change.Kind == "swap")
                         {
@@ -132,10 +139,11 @@ internal static class FlowchartBendRemovingPortRepair
 
                         continue;
                     }
-                    Scorer ??= new FlowchartLayoutScore.CellMovementContext(Contract, Layout);
                     FlowchartLayoutScore.Result Score = Scorer.Measure(Affected);
+                    CandidateMeasurementObserver?.Invoke(Score);
                     if (Score.Cost >= BestCost)
                     {
+                        CandidateDecisionObserver?.Invoke(Id, Change.Kind, "cost");
                         if (Patience.RegisterNonImprovement())
                         {
                             break;
@@ -146,6 +154,7 @@ internal static class FlowchartBendRemovingPortRepair
                     IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
                     if (Findings.Any(Finding => !InitialFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject)))
                     {
+                        CandidateDecisionObserver?.Invoke(Id, Change.Kind, "finding");
                         if (Patience.RegisterNonImprovement())
                         {
                             break;
@@ -155,6 +164,7 @@ internal static class FlowchartBendRemovingPortRepair
                     }
 
                     Patience.Reset();
+                    CandidateDecisionObserver?.Invoke(Id, Change.Kind, "selected");
                     BestCost = Score.Cost; Best = Save(Routes); BestRemoved = Reduction; BestKind = Change.Kind;
                 }
                 Restore(Original);
@@ -379,6 +389,28 @@ internal static class FlowchartBendRemovingPortRepair
         FlowchartLayoutResult Layout, Dictionary<string, FlowchartLayoutNodeBounds> Bounds, Dictionary<string, NodeContract> Nodes)
     {
         string[] Sides = ["top", "right", "bottom", "left"];
+        if (Ends.Length >= 3)
+        {
+            // Several inverted hub arrivals can block every one-end trial.
+            // Offer their joint facing assignment within the same move budget;
+            // back edges retain their separate rule 5.3 departure policy.
+            var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+            var Facing = Ends.Where(End => !Hinted.Contains(End.Route.EdgeId) && End.Route.SourceId != End.Route.TargetId
+                && (DiagramGridLayout.FindContractEdge(Contract, End.Route) is not { } Edge || !Back.Contains(Edge))
+                && FlowchartLayoutScore.CountCorners(End.Route.Points) > 0).Select(End =>
+            {
+                var Other = Bounds[End.Source ? End.Route.TargetId : End.Route.SourceId];
+                double Dx = Other.CenterX - Bounds[Id].CenterX, Dy = Other.CenterY - Bounds[Id].CenterY;
+                string Side = Math.Abs(Dx) >= Math.Abs(Dy) ? Dx >= 0 ? "right" : "left" : Dy >= 0 ? "top" : "bottom";
+                return (End, Side);
+            }).ToArray();
+            if (Facing.Any(Item => Item.End.Side != Item.Side))
+                yield return ("facing", () =>
+                {
+                    foreach (var Item in Facing) SetSide(Item.End, Item.Side);
+                    DiagramGridLayout.ReallocateBendRepairPorts(Contract, Layout, Bounds, Nodes, Id);
+                });
+        }
         foreach (End? A in Ends.Where(End => !Hinted.Contains(End.Route.EdgeId) && FlowchartLayoutScore.CountCorners(End.Route.Points) > 0))
         {
             foreach (End? B in Ends.Where(End => End != A && End.Side == A.Side && !Hinted.Contains(End.Route.EdgeId)))

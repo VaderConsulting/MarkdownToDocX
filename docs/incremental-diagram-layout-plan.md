@@ -8,7 +8,7 @@ Current foundation status: empty-canvas construction, explicit node additions/mo
 
 Validation: the expanded editor selection passes 249 cases and the broad shared-engine selection passes 218. The final loop-label clearance adjustment passes 102 shared source/session/loop cases and six editor label cases. The unchanged parser selection previously passed 82. Details are in each completed task entry; remaining phase criteria stay open.
 
-Next work: continue the foundation regression audit, including the newly exposed return-route, cardinal-hub and compact-layout failures, followed by diagnostics, width/construction and benchmarks. The three earlier cell rejection/frame-overlap failures are resolved. Ungrouped node and relationship labels now use local measured transactions and exact undo. Group containment/format/font changes retain explicit rebuild semantics. AF/AG/AH remain default off.
+Next work: continue the foundation regression audit and compact-layout failures, followed by diagnostics, width/construction and benchmarks. The three earlier cell rejection/frame-overlap failures and four return-route/cardinal-hub cases are resolved. Ungrouped node and relationship labels now use local measured transactions and exact undo. Group containment/format/font changes retain explicit rebuild semantics. AF/AG/AH remain default off.
 
 ## Working rule
 
@@ -382,3 +382,13 @@ Expanded the frame regression to groups with two separate cell owners. Every mem
 The wider audit is incomplete. The full run reached its 45-second per-test inactivity limit on `CatalogueDiagramSvgRenderTests.A163_RendersSvg`; the non-catalogue run was stopped to unlock the assembly for focused repairs. It exposed two `AlignedReturnPortTests` cases plus compact cases A100, A110, A112, A117, A64 and A72. Together with the two cardinal-hub cases, these ten failed cases are the next regression work. Logs: out/foundation-audit-layout.log, out/foundation-noncatalogue.log and out/foundation-failures-repro.log. No full-suite or baseline-equivalence claim is made.
 
 Task rollbacks: **0**. Next: diagnose and resolve the return-route/cardinal-hub failures, then compact-layout failures and complete foundation acceptance. Remaining diagnostics, width/construction, visual review and benchmarks remain open. AF/AG/AH defaults remain off.
+
+## Completed task - bounded joint hub ports and return-rule regression correction (29 October 2026)
+
+Resolved both cardinal-hub cases by offering one joint facing-side assignment before the existing individual side/slot trials. Several inverted arrivals could block every individual change even though the complete facing assignment was straight and legal. The extra proposal stays inside the existing candidate count, preserves hints and back edges' separate departure policy, and must pass the same no-new-fault, no-added-bend, no-new-interaction, distinct-port and strict-score guards. Incremental scoring now captures the restored reference before the first trial instead of caching a mutated trial as its base. An independent measurement observer verifies complete score components across successive trials.
+
+The two aligned-return assertions conflicted with canonical rule 5.3, which requires a free downstream departure before the outside return track. Production geometry already obeyed that rule. The test now checks its actual required departure/arrival and includes two additional occupied-downstream cases. It retains square attachments, straight-run lengths, orthogonality, obstacle avoidance and independent legality checks; neither routing rules nor independent checkers were relaxed. The governing text is in docs/Instructions/rules.yaml, rules 5.3–5.4.
+
+Validation: all 258 expanded shared cases and 249 editor regressions pass. New coverage compares incremental and full candidate scores, requires the complete hub solution to be straight, and preserves hinted and independent geometry exactly. Builds pass with existing nullable warnings only. Logs: out/port-audit-repro.log, out/port-audit-targeted.log, out/port-audit-build.log, out/port-audit-layout-regressions.log and out/port-audit-editor-regressions.log. The six compact cases recorded in the preceding audit remain the next work; a full-suite result remains pending.
+
+Task rollbacks: **0**. Next: compact-layout diagnosis/repair and foundation acceptance, then the remaining diagnostics, width/construction, visual review and benchmark tasks. AF/AG/AH defaults remain off.
