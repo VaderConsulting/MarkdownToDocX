@@ -260,6 +260,6 @@ internal sealed class LineNumberGutter : Panel
         return Color.FromArgb((Ink.R + Paper.R) / 2, (Ink.G + Paper.G) / 2, (Ink.B + Paper.B) / 2);
     }
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
 }

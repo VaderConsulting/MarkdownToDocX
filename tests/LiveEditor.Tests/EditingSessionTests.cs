@@ -267,7 +267,7 @@ public sealed class EditingSessionTests
     private const int VK_RETURN = 0x0D;
     private const int VK_ESCAPE = 0x1B;
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 
     private static void WaitUntil(Func<bool> Ready, int Milliseconds)

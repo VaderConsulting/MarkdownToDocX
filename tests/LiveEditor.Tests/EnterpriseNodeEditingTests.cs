@@ -460,6 +460,6 @@ public sealed class EnterpriseNodeEditingTests
     private const int WM_LBUTTONUP = 0x0202;
     private const int VK_DELETE = 0x2E;
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 }

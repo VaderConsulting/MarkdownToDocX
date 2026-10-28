@@ -64,9 +64,9 @@ internal sealed class RichTextBoxPaintScope : IDisposable
         SendMessage(Editor.Handle, EM_SETSCROLLPOS, IntPtr.Zero, ref Copy);
     }
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, ref Point LParam);
 }

@@ -295,7 +295,7 @@ public sealed class PreviewSelectionTests
 
     private const int VK_DOWN = 0x28;
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
 
     private static void WaitForCurrentIndex(MainForm Form)

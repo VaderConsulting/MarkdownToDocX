@@ -10,7 +10,7 @@ namespace LiveEditor.Editor;
 /// </summary>
 internal sealed class RichTextBoxUndoSuspension : IDisposable
 {
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref IntPtr LParam);
 
     private const int WM_USER = 0x0400;

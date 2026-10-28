@@ -229,7 +229,7 @@ internal static class MermaidSyntaxHighlighter
     private const uint CFM_BACKCOLOR = 0x04000000;
     private const uint CFE_AUTOBACKCOLOR = 0x04000000;
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref CharacterFormat Format);
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
