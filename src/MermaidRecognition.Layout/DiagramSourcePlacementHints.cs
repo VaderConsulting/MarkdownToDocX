@@ -15,7 +15,8 @@ internal static class DiagramSourcePlacementHints
     {
         var Result = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
         if (Restored != null)
-            foreach (var Pair in Restored) Result[Pair.Key] = Pair.Value;
+            foreach (var Pair in Restored) Result[Pair.Key] = new(Pair.Value.StartRow, Pair.Value.StartColumn,
+                Result[Pair.Key].RowSpan, Result[Pair.Key].ColumnSpan);
         Targets = Result;
         var Nodes = Model.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         HashSet<string> Moving = new(Changed, StringComparer.Ordinal);

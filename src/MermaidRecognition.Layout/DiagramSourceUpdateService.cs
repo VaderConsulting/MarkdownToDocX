@@ -243,14 +243,17 @@ internal sealed class DiagramSourceUpdateService
                     return Rebuild("Grouped node insertion requires a containment construction operation.");
                 Hints.Add(Node.Id); continue;
             }
-            if (Json(NodeGeometry(Previous)) != Json(NodeGeometry(Node))
+            if (Json(NodeStructure(Previous)) != Json(NodeStructure(Node))
                 || (!ReferenceEquals(Previous.GeometryProvider, Node.GeometryProvider)
                     && !(Previous.GeometryProvider is Enterprise.EnterpriseDecoratedNodeGeometry
                         && Node.GeometryProvider is Enterprise.EnterpriseDecoratedNodeGeometry)))
             {
-                return Rebuild("Node size, label, shape, membership or font changed: " + Node.Id);
+                return Rebuild("Node shape, membership, text format or font changed: " + Node.Id);
             }
-            if (Json(Hint(Previous.PlacementHint)) != Json(Hint(Node.PlacementHint))) { Hints.Add(Node.Id); }
+            bool SizeOrLabel = Previous.Label != Node.Label || Previous.LayoutWidth != Node.LayoutWidth || Previous.LayoutHeight != Node.LayoutHeight;
+            if (SizeOrLabel && !string.IsNullOrEmpty(Node.ParentGroupId))
+                return Rebuild("Grouped label sizing requires a containment operation: " + Node.Id);
+            if (SizeOrLabel || Json(Hint(Previous.PlacementHint)) != Json(Hint(Node.PlacementHint))) { Hints.Add(Node.Id); }
         }
         var OldEdges = Old.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
         List<string> Edges = [];
@@ -302,8 +305,8 @@ internal sealed class DiagramSourceUpdateService
         .Select(Group => new { Group.Id, Group.Title, Group.LabelType, Group.ParentGroupId, Group.Direction,
             Nodes = Group.ChildNodeIds.Order(StringComparer.Ordinal), Groups = Group.ChildGroupIds.Order(StringComparer.Ordinal),
             Hint = Hint(Group.PlacementHint) });
-    private static object NodeGeometry(NodeContract Node) => new { Node.Label, Node.LabelType, Node.Shape, Node.ShapeSource,
-        Node.LayoutWidth, Node.LayoutHeight, Node.ParentGroupId, Metadata = Metadata(Node.Metadata), Classes = Node.Classes.Order(StringComparer.Ordinal),
+    private static object NodeStructure(NodeContract Node) => new { Node.LabelType, Node.Shape, Node.ShapeSource,
+        Node.ParentGroupId, Metadata = Metadata(Node.Metadata), Classes = Node.Classes.Order(StringComparer.Ordinal),
         Font = Font(Node.InlineStyle) };
     private static object EdgeGeometry(EdgeContract Edge) => new { Edge.Label, Edge.LabelType, Edge.MinLength,
         Edge.MarkerStart, Edge.MarkerEnd, Edge.Stroke, Edge.Curve, Metadata = Metadata(Edge.Metadata), Classes = Edge.Classes.Order(StringComparer.Ordinal) };

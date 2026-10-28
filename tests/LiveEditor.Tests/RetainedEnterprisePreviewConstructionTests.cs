@@ -9,6 +9,36 @@ namespace LiveEditor.Tests;
 
 public sealed partial class RetainedEnterprisePreviewTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MeasuredNodeLabelChangesStayLocalWithWidthOptions(bool Width)
+    {
+        const string Script = "enterprise\nbusiness-service business \"Business\" at 0 0\n"
+            + "application-service app \"App\" at 4 0\ntechnology-service host \"Host\" at 8 0\n";
+        var Options = new MermaidRecognition.Layout.DiagramLayoutOptions { EnableIncrementalRouting = true,
+            EnableWidthConstrainedLayout = Width, TargetWidthPx = 700 };
+        var Session = new RetainedEnterprisePreview();
+        RetainedEnterprisePreview.Prepared Apply(string Text, long Revision)
+        {
+            Session.Observe(Revision);
+            var Candidate = Session.Prepare(Text, Revision, MermaidRecognition.Kinds.Enterprise.EnterpriseValidator.Analyze(Text), Options);
+            Assert.That(Session.TryCommit(Candidate), Is.True); return Candidate;
+        }
+        var Initial = Apply(Script, 1);
+        var Before = Session.CopyInteractionSnapshot()!;
+        string Label = string.Join(" ", Enumerable.Repeat("Moderately longer label with enough words to occupy several separate lines", 3));
+        string Changed = Script.Replace("\"App\"", "\"" + Label + "\"");
+        var Resized = Apply(Changed, 2);
+        Assert.That(Resized.Rebuild, Is.False);
+        Assert.That(Resized.Kind, Is.EqualTo("LocalRouting"));
+        Assert.That(Resized.RebuiltRouteIds, Is.Empty);
+        Assert.That(Node(Resized.Svg, "business"), Is.EqualTo(Node(Initial.Svg, "business")));
+        Assert.That(Node(Resized.Svg, "host"), Is.EqualTo(Node(Initial.Svg, "host")));
+        Assert.That(Session.CopyInteractionSnapshot()!.Layout.CellNodes!.Single(Node => Node.Id == "app").CellNode!.Region.RowSpan,
+            Is.GreaterThan(Before.Layout.CellNodes!.Single(Node => Node.Id == "app").CellNode!.Region.RowSpan));
+        Assert.That(Apply(Script, 3).Svg, Is.EqualTo(Initial.Svg));
+        Assert.That(Apply(Changed, 4).Svg, Is.EqualTo(Resized.Svg));
+    }
     [Test]
     public void SingleNodeRelationshipMenuCreatesOneUndoableSelfRelationship()
     {
@@ -80,16 +110,45 @@ public sealed partial class RetainedEnterprisePreviewTests
         finally { Restore(Previous); }
     }
 
-    [Test]
-    public void UndoAfterDeletionStillRemembersTheFirstPlacementOrigin()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void UndoAfterDeletionStillRemembersTheFirstPlacementOrigin(bool Coalesced)
     {
         var Session = new RetainedEnterprisePreview();
         string Original = Accept(Session, Source, 1).Svg;
-        string MovedSource = Source.Replace("application-component a \"A\"", "application-component a \"A\" at -2 0");
+        string Label = string.Join(" ", Enumerable.Repeat("A larger label needing several measured lines", 3));
+        string MovedSource = Source.Replace("application-component a \"A\"", "application-component a \"" + Label + "\" at -2 0");
         string Moved = Accept(Session, MovedSource, 2).Svg;
         Accept(Session, "enterprise\n", 3);
-        Assert.That(Accept(Session, MovedSource, 4).Svg, Is.EqualTo(Moved));
-        Assert.That(Accept(Session, Source, 5).Svg, Is.EqualTo(Original));
+        if (!Coalesced) Assert.That(Accept(Session, MovedSource, 4).Svg, Is.EqualTo(Moved));
+        Assert.That(Accept(Session, Source, Coalesced ? 4 : 5).Svg, Is.EqualTo(Original));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void WorkerNodeLabelSizingIsOneUndoableLocalUpdate(bool Grows)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source; Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Original = Preview.RenderedSvg!;
+            int Generation = Form.DiagramMetadata.Generation;
+            int Start = Editor.Text.IndexOf("\"B\"", StringComparison.Ordinal);
+            Editor.Select(Start + 1, 1);
+            Editor.SelectedText = Grows ? string.Join(" ", Enumerable.Repeat("A larger label needing several measured lines", 3)) : "Brief";
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));
+            Assert.That(Form.LastRebuiltRouteIds.Length, Is.EqualTo(Grows ? 1 : 0));
+            string Changed = Preview.RenderedSvg!;
+            foreach (string Id in new[] { "a", "x", "y" }) Assert.That(Node(Changed, Id), Is.EqualTo(Node(Original, Id)));
+            Editor.Undo(); Wait(() => Preview.RenderedSvg == Original);
+            Editor.Redo(); Wait(() => Preview.RenderedSvg == Changed);
+        }
+        finally { Restore(Previous); }
     }
     [TestCase("application-component extra right-of b +3\n")]
     [TestCase("node extra\n")]

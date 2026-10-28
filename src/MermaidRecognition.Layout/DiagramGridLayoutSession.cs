@@ -112,6 +112,7 @@ public static partial class DiagramGridLayout
             foreach (var Pair in UnpinnedOrigins) Copy.UnpinnedOrigins.Add(Pair.Key, Pair.Value);
             Copy.PortAllocationHistory = PortAllocationHistory;
             Copy.RemovedNodeRegions = RemovedNodeRegions;
+            Copy.NodeSizeHistory = NodeSizeHistory;
             Copy.RoutingOrigin = RoutingOrigin;
             return Copy;
         }
@@ -166,6 +167,14 @@ public static partial class DiagramGridLayout
             Layout.RenderContext.PreferredPorts = Preferences;
             try
             {
+                if (State.Contract.Groups.Count > 0)
+                {
+                    var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+                    var BeforeFrames = ProjectedCellFrameConflictKeys(Original.Contract, State.Placed, State.Frames, Original.Bounds);
+                    var AfterFrames = ProjectedCellFrameConflictKeys(State.Contract, State.Placed, State.Frames, Bounds);
+                    if (AfterFrames.Any(Key => !BeforeFrames.Contains(Key)))
+                        return "The retained edit violates frozen group frame clearance or containment.";
+                }
                 string? PointFailure = FlowchartConnectionPoints.Validate(State.Contract, Layout);
                 if (PointFailure != null) return PointFailure;
                 // A growing, finite set reaches a fixed point or the explicit route budget.

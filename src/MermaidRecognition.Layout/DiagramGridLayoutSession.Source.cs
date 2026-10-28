@@ -9,7 +9,7 @@ public static partial class DiagramGridLayout
 {
     internal sealed partial class RetainedRoutingState
     {
-        // Classification has already excluded changes to measured sizes, groups and node removal.
+        // Classification has excluded unsupported shape, style and containment changes.
         // Replace all supported inputs before routing so a mixed source edit has one closure.
         internal string? TrySourceUpdate(DiagramContract Model, IReadOnlyCollection<string> ChangedHints,
             IReadOnlyCollection<string> ChangedEdges, int RouteLimit, out string[] AffectedIds, out string[] RebuiltIds,
@@ -26,12 +26,18 @@ public static partial class DiagramGridLayout
             string? AdditionFailure = AddSourceNodes(Model);
             if (AdditionFailure != null) return AdditionFailure;
             var Before = Grid.Capture();
+            string? SizeFailure = PlanSourceNodeSizes(Model, Before.Regions, out var SizedRegions);
+            if (SizeFailure != null) return SizeFailure;
             var Placed = State.Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
             var Restored = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
             foreach (string Id in ChangedHints)
             {
-                if (!State.Nodes.ContainsKey(Id)) continue;
                 var Hint = Model.Nodes.Single(Node => Node.Id == Id).PlacementHint;
+                if (!State.Nodes.ContainsKey(Id))
+                {
+                    if (Hint?.IsActive != true && UnpinnedOrigins.Remove(Id, out var RemovedOrigin)) Restored.Add(Id, RemovedOrigin);
+                    continue;
+                }
                 if (Hint?.IsActive == true && ((CapturePlacementOrigins && State.Nodes[Id].PlacementHint?.IsActive != true)
                     || (Hint.Kind == PlacementHintKind.At && State.Nodes[Id].PlacementHint is not { IsActive: true, Kind: PlacementHintKind.At })))
                     UnpinnedOrigins.TryAdd(Id, Before.Regions[Id]);
@@ -40,7 +46,7 @@ public static partial class DiagramGridLayout
             }
             State.Contract = CopyRoutingInputs(Model);
             State.Nodes = State.Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-            string? Failure = DiagramSourcePlacementHints.Plan(State.Contract, Before.Regions, ChangedHints, out var Targets, Restored);
+            string? Failure = DiagramSourcePlacementHints.Plan(State.Contract, SizedRegions, ChangedHints, out var Targets, Restored);
             if (Failure != null) { return Failure; }
             foreach (var Pair in Targets)
             {
@@ -57,7 +63,7 @@ public static partial class DiagramGridLayout
             }
             if (!Grid.TryCommit(Before, After!)) { return "The candidate cell state was superseded."; }
             if (!Enterprise.EnterpriseBandPlacement.RetainedAssignmentIsLegal(State.Contract, After!.Regions))
-                return "The added nodes violate the retained semantic layer constraints.";
+                return "The changed nodes violate the retained semantic layer constraints.";
             if (AddedNodes)
             {
                 var PriorConvention = Grid.RegionConvention;

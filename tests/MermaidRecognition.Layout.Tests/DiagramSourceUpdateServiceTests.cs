@@ -12,6 +12,80 @@ public sealed class DiagramSourceUpdateServiceTests
 {
     [TestCase(false)]
     [TestCase(true)]
+    public void ForeignNodeMoveOrResizeCannotEnterFrozenGroupSpace(bool Resize)
+    {
+        const string Script = "enterprise\ngroup g\napplication-component a in g\n"
+            + "application-component b in g below a +6\napplication-component x\n";
+        var Analysis = EnterpriseValidator.Analyze(Script);
+        Assert.That(Analysis.HasErrors, Is.False, string.Join("; ", Analysis.Errors.Select(Error => Error.Message)));
+        var Model = EnterpriseFlowchartContractMapper.Build(Analysis.Document);
+        Assert.That(Model.Groups.Count, Is.EqualTo(1));
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Model, new() { UseCellRegions = true }, out var Layout), Is.True);
+        Assert.That(Layout.ClusterBounds.Count, Is.EqualTo(1));
+        var Service = new DiagramSourceUpdateService("document", 0, Script, Model, Layout);
+        var A = Region(Service, "a");
+        int Row = A.EndRow + 1, Column = A.StartColumn;
+        Model = Parsed(Service);
+        Node(Model, "x").PlacementHint = new() { Kind = PlacementHintKind.At, CellRow = Row, CellColumn = Column - 3 };
+        Commit(Service, Prepare(Service, 1, Model));
+        string Before = Geometry(Service.CopySnapshot().Layout);
+        Model = Parsed(Service);
+        if (Resize) { Node(Model, "x").Label = "larger"; Node(Model, "x").LayoutWidth = 1000; }
+        else Node(Model, "x").PlacementHint = new() { Kind = PlacementHintKind.At, CellRow = Row, CellColumn = Column };
+        var Candidate = Prepare(Service, 2, Model);
+        Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Candidate.FailureReason, Does.Contain("frame"));
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+    }
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MeasuredLabelGrowthMovesOnlyHintDependentsAndCanUndoExactly(bool Dependents)
+    {
+        var (Service, _, _) = Fixture();
+        if (Dependents)
+        {
+            var Hinted = Parsed(Service); Node(Hinted, "B").PlacementHint = Below("A", 2); Node(Hinted, "C").PlacementHint = Below("B", 1);
+            Commit(Service, Prepare(Service, 1, Hinted));
+        }
+        var Before = Service.CopySnapshot();
+        var Original = Parsed(Service);
+        var Model = Parsed(Service); var A = Node(Model, "A");
+        A.Label = "A longer measured label"; A.LayoutWidth = 210; A.LayoutHeight = 100;
+        AssertNoPlacement(() =>
+        {
+            var Candidate = Prepare(Service, 2, Model);
+            Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting), Candidate.FailureReason);
+            Commit(Service, Candidate);
+            Assert.That(Candidate.RebuiltRouteIds, Is.EqualTo(new[] { "relationship:1" }));
+            Assert.That(Region(Service, "A").RowSpan, Is.EqualTo(2));
+            Assert.That(Region(Service, "B").StartRow, Is.EqualTo(Dependents ? 4 : 3));
+            Assert.That(Component(Service.CopySnapshot().Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+            string Grown = Geometry(Service.CopySnapshot().Layout);
+            Commit(Service, Prepare(Service, 3, Original));
+            Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)));
+            Commit(Service, Prepare(Service, 4, Model));
+            Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Grown));
+        });
+    }
+
+    [Test]
+    public void LabelWithinItsReservationRebuildsNoRoutesAndCollisionRejectsAtomically()
+    {
+        var (Service, _, _) = Fixture();
+        string Before = Geometry(Service.CopySnapshot().Layout);
+        var Model = Parsed(Service); Node(Model, "A").Label = "another label";
+        var Candidate = Prepare(Service, 1, Model);
+        Commit(Service, Candidate);
+        Assert.That(Candidate.RebuiltRouteIds, Is.Empty);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+        Model = Parsed(Service); Node(Model, "B").Label = "large"; Node(Model, "B").LayoutHeight = 300;
+        Candidate = Prepare(Service, 2, Model);
+        Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Service.TryCommit(Candidate, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+    }
+    [TestCase(false)]
+    [TestCase(true)]
     public void NodeRemovalAndUndoRetainRegionsAndSurvivingGeometry(bool All)
     {
         var (Service, _, _) = Fixture();
@@ -520,7 +594,7 @@ public sealed class DiagramSourceUpdateServiceTests
     }
 
     [TestCase("direction")]
-    [TestCase("label")]
+    [TestCase("text-format")]
     [TestCase("shape")]
     [TestCase("font")]
     [TestCase("group")]
@@ -532,7 +606,7 @@ public sealed class DiagramSourceUpdateServiceTests
         switch (Change)
         {
             case "direction": Model.Direction = "LR"; break;
-            case "label": Model.Nodes[0].Label = "larger label"; break;
+            case "text-format": Model.Nodes[0].LabelType = MermaidLabelType.Markdown; break;
             case "shape": Model.Nodes[0].Shape = "circle"; break;
             case "font": Model.Nodes[0].InlineStyle.FontSize = 24; break;
             case "group": Model.GroupsMutable.Add(new() { Id = "G" }); break;

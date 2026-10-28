@@ -131,6 +131,18 @@ internal sealed class DiagramLayoutSession
         return Value;
     }
 
+    internal Update PrepareResizeNode(long SourceRevision, string NodeId, double Width, double Height, string? Label = null, int? RouteLimit = null)
+        => Prepare(SourceRevision, Candidate =>
+        {
+            var Model = DiagramGridLayout.CopyRoutingInputs(Candidate.Contract);
+            var Node = Model.NodesMutable.Find(Node => Node.Id == NodeId);
+            if (Node == null) return ("The node identity is unknown.", Array.Empty<string>(), Array.Empty<string>());
+            Node.LayoutWidth = Width; Node.LayoutHeight = Height;
+            if (Label != null) Node.Label = Label;
+            string? Failure = Candidate.TrySourceUpdate(Model, [NodeId], [], Limit(RouteLimit), out var Affected, out var Rebuilt);
+            return (Failure, Affected, Rebuilt);
+        });
+
     internal Update PrepareRemoveNode(long SourceRevision, string NodeId, int? RouteLimit = null)
         => Prepare(SourceRevision, Candidate =>
         {
@@ -169,6 +181,10 @@ internal sealed class DiagramLayoutSession
         catch (InvalidOperationException Failure)
         {
             return new(this, SourceRevision, BaseRevision, null, [], [], "Local routing failed: " + Failure.Message);
+        }
+        catch (OverflowException)
+        {
+            return new(this, SourceRevision, BaseRevision, null, [], [], "The edit exceeds the supported cell coordinate range.");
         }
     }
 

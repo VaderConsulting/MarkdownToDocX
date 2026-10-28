@@ -52,7 +52,10 @@ public static partial class DiagramGridLayout
                     .Prepend(Node.PlacementHint is { IsActive: true, Kind: PlacementHintKind.At } Pin ? Pin.CellRow : 0)
                     .Distinct().Take(64);
                 FlowchartCellRegion? Selected = null;
-                if (RemovedNodeRegions.TryGetValue(Node.Id, out var Restored)
+                bool HasRemovedRegion = RemovedNodeRegions.TryGetValue(Node.Id, out var Restored);
+                if (HasRemovedRegion && NodeSizeHistory.TryGetValue(SizeRequest(Node), out var OldSpan))
+                    Restored = new(Restored!.StartRow, Restored.StartColumn, OldSpan.Rows, OldSpan.Columns);
+                if (HasRemovedRegion
                     && Grid.Measure(Restored).Width >= Node.LayoutWidth && Grid.Measure(Restored).Height >= Node.LayoutHeight
                     && (!Diamond || Restored.RowSpan >= 2 * Restored.ColumnSpan))
                 {

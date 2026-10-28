@@ -13,6 +13,40 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class DiagramLayoutSessionTests
 {
     [Test]
+    public void ResizingUsesExistingGrownGapsBeforeReservingMoreCells()
+    {
+        var Grid = new FlowchartLogicalGrid(new(150, 90, 30, 60, 15));
+        Assert.That(Grid.TryPlace("wide", new(0, 0, 1, 2)), Is.True);
+        Grid.GrowGap(true, 0, 210, 15);
+        var Context = new FlowchartRenderContext { UseCellRegions = true };
+        var Owner = new DiagramGridLayout.GridNode { Id = "wide", Shape = "rect" };
+        Owner.BindCells(Grid, Context); Owner.CellNode!.UseRoutingCoordinates(0);
+        var Layout = new FlowchartLayoutResult { UsesGridRoutes = true, CellNodes = [Owner], RenderContext = Context };
+        Layout.NodeBoundsMutable.Add(Owner.CellNode.Bounds());
+        var Model = new DiagramContract { Kind = "flowchart", Direction = "TB" };
+        Model.NodesMutable.Add(new() { Id = "wide", Shape = "rect", Label = "old", LayoutWidth = 500, LayoutHeight = 90 });
+        var Session = new DiagramLayoutSession("gaps", 0, Model, Layout);
+        Commit(Session, Session.PrepareResizeNode(0, "wide", 520, 90, "new"));
+        Assert.That(Session.CopyLayout().CellNodes!.Single().CellNode!.Region.ColumnSpan, Is.EqualTo(2));
+        Commit(Session, Session.PrepareResizeNode(0, "wide", 550, 90));
+        Assert.That(Session.CopyLayout().CellNodes!.Single().CellNode!.Region.ColumnSpan, Is.EqualTo(3));
+        Commit(Session, Session.PrepareResizeNode(0, "wide", 500, 90, "old"));
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Geometry(Layout)));
+    }
+    [TestCase(double.NaN)]
+    [TestCase(double.PositiveInfinity)]
+    [TestCase(-1)]
+    [TestCase(double.MaxValue)]
+    public void InvalidMeasuredNodeSizesRejectWithoutMutatingTheSession(double Width)
+    {
+        var Session = TwoComponents();
+        string Before = Geometry(Session.CopyLayout());
+        var Candidate = Session.PrepareResizeNode(0, "A", Width, 100);
+        Assert.That(Candidate.FailureReason, Is.Not.Null);
+        Assert.That(Session.TryCommit(Candidate, out _), Is.False);
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Before));
+    }
+    [Test]
     public void ALoopCannotReserveTheSamePointForBothEnds()
     {
         var Session = TwoComponents();
