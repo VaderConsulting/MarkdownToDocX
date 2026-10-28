@@ -93,7 +93,11 @@ internal static partial class FlowchartComponentWrapping
         }
 
         DiagramGridLayout.GridNode? Root = Nodes
-            .Where(Node => Outgoing[Node.Id].Distinct(StringComparer.Ordinal).Count() >= FlowchartWrapPlan.MinimumRun)
+            // This producer places every remaining member after its fan.
+            // An interior fork has ancestors, not an exclusively downstream
+            // tail; treating them as tail members destroys the ranked graph.
+            .Where(Node => Incoming[Node.Id].Count == 0
+                && Outgoing[Node.Id].Distinct(StringComparer.Ordinal).Count() >= FlowchartWrapPlan.MinimumRun)
             .OrderByDescending(Node => Outgoing[Node.Id].Distinct(StringComparer.Ordinal).Count()).FirstOrDefault();
         if (Root == null)
         {

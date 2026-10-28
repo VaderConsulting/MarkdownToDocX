@@ -142,6 +142,35 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         });
     }
 
+    [Test]
+    public void A112_InitialPlacementPreservesParallelJunctionRanks()
+    {
+        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(ReadScenario("A", 112)).Document);
+        var ParallelGroups = new List<string[]>();
+        bool Observed = false;
+        DiagramGridLayout.LayoutStageObserver = (Stage, State) =>
+        {
+            var Nodes = State.CellNodes!.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+            if (Stage == "grid-and-measured-geometry")
+                foreach (var Outgoing in Contract.Edges.GroupBy(Edge => Edge.SourceId))
+                    ParallelGroups.AddRange(Outgoing.Select(Edge => Nodes[Edge.TargetId]).GroupBy(Node => Node.Rank)
+                        .Where(Group => Group.Count() > 1).Select(Group => Group.Select(Node => Node.Id).ToArray()));
+            if (Stage != "automatic-node-placement-2.x") return;
+            Observed = true;
+            foreach (var Group in ParallelGroups)
+                Assert.That(Group.Select(Id => Nodes[Id].CellNode!.Region.StartRow).Distinct().Count(), Is.EqualTo(1),
+                    "An interior fan cannot be serialised into the tail of a different wrap: " + string.Join(",", Group));
+        };
+        FlowchartLayoutResult Layout;
+        try { Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out Layout), Is.True); }
+        finally { DiagramGridLayout.LayoutStageObserver = null; }
+        Assert.That(Observed, Is.True);
+        Assert.That(ParallelGroups.Count, Is.GreaterThanOrEqualTo(3));
+        Assert.That(Layout.EdgeRoutes.Count, Is.EqualTo(Contract.Edges.Count));
+        Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout)
+            .Where(Finding => Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
+    }
+
     [TestCase(150, "orderSuite", "webShop")]
     [TestCase(151, "placeOrder", "orderSvc")]
     public void PicturedMainSpines_AreStraightAndCentred(int Number, string Source, string Target)

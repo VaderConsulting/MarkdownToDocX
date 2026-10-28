@@ -11,6 +11,29 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellComponentWrappingTests
 {
+    [TestCase(false), TestCase(true)]
+    public void RootFanProducerCannotSerialiseAnInteriorForksAncestors(bool HasAncestor)
+    {
+        string Script = "flowchart TB\n" + (HasAncestor ? "head --> fork\n" : "")
+            + "fork --> a\nfork --> b\nfork --> c\nfork --> d\na --> t1\nt1 --> t2\nt2 --> t3\nt3 --> t4\n";
+        var Contract = MermaidRecognizer.Parse(Script);
+        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        var Nodes = new List<DiagramGridLayout.GridNode>();
+        foreach (var Item in Contract.Nodes.Select((Node, Index) => (Node, Index)))
+        {
+            Assert.That(Grid.TryPlace(Item.Node.Id, new(Item.Index, Item.Index * 2, 1, 1)), Is.True);
+            var Node = new DiagramGridLayout.GridNode { Id = Item.Node.Id }; Node.BindCells(Grid); Nodes.Add(Node);
+        }
+        var Before = Grid.Capture();
+        bool Changed = FlowchartComponentWrapping.ApplyCells(Contract, Nodes, false);
+        Assert.That(Changed, Is.EqualTo(!HasAncestor));
+        if (HasAncestor) Assert.That(Grid.Capture(), Is.SameAs(Before), "reject the unsupported topology before changing any region or gap");
+        else Assert.That(Grid.Capture(), Is.Not.SameAs(Before), "the supported root fan still publishes a complete wrap");
+        Assert.That(Grid.Capture().Regions.Count, Is.EqualTo(Contract.Nodes.Count));
+        Assert.That(Grid.Capture().Regions.Values.SelectMany((First, Index) => Grid.Capture().Regions.Values.Skip(Index + 1)
+            .Select(Second => First.Overlaps(Second))), Is.All.False);
+    }
+
     [Test]
     public void F153_Layout_StaysWithinWordUsableWidth()
     {
