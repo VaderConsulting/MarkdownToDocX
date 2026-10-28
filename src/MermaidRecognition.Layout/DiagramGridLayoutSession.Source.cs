@@ -12,7 +12,8 @@ public static partial class DiagramGridLayout
         // Classification has already excluded changes to measured sizes, groups and removal.
         // Replace all supported inputs before routing so a mixed source edit has one closure.
         internal string? TrySourceUpdate(DiagramContract Model, IReadOnlyCollection<string> ChangedHints,
-            IReadOnlyCollection<string> ChangedEdges, int RouteLimit, out string[] AffectedIds, out string[] RebuiltIds)
+            IReadOnlyCollection<string> ChangedEdges, int RouteLimit, out string[] AffectedIds, out string[] RebuiltIds,
+            bool CapturePlacementOrigins = false)
         {
             AffectedIds = []; RebuiltIds = [];
             using IDisposable Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
@@ -20,9 +21,19 @@ public static partial class DiagramGridLayout
             var Findings = ExistingFindings();
             var Before = Grid.Capture();
             var Placed = State.Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+            var Restored = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+            foreach (string Id in ChangedHints)
+            {
+                var Hint = Model.Nodes.Single(Node => Node.Id == Id).PlacementHint;
+                if (Hint?.IsActive == true && ((CapturePlacementOrigins && State.Nodes[Id].PlacementHint?.IsActive != true)
+                    || (Hint.Kind == PlacementHintKind.At && State.Nodes[Id].PlacementHint is not { IsActive: true, Kind: PlacementHintKind.At })))
+                    UnpinnedOrigins.TryAdd(Id, Before.Regions[Id]);
+                else if (Hint?.IsActive != true && UnpinnedOrigins.Remove(Id, out var Origin))
+                    Restored.Add(Id, Origin);
+            }
             State.Contract = CopyRoutingInputs(Model);
             State.Nodes = State.Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-            string? Failure = DiagramSourcePlacementHints.Plan(State.Contract, Before.Regions, ChangedHints, out var Targets);
+            string? Failure = DiagramSourcePlacementHints.Plan(State.Contract, Before.Regions, ChangedHints, out var Targets, Restored);
             if (Failure != null) { return Failure; }
             foreach (var Pair in Targets)
             {

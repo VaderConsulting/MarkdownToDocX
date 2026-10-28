@@ -9,7 +9,8 @@ namespace LiveEditor;
 
 internal static partial class PreviewNodePlacement
 {
-    internal sealed record SnappedPlacement(string PeerId, string Direction, int Offset, PointF Center, int? ColumnOffset = null);
+    internal sealed record SnappedPlacement(string? PeerId, string Direction, int Offset, PointF Center, int? ColumnOffset = null,
+        int? CellRow = null, int? CellColumn = null);
 
     /// <summary>Projects hint-representable whole-cell moves without placement or routing.</summary>
     internal sealed class GridSnap(string Source, IReadOnlyList<PreviewObject> Items, FlowchartLayoutResult Layout)
@@ -75,7 +76,37 @@ internal static partial class PreviewNodePlacement
                     }
                 }
             }
-            return Best;
+            return Best ?? SnapAbsolute(Moving, Shown, Drop);
+        }
+
+        private static SnappedPlacement SnapAbsolute(FlowchartCellNode Moving, PreviewObject Shown, PointF Drop)
+        {
+            var Region = Moving.Region;
+            var Before = Moving.Bounds(Region, PageCoordinates: true);
+            PointF Project(int Row, int Column)
+            {
+                var Box = Moving.Bounds(new(Row, Column, Region.RowSpan, Region.ColumnSpan), PageCoordinates: true);
+                return new((float)((Shown.Left + Shown.Right) / 2 + Box.CenterX - Before.CenterX),
+                    (float)((Shown.Top + Shown.Bottom) / 2 + Box.CenterY - Before.CenterY));
+            }
+            int Nearest(bool Horizontal)
+            {
+                int Start = Horizontal ? Region.StartColumn : Region.StartRow;
+                int Span = Horizontal ? Region.ColumnSpan : Region.RowSpan;
+                int Minimum = (int)Math.Max(int.MinValue, (long)Start - 10000);
+                int Low = Minimum, High = (int)Math.Min((long)int.MaxValue - Span, (long)Start + 10000);
+                double Axis(int Value) => Horizontal ? Project(Region.StartRow, Value).X : Project(Value, Region.StartColumn).Y;
+                double Target = Horizontal ? Drop.X : Drop.Y;
+                while (Low < High)
+                {
+                    int Middle = Low + (High - Low) / 2;
+                    if (Axis(Middle) < Target) Low = Middle + 1; else High = Middle;
+                }
+                int Previous = Low > Minimum ? Low - 1 : Low;
+                return Math.Abs(Axis(Previous) - Target) <= Math.Abs(Axis(Low) - Target) ? Previous : Low;
+            }
+            int Row = Nearest(false), Column = Nearest(true);
+            return new(null, "at", 0, Project(Row, Column), CellRow: Row, CellColumn: Column);
         }
     }
 }

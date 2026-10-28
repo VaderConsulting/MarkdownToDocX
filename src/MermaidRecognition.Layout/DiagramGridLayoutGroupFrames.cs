@@ -565,6 +565,7 @@ public static partial class DiagramGridLayout
         PeerId = Hint.PeerId,
         Offset = Hint.Offset,
         ColumnOffset = Hint.ColumnOffset,
+        CellRow = Hint.CellRow, CellColumn = Hint.CellColumn,
         Direction = Hint.Direction,
         SourceLine = Hint.SourceLine,
         IsActive = Hint.IsActive,

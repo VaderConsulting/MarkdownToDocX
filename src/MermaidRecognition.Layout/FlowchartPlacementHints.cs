@@ -53,6 +53,11 @@ internal static partial class FlowchartPlacementHints
         bool Changed = false;
         foreach (HintItem Item in Hints)
         {
+            if (Item.Hint.Kind == PlacementHintKind.At)
+            {
+                Reject(Item.Hint, "absolute cell placement requires grid layout");
+                continue;
+            }
             List<DiagramGridLayout.GridNode> Owner = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
             if (Owner.Count == 0)
             {

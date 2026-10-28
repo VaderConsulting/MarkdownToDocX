@@ -31,7 +31,7 @@ public sealed class ElementParameterTests
         "<N|S|E|W>"
     ];
 
-    private static readonly string[] ClauseWords = ["in", "above", "below", "left-of", "right-of", "NW", "NE", "SE", "SW", "push"];
+    private static readonly string[] ClauseWords = ["in", "above", "below", "left-of", "right-of", "NW", "NE", "SE", "SW", "at", "push"];
 
     private static readonly string[] PushDirections = ["N", "S", "E", "W"];
 

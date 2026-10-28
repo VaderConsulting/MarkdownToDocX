@@ -303,6 +303,9 @@ public static partial class EnterpriseSvgRenderer
         }
 
         Key.Append(Hint.Kind).Append('|').Append(Hint.PeerId).Append('|').Append(Hint.Offset).Append('|');
+        if (Hint.ColumnOffset.HasValue) Key.Append("column=").Append(Hint.ColumnOffset.Value).Append('|');
+        if (Hint.Kind == MermaidRecognition.Contract.PlacementHintKind.At)
+            Key.Append("cell=").Append(Hint.CellRow).Append(',').Append(Hint.CellColumn).Append('|');
         Key.Append(Hint.Direction).Append('|').Append(Hint.IsActive).Append('\u001f');
     }
 

@@ -72,12 +72,12 @@ internal static class EnterpriseHelp
         [
             Name + " <id> [\"label\"]",
             "    [in <container>]",
-            "    [above|below|left-of|right-of <peer> [+n] | NW|NE|SE|SW <peer> [+rows [+columns]] | push <N|S|E|W>]",
+            "    [above|below|left-of|right-of <peer> [+n] | NW|NE|SE|SW <peer> [+rows [+columns]] | at <row> <column> | push <N|S|E|W>]",
             string.Empty,
             .. Wrap(Summary, NOTE_WIDTH),
             string.Empty,
         ];
-        int NameWidth = FieldWidth("id", "\"label\"", "container", "above", "below", "left-of", "right-of", "peer", "+n", "push");
+        int NameWidth = FieldWidth("id", "\"label\"", "container", "above", "below", "left-of", "right-of", "NW/NE/SE/SW", "at", "peer", "+n", "push");
         AppendField(Lines, "id", "Required. Identifier unique within this diagram.", NameWidth);
         AppendField(Lines, "\"label\"", "Optional. Displayed name; defaults to the identifier.", NameWidth);
         AppendField(Lines, "container", "Optional. Identifier of the containing group.", NameWidth);
@@ -86,6 +86,7 @@ internal static class EnterpriseHelp
         AppendField(Lines, "left-of", "Optional. Place this element to the left of <peer>.", NameWidth);
         AppendField(Lines, "right-of", "Optional. Place this element to the right of <peer>.", NameWidth);
         AppendField(Lines, "NW/NE/SE/SW", "Places the element in that quadrant; +rows and +columns are independent whole-cell gaps. Connections keep orthogonal bends.", NameWidth);
+        AppendField(Lines, "at", "Pin an ungrouped element at a signed logical-cell <row> and <column>, without a peer.", NameWidth);
         AppendField(Lines, "peer", "Required with a relative placement direction. An element in the same group.", NameWidth);
         AppendField(Lines, "+n", "Optional after the peer. Extra whole cells beyond the normal gap.", NameWidth);
         AppendField(Lines, "push", "Optional. Push outward: N top, S bottom, E right, W left.", NameWidth);
@@ -204,6 +205,13 @@ internal static class EnterpriseHelp
     public static string PlacementDocumentation(string Hint)
     {
         List<string> Lines = [];
+        if (string.Equals(Hint, "at", StringComparison.OrdinalIgnoreCase))
+        {
+            Lines.Add("at <row> <column>");
+            Lines.Add(string.Empty);
+            Lines.AddRange(Wrap("Pins an ungrouped regular element's top-left occupied cell. Row and column are signed integers in the diagram's logical grid; no reference peer is required. Connections retain orthogonal bends.", NOTE_WIDTH));
+            return Compose("at", "Placement", Lines);
+        }
         if (string.Equals(Hint, "push", StringComparison.Ordinal))
         {
             Lines.Add("push <N|S|E|W>");
@@ -456,7 +464,7 @@ internal static class EnterpriseHelp
             return null;
         }
 
-        string Signature = TypeName + " <id> [\"label\"] [in <container>] [above|below|left-of|right-of <peer> [+n] | NW|NE|SE|SW <peer> [+rows [+columns]] | push <N|S|E|W>]";
+        string Signature = TypeName + " <id> [\"label\"] [in <container>] [above|below|left-of|right-of <peer> [+n] | NW|NE|SE|SW <peer> [+rows [+columns]] | at <row> <column> | push <N|S|E|W>]";
         string AfterId = string.Empty;
         int IdEnd = TypeEnd;
         if (Match.Groups["id"].Success)
@@ -487,6 +495,12 @@ internal static class EnterpriseHelp
         if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of|NW|NE|SE|SW)\s+\S*$", RegexOptions.IgnoreCase))
         {
             return Make(Signature, "<peer>", "peer - element to place against", "An element, group, or note in the same group. Optional +n adds whole cells beyond the normal gap.");
+        }
+        if (Regex.IsMatch(AfterId, @"\bat\s+(?:[+-]?\d+)?(?:\s+[+-]?\d*)?$", RegexOptions.IgnoreCase))
+        {
+            bool IsColumn = Regex.IsMatch(AfterId, @"\bat\s+[+-]?\d+\s+", RegexOptions.IgnoreCase);
+            return Make(Signature, IsColumn ? "<column>" : "<row>", IsColumn ? "column - logical cell" : "row - logical cell",
+                "A signed integer for the top-left occupied cell. Absolute placement requires no peer and keeps connections orthogonal.");
         }
 
         if (Regex.IsMatch(AfterId, @"\bpush\s+[NSEW]\s*$", RegexOptions.IgnoreCase))
@@ -749,7 +763,7 @@ internal static class EnterpriseHelp
 
     private static bool IsPlacementWord(string Token)
     {
-        return Token == "above" || Token == "below" || Token == "left-of" || Token == "right-of" || Token == "push"
+        return Token == "above" || Token == "below" || Token == "left-of" || Token == "right-of" || Token == "push" || Token == "at"
             || Token.ToUpperInvariant() is "NW" or "NE" or "SE" or "SW";
     }
 

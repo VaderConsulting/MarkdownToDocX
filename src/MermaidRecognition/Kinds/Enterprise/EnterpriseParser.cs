@@ -54,7 +54,7 @@ public sealed class EnterpriseParser : Parser
         @"^direction\s+(TB|TD|BT|LR|RL)$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private const string PLACEMENT_HINT_PATTERN = @"(?:(?<relative>above|below|left-of|right-of)\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+))?|(?<relative>(?i:NW|NE|SE|SW))\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+)(?:\s+\+(?<columnOffset>\d+))?)?|push\s+(?<push>[NSEW]))";
+    private const string PLACEMENT_HINT_PATTERN = @"(?:(?<relative>above|below|left-of|right-of)\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+))?|(?<relative>(?i:NW|NE|SE|SW))\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+)(?:\s+\+(?<columnOffset>\d+))?)?|at\s+(?<cellRow>[+-]?\d+)\s+(?<cellColumn>[+-]?\d+)|push\s+(?<push>[NSEW]))";
 
     private static readonly Regex GroupRegex = new Regex(
         @"^group\s+(?<id>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+in\s+(?<parent>" + ID_PATTERN + @"))?(?:\s+(?<placement>" + PLACEMENT_HINT_PATTERN + @"))?$",
@@ -703,6 +703,13 @@ public sealed class EnterpriseParser : Parser
         }
 
         PlacementHintContract Hint = new PlacementHintContract { SourceLine = LineNumber };
+        if (Match.Groups["cellRow"].Success)
+        {
+            Hint.Kind = PlacementHintKind.At;
+            Hint.CellRow = int.Parse(Match.Groups["cellRow"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Hint.CellColumn = int.Parse(Match.Groups["cellColumn"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            return Hint;
+        }
         if (Match.Groups["push"].Success)
         {
             Hint.Kind = PlacementHintKind.Push;
@@ -819,6 +826,12 @@ public sealed class EnterpriseParser : Parser
         Dictionary<string, string> AcceptedPeers = new(StringComparer.Ordinal);
         foreach ((string Id, string? ParentId, PlacementHintContract Hint) in Hints.OrderBy(Item => Item.Hint.SourceLine))
         {
+            if (Hint.Kind == PlacementHintKind.At)
+            {
+                if (Document.Groups.ContainsKey(Id) || Document.Notes.ContainsKey(Id) || !string.IsNullOrEmpty(ParentId))
+                    RejectPlacementHint(Hint, Diagnostics, "absolute cell placement currently requires an ungrouped regular element");
+                continue;
+            }
             if (!Hint.IsActive || Hint.Kind == PlacementHintKind.Push)
             {
                 continue;

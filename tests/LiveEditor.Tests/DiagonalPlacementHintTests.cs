@@ -12,6 +12,19 @@ namespace LiveEditor.Tests;
 [TestFixture]
 public sealed class DiagonalPlacementHintTests
 {
+    [TestCase(-2, 5)]
+    [TestCase(0, 0)]
+    public void AbsoluteCellPositionRoundTripsThroughArchiAndSource(int Row, int Column)
+    {
+        var Element = new XElement("element");
+        ArchiHintProperties.WritePlacement(Element, new() { Kind = PlacementHintKind.At, CellRow = Row, CellColumn = Column });
+        var Hint = ArchiHintProperties.ReadPlacement(Element)!;
+        Assert.That(Hint.CellRow, Is.EqualTo(Row));
+        Assert.That(Hint.CellColumn, Is.EqualTo(Column));
+        Assert.That(ArchiHintProperties.FormatPlacementSuffix(Hint), Is.EqualTo($" at {Row} {Column}"));
+        Assert.That(EnterpriseValidator.Analyze("enterprise\ndata-object order \"Order\"" + ArchiHintProperties.FormatPlacementSuffix(Hint)).HasErrors, Is.False);
+    }
+
     [TestCase("NW")]
     [TestCase("NE")]
     [TestCase("SE")]

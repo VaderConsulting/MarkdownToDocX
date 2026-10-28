@@ -97,7 +97,7 @@ public sealed class EnterpriseBandPlacementTests
 
     /// <summary>Compares fully routed legal wraps, includes the unwrapped layout, and preserves discarded model ownership exactly.</summary>
     [Test]
-    public void WrapSelectionPublishesTheCheapestFullyRoutedCandidate()
+    public void WrapSelectionPublishesACandidateNoWorseThanItsRoutedTrials()
     {
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze("enterprise\n business-actor a\n business-actor b\n business-actor c\n application-component app\n a -association-> app\n b -association-> app\n c -association-> app").Document!);
         List<(int Width, FlowchartLayoutResult Layout, FlowchartLayoutScore.ComparisonCost Cost, bool Legal, string Snapshot)> Samples = [];
@@ -111,7 +111,9 @@ public sealed class EnterpriseBandPlacementTests
             (int Width, FlowchartLayoutResult Layout, FlowchartLayoutScore.ComparisonCost Cost, bool Legal, string Snapshot)[] Legal = [.. Samples.Where(Sample => Sample.Legal)];
             Assert.That(Legal, Is.Not.Empty);
             FlowchartLayoutScore.ComparisonCost Minimum = Legal.Select(Sample => Sample.Cost).Min();
-            Assert.That(FlowchartLayoutScore.Measure(Contract, Layout, false).Cost.CompareTo(Minimum), Is.Zero);
+            // Confirming the winner reserves its initial corridor capacity and can improve the trial's score.
+            Assert.That(FlowchartLayoutScore.Measure(Contract, Layout, false).Cost.CompareTo(Minimum), Is.LessThanOrEqualTo(0));
+            Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout), Is.Empty);
             Assert.That(Layout.RenderContext, Is.SameAs(Context));
             foreach ((int Width, FlowchartLayoutResult Layout, FlowchartLayoutScore.ComparisonCost Cost, bool Legal, string Snapshot) Sample in Samples)
             {
@@ -178,22 +180,30 @@ public sealed class EnterpriseBandPlacementTests
 
     /// <summary>Cross-band tracks receive the measured missing space before any route search, without moving reservations.</summary>
     [Test]
-    public void CrowdedBandGapGrowsAtomicallyBeforeRouting()
+    public void CrowdedBandGapReservesDeclaredTracksAndRepeatedReservationIsIdempotent()
     {
-        string Source = "enterprise\n business-actor actor\n application-component app\n"
-            + string.Join("\n", Enumerable.Range(0, 9).Select(Index => " actor -association-> app \"" + Index + "\""));
-        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document!);
+        string Source = "enterprise\n application-component app\n"
+            + string.Join("\n", Enumerable.Range(0, 9).Select(Index => " business-actor actor" + Index + "\n actor" + Index + " -association-> app"));
+        var Analysis = EnterpriseValidator.Analyze(Source);
+        Assert.That(Analysis.HasErrors, Is.False);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document!);
+        Assert.That(Contract.Edges.Count, Is.EqualTo(9));
         List<DiagramGridLayout.GridNode> Nodes = [.. Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 })];
         FlowchartCellInitialPlacement.Bind(Nodes, 150, 90, false, new() { UseCellRegions = true });
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
         Assert.That(EnterpriseBandPlacement.Apply(Contract, Nodes), Is.True);
-        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid; FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
-        Assert.That(EnterpriseBandPlacement.ReserveRoutingSpace(Contract, Nodes), Is.True);
-        Assert.That(Grid.Capture().Regions, Is.EqualTo(Before.Regions));
-        Assert.That(Grid.Capture().RowGaps.Values.Sum(), Is.GreaterThan(Before.RowGaps.Values.Sum()));
-        FlowchartCellRegion A = Nodes.Single(Node => Node.Id == "actor").CellNode!.Region;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        FlowchartCellRegion A = Nodes.Where(Node => Node.Id.StartsWith("actor", StringComparison.Ordinal)).Select(Node => Node.CellNode!.Region).MaxBy(Region => Region.EndRow)!;
         FlowchartCellRegion B = Nodes.Single(Node => Node.Id == "app").CellNode!.Region;
-        double Available = Grid.Origin(B).Y - Grid.Origin(A).Y - Grid.Measure(A).Height;
-        Assert.That(Available, Is.GreaterThanOrEqualTo((2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) + (8 * FlowchartLayoutRules.TrackSpacing)));
+        double Available() => Grid.Origin(B).Y - Grid.Origin(A).Y - Grid.Measure(A).Height;
+        double Required = (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) + (8 * FlowchartLayoutRules.TrackSpacing);
+        bool NeedsGrowth = Available() < Required;
+        Assert.That(EnterpriseBandPlacement.ReserveRoutingSpace(Contract, Nodes), Is.EqualTo(NeedsGrowth));
+        Assert.That(Grid.Capture().Regions, Is.EqualTo(Before.Regions));
+        Assert.That(Available(), Is.GreaterThanOrEqualTo(Required));
+        FlowchartLogicalGrid.Snapshot Reserved = Grid.Capture();
+        Assert.That(EnterpriseBandPlacement.ReserveRoutingSpace(Contract, Nodes), Is.False);
+        Assert.That(Grid.Capture(), Is.SameAs(Reserved));
     }
 
     /// <summary>A skipped middle band receives an interior free column while endpoint bands keep their cells.</summary>

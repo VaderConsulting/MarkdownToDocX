@@ -20,7 +20,7 @@ Call `Invalidate(reason)` when switching documents/options or starting explicit 
 | --- | --- |
 | Comments, whitespace, parser ID/order changes, source spans, hint diagnostics, interactions | Metadata-only; no route rebuild |
 | Inline fill/stroke/text colour, existing class/link colour definitions, animation | Redraw; preserve accepted geometry |
-| Relative node placement hint addition/replacement/removal, supported push hint | Local transaction using fixed cell spans; NW/NE/SE/SW support independent row/column gaps |
+| Node placement hint addition/replacement/removal, supported push hint | Local transaction using fixed cell spans; NW/NE/SE/SW support independent gaps; `at row column` needs no peer |
 | Relationship addition/reconnect or endpoint/travel hint change/removal | Local routing with stable IDs |
 | Direction/kind/options/configuration changes, group edits, node insertion/removal, relationship removal, labels, sizes, fonts, shapes, marker/kind/constraint changes | Explicit rebuild requirement; no rebuild executed |
 | Ambiguous identities, invalid analysed model, stale/retired instance, impossible supported local edit | Rejected; retain accepted state |
@@ -30,6 +30,8 @@ Mixed supported changes replace routing inputs and plan all changed hints before
 The engine validates retained hints and cell/semantic constraints, includes incident and newly obstructed routes, expands for terminal redistribution and applies the existing bounded route completion and independent legality checker. A failed local edit stays rejected; it cannot turn into a full rebuild. Adding/reconnecting plateau-to-plateau triggering relationships requests a new semantic constraint session: the old convention snapshot must not validate a changed timeline. Local label resizing, source node insertion/removal, self-loop construction, manual port-slot order and GUI undo/redo remain future work. Label/style geometry changes conservatively request rebuilding until corresponding local measured-geometry operations exist. Initial capture can retain existing grouped geometry; grouped movement remains unsupported.
 
 ## Validation
+
+`at <row> <column>` resolves directly to a signed logical-cell origin before dependent relative hints are evaluated. Its row/column spans remain fixed; collisions and semantic constraints still reject the transaction. Newly introduced absolute pins remember their pre-pin origins within the retained session. `Prepare` also accepts optional `CapturePlacementOrigins: true` (after `RouteLimit`) to remember the origin when any first active placement hint is added. LiveEditor enables this for typed and GUI edits so undoing a first hint restores the original position and resolves dependents. Without this option, ordinary relative-hint removal retains its previous release-lock behavior. Removing a remembered hint restores its origin; a new session loaded with an existing hint has no prior origin. All origin records belong to isolated candidate state and publish only with successful edits. See [anchor-free-placement.md](anchor-free-placement.md).
 
 On 28 October 2026, all 29 new source-update cases and 67 existing selected regressions pass (96 total):
 

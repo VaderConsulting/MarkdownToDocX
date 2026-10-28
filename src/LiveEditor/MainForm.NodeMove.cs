@@ -42,7 +42,8 @@ public partial class MainForm
             SetStatus(Reason);
             return false;
         }
-        if (Edit!.Apply(Source) == Source) return false;
+        string Updated = Edit!.Apply(Source);
+        if (Updated == Source) return false;
         HidePreviewHover();
         _SyncingSelectionFromPreview = true;
         try

@@ -125,6 +125,21 @@ public sealed class EnterpriseParserTests
         Assert.That(Hint.ColumnOffset, Is.EqualTo(5));
     }
 
+    [TestCase(-2, 5)]
+    [TestCase(0, 0)]
+    [TestCase(4, -3)]
+    public void AbsoluteCellPlacementParsesWithoutAReferencePeer(int Row, int Column)
+    {
+        var Result = EnterpriseParser.ParseDocument($"enterprise\napplication-component a at {Row} {Column}\n");
+        Assert.That(Result.HasErrors, Is.False);
+        var Hint = Result.Document.Elements["a"].PlacementHint!;
+        Assert.That(Hint.Kind, Is.EqualTo(PlacementHintKind.At));
+        Assert.That(Hint.IsActive, Is.True);
+        Assert.That(Hint.PeerId, Is.Null);
+        Assert.That(Hint.CellRow, Is.EqualTo(Row));
+        Assert.That(Hint.CellColumn, Is.EqualTo(Column));
+    }
+
     [TestCase("SE a", 0, null)]
     [TestCase("SE a +2", 2, null)]
     [TestCase("SE a +2 +0", 2, 0)]

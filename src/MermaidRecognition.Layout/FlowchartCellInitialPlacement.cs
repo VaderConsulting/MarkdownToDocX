@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Layout;
 
@@ -21,19 +22,23 @@ internal static class FlowchartCellInitialPlacement
     /// <param name="Height">Measured common rectangular height.</param>
     /// <param name="Horizontal">Whether ranks advance across columns.</param>
     /// <param name="Context">Owning render context and rejected-write diagnostic sink.</param>
+    /// <param name="Contract">Optional declarations whose absolute cell pins reserve space before automatic placement.</param>
     internal static void Bind(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, int Width, int Height,
-        bool Horizontal, FlowchartRenderContext Context)
+        bool Horizontal, FlowchartRenderContext Context, DiagramContract? Contract = null)
     {
         FlowchartLogicalGridConfiguration Config = FlowchartLogicalGridConfiguration.FromRules();
         int Columns = Math.Max(1, (int)Math.Ceiling((Width + Config.ColumnGap) / (Config.CellWidth + Config.ColumnGap)));
         int Rows = Math.Max(1, (int)Math.Ceiling((Height + Config.RowGap) / (Config.CellHeight + Config.RowGap)));
         int ColumnPitch = Math.Max(Rows, Columns);
+        var Pins = Contract?.Nodes.Where(Node => Node.PlacementHint is { IsActive: true, Kind: PlacementHintKind.At })
+            .ToDictionary(Node => Node.Id, Node => (Node.PlacementHint!.CellRow, Node.PlacementHint.CellColumn), StringComparer.Ordinal);
         FlowchartLogicalGrid Grid = Create(Config, Nodes.Select(Node => new FlowchartCellPlacementSeed(
             Node.Id, Node.Rank, Node.Column, Node.IsDiamond ? 2 * ColumnPitch : Rows,
-            Node.IsDiamond ? ColumnPitch : Columns)).ToArray(), Horizontal);
+            Node.IsDiamond ? ColumnPitch : Columns)).ToArray(), Horizontal, Pins);
         foreach (DiagramGridLayout.GridNode Node in Nodes)
         {
             Node.BindCells(Grid, Context);
+            if (Pins?.ContainsKey(Node.Id) == true) Node.PlacementHintLocked = true;
         }
     }
 
@@ -81,11 +86,13 @@ internal static class FlowchartCellInitialPlacement
     /// <param name="Configuration">Fixed diagram base cells and initial gaps.</param>
     /// <param name="Inputs">Ranked node identities and already measured spans; independent text-span selection is not enabled here.</param>
     /// <param name="Horizontal">Whether ranks advance across columns rather than down rows.</param>
+    /// <param name="Pins">Optional explicitly reserved logical row/column origins.</param>
     /// <returns>A fully reserved grid with one exclusive contiguous region per node.</returns>
     /// <exception cref="ArgumentException">Node identities repeat or a declared identity is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">A measured span is not positive.</exception>
     internal static FlowchartLogicalGrid Create(FlowchartLogicalGridConfiguration Configuration,
-        IReadOnlyList<FlowchartCellPlacementSeed> Inputs, bool Horizontal)
+        IReadOnlyList<FlowchartCellPlacementSeed> Inputs, bool Horizontal,
+        IReadOnlyDictionary<string, (int Row, int Column)>? Pins = null)
     {
         ArgumentNullException.ThrowIfNull(Inputs);
         FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration);
@@ -96,10 +103,21 @@ internal static class FlowchartCellInitialPlacement
             ArgumentException.ThrowIfNullOrEmpty(Input.Id);
             _ = new FlowchartCellRegion(0, 0, Input.RowSpan, Input.ColumnSpan);
         }
+        if (Ordered.Select(Input => Input.Id).Distinct(StringComparer.Ordinal).Count() != Ordered.Length)
+            throw new ArgumentException("Initial placement node identities must be unique.", nameof(Inputs));
+        foreach (var Input in Ordered.Where(Input => Pins?.ContainsKey(Input.Id) == true))
+        {
+            var Pin = Pins![Input.Id];
+            var Region = new FlowchartCellRegion(Pin.Row, Pin.Column, Input.RowSpan, Input.ColumnSpan);
+            if (Targets.Values.Any(Other => Other.Overlaps(Region)))
+                throw new InvalidOperationException("Absolute cell positions overlap.");
+            Targets.Add(Input.Id, Region);
+        }
         int RowPitch = Ordered.Select(Input => Input.RowSpan).DefaultIfEmpty(1).Max();
         int ColumnPitch = Ordered.Select(Input => Input.ColumnSpan).DefaultIfEmpty(1).Max();
         foreach (FlowchartCellPlacementSeed? Input in Ordered)
         {
+            if (Targets.ContainsKey(Input.Id)) continue;
             int Row = checked((Horizontal ? Input.Column : Input.Rank) * RowPitch);
             int Column = checked((Horizontal ? Input.Rank : Input.Column) * ColumnPitch);
             FlowchartCellRegion Region = new FlowchartCellRegion(Row, Column, Input.RowSpan, Input.ColumnSpan);

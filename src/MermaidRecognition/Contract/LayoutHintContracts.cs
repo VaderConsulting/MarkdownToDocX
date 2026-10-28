@@ -20,7 +20,8 @@ public enum PlacementHintKind
     NorthWest,
     NorthEast,
     SouthEast,
-    SouthWest
+    SouthWest,
+    At
 }
 
 /// <summary>Parsed placement hint attached to one node or group declaration.</summary>
@@ -34,6 +35,10 @@ public sealed class PlacementHintContract
 
     /// <summary>Horizontal gap for diagonal placement; omitted uses Offset on both axes.</summary>
     public int? ColumnOffset { get; set; }
+
+    /// <summary>Absolute logical-cell origin for an At hint, independent of placement peers.</summary>
+    public int CellRow { get; set; }
+    public int CellColumn { get; set; }
 
     public bool IsDiagonal => Kind is PlacementHintKind.NorthWest or PlacementHintKind.NorthEast
         or PlacementHintKind.SouthEast or PlacementHintKind.SouthWest;

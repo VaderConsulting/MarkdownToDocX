@@ -13,6 +13,9 @@ public static partial class DiagramGridLayout
     /// <summary>An ownership boundary around routing inputs, cells, ports, guides and per-candidate caches.</summary>
     internal sealed partial class RetainedRoutingState
     {
+        // A newly introduced absolute pin must undo to its pre-pin reservation,
+        // even when the original source had no placement hint to reapply.
+        private readonly Dictionary<string, FlowchartCellRegion> UnpinnedOrigins = new(StringComparer.Ordinal);
         private readonly GridLayoutState State;
         private readonly FlowchartLogicalGrid Grid;
         private RetainedRoutingState(GridLayoutState State, FlowchartLogicalGrid Grid) { this.State = State; this.Grid = Grid; }
@@ -93,7 +96,12 @@ public static partial class DiagramGridLayout
             return new(Copy, Grids.Values.SingleOrDefault() ?? new(FlowchartLogicalGridConfiguration.FromRules()));
         }
 
-        internal RetainedRoutingState Fork() => Capture(State.Contract, Layout);
+        internal RetainedRoutingState Fork()
+        {
+            var Copy = Capture(State.Contract, Layout);
+            foreach (var Pair in UnpinnedOrigins) Copy.UnpinnedOrigins.Add(Pair.Key, Pair.Value);
+            return Copy;
+        }
 
         internal string? TryMove(IReadOnlyDictionary<string, FlowchartCellRegion> Targets, int RouteLimit,
             out string[] AffectedIds, out string[] RebuiltIds)

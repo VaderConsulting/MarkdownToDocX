@@ -70,7 +70,7 @@ internal sealed class RetainedEnterprisePreview
             else if (PreviousPresentation != Presentation) RebuildReason = "Enterprise title, configuration or presentation geometry changed.";
             else
             {
-                Update = Current.Prepare(DocumentId, SourceRevision, Source, Model, Options);
+                Update = Current.Prepare(DocumentId, SourceRevision, Source, Model, Options, CapturePlacementOrigins: true);
                 if (Update.Kind == DiagramSourceUpdateKind.RebuildRequired) RebuildReason = Update.FailureReason;
                 else if (Update.FailureReason != null) throw new InvalidOperationException(Update.FailureReason);
             }

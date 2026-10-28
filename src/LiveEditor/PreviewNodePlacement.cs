@@ -41,6 +41,28 @@ internal static partial class PreviewNodePlacement
             return false;
         }
 
+        var Snapped = Grid?.Snap(NodeId, Drop);
+        if (Grid != null && Snapped == null) return false;
+        if (Snapped is { Direction: "at", CellRow: { } Row, CellColumn: { } Column })
+        {
+            string Pin = "at " + Row.ToString(CultureInfo.InvariantCulture) + " " + Column.ToString(CultureInfo.InvariantCulture);
+            if (!TryRewrite(Source, Element.LineNumber, Pin, out Change))
+            {
+                Reason = "Drag supports one declaration per line; edit this placement hint in the source.";
+                return false;
+            }
+            var Parsed = EnterpriseValidator.Analyze(Change!.Apply(Source));
+            if (Parsed.HasErrors || !Parsed.Document.Elements.TryGetValue(NodeId, out var Pinned)
+                || Pinned.PlacementHint is not { Kind: PlacementHintKind.At } PinHint
+                || PinHint.CellRow != Row || PinHint.CellColumn != Column || Pinned.Label != Element.Label || Pinned.ParentId != Element.ParentId
+                || !Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal).SequenceEqual(
+                    Parsed.Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal)))
+            {
+                Change = null; Reason = "The cell position could not be applied without changing the declaration."; return false;
+            }
+            Reason = string.Empty; return true;
+        }
+
         EnterpriseLayer Layer = EnterpriseElementCatalog.Elements[Element.ElementType].Layer;
         PreviewObject? Peer = Items.Where(Item => Item.Kind == PreviewObjectKind.Node && Item.Id != NodeId
             && Item.Right > Item.Left && Item.Bottom > Item.Top
@@ -65,7 +87,6 @@ internal static partial class PreviewNodePlacement
         string Hint = Direction + " " + Peer.Id + (Offset == 0 ? string.Empty : " +" + Offset.ToString(CultureInfo.InvariantCulture));
         if (Grid != null)
         {
-            var Snapped = Grid.Snap(NodeId, Drop);
             if (Snapped == null) return false;
             Peer = Items.First(Item => Item.Id == Snapped.PeerId && Item.Kind == PreviewObjectKind.Node);
             Direction = Snapped.Direction; Offset = Snapped.Offset;
@@ -195,7 +216,7 @@ internal static partial class PreviewNodePlacement
             }
 
             string Word = Text.Substring(WordStart, I - WordStart);
-            if (Words >= 2 && PreviousWord != "in" && (Word is "above" or "below" or "left-of" or "right-of" or "push"
+            if (Words >= 2 && PreviousWord != "in" && (Word is "above" or "below" or "left-of" or "right-of" or "push" or "at"
                 || Word.ToUpperInvariant() is "NW" or "NE" or "SE" or "SW"))
             {
                 OldHintStart = WordStart;

@@ -62,7 +62,12 @@ internal static partial class FlowchartPlacementHints
             DiagramGridLayout.GridNode[] Others = [.. Nodes.Where(Node => !MovingIds.Contains(Node.Id))];
             int Rows = 0, Columns = 0, RowDirection = 0, ColumnDirection = 0;
             string? PeerId = Item.Hint.PeerId;
-            if (Item.Hint.Kind == PlacementHintKind.Push)
+            if (Item.Hint.Kind == PlacementHintKind.At)
+            {
+                Rows = checked(Item.Hint.CellRow - OwnerRegion.StartRow);
+                Columns = checked(Item.Hint.CellColumn - OwnerRegion.StartColumn);
+            }
+            else if (Item.Hint.Kind == PlacementHintKind.Push)
             {
                 DiagramGridLayout.GridNode[] Siblings = [.. Others.Where(Node => string.Equals(Node.GroupId, Item.ParentId, StringComparison.Ordinal))];
                 if (Siblings.Length == 0)
@@ -115,6 +120,7 @@ internal static partial class FlowchartPlacementHints
                 }
             }
             Dictionary<string, FlowchartCellRegion> Changes;
+            bool Blocked = false;
             while (true)
             {
                 Changes = Moving.ToDictionary(Node => Node.Id, Node =>
@@ -129,8 +135,14 @@ internal static partial class FlowchartPlacementHints
                 }
                 // Each rejection advances along the requested direction. The
                 // finite set of occupied regions bounds this monotone search.
+                if (Item.Hint.Kind == PlacementHintKind.At)
+                {
+                    Rejections.Add((Item.Hint, "absolute cell placement overlaps an occupied cell"));
+                    Blocked = true; break;
+                }
                 Rows = checked(Rows + RowDirection); Columns = checked(Columns + ColumnDirection);
             }
+            if (Blocked) continue;
             Dictionary<string, FlowchartCellRegion> Previous = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
             foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
             {
@@ -195,6 +207,8 @@ internal static partial class FlowchartPlacementHints
     {
         List<DiagramGridLayout.GridNode> Members = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
         FlowchartCellRegion Owner = CellEnvelope(Members, Regions);
+        if (Item.Hint.Kind == PlacementHintKind.At)
+            return Owner.StartRow == Item.Hint.CellRow && Owner.StartColumn == Item.Hint.CellColumn;
         List<DiagramGridLayout.GridNode> Peers = Item.Hint.Kind == PlacementHintKind.Push
             ? [.. Nodes.Where(Node => !Members.Contains(Node) && string.Equals(Node.GroupId, Item.ParentId, StringComparison.Ordinal))]
             : UnitNodes(Item.Hint.PeerId!, Groups.ContainsKey(Item.Hint.PeerId!), Nodes, ById, Groups);

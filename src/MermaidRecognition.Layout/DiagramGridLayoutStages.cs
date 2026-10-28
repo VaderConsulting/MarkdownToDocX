@@ -128,7 +128,7 @@ public static partial class DiagramGridLayout
                 if (State.Copy.RenderContext.UseCellRegions)
                 {
                     FlowchartCellInitialPlacement.Bind(State.Placed, State.BoxWidth, State.BoxHeight,
-                        State.Horizontal, State.Copy.RenderContext);
+                        State.Horizontal, State.Copy.RenderContext, State.Contract);
                     State.Copy.CellNodes = State.Placed;
                     State.EnterpriseBands = Enterprise.EnterpriseBandPlacement.Apply(State.Contract, State.Placed, State.Copy.RenderContext,
                         out Action? CompletePartners);

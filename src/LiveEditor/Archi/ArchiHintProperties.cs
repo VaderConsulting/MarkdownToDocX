@@ -29,8 +29,10 @@ internal static class ArchiHintProperties
             + Hint.Offset.ToString(CultureInfo.InvariantCulture)
             + "|"
             + (Hint.Direction?.ToString() ?? string.Empty);
-        if (Hint.ColumnOffset.HasValue)
-            Value += "|" + Hint.ColumnOffset.Value.ToString(CultureInfo.InvariantCulture);
+        if (Hint.ColumnOffset.HasValue || Hint.Kind == PlacementHintKind.At)
+            Value += "|" + Hint.ColumnOffset?.ToString(CultureInfo.InvariantCulture);
+        if (Hint.Kind == PlacementHintKind.At)
+            Value += "|" + Hint.CellRow.ToString(CultureInfo.InvariantCulture) + "|" + Hint.CellColumn.ToString(CultureInfo.InvariantCulture);
         EnsureProperty(ElementNode, PLACEMENT_KEY, Value);
     }
 
@@ -49,6 +51,9 @@ internal static class ArchiHintProperties
         }
 
         PlacementHintContract Hint = new PlacementHintContract { Kind = Kind };
+        if (Parts.Length > 6 && int.TryParse(Parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out int Row)
+            && int.TryParse(Parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out int Column))
+        { Hint.CellRow = Row; Hint.CellColumn = Column; }
         if (Parts.Length > 4 && int.TryParse(Parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int ColumnOffset))
             Hint.ColumnOffset = ColumnOffset;
         if (Parts.Length > 1 && !string.IsNullOrWhiteSpace(Parts[1]))
@@ -76,6 +81,8 @@ internal static class ArchiHintProperties
             return string.Empty;
         }
 
+        if (Hint.Kind == PlacementHintKind.At)
+            return " at " + Hint.CellRow.ToString(CultureInfo.InvariantCulture) + " " + Hint.CellColumn.ToString(CultureInfo.InvariantCulture);
         if (Hint.IsDiagonal && !string.IsNullOrWhiteSpace(Hint.PeerId))
         {
             string Direction = Hint.Kind switch { PlacementHintKind.NorthWest => "NW", PlacementHintKind.NorthEast => "NE",

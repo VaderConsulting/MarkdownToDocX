@@ -10,9 +10,12 @@ namespace MermaidRecognition.Layout;
 internal static class DiagramSourcePlacementHints
 {
     internal static string? Plan(DiagramContract Model, IReadOnlyDictionary<string, FlowchartCellRegion> Regions,
-        IReadOnlyCollection<string> Changed, out Dictionary<string, FlowchartCellRegion> Targets)
+        IReadOnlyCollection<string> Changed, out Dictionary<string, FlowchartCellRegion> Targets,
+        IReadOnlyDictionary<string, FlowchartCellRegion>? Restored = null)
     {
         var Result = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
+        if (Restored != null)
+            foreach (var Pair in Restored) Result[Pair.Key] = Pair.Value;
         Targets = Result;
         var Nodes = Model.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         HashSet<string> Moving = new(Changed, StringComparer.Ordinal);
@@ -33,6 +36,12 @@ internal static class DiagramSourcePlacementHints
             {
                 if (Hint.Offset < 0 || Hint.ColumnOffset < 0) { return "A placement hint offset must be nonnegative."; }
                 if (!Enum.IsDefined(Hint.Kind)) { return "The placement hint kind is unsupported."; }
+                if (Hint.Kind == PlacementHintKind.At)
+                {
+                    var Region = Result[Id];
+                    Result[Id] = new(Hint.CellRow, Hint.CellColumn, Region.RowSpan, Region.ColumnSpan);
+                    Done.Add(Id); Visiting.Remove(Id); return null;
+                }
                 FlowchartCellRegion Owner = Result[Id], Peer;
                 if (Hint.Kind == PlacementHintKind.Push)
                 {

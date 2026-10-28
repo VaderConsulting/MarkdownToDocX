@@ -7,6 +7,33 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class DiagonalPlacementHintTests
 {
+    [TestCase(-2, 3)]
+    [TestCase(0, 0)]
+    public void InitialLayoutReservesAbsoluteCellsBeforeAutomaticNodes(int Row, int Column)
+    {
+        string Source = $"enterprise\napplication-component a\napplication-component b at {Row} {Column}\na -flow-> b\n";
+        var Model = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Model, new() { UseCellRegions = true }, out var Layout), Is.True);
+        var A = Layout.CellNodes!.Single(Node => Node.Id == "a").CellNode!.Region;
+        var B = Layout.CellNodes!.Single(Node => Node.Id == "b").CellNode!.Region;
+        Assert.That(B.StartRow, Is.EqualTo(Row));
+        Assert.That(B.StartColumn, Is.EqualTo(Column));
+        Assert.That(A.Overlaps(B), Is.False);
+        Assert.That(Model.Nodes.Single(Node => Node.Id == "b").PlacementHint!.IsActive, Is.True);
+        Assert.That(FlowchartRouteRuleChecker.Check(Model, Layout), Is.Empty);
+    }
+
+    [TestCase("SE a +2 +3", "SE a +2 +6")]
+    [TestCase("at 3 2", "at 3 6")]
+    public void GeometryCacheDoesNotReuseAnImageForADifferentHorizontalPosition(string First, string Second)
+    {
+        string Source = "enterprise\ntitle Cell position cache regression\napplication-component a\napplication-component b ";
+        string A = EnterpriseSvgRenderer.Render(EnterpriseValidator.Analyze(Source + First).Document);
+        string B = EnterpriseSvgRenderer.Render(EnterpriseValidator.Analyze(Source + Second).Document);
+        Assert.That(B, Is.Not.EqualTo(A));
+        Assert.That(EnterpriseSvgRenderer.Render(EnterpriseValidator.Analyze(Source + First).Document), Is.EqualTo(A));
+    }
+
     [TestCase("NW", -1, -1)]
     [TestCase("NE", -1, 1)]
     [TestCase("SE", 1, 1)]

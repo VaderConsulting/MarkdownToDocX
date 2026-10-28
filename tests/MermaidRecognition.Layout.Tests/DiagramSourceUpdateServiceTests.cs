@@ -454,6 +454,46 @@ public sealed class DiagramSourceUpdateServiceTests
         Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
         Assert.That(Service.CopySnapshot().SourceRevision, Is.Zero);
     }
+
+    [Test]
+    public void AbsoluteAnchorMovesItsHintDependentsAndRetainsIndependentGeometry()
+    {
+        var (Service, _, _) = Fixture();
+        var Model = Parsed(Service);
+        Node(Model, "B").PlacementHint = Below("A", 2);
+        Node(Model, "C").PlacementHint = Below("B", 1);
+        Commit(Service, Prepare(Service, 1, Model));
+        var Before = Service.CopySnapshot();
+        AssertNoPlacement(() =>
+        {
+            Model = Parsed(Service);
+            Node(Model, "A").PlacementHint = new() { Kind = PlacementHintKind.At, CellRow = -2, CellColumn = 2 };
+            var Update = Prepare(Service, 2, Model);
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting));
+            Commit(Service, Update);
+            Assert.That(Region(Service, "A"), Is.EqualTo(new FlowchartCellRegion(-2, 2, 1, 1)));
+            Assert.That(Region(Service, "B"), Is.EqualTo(new FlowchartCellRegion(1, 2, 1, 1)));
+            Assert.That(Region(Service, "C"), Is.EqualTo(new FlowchartCellRegion(3, 2, 1, 1)));
+            Assert.That(Update.RebuiltRouteIds, Is.EqualTo(new[] { "relationship:1" }));
+        });
+        var After = Service.CopySnapshot();
+        Assert.That(Component(After.Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+        Assert.That(Node(Parsed(Service), "A").PlacementHint!.CellRow, Is.EqualTo(-2));
+        Assert.That(Node(Parsed(Service), "A").PlacementHint!.CellColumn, Is.EqualTo(2));
+        Model = Parsed(Service);
+        Node(Model, "A").PlacementHint!.CellRow = 0;
+        Node(Model, "A").PlacementHint!.CellColumn = 8;
+        var Rejected = Prepare(Service, 3, Model);
+        Assert.That(Rejected.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Service.TryCommit(Rejected, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(After.Layout)));
+        Model = Parsed(Service);
+        Node(Model, "A").PlacementHint = null;
+        Commit(Service, Prepare(Service, 4, Model));
+        Assert.That(Region(Service, "A"), Is.EqualTo(new FlowchartCellRegion(0, 0, 1, 1)));
+        Assert.That(Region(Service, "B"), Is.EqualTo(new FlowchartCellRegion(3, 0, 1, 1)));
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)), "undoing a first pin restores its pre-pin geometry");
+    }
     private static DiagramContract Parsed(DiagramSourceUpdateService Service)
     {
         var Snapshot = Service.CopySnapshot();

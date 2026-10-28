@@ -111,7 +111,7 @@ internal sealed class DiagramSourceUpdateService
     }
 
     internal Update Prepare(string DocumentId, long SourceRevision, string SourceText, DiagramContract Model,
-        DiagramLayoutOptions Options, int? RouteLimit = null)
+        DiagramLayoutOptions Options, int? RouteLimit = null, bool CapturePlacementOrigins = false)
     {
         ArgumentNullException.ThrowIfNull(SourceText);
         ArgumentNullException.ThrowIfNull(Model);
@@ -153,7 +153,7 @@ internal sealed class DiagramSourceUpdateService
             if (Classification.Kind == DiagramSourceUpdateKind.LocalRouting)
             {
                 string? Reason = Geometry.TrySourceUpdate(Bound, Classification.Hints, Classification.Edges,
-                    Limit, out Affected, out Rebuilt);
+                    Limit, out Affected, out Rebuilt, CapturePlacementOrigins);
                 if (Reason != null) { return Failure(DiagramSourceUpdateKind.Rejected, Reason, Affected, Rebuilt); }
             }
             else { Geometry.ReplaceSourceMetadata(Bound); }
@@ -301,7 +301,7 @@ internal sealed class DiagramSourceUpdateService
         .Where(Pair => Pair.Value is not AnimationMetadata).Select(Pair => new { Pair.Key, Type = Pair.Value.GetType().FullName,
             Value = JsonSerializer.Serialize(Pair.Value, Pair.Value.GetType()) });
     private static object? Hint(PlacementHintContract? Value) => Value?.IsActive != true ? null
-        : new { Value.Kind, Value.PeerId, Value.Offset, Value.ColumnOffset, Value.Direction };
+        : new { Value.Kind, Value.PeerId, Value.Offset, Value.ColumnOffset, Value.Direction, Value.CellRow, Value.CellColumn };
     private static object? Ports(RoutingHintContract? Value) => Value?.IsActive != true ? null
         : new { Value.Leave, Value.Enter, Value.Travel };
     private static object Font(RecognitionStyle Style) => new { Style.FontFamily, Style.FontSize, Style.FontWeight, Style.StrokeWidth };

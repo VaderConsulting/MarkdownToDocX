@@ -314,6 +314,129 @@ public sealed class RetainedEnterprisePreviewTests
         return Form;
     }
 
+    [TestCase("webShop")]
+    [TestCase("orderApi")]
+    [TestCase("order")]
+    public void DefaultWebShopNodesCanMoveThroughTheRetainedSourcePath(string Id)
+    {
+        string Script = PreviewNodePlacementTests.Source;
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, Script, 1);
+        var Index = PreviewHoverIndex.Build(Initial.Svg, Script);
+        var Node = Index.FindObject("node\u001f" + Id)!;
+        Assert.That(Node.Kind, Is.EqualTo(PreviewObjectKind.Node));
+        Assert.That(Index.HitObject((Node.Left + Node.Right) / 2, (Node.Top + Node.Bottom) / 2, 3), Is.SameAs(Node), "node body must be selectable");
+        var Grid = new PreviewNodePlacement.GridSnap(Script, Index.Objects, Session.CopyPlacementLayout()!);
+        var Drop = new PointF((float)((Node.Left + Node.Right) / 2 + 540), (float)((Node.Top + Node.Bottom) / 2 + 90));
+        var Snap = Grid.Snap(Id, Drop);
+        Assert.That(Snap, Is.Not.Null, "No eligible placement peer for " + Id);
+        Assert.That(PreviewNodePlacement.TryCreate(Script, Id, Index.Objects, Drop, out var Edit, out var Reason, Grid), Is.True, Reason);
+        var Moved = Accept(Session, Edit!.Apply(Script), 2);
+        Assert.That(Moved.Kind, Is.EqualTo("LocalRouting"));
+        Assert.That(Moved.Svg, Is.Not.EqualTo(Initial.Svg));
+    }
+
+    [Test]
+    public void APlacementAnchorStillOffersDragFeedbackWhenAllItsPeersDependOnIt()
+    {
+        const string Script = "enterprise\napplication-component webShop \"Web Shop\" NW order +1 +2\n"
+            + "application-service orderApi \"Order API\" above order +1\ndata-object order \"Order\"\n"
+            + "webShop -serving-> orderApi\norderApi -access(write)-> order\n";
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, Script, 1);
+        var Index = PreviewHoverIndex.Build(Initial.Svg, Script);
+        var Node = Index.FindObject("node\u001forder")!;
+        var Grid = new PreviewNodePlacement.GridSnap(Script, Index.Objects, Session.CopyPlacementLayout()!);
+        var Drop = new PointF((float)((Node.Left + Node.Right) / 2 + 180), (float)((Node.Top + Node.Bottom) / 2));
+        var Snap = Grid.Snap("order", Drop);
+        Assert.That(Snap, Is.Not.Null);
+        Assert.That(Snap!.Direction, Is.EqualTo("at"));
+        Assert.That(PreviewNodePlacement.TryCreate(Script, "order", Index.Objects, Drop, out var Edit, out var Reason, Grid), Is.True, Reason);
+        Assert.That(EnterpriseValidator.Analyze(Edit!.Apply(Script)).Document.Elements["order"].PlacementHint!.Kind,
+            Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
+        var Moved = Accept(Session, Edit.Apply(Script), 2);
+        Assert.That(Moved.Kind, Is.EqualTo("LocalRouting"));
+        Assert.That(Moved.RebuiltRouteIds.Length, Is.EqualTo(2));
+        Assert.That(Moved.Svg, Is.Not.EqualTo(Initial.Svg));
+    }
+
+    [TestCase("default")]
+    [TestCase("anchor")]
+    [TestCase("alone")]
+    public void NodesWithoutPlacementPeersCanStartAGuiMoveAndUndoTheirFirstHint(string Case)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            string Script = Case == "alone" ? "enterprise\ndata-object order \"Order\"\n" : PreviewNodePlacementTests.Source;
+            if (Case == "anchor") Script = "enterprise\napplication-component webShop \"Web Shop\" NW order +1 +2\n"
+                + "application-service orderApi \"Order API\" above order +1\ndata-object order \"Order\"\n"
+                + "webShop -serving-> orderApi\norderApi -access(write)-> order\n";
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Script;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            var Order = Preview.Index!.FindObject("node\u001forder")!;
+            Form.SelectPreviewObject(Order);
+            Assert.That(Preview.CanMoveNode!(Order), Is.True);
+            Assert.That(Preview.CreateNodeMoveSnap!(Order), Is.Not.Null, "Order must be able to start drag feedback");
+            Assert.That(Form.MovePreviewNode("order", new((float)((Order.Left + Order.Right) / 2 + 180),
+                (float)((Order.Top + Order.Bottom) / 2 + 90))), Is.True);
+            string MovedSource = Editor.Text;
+            if (Case != "default") Assert.That(EnterpriseValidator.Analyze(MovedSource).Document.Elements["order"].PlacementHint!.Kind,
+                Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            string Moved = Preview.RenderedSvg!;
+            Assert.That(Moved, Is.Not.EqualTo(Initial));
+            Editor.Undo();
+            Assert.That(Editor.Text, Is.EqualTo(Script));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+            Editor.Redo();
+            Assert.That(Editor.Text, Is.EqualTo(MovedSource));
+            Wait(() => Preview.RenderedSvg == Moved && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [TestCase("Order")]
+    [TestCase("Invoice")]
+    [TestCase("")]
+    public void AnchorMovementDependsOnIdentitiesAndHintsRatherThanDisplayLabels(string Label)
+    {
+        string Script = "enterprise\napplication-component active \"Order\" NW root +1 +2\n"
+            + "application-service service \"Service\" above root +1\ndata-object root"
+            + (Label.Length == 0 ? "" : " \"" + Label + "\"")
+            + "\nactive -serving-> service\nservice -access(write)-> root\n";
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, Script, 1);
+        var Index = PreviewHoverIndex.Build(Initial.Svg, Script);
+        var Root = Index.FindObject("node\u001froot")!;
+        var Grid = new PreviewNodePlacement.GridSnap(Script, Index.Objects, Session.CopyPlacementLayout()!);
+        var Drop = new PointF((float)((Root.Left + Root.Right) / 2 + 180), (float)((Root.Top + Root.Bottom) / 2 + 90));
+        Assert.That(Grid.Snap(Root.Id, Drop), Is.Not.Null);
+        Assert.That(PreviewNodePlacement.TryCreate(Script, Root.Id, Index.Objects, Drop, out var Edit, out var Reason, Grid), Is.True, Reason);
+        var Changed = EnterpriseValidator.Analyze(Edit!.Apply(Script)).Document;
+        Assert.That(Changed.Elements[Root.Id].PlacementHint!.Kind, Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
+        Assert.That(Changed.Elements[Root.Id].Label, Is.EqualTo(EnterpriseValidator.Analyze(Script).Document.Elements[Root.Id].Label));
+        Assert.That(Accept(Session, Edit.Apply(Script), 2).Kind, Is.EqualTo("LocalRouting"));
+    }
+
+    [Test]
+    public void FirstTypedPlacementHintCanBeUndoneEvenWhenItsAcceptedRevisionIncludesAComment()
+    {
+        const string Script = "enterprise\napplication-component a\napplication-component b\na -flow-> b\n";
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, Script, 1);
+        var Move = Accept(Session, Script.Replace("application-component b\n", "application-component b below a +3\n") + "%% another edit before debounce\n", 2);
+        Assert.That(Move.Svg, Is.Not.EqualTo(Initial.Svg));
+        var Undo = Accept(Session, Script, 3);
+        Assert.That(Undo.Kind, Is.EqualTo("LocalRouting"));
+        Assert.That(Undo.Svg, Is.EqualTo(Initial.Svg));
+    }
+
     [TestCase("below a +3")]
     [TestCase("NW a +4 +2")]
     [TestCase("NE a +4 +2")]

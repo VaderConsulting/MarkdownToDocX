@@ -85,6 +85,21 @@ internal static partial class EnterpriseBandPlacement
         FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         BandPlan Planner = new BandPlan(Contract, Nodes, Classes, Context?.UsePreviousEnterpriseBandPaddingForTests ?? false, WidthConstrained);
         Dictionary<string, FlowchartCellRegion> Targets = Planner.Build(Context?.EnterpriseBandWrapWidth ?? int.MaxValue);
+        var Pins = Contract.Nodes.Where(Node => Node.PlacementHint is { IsActive: true, Kind: PlacementHintKind.At })
+            .ToDictionary(Node => Node.Id, Node => new FlowchartCellRegion(Node.PlacementHint!.CellRow, Node.PlacementHint.CellColumn,
+                Before.Regions[Node.Id].RowSpan, Before.Regions[Node.Id].ColumnSpan), StringComparer.Ordinal);
+        if (Pins.Count > 0)
+        {
+            var Reserved = new Dictionary<string, FlowchartCellRegion>(Pins, StringComparer.Ordinal);
+            foreach (var Pair in Targets.Where(Pair => !Pins.ContainsKey(Pair.Key)).OrderBy(Pair => Pair.Key, StringComparer.Ordinal))
+            {
+                var Region = Pair.Value;
+                while (Reserved.Values.Any(Other => Other.Overlaps(Region)))
+                    Region = new(Region.StartRow, checked(Region.StartColumn + Region.ColumnSpan), Region.RowSpan, Region.ColumnSpan);
+                Reserved.Add(Pair.Key, Region);
+            }
+            Targets = Reserved;
+        }
         FlowchartLogicalGrid.Snapshot? FixedPlacement = Context?.InitialBandPlacement;
         List<FlowchartCellGapGrowth> SelectedGaps = [];
         if (FixedPlacement != null)
