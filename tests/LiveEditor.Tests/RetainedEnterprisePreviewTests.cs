@@ -314,6 +314,75 @@ public sealed class RetainedEnterprisePreviewTests
         return Form;
     }
 
+    [TestCase(true, false)]
+    [TestCase(false, false)]
+    [TestCase(true, true)]
+    [TestCase(false, true)]
+    public void GuiEndpointCommandsHaveOneSubmissionAndKeepStableSelectionThroughUndoRedo(bool SourceEnd, bool Reconnect)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            string Script = SourceEnd ? PreviewRelationshipMoveTests.Source.Replace("right-of b +3", "left-of a +3") : PreviewRelationshipMoveTests.Source;
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Script;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            var Line = Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Relationship);
+            Form.SelectPreviewObject(Line);
+            var Move = Preview.CreateRelationshipMove!(Line);
+            Assert.That(Move, Is.Not.Null);
+            var Original = Move!.Original(SourceEnd);
+            var Target = Move.Targets(SourceEnd).First(Point => Point.NodeId == (Reconnect ? "c" : Original.NodeId)
+                && Point.Direction == Original.Direction && Point.Step == (Reconnect ? 0 : 1));
+            int Generation = Form.DiagramMetadata.Generation;
+            Assert.That(Form.MovePreviewRelationship(Move, SourceEnd, Original), Is.False);
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation));
+            Assert.That(Form.MovePreviewRelationship(Move, SourceEnd, Target), Is.True);
+            string MovedSource = Editor.Text;
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            string Moved = Preview.RenderedSvg!;
+            Assert.That(Moved, Is.Not.EqualTo(Initial));
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));
+            Assert.That(Form.LastRebuiltRouteIds, Is.EqualTo(new[] { Move.Identity }));
+            Assert.That(Preview.SelectedItems!.Single().SourceId, Is.EqualTo(SourceEnd ? Target.NodeId : "a"));
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo(SourceEnd ? "b" : Target.NodeId));
+            Editor.Undo(); Assert.That(Editor.Text, Is.EqualTo(Script));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.SelectedItems!.Single().SourceId, Is.EqualTo("a"));
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo("b"));
+            Editor.Redo(); Assert.That(Editor.Text, Is.EqualTo(MovedSource));
+            Wait(() => Preview.RenderedSvg == Moved && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.SelectedItems!.Single().SourceId, Is.EqualTo(SourceEnd ? Target.NodeId : "a"));
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo(SourceEnd ? "b" : Target.NodeId));
+            Editor.AppendText("%% superseded command\n");
+            Assert.That(Form.MovePreviewRelationship(Move, SourceEnd, Target), Is.False);
+            Assert.That(Editor.Text, Is.EqualTo(MovedSource + "%% superseded command\n"));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void EndpointHandlesRequireAnAfEnabledGridPreview(bool Open)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(Open);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Open ? PreviewRelationshipMoveTests.Source.Replace("enterprise\n", "enterprise\n%%{init: {\"layout\":\"open\"}}%%\n")
+                : PreviewRelationshipMoveTests.Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var Line = Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Relationship);
+            Assert.That(Preview.CreateRelationshipMove!(Line), Is.Null);
+        }
+        finally { Restore(Previous); }
+    }
+
     [TestCase("webShop")]
     [TestCase("orderApi")]
     [TestCase("order")]

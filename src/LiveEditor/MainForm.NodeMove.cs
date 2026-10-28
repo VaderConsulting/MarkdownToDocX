@@ -15,12 +15,7 @@ public partial class MainForm
 
     private bool CanMovePreviewNode(PreviewObject Item)
     {
-        var Options = LiveEditorFeatureGate.CaptureLayoutOptions();
-        if (!Options.EnableIncrementalRouting || Options != _SessionLayoutOptions
-            || (LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview)
-            || LastRetainedUpdateKind == null || !PreviewIndexIsCurrent
-            || _DiagramMetadata.Generation != _RenderGeneration || _DiagramMetadata.RenderFailed
-            || _DiagramMetadata.PercentRendered != 100 || Item.Kind != PreviewObjectKind.Node) return false;
+        if (!CanEditRetainedPreview() || Item.Kind != PreviewObjectKind.Node) return false;
         var Document = DocumentForCaret(CodeView.Editor.Text);
         return Document.Elements.TryGetValue(Item.Id, out var Element)
             && !Document.Groups.ContainsKey(Item.Id) && string.IsNullOrEmpty(Element.ParentId);

@@ -1218,6 +1218,7 @@ internal sealed partial class PreviewCanvas : UserControl
     private void Picture_MouseMove(object? Sender, MouseEventArgs E)
     {
         UpdateNodeMove(E.Location);
+        UpdateEndpointMove(E.Location);
         PictureMouseMove?.Invoke(this, E);
     }
 
@@ -1283,6 +1284,7 @@ internal sealed partial class PreviewCanvas : UserControl
         bool Extend = (ModifierKeys & Keys.Control) == Keys.Control;
         Point ScreenPoint = Viewport.PointToScreen(E.Location);
         Point PicturePoint = DiagramPicture.PointToClient(ScreenPoint);
+        if (TryBeginEndpointMove(PicturePoint, ModifierKeys != Keys.None)) return;
         if (DiagramPicture.ClientRectangle.Contains(PicturePoint))
         {
             PreviewObject? Hit = null;
@@ -1306,6 +1308,7 @@ internal sealed partial class PreviewCanvas : UserControl
         {
             FocusForKeys();
             Point ScreenPoint = DiagramPicture.PointToScreen(E.Location);
+            if (TryBeginEndpointMove(E.Location, ModifierKeys != Keys.None)) return;
             bool Extend = (ModifierKeys & Keys.Control) == Keys.Control;
             PreviewObject? Hit = null;
             if (IsOnDiagram(E.Location))
@@ -1344,6 +1347,7 @@ internal sealed partial class PreviewCanvas : UserControl
         }
 
         PaintNodeMove(E.Graphics);
+        PaintEndpointMove(E.Graphics);
         PicturePaint?.Invoke(this, E);
     }
 

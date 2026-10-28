@@ -339,6 +339,8 @@ public partial class MainForm : Form
         Preview.CanMoveNode = CanMovePreviewNode;
         Preview.CreateNodeMoveSnap = CreateNodeMoveSnap;
         Preview.NodeMoveRequested += (Id, Drop) => MovePreviewNode(Id, Drop);
+        Preview.CreateRelationshipMove = CreateRelationshipMove;
+        Preview.EndpointMoveRequested += (Move, SourceEnd, Target) => MovePreviewRelationship(Move, SourceEnd, Target);
         Deactivate += (_, _) => Preview.CancelNodeMove();
         Application.AddMessageFilter(_PreviewHoverDismiss);
         ElementToolbar.BindSource(CurrentEditorText);
@@ -961,7 +963,7 @@ public partial class MainForm : Form
 
     private void Preview_PictureMouseMove(object? Sender, MouseEventArgs E)
     {
-        if (Preview.IsMovingNode) { HidePreviewHover(); return; }
+        if (Preview.IsMovingNode || Preview.IsMovingEndpoint) { HidePreviewHover(); return; }
         if (!Preview.HasPicture || Preview.Index == null)
         {
             HidePreviewHover();
@@ -1071,6 +1073,7 @@ public partial class MainForm : Form
     {
         UpdateSelectionPanel();
         PreviewObject? Selected = CurrentPreviewItem();
+        RememberRelationshipSelection(Selected);
         if (_IgnorePreviewSelection || Selected == null || Selected.LineNumber < 1 || !PreviewIndexIsCurrent)
         {
             if (Selected == null)
@@ -1391,6 +1394,11 @@ public partial class MainForm : Form
                     Restored.Add(Found);
                 }
             }
+        }
+
+        if (RestoredRelationshipSelection() is { } Relationship)
+        {
+            Restored.Clear(); Restored.Add(Relationship);
         }
 
         if (_FollowPreviewFromCaret && CodeView.Editor.Focused)

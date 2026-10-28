@@ -46,6 +46,7 @@ internal sealed partial class PreviewCanvas
 
     private void Picture_MouseUp(object? Sender, MouseEventArgs E)
     {
+        if (EndEndpointMove(E)) return;
         if (E.Button != MouseButtons.Left || _MovingNode == null) return;
         UpdateNodeMove(E.Location);
         PreviewObject Moving = _MovingNode;
@@ -63,7 +64,8 @@ internal sealed partial class PreviewCanvas
 
     internal bool CancelNodeMove()
     {
-        if (_MovingNode == null) return false;
+        bool EndpointCancelled = CancelEndpointMove();
+        if (_MovingNode == null) return EndpointCancelled;
         _MovingNode = null;
         _SnapMove = null;
         _MoveDrop = null;
@@ -85,13 +87,14 @@ internal sealed partial class PreviewCanvas
 
     private void Viewport_Paint(object? Sender, PaintEventArgs E)
     {
-        if (!IsMovingNode) return;
+        if (!IsMovingNode && !IsMovingEndpoint) return;
         Point Origin = Viewport.PointToClient(DiagramPicture.PointToScreen(Point.Empty));
         GraphicsState Saved = E.Graphics.Save();
         try
         {
             E.Graphics.TranslateTransform(Origin.X, Origin.Y);
             PaintNodeMove(E.Graphics);
+            PaintEndpointMove(E.Graphics);
         }
         finally { E.Graphics.Restore(Saved); }
     }

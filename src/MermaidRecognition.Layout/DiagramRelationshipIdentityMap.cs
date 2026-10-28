@@ -116,6 +116,12 @@ internal sealed class DiagramRelationshipIdentityMap
         // Index both endpoint inventories rather than comparing every old/new edge pair.
         var Sources = UnkeyedOld().ToLookup(Index => (Entries[Index].Content, Entries[Index].Endpoints.Source));
         var Targets = UnkeyedOld().ToLookup(Index => (Entries[Index].Content, Entries[Index].Endpoints.Target));
+        // An endpoint command reconnects and selects its exact point in one edit.
+        // Preserve identity when the remaining declaration and shared endpoint
+        // identify exactly one old relationship; never guess between siblings.
+        static Content WithoutPorts(Content Value) => Value with { Leave = null, Enter = null, Travel = null, LeavePoint = null, EnterPoint = null };
+        var SourceDeclarations = UnkeyedOld().ToLookup(Index => (WithoutPorts(Entries[Index].Content), Entries[Index].Endpoints.Source));
+        var TargetDeclarations = UnkeyedOld().ToLookup(Index => (WithoutPorts(Entries[Index].Content), Entries[Index].Endpoints.Target));
         Dictionary<int, int[]> Candidates = [];
         Dictionary<int, int> Uses = [];
         foreach (int Index in UnkeyedNew())
@@ -123,6 +129,9 @@ internal sealed class DiagramRelationshipIdentityMap
             Entry Item = Incoming[Index];
             int[] Possible = Sources[(Item.Content, Item.Endpoints.Source)]
                 .Concat(Targets[(Item.Content, Item.Endpoints.Target)]).Distinct().Take(2).ToArray();
+            if (Possible.Length == 0)
+                Possible = SourceDeclarations[(WithoutPorts(Item.Content), Item.Endpoints.Source)]
+                    .Concat(TargetDeclarations[(WithoutPorts(Item.Content), Item.Endpoints.Target)]).Distinct().Take(2).ToArray();
             if (Possible.Length > 1)
             {
                 return Rejected("Ambiguous reconnect at " + Item.Endpoints

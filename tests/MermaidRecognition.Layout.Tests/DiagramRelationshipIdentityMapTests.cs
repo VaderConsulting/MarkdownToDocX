@@ -7,6 +7,31 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class DiagramRelationshipIdentityMapTests
 {
+    [TestCase(true)]
+    [TestCase(false)]
+    public void UniqueReconnectAndExactPointChangeRetainTheSameIdentity(bool SourceEnd)
+    {
+        var Previous = Edge("A", "B", "label");
+        Previous.RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 0 };
+        var Accepted = Capture(Previous, Edge("X", "Y"));
+        var Current = Edge(SourceEnd ? "C" : "A", SourceEnd ? "B" : "C", "label");
+        Current.RoutingHint = new() { Leave = LayoutHintDirection.East, LeavePoint = -2, Enter = LayoutHintDirection.North, EnterPoint = 1 };
+        var Result = Accepted.Reconcile(1, Model(Current, Edge("X", "Y")));
+        Assert.That(Result.FailureReason, Is.Null);
+        Assert.That(Result.Next!.Bindings.Select(Binding => Binding.Id), Is.EqualTo(Accepted.Bindings.Select(Binding => Binding.Id)));
+        Assert.That(Result.AddedIds.Concat(Result.RemovedIds), Is.Empty);
+    }
+
+    [Test]
+    public void ReconnectAndPointChangesCannotGuessBetweenMatchingSiblings()
+    {
+        var Accepted = Capture(Edge("A", "B", "label"), Edge("A", "C", "label"));
+        var Current = Edge("A", "D", "label");
+        Current.RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 2 };
+        var Result = Accepted.Reconcile(1, Model(Current));
+        Assert.That(Result.FailureReason, Does.Contain("Ambiguous reconnect"));
+        Assert.That(Result.Next, Is.Null);
+    }
     [Test]
     public void EnterpriseReparseIgnoresCommentsLinesAndGeneratedIds()
     {

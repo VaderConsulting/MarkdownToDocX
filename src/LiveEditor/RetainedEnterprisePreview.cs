@@ -40,6 +40,11 @@ internal sealed class RetainedEnterprisePreview
         lock (Gate) { return Retired ? null : Service?.CopySnapshot().Layout; }
     }
 
+    internal DiagramSourceUpdateService.Snapshot? CopyInteractionSnapshot()
+    {
+        lock (Gate) { return Retired ? null : Service?.CopySnapshot(); }
+    }
+
     internal Prepared Prepare(string Source, long SourceRevision, EnterpriseAnalysisResult Analysis,
         DiagramLayoutOptions Options)
     {
