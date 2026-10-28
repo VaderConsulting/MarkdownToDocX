@@ -11,6 +11,68 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramLayoutSessionTests
 {
+    [TestCase("add")]
+    [TestCase("reconnect")]
+    [TestCase("remove")]
+    public void TimelineTopologyCommandsRequireANewSemanticConstraintSession(string Operation)
+    {
+        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
+            "enterprise\napplication-component app\nplateau before\nplateau after\nbefore -triggering-> after").Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        var Session = new DiagramLayoutSession("timeline", 0, Contract, Layout);
+        string Before = Geometry(Session.CopyLayout());
+        var Edge = new EdgeContract { SourceId = "after", TargetId = "before" };
+        Edge.MetadataMutable["enterpriseRelationshipKind"] = new RawMetadata("enterpriseRelationshipKind", "Triggering");
+        var Candidate = Operation switch
+        {
+            "add" => Session.PrepareAddRelationship(0, "new", Edge),
+            "reconnect" => Session.PrepareReconnect(0, Contract.Edges[0].Id!, "before", "app"),
+            _ => Session.PrepareRemoveRelationship(0, Contract.Edges[0].Id!)
+        };
+        Assert.That(Candidate.FailureReason, Does.Contain("semantic constraint"));
+        Assert.That(Session.TryCommit(Candidate, out _), Is.False);
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Before));
+    }
+    [Test]
+    public void RemovingARelationshipRetainsEverySurvivingTerminalAndVacantSlot()
+    {
+        var Session = TwoComponents();
+        AddNode(Session, "C", 3, 1); AddEdge(Session, "ac", "A", "C");
+        var Before = Session.CopySnapshot();
+        var Candidate = Session.PrepareRemoveRelationship(0, "ab");
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Assert.That(Candidate.AffectedRouteIds.Concat(Candidate.RebuiltRouteIds), Is.Empty);
+        Commit(Session, Candidate);
+        var After = Session.CopySnapshot();
+        Assert.That(JsonSerializer.Serialize(After.Layout.NodeBounds), Is.EqualTo(JsonSerializer.Serialize(Before.Layout.NodeBounds)));
+        Assert.That(JsonSerializer.Serialize(After.Layout.EdgeRoutes), Is.EqualTo(JsonSerializer.Serialize(Before.Layout.EdgeRoutes.Where(Route => Route.EdgeId != "ab"))));
+        Assert.That(After.Layout.ResolvedEdgeGuides!.Any(Guide => Guide.Edge.Id == "ab"), Is.False);
+        Assert.That(FlowchartRouteRuleChecker.Check(After.RoutingModel, After.Layout), Is.Empty);
+        string GeometryBefore = Geometry(After.Layout);
+        var Unknown = Session.PrepareRemoveRelationship(0, "missing");
+        Assert.That(Unknown.FailureReason, Does.Contain("unknown"));
+        Assert.That(Session.TryCommit(Unknown, out _), Is.False);
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(GeometryBefore));
+    }
+
+    [Test]
+    public void RemovingACycleEdgeReconsidersOnlySurvivingRoutesWhoseTopologyPolicyChanges()
+    {
+        DiagramLayoutSession Session = new("cycle", 0);
+        AddNode(Session, "A", 0, 0); AddNode(Session, "B", 3, 0); AddNode(Session, "C", 6, 0);
+        AddNode(Session, "X", 0, 8); AddNode(Session, "Y", 3, 8);
+        AddEdge(Session, "ab", "A", "B"); AddEdge(Session, "bc", "B", "C"); AddEdge(Session, "ca", "C", "A");
+        AddEdge(Session, "xy", "X", "Y");
+        var Before = Session.CopySnapshot();
+        var Candidate = Session.PrepareRemoveRelationship(0, "ab");
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Assert.That(Candidate.RebuiltRouteIds, Does.Contain("ca").And.Not.Contain("xy"));
+        Commit(Session, Candidate);
+        var After = Session.CopySnapshot();
+        Assert.That(Component(After.Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+        Assert.That(JsonSerializer.Serialize(After.Layout.NodeBounds), Is.EqualTo(JsonSerializer.Serialize(Before.Layout.NodeBounds)));
+        Assert.That(FlowchartRouteRuleChecker.Check(After.RoutingModel, After.Layout), Is.Empty);
+    }
     [Test]
     public void BuildsCanvasOneItemAtATimeWithoutInitialPlacement()
     {

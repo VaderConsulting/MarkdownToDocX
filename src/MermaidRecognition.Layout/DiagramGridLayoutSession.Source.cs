@@ -9,7 +9,7 @@ public static partial class DiagramGridLayout
 {
     internal sealed partial class RetainedRoutingState
     {
-        // Classification has already excluded changes to measured sizes, groups and removal.
+        // Classification has already excluded changes to measured sizes, groups and node removal.
         // Replace all supported inputs before routing so a mixed source edit has one closure.
         internal string? TrySourceUpdate(DiagramContract Model, IReadOnlyCollection<string> ChangedHints,
             IReadOnlyCollection<string> ChangedEdges, int RouteLimit, out string[] AffectedIds, out string[] RebuiltIds,
@@ -18,6 +18,7 @@ public static partial class DiagramGridLayout
             AffectedIds = []; RebuiltIds = [];
             using IDisposable Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
             RetainedRouteSnapshot Original = new(State);
+            var OriginalContract = State.Contract;
             var Findings = ExistingFindings();
             var Before = Grid.Capture();
             var Placed = State.Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
@@ -62,7 +63,14 @@ public static partial class DiagramGridLayout
             HashSet<FlowchartLayoutEdgeRoute> Changed = [];
             foreach (string Id in ChangedEdges)
             {
-                EdgeContract Edge = State.Contract.Edges.Single(Edge => Edge.Id == Id);
+                EdgeContract? Edge = State.Contract.Edges.SingleOrDefault(Edge => Edge.Id == Id);
+                if (Edge == null)
+                {
+                    var Removed = Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Id);
+                    if (Removed == null) return "The removed relationship identity is unknown.";
+                    Layout.EdgeRoutesMutable.Remove(Removed);
+                    continue;
+                }
                 if (Edge.SourceId == Edge.TargetId) { return "Incremental self-loop construction is not supported yet."; }
                 if (!State.Nodes.ContainsKey(Edge.SourceId) || !State.Nodes.ContainsKey(Edge.TargetId))
                 {
@@ -84,6 +92,7 @@ public static partial class DiagramGridLayout
             }
             Layout.BumpGeometryVersion();
             Changed.UnionWith(Original.RoutesAffectedBy(State));
+            Changed.UnionWith(ChangedTopologyRoutes(OriginalContract));
             return Complete(Original, Findings, Changed, RouteLimit, out AffectedIds, out RebuiltIds);
         }
 

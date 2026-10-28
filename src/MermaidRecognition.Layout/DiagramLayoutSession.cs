@@ -116,6 +116,13 @@ internal sealed class DiagramLayoutSession
             return (Failure, Affected, Rebuilt);
         });
 
+    internal Update PrepareRemoveRelationship(long SourceRevision, string RelationshipId, int? RouteLimit = null)
+        => Prepare(SourceRevision, Candidate =>
+        {
+            string? Failure = Candidate.TryRemoveRelationship(RelationshipId, Limit(RouteLimit), out var Affected, out var Rebuilt);
+            return (Failure, Affected, Rebuilt);
+        });
+
     private static int Limit(int? Requested)
     {
         int Value = Requested ?? FlowchartLayoutRules.RepairChainLines;

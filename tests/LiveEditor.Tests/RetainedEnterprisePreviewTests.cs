@@ -314,6 +314,41 @@ public sealed class RetainedEnterprisePreviewTests
         return Form;
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TypedRelationshipRemovalAndUndoRedoUseRetainedGeometryWithoutRouting(bool RemoveAll)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            int Start = Source.IndexOf("a -flow-> b", StringComparison.Ordinal);
+            int Length = RemoveAll ? Source.Length - Start : "a -flow-> b\n".Length;
+            Editor.Select(Start, Length); Editor.SelectedText = string.Empty;
+            string Removed = Editor.Text;
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRebuiltRouteIds, Is.Empty);
+            Assert.That(Preview.Items.Count(Item => Item.Kind == PreviewObjectKind.Relationship), Is.EqualTo(RemoveAll ? 0 : 1));
+            foreach (string Id in new[] { "a", "b", "x", "y" })
+                Assert.That(Node(Preview.RenderedSvg!, Id), Is.EqualTo(Node(Initial, Id)));
+            if (!RemoveAll) Assert.That(Edge(Preview.RenderedSvg!, "x"), Is.EqualTo(Edge(Initial, "x")));
+            Editor.Undo(); Assert.That(Editor.Text, Is.EqualTo(Source));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+            Editor.Redo(); Assert.That(Editor.Text, Is.EqualTo(Removed));
+            Wait(() => Preview.Items.Count(Item => Item.Kind == PreviewObjectKind.Relationship) == (RemoveAll ? 0 : 1)
+                && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+            Assert.That(Form.LastRebuiltRouteIds, Is.Empty);
+        }
+        finally { Restore(Previous); }
+    }
+
     [TestCase(true, false)]
     [TestCase(false, false)]
     [TestCase(true, true)]

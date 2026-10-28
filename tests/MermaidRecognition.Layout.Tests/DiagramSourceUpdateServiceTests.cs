@@ -10,6 +10,67 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramSourceUpdateServiceTests
 {
+    [Test]
+    public void TimelineRemovalRequestsAnExplicitSemanticRebuild()
+    {
+        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
+            "enterprise\napplication-component app\nplateau before\nplateau after\nbefore -triggering-> after").Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        var Service = new DiagramSourceUpdateService("document", 0, "before", Contract, Layout);
+        var Model = Parsed(Service); Model.EdgesMutable.Clear();
+        var Candidate = Prepare(Service, 1, Model);
+        Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.RebuildRequired));
+        Assert.That(Candidate.FailureReason, Does.Contain("semantic constraint"));
+        Assert.That(Candidate.RebuiltRouteIds, Is.Empty);
+        Assert.That(Service.CopySnapshot().Model.Edges.Count, Is.EqualTo(1));
+    }
+    [Test]
+    public void RelationshipRemovalPreservesSurvivingGeometryAndCanRemoveTheLastRoute()
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var OriginalModel = Parsed(Service);
+        AssertNoPlacement(() =>
+        {
+            var Model = Parsed(Service); Model.EdgesMutable.RemoveAt(0);
+            var Update = Prepare(Service, 1, Model, "removed");
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting), Update.FailureReason);
+            Assert.That(Update.AffectedRouteIds.Concat(Update.RebuiltRouteIds), Is.Empty);
+            Commit(Service, Update);
+            var After = Service.CopySnapshot();
+            Assert.That(Component(After.Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+            Assert.That(JsonSerializer.Serialize(After.Layout.NodeBounds), Is.EqualTo(JsonSerializer.Serialize(Before.Layout.NodeBounds)));
+            Assert.That(After.Layout.ResolvedEdgeGuides!.Single().Edge.Id, Is.EqualTo("relationship:2"));
+            Assert.That(After.Identities.Bindings.Single().Id, Is.EqualTo("relationship:2"));
+            // Readdition is a new identity under the documented text-reconciliation policy.
+            Commit(Service, Prepare(Service, 2, OriginalModel, "undo"));
+            Assert.That(Service.CopySnapshot().Model.Edges.Count, Is.EqualTo(2));
+            Assert.That(Component(Service.CopySnapshot().Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+            Model = Parsed(Service); Model.EdgesMutable.Clear();
+            Update = Prepare(Service, 3, Model, "none");
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting));
+            Assert.That(Update.RebuiltRouteIds, Is.Empty); Commit(Service, Update);
+            After = Service.CopySnapshot();
+            Assert.That(After.Model.Edges, Is.Empty);
+            Assert.That(After.Layout.EdgeRoutes, Is.Empty);
+            Assert.That(After.Layout.ResolvedEdgeGuides, Is.Empty);
+            Assert.That(FlowchartRouteRuleChecker.Check(After.Model, After.Layout), Is.Empty);
+        });
+    }
+
+    [Test]
+    public void RemovalMixedWithAnImpossiblePointChangeRejectsTheWholeEdit()
+    {
+        var (Service, _, _) = Fixture();
+        string Before = Geometry(Service.CopySnapshot().Layout);
+        var Model = Parsed(Service); Model.EdgesMutable.RemoveAt(0);
+        Model.Edges[0].RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 10000 };
+        var Candidate = Prepare(Service, 1, Model);
+        Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Service.TryCommit(Candidate, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+        Assert.That(Service.CopySnapshot().Model.Edges.Count, Is.EqualTo(2));
+    }
     [TestCase(-2, 1)]
     [TestCase(0, 0)]
     [TestCase(2, -1)]
@@ -361,7 +422,6 @@ public sealed class DiagramSourceUpdateServiceTests
     [TestCase("direction")]
     [TestCase("label")]
     [TestCase("node")]
-    [TestCase("removal")]
     [TestCase("font")]
     [TestCase("group")]
     [TestCase("edge-label")]
@@ -374,7 +434,6 @@ public sealed class DiagramSourceUpdateServiceTests
             case "direction": Model.Direction = "LR"; break;
             case "label": Model.Nodes[0].Label = "larger label"; break;
             case "node": Model.NodesMutable.Add(new() { Id = "new" }); break;
-            case "removal": Model.EdgesMutable.RemoveAt(0); break;
             case "font": Model.Nodes[0].InlineStyle.FontSize = 24; break;
             case "group": Model.GroupsMutable.Add(new() { Id = "G" }); break;
             case "edge-label": Model.Edges[0].Label = "new relationship label"; break;

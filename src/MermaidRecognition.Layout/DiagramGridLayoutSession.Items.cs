@@ -63,6 +63,7 @@ public static partial class DiagramGridLayout
                 return "Both relationship endpoints must already be placed.";
             }
             if (Relationship.SourceId == Relationship.TargetId) { return "Incremental self-loop construction is not supported yet."; }
+            if (IsTimelineConstraint(Relationship)) return "Plateau triggering topology changes require a new semantic constraint session.";
             if (string.Equals(Relationship.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             {
                 return "Invisible layout constraints require a separate construction operation.";
@@ -88,6 +89,12 @@ public static partial class DiagramGridLayout
             var Edge = State.Contract.Edges.SingleOrDefault(Edge => Edge.Id == Identity);
             var Route = Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Identity);
             if (Edge == null || Route == null) { return "The relationship identity is unknown."; }
+            if (Edge.SourceId != SourceId || Edge.TargetId != TargetId)
+            {
+                var Reconnected = CopyRoutingEdge(Edge); Reconnected.SourceId = SourceId; Reconnected.TargetId = TargetId;
+                if (IsTimelineConstraint(Edge) || IsTimelineConstraint(Reconnected))
+                    return "Plateau triggering topology changes require a new semantic constraint session.";
+            }
             RetainedRouteSnapshot Original = new(State);
             var Findings = ExistingFindings();
             ReplaceInputs();
@@ -112,6 +119,41 @@ public static partial class DiagramGridLayout
             Edge = State.Contract.Edges.Single(Edge => Edge.Id == Identity);
             Edge.RoutingHint = CopyRoutingEdge(new() { RoutingHint = Ports }).RoutingHint;
             return Complete(Original, Findings, [Route], RouteLimit, out AffectedIds, out RebuiltIds);
+        }
+
+        internal string? TryRemoveRelationship(string Identity, int RouteLimit, out string[] AffectedIds, out string[] RebuiltIds)
+        {
+            AffectedIds = []; RebuiltIds = [];
+            var Edge = State.Contract.Edges.SingleOrDefault(Edge => Edge.Id == Identity);
+            var Route = Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Identity);
+            if (Edge == null || Route == null) return "The relationship identity is unknown.";
+            if (IsTimelineConstraint(Edge)) return "Plateau triggering topology changes require a new semantic constraint session.";
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                return "Invisible relationship removal requires a separate construction operation.";
+            RetainedRouteSnapshot Original = new(State);
+            var OriginalContract = State.Contract;
+            var Findings = ExistingFindings();
+            ReplaceInputs();
+            State.Contract.EdgesMutable.Remove(State.Contract.Edges.Single(Edge => Edge.Id == Identity));
+            Layout.EdgeRoutesMutable.Remove(Route);
+            // A vacant slot is legal. Keep surviving terminals unless topology
+            // changes their forward/back-edge policy and routing must reconsider them.
+            return Complete(Original, Findings, ChangedTopologyRoutes(OriginalContract), RouteLimit, out AffectedIds, out RebuiltIds);
+        }
+
+        private HashSet<FlowchartLayoutEdgeRoute> ChangedTopologyRoutes(DiagramContract Before)
+        {
+            var OldBack = FlowchartBackEdgeHelper.FindBackEdges(Before).Select(Edge => Edge.Id).ToHashSet(StringComparer.Ordinal);
+            var NewBack = FlowchartBackEdgeHelper.FindBackEdges(State.Contract).Select(Edge => Edge.Id).ToHashSet(StringComparer.Ordinal);
+            return [.. Layout.EdgeRoutes.Where(Route => OldBack.Contains(Route.EdgeId) != NewBack.Contains(Route.EdgeId))];
+        }
+
+        private bool IsTimelineConstraint(EdgeContract Edge)
+        {
+            bool Plateau(string Id) => State.Nodes.TryGetValue(Id, out var Node)
+                && Node.Metadata.TryGetValue("enterpriseElementType", out var Type) && Type is RawMetadata { RawValue: "Plateau" };
+            return Edge.Metadata.TryGetValue("enterpriseRelationshipKind", out var Kind) && Kind is RawMetadata { RawValue: "Triggering" }
+                && Plateau(Edge.SourceId) && Plateau(Edge.TargetId);
         }
 
         private HashSet<FlowchartRouteRuleChecker.Finding> ExistingFindings() => [.. FlowchartRouteRuleChecker.Check(State.Contract, Layout)];

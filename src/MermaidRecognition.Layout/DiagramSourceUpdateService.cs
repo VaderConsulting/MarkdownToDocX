@@ -247,11 +247,15 @@ internal sealed class DiagramSourceUpdateService
             if (Json(Hint(Previous.PlacementHint)) != Json(Hint(Node.PlacementHint))) { Hints.Add(Node.Id); }
         }
         var OldEdges = Old.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
-        if (OldEdges.Keys.Except(New.Edges.Select(Edge => Edge.Id!), StringComparer.Ordinal).Any())
-        {
-            return Rebuild("Relationship removal requires an explicit removal operation.");
-        }
         List<string> Edges = [];
+        foreach (string Removed in OldEdges.Keys.Except(New.Edges.Select(Edge => Edge.Id!), StringComparer.Ordinal))
+        {
+            if (IsTimelineConstraint(Old, OldEdges[Removed]))
+                return Rebuild("Plateau triggering topology changes require a new semantic constraint session.");
+            if (string.Equals(OldEdges[Removed].Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+                return Rebuild("Invisible relationship removal requires a separate construction operation.");
+            Edges.Add(Removed);
+        }
         foreach (EdgeContract Edge in New.Edges)
         {
             if (OldEdges.TryGetValue(Edge.Id!, out var Previous))
