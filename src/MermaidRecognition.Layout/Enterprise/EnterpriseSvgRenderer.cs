@@ -12,7 +12,7 @@ namespace MermaidRecognition.Layout.Enterprise;
 /// <summary>
 /// Renders an analysed enterprise document to SVG using explicit paths (no markers or foreignObject).
 /// </summary>
-public static class EnterpriseSvgRenderer
+public static partial class EnterpriseSvgRenderer
 {
     internal static Action<string, double>? StageTimingObserver { get; set; }
     internal static Action<string>? RenderedSvgObserver { get; set; }
@@ -32,13 +32,16 @@ public static class EnterpriseSvgRenderer
     /// <param name="Document">Parsed and validated document.</param>
     /// <returns>SVG XML.</returns>
     public static string Render(EnterpriseDocument Document)
+        => Render(Document, FlowchartRenderContext.Current.LayoutOptions);
+
+    private static string RenderCore(EnterpriseDocument Document, DiagramLayoutOptions LayoutOptions)
     {
         if (Document == null)
         {
             throw new ArgumentNullException(nameof(Document));
         }
 
-        string GeometryKey = GeometrySignature(Document);
+        string GeometryKey = GeometrySignature(Document) + LayoutOptions.GeometryCacheKey;
         string? CachedUnstyled;
         lock (_GeometryCacheGate)
         {

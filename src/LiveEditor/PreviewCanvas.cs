@@ -434,6 +434,10 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void Prepare(string Source, out string? Svg, out byte[]? Png, out string? Failure)
     {
+        using var LayoutScope = MermaidRecognition.Layout.FlowchartRenderContext.Activate(new()
+        {
+            LayoutOptions = LiveEditorFeatureGate.CaptureLayoutOptions()
+        });
         Svg = null;
         Png = null;
         Failure = null;

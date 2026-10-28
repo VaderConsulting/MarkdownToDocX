@@ -372,7 +372,8 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         FlowchartLayoutResult Layout = new();
-        if (!Measure("enterprise-shared-flowchart-layout", () => FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out Layout)))
+        var RenderContext = new FlowchartRenderContext { LayoutOptions = FlowchartRenderContext.Current.LayoutOptions };
+        if (!Measure("enterprise-shared-flowchart-layout", () => FlowchartSugiyamaLayoutEngine.TryLayout(Contract, RenderContext, out Layout)))
         {
             return false;
         }

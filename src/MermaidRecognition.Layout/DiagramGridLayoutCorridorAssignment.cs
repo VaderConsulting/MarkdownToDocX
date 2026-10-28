@@ -27,6 +27,7 @@ public static partial class DiagramGridLayout
     {
         var AllocatedHints = new BandHintState(Contract);
         var ReferenceContext = new FlowchartRenderContext { UseCellRegions = true, EnterpriseBandWrapWidth = Width,
+            LayoutOptions = Context.LayoutOptions,
             InitialBandPlacement = Cells, SuppressReservedCorridorAssignment = true,
             DisableExpandedBendRepairsForTests = Context.DisableExpandedBendRepairsForTests,
             DisableFinishedBendRepairsForTests = Context.DisableFinishedBendRepairsForTests,

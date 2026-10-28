@@ -43,6 +43,7 @@ public static partial class DiagramGridLayout
         {
             OriginalHints.Restore();
             var CandidateContext = new FlowchartRenderContext { UseCellRegions = true, EnterpriseBandWrapWidth = CandidateWidth,
+                LayoutOptions = Context.LayoutOptions,
                 DeferInitialBandCapacity = true,
                 DisableExpandedBendRepairsForTests = Context.DisableExpandedBendRepairsForTests,
                 DisableFinishedBendRepairsForTests = Context.DisableFinishedBendRepairsForTests,

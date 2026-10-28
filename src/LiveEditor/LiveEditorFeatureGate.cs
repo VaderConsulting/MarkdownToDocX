@@ -3,7 +3,7 @@ namespace LiveEditor;
 /// <summary>
 /// Per-letter feature switches for LiveEditor (A-AD). Flip one at a time when committing.
 /// </summary>
-internal static class LiveEditorFeatureGate
+internal static partial class LiveEditorFeatureGate
 {
     public static bool A_SyntaxHighlighting = true;
 
