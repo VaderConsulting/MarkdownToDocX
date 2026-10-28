@@ -20,11 +20,15 @@ public static partial class DiagramGridLayout
             RetainedRouteSnapshot Original = new(State);
             var OriginalContract = State.Contract;
             var Findings = ExistingFindings();
+            bool AddedNodes = Model.Nodes.Any(Node => !State.Nodes.ContainsKey(Node.Id));
+            string? AdditionFailure = AddSourceNodes(Model);
+            if (AdditionFailure != null) return AdditionFailure;
             var Before = Grid.Capture();
             var Placed = State.Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
             var Restored = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
             foreach (string Id in ChangedHints)
             {
+                if (!State.Nodes.ContainsKey(Id)) continue;
                 var Hint = Model.Nodes.Single(Node => Node.Id == Id).PlacementHint;
                 if (Hint?.IsActive == true && ((CapturePlacementOrigins && State.Nodes[Id].PlacementHint?.IsActive != true)
                     || (Hint.Kind == PlacementHintKind.At && State.Nodes[Id].PlacementHint is not { IsActive: true, Kind: PlacementHintKind.At })))
@@ -50,6 +54,17 @@ public static partial class DiagramGridLayout
                 return "The source placement hints violate cell ownership or mandatory constraints.";
             }
             if (!Grid.TryCommit(Before, After!)) { return "The candidate cell state was superseded."; }
+            if (!Enterprise.EnterpriseBandPlacement.RetainedAssignmentIsLegal(State.Contract, After!.Regions))
+                return "The added nodes violate the retained semantic layer constraints.";
+            if (AddedNodes)
+            {
+                var PriorConvention = Grid.RegionConvention;
+                var FrozenInputs = State.Contract;
+                Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool> Convention = Regions => PriorConvention?.Invoke(Regions) != false
+                    && Enterprise.EnterpriseBandPlacement.RetainedAssignmentIsLegal(FrozenInputs, Regions);
+                Grid.RegionConvention = Convention;
+                Grid.RegionConventionSnapshot = () => Convention;
+            }
             for (int Index = 0; Index < Layout.NodeBounds.Count; Index++)
             {
                 var Box = Layout.NodeBounds[Index];

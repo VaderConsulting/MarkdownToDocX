@@ -229,14 +229,19 @@ internal sealed class DiagramSourceUpdateService
         }
         if (Json(Groups(Old)) != Json(Groups(New))) { return Rebuild("Group structure, title or placement changed."); }
         var OldNodes = Old.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        if (New.Nodes.Count != OldNodes.Count || New.Nodes.Any(Node => !OldNodes.ContainsKey(Node.Id)))
+        if (OldNodes.Keys.Except(New.Nodes.Select(Node => Node.Id), StringComparer.Ordinal).Any())
         {
-            return Rebuild("Node insertion or removal requires an explicit construction operation.");
+            return Rebuild("Node removal requires an explicit construction operation.");
         }
         List<string> Hints = [];
         foreach (NodeContract Node in New.Nodes)
         {
-            NodeContract Previous = OldNodes[Node.Id];
+            if (!OldNodes.TryGetValue(Node.Id, out var Previous))
+            {
+                if (New.Groups.Count != 0 || !string.IsNullOrEmpty(Node.ParentGroupId))
+                    return Rebuild("Grouped node insertion requires a containment construction operation.");
+                Hints.Add(Node.Id); continue;
+            }
             if (Json(NodeGeometry(Previous)) != Json(NodeGeometry(Node))
                 || (!ReferenceEquals(Previous.GeometryProvider, Node.GeometryProvider)
                     && !(Previous.GeometryProvider is Enterprise.EnterpriseDecoratedNodeGeometry

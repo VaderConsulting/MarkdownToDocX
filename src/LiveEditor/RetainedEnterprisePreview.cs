@@ -135,6 +135,15 @@ internal sealed class RetainedEnterprisePreview
 
     private static void AddEnterpriseFacts(EnterpriseDocument Document, DiagramContract Model)
     {
+        foreach (var Node in Model.Nodes)
+        {
+            if (Document.Elements.TryGetValue(Node.Id, out var Element))
+                Node.MetadataMutable["enterprisePresentation"] = new RawMetadata("enterprisePresentation",
+                    JsonSerializer.Serialize(new { Element.IsMarkdownLabel, Element.JunctionKind }));
+            else if (Document.Notes.TryGetValue(Node.Id, out var Note))
+                Node.MetadataMutable["enterprisePresentation"] = new RawMetadata("enterprisePresentation",
+                    JsonSerializer.Serialize(new { Note.IsMarkdownLabel }));
+        }
         int Index = 0;
         foreach (var Item in Document.Relationships.Select((Edge, Position) => (Edge, Position)).Where(Item => !Item.Edge.HiddenByNesting))
         {
@@ -155,18 +164,17 @@ internal sealed class RetainedEnterprisePreview
     // styles remain redraws; conservative geometry changes request an identified rebuild.
     private static string GeometrySignature(EnterpriseDocument Document)
     {
-        static object Properties(System.Collections.Generic.Dictionary<string, string> Values)
+        static System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string>> Properties(
+            System.Collections.Generic.Dictionary<string, string> Values)
             => Values.OrderBy(Pair => Pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Where(Pair => Pair.Key.ToLowerInvariant() is not ("fill" or "stroke" or "color" or "opacity" or "fill-opacity" or "stroke-opacity"));
         return JsonSerializer.Serialize(new
         {
             Document.Version, Document.Title, Document.AccessibilityTitle, Document.AccessibilityDescription,
             Configuration = Document.Configuration.OrderBy(Pair => Pair.Key, StringComparer.OrdinalIgnoreCase),
-            Elements = Document.Elements.Values.OrderBy(Node => Node.Id, StringComparer.Ordinal)
-                .Select(Node => new { Node.Id, Node.ElementType, Node.IsMarkdownLabel, Node.JunctionKind }),
             Groups = Document.Groups.Values.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node => new { Node.Id, Node.IsMarkdownLabel }),
-            Notes = Document.Notes.Values.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node => new { Node.Id, Node.IsMarkdownLabel }),
             Styles = Document.Styles.Elements.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
+                .Where(Pair => Properties(Pair.Value).Any())
                 .Select(Pair => new { Pair.Key, Values = Properties(Pair.Value) }),
             DefaultLink = Properties(Document.Styles.DefaultLink)
         });

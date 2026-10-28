@@ -10,6 +10,63 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramSourceUpdateServiceTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void SourceNodeAdditionRetainsExistingGeometryAndRoutesOnlyItsNewRelationship(bool ExplicitHint)
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var Model = Parsed(Service);
+        Model.NodesMutable.Add(new() { Id = "new", Shape = "rect", LayoutWidth = 210, LayoutHeight = 100,
+            PlacementHint = ExplicitHint ? new() { Kind = PlacementHintKind.At, CellRow = 8, CellColumn = 2 } : null });
+        Model.EdgesMutable.Add(new() { Id = "new-line", SourceId = "C", TargetId = "new", MarkerEnd = EdgeEndpointMarker.Point });
+        AssertNoPlacement(() =>
+        {
+            var Candidate = Prepare(Service, 1, Model);
+            Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting), Candidate.FailureReason);
+            Commit(Service, Candidate);
+            Assert.That(Candidate.RebuiltRouteIds, Is.EqualTo(new[] { "relationship:3" }));
+        });
+        var After = Service.CopySnapshot();
+        Assert.That(Component(After.Layout, "A", "B", "X", "Y"), Is.EqualTo(Component(Before.Layout, "A", "B", "X", "Y")));
+        Assert.That(After.Layout.NodeBounds.Single(Box => Box.NodeId == "new").Width, Is.GreaterThanOrEqualTo(210));
+        Assert.That(After.Layout.NodeBounds.Single(Box => Box.NodeId == "new").Height, Is.GreaterThanOrEqualTo(100));
+        if (ExplicitHint) Assert.That(Region(Service, "new").StartRow, Is.EqualTo(8));
+        Assert.That(FlowchartRouteRuleChecker.Check(After.Model, After.Layout), Is.Empty);
+    }
+
+    [Test]
+    public void CollidingAddedNodeRejectsSourceAndGeometryTogether()
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var Model = Parsed(Service);
+        Model.NodesMutable.Add(new() { Id = "collision", Shape = "rect",
+            PlacementHint = new() { Kind = PlacementHintKind.At, CellRow = 0, CellColumn = 0 } });
+        var Candidate = Prepare(Service, 1, Model);
+        Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Service.TryCommit(Candidate, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)));
+        Assert.That(Service.CopySnapshot().SourceText, Is.EqualTo(Before.SourceText));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AddedObstacleRebuildsOnlyTheObstructedComponent(bool Obstructs)
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var Model = Parsed(Service);
+        Model.NodesMutable.Add(new() { Id = "obstacle", Shape = "rect", PlacementHint = new()
+            { Kind = PlacementHintKind.At, CellRow = Obstructs ? 1 : 8, CellColumn = 0 } });
+        var Candidate = Prepare(Service, 1, Model);
+        Commit(Service, Candidate);
+        Assert.That(Candidate.RebuiltRouteIds, Is.EqualTo(Obstructs ? new[] { "relationship:1" } : Array.Empty<string>()));
+        var After = Service.CopySnapshot();
+        Assert.That(Component(After.Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+        Assert.That(FlowchartRouteRuleChecker.Check(After.Model, After.Layout), Is.Empty);
+    }
+
     [Test]
     public void TimelineRemovalRequestsAnExplicitSemanticRebuild()
     {
@@ -433,7 +490,7 @@ public sealed class DiagramSourceUpdateServiceTests
         {
             case "direction": Model.Direction = "LR"; break;
             case "label": Model.Nodes[0].Label = "larger label"; break;
-            case "node": Model.NodesMutable.Add(new() { Id = "new" }); break;
+            case "node": Model.NodesMutable.RemoveAt(2); break;
             case "font": Model.Nodes[0].InlineStyle.FontSize = 24; break;
             case "group": Model.GroupsMutable.Add(new() { Id = "G" }); break;
             case "edge-label": Model.Edges[0].Label = "new relationship label"; break;

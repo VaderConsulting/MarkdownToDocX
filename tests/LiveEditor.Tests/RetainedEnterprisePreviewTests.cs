@@ -125,7 +125,7 @@ public sealed partial class RetainedEnterprisePreviewTests
 
     [TestCase("title New title\n")]
     [TestCase("style a font-size:24px\n")]
-    [TestCase("application-component extra \"Extra\"\n")]
+    [TestCase("group extra \"Extra\"\n")]
     public void UnsupportedGeometryEditsIdentifyTheirRebuild(string Addition)
     {
         var Session = new RetainedEnterprisePreview(); Accept(Session, Source, 1);

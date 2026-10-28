@@ -217,6 +217,16 @@ internal static partial class EnterpriseBandPlacement
         return new(Band, Metadata.Aspect switch { EnterpriseAspect.Passive => 0, EnterpriseAspect.Behaviour => 1, _ => 2 }, Band >= 0, Type);
     }
 
+    // Checks supplied cells only. It never invokes the initial band producer.
+    internal static bool RetainedAssignmentIsLegal(DiagramContract Contract, IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
+    {
+        var Classes = Contract.Nodes.Where(Node => Regions.ContainsKey(Node.Id)
+            && Node.Metadata.TryGetValue("enterpriseElementType", out var Value) && Value is RawMetadata)
+            .ToDictionary(Node => Node.Id, Node => Classify(Enum.Parse<EnterpriseElementType>(
+                ((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)), StringComparer.Ordinal);
+        return MatchesConvention(Contract, Classes, Regions);
+    }
+
     /// <summary>Checks complete candidate regions so a later repair cannot undo the layer conventions.</summary>
     /// <param name="Contract">Declared triggering edges used for plateau ordering.</param>
     /// <param name="Classes">Immutable semantic membership, including inferred unlayered neighbours.</param>
