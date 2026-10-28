@@ -168,6 +168,8 @@ public sealed class EditorEaseTests
     [Test]
     public void ZoomChangesTheEditorFontAndResetRestoresTheSessionSize()
     {
+        // MainForm applies the session font before zooming; designer sizes may be below the zoom minimum.
+        _Editor.ApplyFont(11F, false);
         float Started = _Box.Font.Size;
         _Editor.ZoomIn();
         Assert.That(_Box.Font.Size, Is.EqualTo(Started + 1F));

@@ -195,12 +195,18 @@ internal sealed class LineNumberGutter : Panel
         try
         {
             Font Next = new Font(_Editor.Font.FontFamily, _Editor.Font.Size, _Editor.Font.Style, GraphicsUnit.Point);
-            Font? Previous = _OwnedFont;
-            _OwnedFont = Next;
-            Font = Next;
-            if (Previous != null)
+            // Control.Font retains its current instance when the new font is equal.
+            // Keep that instance alive and discard only the unused replacement.
+            if (Font.Equals(Next))
             {
-                Previous.Dispose();
+                Next.Dispose();
+            }
+            else
+            {
+                Font? Previous = _OwnedFont;
+                Font = Next;
+                _OwnedFont = Next;
+                Previous?.Dispose();
             }
 
             ResizeToFourDigits();

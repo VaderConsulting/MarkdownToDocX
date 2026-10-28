@@ -13,6 +13,55 @@ namespace LiveEditor.Tests;
 [Apartment(ApartmentState.STA)]
 public sealed class LineNumberGutterTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void RebindingAnEditorWithTheSameFontKeepsThePaintFontAlive(bool DifferentEditor)
+    {
+        using Font EditorFont = new Font("Consolas", 11F);
+        using RichTextBox Editor = new RichTextBox { Font = EditorFont, Text = "one\ntwo" };
+        using RichTextBox OtherEditor = new RichTextBox { Font = EditorFont, Text = "three\nfour" };
+        using LineNumberGutter Gutter = new LineNumberGutter();
+        Editor.CreateControl();
+        OtherEditor.CreateControl();
+        Gutter.Bind(Editor);
+
+        for (int Attempt = 0; Attempt < 3; Attempt++)
+        {
+            Gutter.Bind(DifferentEditor ? OtherEditor : Editor);
+            Assert.That(Gutter.Font.Height, Is.GreaterThan(0));
+            using Bitmap Picture = new Bitmap(Gutter.Width, 100);
+            Gutter.DrawToBitmap(Picture, new Rectangle(Point.Empty, Picture.Size));
+        }
+    }
+
+    [Test]
+    public void FontChangesAndRepeatedNotificationsKeepTheGutterPaintable()
+    {
+        using Font SmallFont = new Font("Consolas", 8F);
+        using Font MediumFont = new Font("Consolas", 12F);
+        using Font LargeFont = new Font("Consolas", 32F);
+        using Font SessionFont = new Font("Consolas", 11F);
+        using RichTextBox Editor = new RichTextBox { Text = "one\ntwo" };
+        using LineNumberGutter Gutter = new LineNumberGutter();
+        Editor.CreateControl();
+        Gutter.Bind(Editor);
+        var FontChanged = typeof(Control).GetMethod("OnFontChanged",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+        foreach (Font EditorFont in new[] { SmallFont, MediumFont, LargeFont, SessionFont })
+        {
+            Editor.Font = EditorFont;
+            FontChanged.Invoke(Editor, new object[] { System.EventArgs.Empty });
+            Assert.That(Gutter.Font.Size, Is.EqualTo(EditorFont.Size));
+            Assert.That(Gutter.Font.Height, Is.GreaterThan(0));
+            Size FourDigits = TextRenderer.MeasureText("9999", Editor.Font, new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+            Assert.That(Gutter.Width, Is.EqualTo(FourDigits.Width + 16));
+            using Bitmap Picture = new Bitmap(Gutter.Width, 100);
+            Gutter.DrawToBitmap(Picture, new Rectangle(Point.Empty, Picture.Size));
+        }
+    }
+
     [Test]
     public void ColumnIsWideEnoughForFourDigits()
     {
