@@ -73,8 +73,8 @@ internal sealed class DiagramLayoutSession
         DiagramContract RoutingModel, FlowchartLayoutResult Layout);
 
     /// <summary>
-    /// Plans explicit cell translations against retained geometry. Resizing, group refitting,
-    /// source reconciliation and replacement hints are separate operations that remain unsupported.
+    /// Plans explicit cell translations against retained geometry. Resizing and replacement
+    /// source hints use separate operations; group refitting remains unsupported.
     /// No initial placement or whole-diagram routing entry point is reachable here.
     /// </summary>
     internal Update PrepareMove(long SourceRevision, IReadOnlyDictionary<string, FlowchartCellRegion> Targets,

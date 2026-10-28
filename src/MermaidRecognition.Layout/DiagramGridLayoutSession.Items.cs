@@ -32,7 +32,7 @@ public static partial class DiagramGridLayout
             {
                 return "The declared cells cannot contain the measured node.";
             }
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             var Findings = ExistingFindings();
             if (!Grid.TryPlace(Item.Id, Region)) { return "The node's cells are occupied or violate a placement constraint."; }
             ReplaceInputs();
@@ -67,7 +67,7 @@ public static partial class DiagramGridLayout
             {
                 return "Invisible layout constraints require a separate construction operation.";
             }
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             var Findings = ExistingFindings();
             ReplaceInputs();
             EdgeContract Edge = CopyRoutingEdge(Relationship);
@@ -95,7 +95,7 @@ public static partial class DiagramGridLayout
                 if (IsTimelineConstraint(Edge) || IsTimelineConstraint(Reconnected))
                     return "Plateau triggering topology changes require a new semantic constraint session.";
             }
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             var Findings = ExistingFindings();
             ReplaceInputs();
             Edge = State.Contract.Edges.Single(Edge => Edge.Id == Identity);
@@ -115,7 +115,7 @@ public static partial class DiagramGridLayout
             var Edge = State.Contract.Edges.SingleOrDefault(Edge => Edge.Id == Identity);
             var Route = Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Identity);
             if (Edge == null || Route == null) { return "The relationship identity is unknown."; }
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             var Findings = ExistingFindings();
             ReplaceInputs();
             Edge = State.Contract.Edges.Single(Edge => Edge.Id == Identity);
@@ -132,7 +132,7 @@ public static partial class DiagramGridLayout
             if (IsTimelineConstraint(Edge)) return "Plateau triggering topology changes require a new semantic constraint session.";
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
                 return "Invisible relationship removal requires a separate construction operation.";
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             var OriginalContract = State.Contract;
             var Findings = ExistingFindings();
             ReplaceInputs();

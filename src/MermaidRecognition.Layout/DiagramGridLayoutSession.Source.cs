@@ -17,7 +17,7 @@ public static partial class DiagramGridLayout
         {
             AffectedIds = []; RebuiltIds = [];
             using IDisposable Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             var OriginalContract = State.Contract;
             var Findings = ExistingFindings();
             string? RemovalFailure = RemoveSourceNodes(Model);

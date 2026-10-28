@@ -19,7 +19,22 @@ public static partial class DiagramGridLayout
         private readonly GridLayoutState State;
         private readonly FlowchartLogicalGrid Grid;
         private double RoutingOrigin;
-        private RetainedRoutingState(GridLayoutState State, FlowchartLogicalGrid Grid) { this.State = State; this.Grid = Grid; }
+        private RetainedRouteDependencyIndex Dependencies;
+        private int DependencyGeometryVersion;
+        private DiagramContract DependencyContract;
+        private RetainedRoutingState(GridLayoutState State, FlowchartLogicalGrid Grid)
+        {
+            this.State = State; this.Grid = Grid;
+            Dependencies = new(State.Copy); DependencyGeometryVersion = State.Copy.GeometryVersion; DependencyContract = State.Contract;
+        }
+        private RetainedRouteSnapshot CaptureRouting()
+        {
+            if (DependencyGeometryVersion != Layout.GeometryVersion || !ReferenceEquals(DependencyContract, State.Contract))
+            {
+                Dependencies = new(Layout); DependencyGeometryVersion = Layout.GeometryVersion; DependencyContract = State.Contract;
+            }
+            return new(State, Dependencies);
+        }
         internal FlowchartLayoutResult Layout => State.Copy;
         internal DiagramContract Contract => State.Contract;
         internal DiagramLayoutOptions Options => Layout.RenderContext.LayoutOptions;
@@ -137,7 +152,7 @@ public static partial class DiagramGridLayout
                 return "The move violates cell ownership, placement hints or semantic constraints.";
             }
 
-            RetainedRouteSnapshot Original = new(State);
+            RetainedRouteSnapshot Original = CaptureRouting();
             HashSet<FlowchartRouteRuleChecker.Finding> ExistingFindings = [.. FlowchartRouteRuleChecker.Check(State.Contract, Layout)];
             if (!Grid.TryCommit(Before, After!)) { return "The candidate cell state was superseded."; }
             // Project only node geometry. Frozen group boxes and the model coordinate frame stay exact.

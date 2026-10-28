@@ -14,12 +14,16 @@ public static partial class DiagramGridLayout
         internal readonly DiagramContract Contract;
         internal readonly Dictionary<string, FlowchartLayoutNodeBounds> Bounds;
         private readonly RouteValue[] Routes;
+        private readonly Dictionary<FlowchartLayoutEdgeRoute, RouteValue> ByRoute;
+        private readonly RetainedRouteDependencyIndex Dependencies;
 
-        internal RetainedRouteSnapshot(GridLayoutState State)
+        internal RetainedRouteSnapshot(GridLayoutState State, RetainedRouteDependencyIndex Dependencies)
         {
+            this.Dependencies = Dependencies;
             Contract = State.Contract;
             Bounds = State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
             Routes = State.Copy.EdgeRoutes.Select(Route => new RouteValue(Route)).ToArray();
+            ByRoute = Routes.ToDictionary(Item => Item.Route);
         }
 
         internal HashSet<FlowchartLayoutEdgeRoute> RoutesAffectedBy(GridLayoutState State)
@@ -37,13 +41,19 @@ public static partial class DiagramGridLayout
             }
             double Margin = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
             var Surviving = State.Copy.EdgeRoutes.ToHashSet();
-            return [.. Routes.Where(Item => Surviving.Contains(Item.Route)).Where(Item => Changed.Contains(Item.Source) || Changed.Contains(Item.Target)
-                || Enumerable.Range(1, Math.Max(0, Item.Points.Length - 1)).Any(Index => Obstacles.Any(Box =>
-                    Math.Min(Item.Points[Index - 1].X, Item.Points[Index].X) <= Box.CenterX + Box.Width / 2 + Margin
-                    && Math.Max(Item.Points[Index - 1].X, Item.Points[Index].X) >= Box.CenterX - Box.Width / 2 - Margin
-                    && Math.Min(Item.Points[Index - 1].Y, Item.Points[Index].Y) <= Box.CenterY + Box.Height / 2 + Margin
-                    && Math.Max(Item.Points[Index - 1].Y, Item.Points[Index].Y) >= Box.CenterY - Box.Height / 2 - Margin)))
-                .Select(Item => Item.Route)];
+            HashSet<FlowchartLayoutEdgeRoute> Affected = [.. Changed.SelectMany(Dependencies.Incident).Where(Surviving.Contains)];
+            foreach (var Box in Obstacles)
+                foreach (var Route in Dependencies.Near(Box, Margin))
+                {
+                    if (!Surviving.Contains(Route) || Affected.Contains(Route)) continue;
+                    var Item = ByRoute[Route];
+                    if (Enumerable.Range(1, Math.Max(0, Item.Points.Length - 1)).Any(Index =>
+                        Math.Min(Item.Points[Index - 1].X, Item.Points[Index].X) <= Box.CenterX + Box.Width / 2 + Margin
+                        && Math.Max(Item.Points[Index - 1].X, Item.Points[Index].X) >= Box.CenterX - Box.Width / 2 - Margin
+                        && Math.Min(Item.Points[Index - 1].Y, Item.Points[Index].Y) <= Box.CenterY + Box.Height / 2 + Margin
+                        && Math.Max(Item.Points[Index - 1].Y, Item.Points[Index].Y) >= Box.CenterY - Box.Height / 2 - Margin)) Affected.Add(Route);
+                }
+            return Affected;
         }
 
         internal IEnumerable<string> OldEndpoints(IReadOnlySet<FlowchartLayoutEdgeRoute> Affected) => Routes
