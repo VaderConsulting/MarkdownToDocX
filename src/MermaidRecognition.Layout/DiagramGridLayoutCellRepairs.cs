@@ -897,12 +897,15 @@ public static partial class DiagramGridLayout
                         + (ChangedLines * FlowchartLayoutRules.RepairMovedLineWeight);
                     int BeforeFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(Before.Violations);
                     int AfterFaults = FlowchartRepairCandidateComparison.RoutingFaultCount(After.Violations);
+                    // Mandatory frame/channel clearance precedes the footprint
+                    // score. A larger legal layout can remove a hard shortfall.
                     bool Legal = After.Overlaps <= Before.Overlaps && After.HintsHonoured >= Before.HintsHonoured
                         && NoNewFindings(BeforeFindings, AfterFindings) && CountTitleBandRoutes(State) == 0
                         && !AfterFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")
                         && (!PreserveBends || ExtraBends <= 0)
                         && ChangedLines <= FlowchartLayoutRules.RepairChainLines
-                        && (AfterFaults < BeforeFaults || FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
+                        && ((Remaining < InitialShortfall && AfterFaults <= BeforeFaults && After.Crossings <= Before.Crossings)
+                            || AfterFaults < BeforeFaults || FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
                             BeforeFaults, Before.HintsHonoured, Before.Cost, AfterFaults, After.HintsHonoured, Cost));
                     RouteRepairCandidateObserver?.Invoke("cell-move", Option.Subject, Cost, Legal);
                     double ChainTie = FlowchartChainPlacementTie.Measure(State.Contract, State.Copy.NodeBounds);
@@ -976,7 +979,8 @@ public static partial class DiagramGridLayout
                     || (PreserveBends && ExtraBends > 0)
                     || ChangedLines > FlowchartLayoutRules.RepairChainLines
                     || (Shortfall?.Invoke() ?? 0) > InitialShortfall
-                    || ((Shortfall?.Invoke() ?? 0) == InitialShortfall
+                    || (!((Shortfall?.Invoke() ?? 0) < InitialShortfall
+                            && ConfirmedFaults <= InitialFaults && Confirmed.Crossings <= Before.Crossings)
                         && !FlowchartRepairCandidateComparison.CandidateBeatsBaseline(
                             InitialFaults, Before.HintsHonoured, Before.Cost, ConfirmedFaults, Confirmed.HintsHonoured, Cost)))
                 {

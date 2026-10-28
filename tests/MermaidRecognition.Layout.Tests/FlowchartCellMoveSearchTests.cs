@@ -237,10 +237,11 @@ public sealed class FlowchartCellMoveSearchTests
     }
 
     /// <summary>Overlapping derived frames move their complete member groups through the same atomic cell search.</summary>
-    [Test]
-    public void FrameOverlapRepairMovesWholeMemberRegions()
+    /// <param name="MultipleMembers">Whether each group owns two independent cell reservations.</param>
+    [TestCase(false), TestCase(true)]
+    public void FrameOverlapRepairMovesWholeMemberRegions(bool MultipleMembers)
     {
-        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(Offset: false, Source: """
+        string Script = """
             flowchart TB
               subgraph Left
                 A[Left member]
@@ -250,15 +251,38 @@ public sealed class FlowchartCellMoveSearchTests
               end
               A --> C[Output]
               B --> C
-            """, Regions: new Dictionary<string, FlowchartCellRegion>
-            {
-                ["A"] = new(0, 0, 1, 1), ["B"] = new(0, 1, 1, 1), ["C"] = new(2, 0, 1, 1)
-            });
+            """;
+        var Regions = new Dictionary<string, FlowchartCellRegion>
+        {
+            ["A"] = new(0, 0, 1, 1), ["B"] = new(0, 1, 1, 1), ["C"] = new(2, 0, 1, 1)
+        };
+        if (MultipleMembers)
+        {
+            Script = Script.Replace("A[Left member]", "A[Left member]\nA2[Second left member]")
+                .Replace("B[Right member]", "B[Right member]\nB2[Second right member]");
+            Regions["A2"] = new(1, 0, 1, 1); Regions["B2"] = new(1, 1, 1, 1);
+        }
+        var Fixture = CreateState(Offset: false, Source: Script, Regions: Regions);
         Assert.That(FramesOverlap(Fixture.Layout), Is.True);
-        bool Moved = (bool)typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!
-            .GetMethod("RepairCellFrameOverlap", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [Fixture.State])!;
-        Assert.That(Moved, Is.True);
+        var Before = Fixture.Grid.Capture();
+        var Diagnostics = new List<string>();
+        DiagramGridLayout.RouteRepairCandidateObserver = (Kind, Subject, Cost, Legal) =>
+            Diagnostics.Add($"{Kind} {Subject}: legal={Legal}, cost={Cost}");
+        bool Moved;
+        try
+        {
+            Moved = (bool)typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!
+                .GetMethod("RepairCellFrameOverlap", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [Fixture.State])!;
+        }
+        finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
+        Assert.That(Moved, Is.True, string.Join(Environment.NewLine, Diagnostics));
         Assert.That(FramesOverlap(Fixture.Layout), Is.False);
+        Assert.That(Fixture.Grid.RegionOf("C"), Is.EqualTo(Before.Regions["C"]));
+        if (MultipleMembers)
+            foreach (string[] Members in new[] { new[] { "A", "A2" }, new[] { "B", "B2" } })
+                Assert.That(Members.Select(Id => (Fixture.Grid.RegionOf(Id).StartRow - Before.Regions[Id].StartRow,
+                    Fixture.Grid.RegionOf(Id).StartColumn - Before.Regions[Id].StartColumn)).Distinct().Count(), Is.EqualTo(1),
+                    "every member must translate by the same whole-cell delta");
         AssertNoSharedCells(Fixture.Grid);
         Assert.That(FlowchartRouteRuleChecker.Check(Fixture.Contract, Fixture.Layout)
             .Where(Finding => Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);

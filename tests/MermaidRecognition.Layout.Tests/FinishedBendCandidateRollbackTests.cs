@@ -52,6 +52,9 @@ public sealed class FinishedBendCandidateRollbackTests
     /// <param name="Line">Bent line whose move must be rejected.</param>
     private static void AssertRejectedExactly(DiagramContract Contract, FlowchartLayoutResult Layout, FlowchartLayoutEdgeRoute Line)
     {
+        // Topology caches belong to an immutable contract identity. The remote
+        // crossing preflight has already populated them on the fixture model.
+        Contract = DiagramSourceModel.Copy(Contract);
         Contract.GroupsMutable.Add(new GroupContract { Id = "empty" });
         Layout.ClusterBoundsMutable.Add(new() { NodeId = "empty", CenterX = 10000, CenterY = 10000, Width = 150, Height = 90 });
         Layout.ResolvedEdgeGuides = [.. Contract.Edges.Select(Edge => new FlowchartResolvedGuide(Edge,
