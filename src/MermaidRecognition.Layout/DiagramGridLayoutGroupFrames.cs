@@ -564,6 +564,7 @@ public static partial class DiagramGridLayout
         Kind = Hint.Kind,
         PeerId = Hint.PeerId,
         Offset = Hint.Offset,
+        ColumnOffset = Hint.ColumnOffset,
         Direction = Hint.Direction,
         SourceLine = Hint.SourceLine,
         IsActive = Hint.IsActive,
@@ -1355,14 +1356,14 @@ public static partial class DiagramGridLayout
             PlacementHintContract? Hint = Group.PlacementHint is { IsActive: true } ? Group.PlacementHint : null;
             int StepX = Hint?.Kind switch
             {
-                PlacementHintKind.RightOf => 1,
-                PlacementHintKind.LeftOf => -1,
+                PlacementHintKind.RightOf or PlacementHintKind.NorthEast or PlacementHintKind.SouthEast => 1,
+                PlacementHintKind.LeftOf or PlacementHintKind.NorthWest or PlacementHintKind.SouthWest => -1,
                 _ => 0
             };
             int StepY = Hint?.Kind switch
             {
-                PlacementHintKind.Below => 1,
-                PlacementHintKind.Above => -1,
+                PlacementHintKind.Below or PlacementHintKind.SouthEast or PlacementHintKind.SouthWest => 1,
+                PlacementHintKind.Above or PlacementHintKind.NorthEast or PlacementHintKind.NorthWest => -1,
                 _ => 0
             };
             if (StepX == 0 && StepY == 0)
@@ -1426,6 +1427,13 @@ public static partial class DiagramGridLayout
             }
 
             int Gap = DiagramGridMetrics.NODE_GAP_PX + (Hint.Offset * DiagramGridMetrics.GRID_UNIT_PX);
+            if (Hint.IsDiagonal)
+            {
+                var (Row, Column) = FlowchartPlacementHints.DiagonalSigns(Hint.Kind);
+                int ColumnGap = DiagramGridMetrics.NODE_GAP_PX + checked((Hint.ColumnOffset ?? Hint.Offset) * DiagramGridMetrics.GRID_UNIT_PX);
+                Left = Column < 0 ? PeerLeft - ColumnGap - Width : PeerRight + ColumnGap;
+                Top = Row < 0 ? PeerTop - Gap - Height : PeerBottom + Gap;
+            }
             switch (Hint.Kind)
             {
                 case PlacementHintKind.Above:
@@ -1445,8 +1453,11 @@ public static partial class DiagramGridLayout
                     Top = (PeerTop + PeerBottom - Height) / 2.0;
                     break;
                 default:
-                    Left = PeerLeft + ((PeerRight - PeerLeft - Width) / 2.0);
-                    Top = PeerTop + ((PeerBottom - PeerTop - Height) / 2.0);
+                    if (!Hint.IsDiagonal)
+                    {
+                        Left = PeerLeft + ((PeerRight - PeerLeft - Width) / 2.0);
+                        Top = PeerTop + ((PeerBottom - PeerTop - Height) / 2.0);
+                    }
                     break;
             }
         }

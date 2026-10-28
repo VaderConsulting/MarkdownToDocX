@@ -67,7 +67,7 @@ public static partial class DiagramGridLayout
 
     private static PlacementHintContract? CopyPlacementHint(PlacementHintContract? Hint) => Hint == null ? null : new()
     {
-        Kind = Hint.Kind, PeerId = Hint.PeerId, Offset = Hint.Offset, Direction = Hint.Direction,
+        Kind = Hint.Kind, PeerId = Hint.PeerId, Offset = Hint.Offset, ColumnOffset = Hint.ColumnOffset, Direction = Hint.Direction,
         SourceLine = Hint.SourceLine, IsActive = Hint.IsActive, UnhonouredReason = Hint.UnhonouredReason
     };
 }

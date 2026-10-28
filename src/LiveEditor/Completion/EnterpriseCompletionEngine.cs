@@ -195,7 +195,7 @@ internal sealed class EnterpriseCompletionEngine
             return Context;
         }
 
-        Match PeerMatch = Regex.Match(LinePrefix, @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+(?<hint>above|below|left-of|right-of)\s+(?<peer>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?$", RegexOptions.IgnoreCase);
+        Match PeerMatch = Regex.Match(LinePrefix, @"^(?<indent>\s*)(?<etype>[A-Za-z-]+)\s+(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)(?:\s+(?<label>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'))?(?:\s+in\s+(?<parent>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*))?\s+(?<hint>above|below|left-of|right-of|NW|NE|SE|SW)\s+(?<peer>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?$", RegexOptions.IgnoreCase);
         if (PeerMatch.Success && IsKnownElementTypeToken(PeerMatch.Groups["etype"].Value))
         {
             FillPeerSuggestions(Context, _CachedDocument, PeerMatch, LineStart);
@@ -391,7 +391,7 @@ internal sealed class EnterpriseCompletionEngine
             Context.Items.Add(new CompletionItem("in ", "in", "Container", "in <container>\n\nOptional. Identifier of the containing group. The statement can end before this."));
         }
 
-        string[] Hints = ["above", "below", "left-of", "right-of", "push"];
+        string[] Hints = ["above", "below", "left-of", "right-of", "NW", "NE", "SE", "SW", "push"];
         foreach (string Hint in Hints)
         {
             Context.Items.Add(new CompletionItem(Hint + " ", Hint, "Placement", EnterpriseHelp.PlacementDocumentation(Hint)));
@@ -435,7 +435,7 @@ internal sealed class EnterpriseCompletionEngine
         Group HintGroup = Match.Groups["hint"];
         Context.ReplaceStart = LineStart + HintGroup.Index;
         Context.ReplaceEnd = LineStart + HintGroup.Index + HintGroup.Length;
-        string[] Hints = ["above", "below", "left-of", "right-of", "push"];
+        string[] Hints = ["above", "below", "left-of", "right-of", "NW", "NE", "SE", "SW", "push"];
         foreach (string Hint in Hints)
         {
             if (!StartsWithPrefix(Hint, Prefix))

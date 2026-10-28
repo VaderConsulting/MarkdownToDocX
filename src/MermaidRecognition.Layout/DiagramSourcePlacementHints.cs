@@ -31,7 +31,7 @@ internal static class DiagramSourcePlacementHints
             NodeContract Node = Nodes[Id];
             if (Node.PlacementHint is { IsActive: true } Hint)
             {
-                if (Hint.Offset < 0) { return "A placement hint offset must be nonnegative."; }
+                if (Hint.Offset < 0 || Hint.ColumnOffset < 0) { return "A placement hint offset must be nonnegative."; }
                 if (!Enum.IsDefined(Hint.Kind)) { return "The placement hint kind is unsupported."; }
                 FlowchartCellRegion Owner = Result[Id], Peer;
                 if (Hint.Kind == PlacementHintKind.Push)
@@ -75,7 +75,8 @@ internal static class DiagramSourcePlacementHints
                         case PlacementHintKind.RightOf: Column = checked(Peer.EndColumn + Hint.Offset); Row = Peer.StartRow; break;
                     }
                 }
-                Result[Id] = new(Row, Column, Owner.RowSpan, Owner.ColumnSpan);
+                Result[Id] = Hint.IsDiagonal ? FlowchartPlacementHints.DiagonalTarget(Hint, Owner, Peer)
+                    : new(Row, Column, Owner.RowSpan, Owner.ColumnSpan);
             }
             Done.Add(Id); Visiting.Remove(Id); return null;
         }

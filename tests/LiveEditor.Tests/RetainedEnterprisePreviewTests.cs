@@ -314,8 +314,12 @@ public sealed class RetainedEnterprisePreviewTests
         return Form;
     }
 
-    [Test]
-    public void SnappedGuiMoveMatchesTypedHintPreservesSelectionAndIsOneUndoableSourceEdit()
+    [TestCase("below a +3")]
+    [TestCase("NW a +4 +2")]
+    [TestCase("NE a +4 +2")]
+    [TestCase("SE a +4 +2")]
+    [TestCase("SW a +4 +2")]
+    public void SnappedGuiMoveMatchesTypedHintPreservesSelectionAndIsOneUndoableSourceEdit(string Hint)
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
         var PreviousObserver = MermaidRecognition.Layout.Enterprise.EnterpriseFlowchartEdgeRouter.StageTimingObserver;
@@ -323,7 +327,7 @@ public sealed class RetainedEnterprisePreviewTests
         {
             var Reference = new RetainedEnterprisePreview();
             Accept(Reference, Source, 1);
-            string Typed = Source.Replace("below a +2", "below a +3");
+            string Typed = Source.Replace("below a +2", Hint);
             var Expected = Accept(Reference, Typed, 2);
             using var Form = CreateForm(true);
             var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
@@ -336,12 +340,14 @@ public sealed class RetainedEnterprisePreviewTests
             var Stages = new System.Collections.Concurrent.ConcurrentBag<string>();
             MermaidRecognition.Layout.Enterprise.EnterpriseFlowchartEdgeRouter.StageTimingObserver =
                 (Stage, Time) => { if (Time < 0) Stages.Add(Stage); };
-            // Reference now has +3. Use its SVG centre with a small off-grid
-            // pointer displacement; the command must still write exactly +3.
+            // Express the expected centre in the currently displayed frame,
+            // including negative extents, then add an off-grid displacement.
             var ExpectedIndex = PreviewHoverIndex.Build(Expected.Svg, Typed);
             var Target = ExpectedIndex.FindObject("node\u001fb")!;
-            Assert.That(Form.MovePreviewNode("b", new((float)((Target.Left + Target.Right) / 2 + 7),
-                (float)((Target.Top + Target.Bottom) / 2 + 8))), Is.True);
+            var OldOrigin = PreviewHoverIndex.SvgOrigin(Initial);
+            var NewOrigin = PreviewHoverIndex.SvgOrigin(Expected.Svg);
+            Assert.That(Form.MovePreviewNode("b", new((float)((Target.Left + Target.Right) / 2 + NewOrigin.X - OldOrigin.X + 7),
+                (float)((Target.Top + Target.Bottom) / 2 + NewOrigin.Y - OldOrigin.Y + 8))), Is.True);
             Assert.That(Editor.Text, Is.EqualTo(Typed));
             Wait(() => Preview.RenderedSvg == Expected.Svg && Form.DiagramMetadata.PercentRendered == 100);
             Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));

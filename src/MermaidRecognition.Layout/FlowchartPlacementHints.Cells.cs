@@ -89,6 +89,13 @@ internal static partial class FlowchartPlacementHints
                     continue;
                 }
                 FlowchartCellRegion Anchor = CellEnvelope(Peer, Targets);
+                if (Item.Hint.IsDiagonal)
+                {
+                    var Target = DiagonalTarget(Item.Hint, OwnerRegion, Anchor);
+                    Rows = checked(Target.StartRow - OwnerRegion.StartRow);
+                    Columns = checked(Target.StartColumn - OwnerRegion.StartColumn);
+                    (RowDirection, ColumnDirection) = DiagonalSigns(Item.Hint.Kind);
+                }
                 // Relative hints align starting rows/columns, even when the
                 // two units have different spans. +n reserves n whole cells.
                 switch (Item.Hint.Kind)
@@ -197,6 +204,14 @@ internal static partial class FlowchartPlacementHints
         }
 
         FlowchartCellRegion Peer = CellEnvelope(Peers, Regions);
+        if (Item.Hint.IsDiagonal)
+        {
+            var (Row, Column) = DiagonalSigns(Item.Hint.Kind);
+            return (Row < 0 ? (long)Owner.EndRow <= (long)Peer.StartRow - Item.Hint.Offset
+                    : (long)Owner.StartRow >= (long)Peer.EndRow + Item.Hint.Offset)
+                && (Column < 0 ? (long)Owner.EndColumn <= (long)Peer.StartColumn - (Item.Hint.ColumnOffset ?? Item.Hint.Offset)
+                    : (long)Owner.StartColumn >= (long)Peer.EndColumn + (Item.Hint.ColumnOffset ?? Item.Hint.Offset));
+        }
         if (Item.Hint.Kind == PlacementHintKind.Push)
         {
             return Item.Hint.Direction switch

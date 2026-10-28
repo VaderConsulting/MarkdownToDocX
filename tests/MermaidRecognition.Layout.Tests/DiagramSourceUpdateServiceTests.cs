@@ -402,6 +402,58 @@ public sealed class DiagramSourceUpdateServiceTests
         Model.Nodes[0].DeclarationsMutable.Add(new("node", "A[A]", new(0, 4, 2, 1, 2, 5)));
         return (new("document", 0, "initial", Model, Snapshot.Layout), Model, Snapshot.Layout);
     }
+
+    [TestCase(PlacementHintKind.NorthWest, -3, -5)]
+    [TestCase(PlacementHintKind.NorthEast, -3, 5)]
+    [TestCase(PlacementHintKind.SouthEast, 3, 5)]
+    [TestCase(PlacementHintKind.SouthWest, 3, -5)]
+    public void DiagonalUpdateMovesBothAxesAndDependentsButKeepsOrthogonalRoutes(PlacementHintKind Kind, int Row, int Column)
+    {
+        var (Service, _, _) = Fixture();
+        var Model = Parsed(Service);
+        Node(Model, "C").PlacementHint = Below("B", 1);
+        Commit(Service, Prepare(Service, 1, Model));
+        var Before = Service.CopySnapshot();
+        AssertNoPlacement(() =>
+        {
+            Model = Parsed(Service);
+            Node(Model, "B").PlacementHint = new() { Kind = Kind, PeerId = "A", Offset = 2, ColumnOffset = 4 };
+            var Update = Prepare(Service, 2, Model);
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting));
+            Commit(Service, Update);
+            Assert.That(Region(Service, "B"), Is.EqualTo(new FlowchartCellRegion(Row, Column, 1, 1)));
+            Assert.That(Region(Service, "C"), Is.EqualTo(new FlowchartCellRegion(Row + 2, Column, 1, 1)));
+            Assert.That(Update.RebuiltRouteIds, Is.EqualTo(new[] { "relationship:1" }));
+            Model = Parsed(Service);
+            Assert.That(Node(Model, "B").PlacementHint!.ColumnOffset, Is.EqualTo(4), "detached copies retain both axes");
+            Node(Model, "B").PlacementHint!.ColumnOffset = 5;
+            Update = Prepare(Service, 3, Model);
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting), "changing only the horizontal gap must route locally");
+            Commit(Service, Update);
+            Assert.That(Region(Service, "B").StartColumn, Is.EqualTo(Column + Math.Sign(Column)));
+        });
+        var After = Service.CopySnapshot();
+        Assert.That(Component(After.Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+        Assert.That(FlowchartRouteRuleChecker.Check(After.Model, After.Layout), Is.Empty);
+        foreach (var Route in After.Layout.EdgeRoutes)
+            for (int Index = 1; Index < Route.Points.Count; Index++)
+                Assert.That(Math.Abs(Route.Points[Index].X - Route.Points[Index - 1].X) < 0.001
+                    || Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y) < 0.001, Is.True, "relationship segments stay orthogonal");
+    }
+
+    [Test]
+    public void OccupiedDiagonalDestinationRejectsWithoutPublishingOrRebuilding()
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Geometry(Service.CopySnapshot().Layout);
+        var Model = Parsed(Service);
+        Node(Model, "B").PlacementHint = new() { Kind = PlacementHintKind.SouthEast, PeerId = "A", Offset = 2, ColumnOffset = 7 };
+        var Update = Prepare(Service, 1, Model);
+        Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Service.TryCommit(Update, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+        Assert.That(Service.CopySnapshot().SourceRevision, Is.Zero);
+    }
     private static DiagramContract Parsed(DiagramSourceUpdateService Service)
     {
         var Snapshot = Service.CopySnapshot();

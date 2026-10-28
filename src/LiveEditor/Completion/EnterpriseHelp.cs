@@ -57,13 +57,13 @@ internal static class EnterpriseHelp
     };
 
     /// <summary>Builds the documentation panel for an element type.</summary>
-    public static string ElementTypeDocumentation(EnterpriseElementMetadata Metadata)
+    public static string ElementTypeDocumentation(EnterpriseElementMetadata Metadata, bool ForCompletion = true)
     {
-        return ElementTypeDocumentation(Metadata, Metadata.KebabName);
+        return ElementTypeDocumentation(Metadata, Metadata.KebabName, ForCompletion);
     }
 
     /// <summary>Builds the documentation panel for a type token, including an alias such as and-junction.</summary>
-    public static string ElementTypeDocumentation(EnterpriseElementMetadata Metadata, string WrittenName)
+    public static string ElementTypeDocumentation(EnterpriseElementMetadata Metadata, string WrittenName, bool ForCompletion = true)
     {
         string Name = string.IsNullOrWhiteSpace(WrittenName) ? Metadata.KebabName : WrittenName;
         string Summary = SummaryFor(Name, Metadata);
@@ -72,7 +72,7 @@ internal static class EnterpriseHelp
         [
             Name + " <id> [\"label\"]",
             "    [in <container>]",
-            "    [above|below|left-of|right-of <peer> [+n] | push <N|S|E|W>]",
+            "    [above|below|left-of|right-of <peer> [+n] | NW|NE|SE|SW <peer> [+rows [+columns]] | push <N|S|E|W>]",
             string.Empty,
             .. Wrap(Summary, NOTE_WIDTH),
             string.Empty,
@@ -85,29 +85,18 @@ internal static class EnterpriseHelp
         AppendField(Lines, "below", "Optional. Place this element below <peer>.", NameWidth);
         AppendField(Lines, "left-of", "Optional. Place this element to the left of <peer>.", NameWidth);
         AppendField(Lines, "right-of", "Optional. Place this element to the right of <peer>.", NameWidth);
-        AppendField(Lines, "peer", "Required with above, below, left-of, or right-of. An element in the same group.", NameWidth);
+        AppendField(Lines, "NW/NE/SE/SW", "Places the element in that quadrant; +rows and +columns are independent whole-cell gaps. Connections keep orthogonal bends.", NameWidth);
+        AppendField(Lines, "peer", "Required with a relative placement direction. An element in the same group.", NameWidth);
         AppendField(Lines, "+n", "Optional after the peer. Extra whole cells beyond the normal gap.", NameWidth);
         AppendField(Lines, "push", "Optional. Push outward: N top, S bottom, E right, W left.", NameWidth);
-        Lines.Add(string.Empty);
-        Lines.Add("Relationships");
-        List<string> Relationships = OutgoingRelationshipNames(EnterpriseParser.DEFAULT_VERSION, Metadata.KebabName);
-        if (Relationships.Count == 0)
+        if (ForCompletion)
         {
-            Lines.Add("This type cannot start a relationship.");
+            Lines.Add(string.Empty);
+            Lines.Add("Example");
+            Lines.Add(Name + " " + ExampleId + " \"" + ElementShapePainterName(Metadata.KebabName) + "\"");
+            Lines.Add(string.Empty);
+            Lines.Add("Tab to insert. Esc to dismiss.");
         }
-        else
-        {
-            foreach (string RelationshipName in Relationships)
-            {
-                Lines.Add(RelationshipName);
-            }
-        }
-
-        Lines.Add(string.Empty);
-        Lines.Add("Example");
-        Lines.Add(Name + " " + ExampleId + " \"" + ElementShapePainterName(Metadata.KebabName) + "\"");
-        Lines.Add(string.Empty);
-        Lines.Add("Tab to insert. Esc to dismiss.");
         return Compose(Name, "Element", Lines);
     }
 
@@ -226,12 +215,14 @@ internal static class EnterpriseHelp
             return Compose(Hint, "Placement", Lines);
         }
 
-        Lines.Add(Hint + " <peer> [+n]");
+        bool Diagonal = Hint.ToUpperInvariant() is "NW" or "NE" or "SE" or "SW";
+        Lines.Add(Hint + (Diagonal ? " <peer> [+rows [+columns]]" : " <peer> [+n]"));
         Lines.Add(string.Empty);
         Lines.AddRange(Wrap(PlacementSentence(Hint), NOTE_WIDTH));
         int NameWidth = FieldWidth("peer", "+n");
         AppendField(Lines, "peer", "Required. An element, group, or note in the same group.", NameWidth);
-        AppendField(Lines, "+n", "Optional. Extra whole cells beyond the normal gap.", NameWidth);
+        AppendField(Lines, "+n", Diagonal ? "Optional. Vertical gap in whole cells; the horizontal gap defaults to the same value. A second +n sets it independently."
+            : "Optional. Extra whole cells beyond the normal gap.", NameWidth);
         Lines.Add(string.Empty);
         Lines.Add("Tab to insert. Esc to dismiss.");
         return Compose(Hint, "Placement", Lines);
@@ -260,7 +251,7 @@ internal static class EnterpriseHelp
             return Relationship;
         }
 
-        return ElementHelp(Line, Column, LineNumber, Document);
+        return ElementHelp(Line, Column, LineNumber, Document, Source.Substring(0, LineStart));
     }
 
     /// <summary>Quick Info for the token under the caret, or null.</summary>
@@ -283,7 +274,7 @@ internal static class EnterpriseHelp
         if (EnterpriseElementCatalog.TryResolveElementType(Token, out EnterpriseElementType ElementType)
             && EnterpriseElementCatalog.Elements.TryGetValue(ElementType, out EnterpriseElementMetadata? Metadata))
         {
-            return ElementTypeDocumentation(Metadata);
+            return ElementTypeDocumentation(Metadata, ForCompletion: false);
         }
 
         if (EnterpriseElementCatalog.TryResolveRelationship(Token, out EnterpriseRelationshipKind Kind))
@@ -445,7 +436,7 @@ internal static class EnterpriseHelp
         return Make(Signature, "<relationship>", "relationship - permitted type", "A relationship this source can have with an element already in the diagram.");
     }
 
-    private static ParameterHelp? ElementHelp(string Line, int Column, int LineNumber, EnterpriseDocument Document)
+    private static ParameterHelp? ElementHelp(string Line, int Column, int LineNumber, EnterpriseDocument Document, string EarlierSource)
     {
         Match Match = Regex.Match(Line, @"^(?<indent>\s*)(?<type>[A-Za-z][A-Za-z-]*)(?<gap>\s*)(?<id>[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.-]*)?");
         if (!Match.Success)
@@ -465,7 +456,7 @@ internal static class EnterpriseHelp
             return null;
         }
 
-        string Signature = TypeName + " <id> [\"label\"] [in <container>] [above|below|left-of|right-of <peer> [+n] | push <N|S|E|W>]";
+        string Signature = TypeName + " <id> [\"label\"] [in <container>] [above|below|left-of|right-of <peer> [+n] | NW|NE|SE|SW <peer> [+rows [+columns]] | push <N|S|E|W>]";
         string AfterId = string.Empty;
         int IdEnd = TypeEnd;
         if (Match.Groups["id"].Success)
@@ -480,20 +471,20 @@ internal static class EnterpriseHelp
         if (!Match.Groups["id"].Success || Column <= IdEnd)
         {
             string Id = Match.Groups["id"].Success ? Match.Groups["id"].Value : string.Empty;
-            return Make(Signature, "<id>", "id - required identifier", IdentifierBody(Document, Id, LineNumber));
+            return Make(Signature, "<id>", "id - required identifier", IdentifierBody(Document, Id, LineNumber, EarlierSource));
         }
 
         if (IsInsideQuotes(Line, Column))
         {
-            return Make(Signature, "[\"label\"]", "label - optional displayed name", "Enclose the text in quotes. If omitted, the identifier is displayed. The statement can end before this.");
+            return Make(Signature, "[\"label\"]", "label - optional displayed name", "Enclose the text in quotes. If omitted, the identifier is displayed.");
         }
 
         if (Regex.IsMatch(AfterId, @"\bin\s+\S*$", RegexOptions.IgnoreCase) && Column > IdEnd)
         {
-            return Make(Signature, "[in <container>]", "container - optional group", "The identifier of the group this element belongs to. The statement can end before this.");
+            return Make(Signature, "[in <container>]", "container - optional group", "The identifier of the group this element belongs to.");
         }
 
-        if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of)\s+\S*$", RegexOptions.IgnoreCase))
+        if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of|NW|NE|SE|SW)\s+\S*$", RegexOptions.IgnoreCase))
         {
             return Make(Signature, "<peer>", "peer - element to place against", "An element, group, or note in the same group. Optional +n adds whole cells beyond the normal gap.");
         }
@@ -515,22 +506,28 @@ internal static class EnterpriseHelp
 
         if (Regex.IsMatch(AfterId, @"\b(above|below|left-of|right-of)\s+\S+\s+\+?\s*$", RegexOptions.IgnoreCase))
         {
-            return Make(Signature, "[+n]", "+n - optional extra cells", "Whole cells beyond the normal gap. Omit it to keep the normal gap. The statement can end here.");
+            return Make(Signature, "[+n]", "+n - optional extra cells", "Whole cells beyond the normal gap. Omit it to keep the normal gap.");
         }
 
         if (Regex.IsMatch(AfterId, @"""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'"))
         {
-            return Make(Signature, "[in <container>]", "optional clauses", "The statement can end here. Optional clauses: in <container>, above <peer> [+n], below <peer> [+n], left-of <peer> [+n], right-of <peer> [+n], push <N|S|E|W>.");
+            return Make(Signature, "[in <container>]", "optional clauses", "Optional clauses: in <container>, above/below/left-of/right-of <peer> [+n], NW/NE/SE/SW <peer> [+rows [+columns]], push <N|S|E|W>.");
         }
 
-        return Make(Signature, "[\"label\"]", "label - optional displayed name", "Enclose the text in quotes. If omitted, the identifier is displayed. The statement can end before this. After the label: in <container>, above <peer> [+n], below <peer> [+n], left-of <peer> [+n], right-of <peer> [+n], push <N|S|E|W>.");
+        return Make(Signature, "[\"label\"]", "label - optional displayed name", "Enclose the text in quotes. If omitted, the identifier is displayed. After the label: in <container>, above/below/left-of/right-of <peer> [+n], NW/NE/SE/SW <peer> [+rows [+columns]], push <N|S|E|W>.");
     }
 
-    private static string IdentifierBody(EnterpriseDocument Document, string Id, int LineNumber)
+    private static string IdentifierBody(EnterpriseDocument Document, string Id, int LineNumber, string EarlierSource)
     {
         StringBuilder Builder = new StringBuilder();
         Builder.AppendLine("Must be unique within this diagram. Used to reference this element in relationships and other statements. Identifiers are case-sensitive. Example: ac.");
-        if (Id.Length > 0 && Document.Elements.TryGetValue(Id, out EnterpriseElement? Existing) && Existing.LineNumber != LineNumber)
+        Document.Elements.TryGetValue(Id, out EnterpriseElement? Existing);
+        // Repeated same-type declarations are merged by the parser and carry
+        // the latest line number. Look before this declaration to distinguish
+        // an earlier use from the current declaration's own identifier.
+        if (Id.Length > 0 && Existing?.LineNumber == LineNumber)
+            EnterpriseParser.ParseDocument(EarlierSource).Document.Elements.TryGetValue(Id, out Existing);
+        if (Id.Length > 0 && Existing != null && Existing.LineNumber != LineNumber)
         {
             string TypeName = EnterpriseElementCatalog.GetKebabName(Existing.ElementType);
             Builder.AppendLine();
@@ -752,11 +749,14 @@ internal static class EnterpriseHelp
 
     private static bool IsPlacementWord(string Token)
     {
-        return Token == "above" || Token == "below" || Token == "left-of" || Token == "right-of" || Token == "push";
+        return Token == "above" || Token == "below" || Token == "left-of" || Token == "right-of" || Token == "push"
+            || Token.ToUpperInvariant() is "NW" or "NE" or "SE" or "SW";
     }
 
     private static string PlacementSentence(string Hint)
     {
+        if (Hint.ToUpperInvariant() is "NW" or "NE" or "SE" or "SW")
+            return "Places this element " + Hint.ToUpperInvariant() + " of its peer. Optional +rows +columns set independent whole-cell gaps. Connections retain orthogonal bends.";
         switch (Hint)
         {
             case "above":

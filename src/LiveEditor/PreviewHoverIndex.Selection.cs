@@ -430,18 +430,20 @@ internal sealed partial class PreviewHoverIndex
     /// Missing objects are created from the parse alone (no geometry yet).
     /// </summary>
     /// <param name="Parsed">Result from <see cref="Parser.Parse"/>.</param>
-    internal void ApplyParseLines(DiagramParseResult Parsed)
+    internal void ApplyParseLines(DiagramParseResult Parsed, bool AddMissing = true)
     {
         if (Parsed == null)
         {
             return;
         }
 
+        HashSet<PreviewObject> Bound = [];
         foreach (DiagramItem Item in Parsed.Items)
         {
-            PreviewObject? Match = FindByDiagramItem(Item);
+            PreviewObject? Match = FindByDiagramItem(Item, Bound);
             if (Match == null)
             {
+                if (!AddMissing) continue;
                 Match = new PreviewObject
                 {
                     Kind = ToPreviewKind(Item.Kind),
@@ -456,6 +458,7 @@ internal sealed partial class PreviewHoverIndex
             }
 
             Match.LineNumber = Item.Id;
+            Bound.Add(Match);
         }
     }
 
@@ -515,7 +518,7 @@ internal sealed partial class PreviewHoverIndex
         }
     }
 
-    private PreviewObject? FindByDiagramItem(DiagramItem Item)
+    private PreviewObject? FindByDiagramItem(DiagramItem Item, HashSet<PreviewObject> Bound)
     {
         if (Item.Kind == DiagramItemKind.Relationship)
         {
@@ -524,7 +527,7 @@ internal sealed partial class PreviewHoverIndex
                 if (Candidate.Kind == PreviewObjectKind.Relationship
                     && string.Equals(Candidate.SourceId, Item.SourceName, StringComparison.Ordinal)
                     && string.Equals(Candidate.TargetId, Item.TargetName, StringComparison.Ordinal)
-                    && Candidate.LineNumber == 0)
+                    && !Bound.Contains(Candidate) && (Candidate.LineNumber == 0 || Candidate.LineNumber == Item.Id))
                 {
                     return Candidate;
                 }

@@ -200,6 +200,19 @@ public sealed partial class PreviewSelectionTests
     }
 
     [Test]
+    public void RenderedIndexDoesNotInventSelectableObjectsFromUndrawnSourceItems()
+    {
+        const string Source = "flowchart LR\nA --> B\nC --> D\n";
+        const string Svg = "<svg width=\"100\" height=\"40\"><path d=\"M10,10 L90,10\" data-edge-source=\"A\" data-edge-target=\"B\"/></svg>";
+        var Index = PreviewHoverIndex.Build(Svg, Source);
+        Assert.That(Index.Objects.Count, Is.EqualTo(1));
+        Assert.That(Index.Objects[0].SourceId, Is.EqualTo("A"));
+        Assert.That(Index.Objects[0].LineNumber, Is.EqualTo(2));
+        Assert.That(Index.HitObject(50, 10, 3), Is.SameAs(Index.Objects[0]));
+        Assert.That(PreviewHoverIndex.FromScript(Source).Objects.Count, Is.GreaterThan(1), "source-only construction still retains its item inventory");
+    }
+
+    [Test]
     public void TheEditorAndPreviewSelectionFollowEachOther()
     {
         SessionSettings Settings = new SessionSettings

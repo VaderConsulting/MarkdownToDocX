@@ -43,6 +43,15 @@ internal static partial class FlowchartPlacementHints
 
                 FlowchartCellRegion Owner = CellEnvelope(Members, Targets); FlowchartCellRegion Anchor = CellEnvelope(Peer, Targets);
                 int Rows = 0, Columns = 0, RowDirection = 0, ColumnDirection = 0;
+                if (Item.Hint.IsDiagonal)
+                {
+                    var Target = DiagonalTarget(Item.Hint, Owner, Anchor);
+                    (RowDirection, ColumnDirection) = DiagonalSigns(Item.Hint.Kind);
+                    Rows = RowDirection < 0 ? Math.Min(0, checked(Target.StartRow - Owner.StartRow))
+                        : Math.Max(0, checked(Target.StartRow - Owner.StartRow));
+                    Columns = ColumnDirection < 0 ? Math.Min(0, checked(Target.StartColumn - Owner.StartColumn))
+                        : Math.Max(0, checked(Target.StartColumn - Owner.StartColumn));
+                }
                 switch (Item.Hint.Kind)
                 {
                     case PlacementHintKind.Above:

@@ -301,7 +301,7 @@ internal sealed class DiagramSourceUpdateService
         .Where(Pair => Pair.Value is not AnimationMetadata).Select(Pair => new { Pair.Key, Type = Pair.Value.GetType().FullName,
             Value = JsonSerializer.Serialize(Pair.Value, Pair.Value.GetType()) });
     private static object? Hint(PlacementHintContract? Value) => Value?.IsActive != true ? null
-        : new { Value.Kind, Value.PeerId, Value.Offset, Value.Direction };
+        : new { Value.Kind, Value.PeerId, Value.Offset, Value.ColumnOffset, Value.Direction };
     private static object? Ports(RoutingHintContract? Value) => Value?.IsActive != true ? null
         : new { Value.Leave, Value.Enter, Value.Travel };
     private static object Font(RecognitionStyle Style) => new { Style.FontFamily, Style.FontSize, Style.FontWeight, Style.StrokeWidth };

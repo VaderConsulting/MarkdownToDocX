@@ -21,15 +21,39 @@ public sealed class ElementParameterTests
         "below",
         "left-of",
         "right-of",
+        "NW",
+        "NE",
+        "SE",
+        "SW",
         "<peer>",
         "[+n]",
         "push",
         "<N|S|E|W>"
     ];
 
-    private static readonly string[] ClauseWords = ["in", "above", "below", "left-of", "right-of", "push"];
+    private static readonly string[] ClauseWords = ["in", "above", "below", "left-of", "right-of", "NW", "NE", "SE", "SW", "push"];
 
     private static readonly string[] PushDirections = ["N", "S", "E", "W"];
+
+    [Test]
+    public void IdentifierHelpUsesTheEarlierDeclarationDespiteMergedParserLineNumbers()
+    {
+        const string Source = "enterprise\napplication-service api \"Original API\"\napplication-service api \"Renamed API\"\n";
+        var Help = new EnterpriseCompletionEngine().BuildParameterHelp(Source, Source.LastIndexOf("api", StringComparison.Ordinal) + 3);
+        Assert.That(Help, Is.Not.Null);
+        Assert.That(Help!.Body, Does.Contain("already in use"));
+        Assert.That(Help.Body, Does.Contain("Original API"));
+        Assert.That(Help.Body, Does.Not.Contain("Renamed API"));
+    }
+
+    [Test]
+    public void IdentifierHelpDoesNotTreatItsOwnUniqueDeclarationAsADuplicate()
+    {
+        const string Source = "enterprise\napplication-service api";
+        var Help = new EnterpriseCompletionEngine().BuildParameterHelp(Source, Source.Length);
+        Assert.That(Help, Is.Not.Null);
+        Assert.That(Help!.Body, Does.Not.Contain("already in use"));
+    }
 
     [Test]
     public void EveryNodeTypeDocumentsAndOffersItsParameters()

@@ -108,6 +108,34 @@ public sealed class EnterpriseParserTests
         });
     }
 
+    [TestCase("NW", PlacementHintKind.NorthWest)]
+    [TestCase("NE", PlacementHintKind.NorthEast)]
+    [TestCase("SE", PlacementHintKind.SouthEast)]
+    [TestCase("SW", PlacementHintKind.SouthWest)]
+    [TestCase("nE", PlacementHintKind.NorthEast)]
+    public void DiagonalPlacementParsesIndependentCellGaps(string Direction, PlacementHintKind Kind)
+    {
+        var Result = EnterpriseParser.ParseDocument("enterprise\napplication-component a\napplication-component b " + Direction + " a +2 +5\n");
+        Assert.That(Result.HasErrors, Is.False);
+        var Hint = Result.Document.Elements["b"].PlacementHint!;
+        Assert.That(Hint.IsActive, Is.True);
+        Assert.That(Hint.Kind, Is.EqualTo(Kind));
+        Assert.That(Hint.PeerId, Is.EqualTo("a"));
+        Assert.That(Hint.Offset, Is.EqualTo(2));
+        Assert.That(Hint.ColumnOffset, Is.EqualTo(5));
+    }
+
+    [TestCase("SE a", 0, null)]
+    [TestCase("SE a +2", 2, null)]
+    [TestCase("SE a +2 +0", 2, 0)]
+    public void DiagonalPlacementDefaultsAndExplicitZeroArePreserved(string Text, int Offset, int? ColumnOffset)
+    {
+        var Result = EnterpriseParser.ParseDocument("enterprise\napplication-component a\napplication-component b " + Text + "\n");
+        Assert.That(Result.HasErrors, Is.False);
+        Assert.That(Result.Document.Elements["b"].PlacementHint!.Offset, Is.EqualTo(Offset));
+        Assert.That(Result.Document.Elements["b"].PlacementHint!.ColumnOffset, Is.EqualTo(ColumnOffset));
+    }
+
     [Test]
     public void Parse_InvalidPlacementPeersAndCycle_ReportWarningsWithoutFailing()
     {

@@ -68,12 +68,11 @@ internal sealed partial class PreviewHoverIndex
         }
 
         Index.ReadSize(Svg);
-        Index.ReadDataIdObjects(Svg);
         Index.ReadEdgeObjects(Svg, Source ?? string.Empty);
         Parser? KindParser = Parser.ForSource(Source);
         if (KindParser != null)
         {
-            Index.ApplyParseLines(KindParser.Parse(Source));
+            Index.ApplyParseLines(KindParser.Parse(Source), AddMissing: false);
         }
 
         return Index;
@@ -347,8 +346,7 @@ internal sealed partial class PreviewHoverIndex
     {
         if (Document.Elements.TryGetValue(Id, out EnterpriseElement? Element))
         {
-            string TypeName = TypeSentence(Element);
-            return NameOf(Element.Label, Id) + " is " + Article(TypeName) + " " + TypeName;
+            return ElementStory.DescribeElement(Document, Element);
         }
 
         if (Document.Groups.TryGetValue(Id, out EnterpriseGroup? Group))

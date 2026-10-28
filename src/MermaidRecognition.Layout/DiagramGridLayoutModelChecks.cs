@@ -1344,6 +1344,10 @@ public static partial class DiagramGridLayout
                 PlacementHintKind.LeftOf => dx < 0 && Math.Abs(dy) < 0.01,
                 PlacementHintKind.Above => dy > 0 && Math.Abs(dx) < 0.01,
                 PlacementHintKind.Below => dy < 0 && Math.Abs(dx) < 0.01,
+                PlacementHintKind.NorthWest => dx < 0 && dy > 0,
+                PlacementHintKind.NorthEast => dx > 0 && dy > 0,
+                PlacementHintKind.SouthEast => dx > 0 && dy < 0,
+                PlacementHintKind.SouthWest => dx < 0 && dy < 0,
                 _ => false
             };
         }

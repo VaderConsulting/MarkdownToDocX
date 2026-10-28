@@ -171,11 +171,15 @@ public sealed partial class PreviewNodeMoveTests
         Preview.CancelNodeMove();
     }
 
-    [TestCase("left-of", -4, -2)]
-    [TestCase("right-of", -4, 5)]
-    [TestCase("above", -8, 1)]
-    [TestCase("below", 0, 1)]
-    public void SnapUsesWholeRegionsAndExpandedGapsWithoutChangingTheGrid(string Direction, int Row, int Column)
+    [TestCase("left-of", -4, -2, null)]
+    [TestCase("right-of", -4, 5, null)]
+    [TestCase("above", -8, 1, null)]
+    [TestCase("below", 0, 1, null)]
+    [TestCase("NW", -8, -4, 4)]
+    [TestCase("NE", -8, 7, 4)]
+    [TestCase("SE", 0, 7, 4)]
+    [TestCase("SW", 0, -4, 4)]
+    public void SnapUsesWholeRegionsAndExpandedGapsWithoutChangingTheGrid(string Direction, int Row, int Column, int? ColumnOffset)
     {
         const string Source = "enterprise\napplication-component a\napplication-component b\n";
         var Grid = new FlowchartLogicalGrid(new(150, 60, 30, 30, 8));
@@ -197,10 +201,11 @@ public sealed partial class PreviewNodeMoveTests
         Assert.That(Snap, Is.Not.Null);
         Assert.That(Snap!.Direction, Is.EqualTo(Direction));
         Assert.That(Snap.Offset, Is.EqualTo(2));
+        Assert.That(Snap.ColumnOffset, Is.EqualTo(ColumnOffset));
         Assert.That(Snap.Center.X, Is.EqualTo(Target.CenterX).Within(0.01));
         Assert.That(Snap.Center.Y, Is.EqualTo(Target.CenterY).Within(0.01));
         Assert.That(PreviewNodePlacement.TryCreate(Source, "b", Items, Snap.Center, out var Edit, out var Reason, Planner), Is.True, Reason);
-        Assert.That(Edit!.Hint, Is.EqualTo(Direction + " a +2"));
+        Assert.That(Edit!.Hint, Is.EqualTo(Direction + " a +2" + (ColumnOffset.HasValue ? " +" + ColumnOffset : string.Empty)));
         Assert.That(Grid.Capture(), Is.SameAs(Before), "Feedback must not mutate occupancy, gaps or routes.");
     }
 

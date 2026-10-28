@@ -61,6 +61,7 @@ internal static partial class PreviewNodePlacement
         string Direction = Horizontal ? (Dx < 0 ? "left-of" : "right-of") : (Dy < 0 ? "above" : "below");
         double Extra = (Horizontal ? Math.Abs(Dx) - HalfWidth : Math.Abs(Dy) - HalfHeight) - DiagramGridMetrics.NODE_GAP_PX;
         int Offset = (int)Math.Clamp(Math.Round(Extra / DiagramGridMetrics.GRID_UNIT_PX), 0, 10000);
+        int? ColumnOffset = null;
         string Hint = Direction + " " + Peer.Id + (Offset == 0 ? string.Empty : " +" + Offset.ToString(CultureInfo.InvariantCulture));
         if (Grid != null)
         {
@@ -68,7 +69,11 @@ internal static partial class PreviewNodePlacement
             if (Snapped == null) return false;
             Peer = Items.First(Item => Item.Id == Snapped.PeerId && Item.Kind == PreviewObjectKind.Node);
             Direction = Snapped.Direction; Offset = Snapped.Offset;
+            ColumnOffset = Snapped.ColumnOffset;
             Hint = Direction + " " + Peer.Id + (Offset == 0 ? string.Empty : " +" + Offset.ToString(CultureInfo.InvariantCulture));
+            if (ColumnOffset.HasValue)
+                Hint = Direction + " " + Peer.Id + " +" + Offset.ToString(CultureInfo.InvariantCulture)
+                    + " +" + ColumnOffset.Value.ToString(CultureInfo.InvariantCulture);
         }
         if (!TryRewrite(Source, Element.LineNumber, Hint, out Change))
         {
@@ -79,10 +84,13 @@ internal static partial class PreviewNodePlacement
         PlacementHintKind ExpectedKind = Direction switch
         {
             "left-of" => PlacementHintKind.LeftOf, "right-of" => PlacementHintKind.RightOf,
+            "NW" => PlacementHintKind.NorthWest, "NE" => PlacementHintKind.NorthEast,
+            "SE" => PlacementHintKind.SouthEast, "SW" => PlacementHintKind.SouthWest,
             "above" => PlacementHintKind.Above, _ => PlacementHintKind.Below
         };
         if (Updated.HasErrors || !Updated.Document.Elements.TryGetValue(NodeId, out EnterpriseElement? After)
             || After.PlacementHint?.PeerId != Peer.Id || After.PlacementHint.Kind != ExpectedKind || After.PlacementHint.Offset != Offset
+            || After.PlacementHint.ColumnOffset != ColumnOffset
             || After.Label != Element.Label || After.ParentId != Element.ParentId
             || !Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal).SequenceEqual(
                 Updated.Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal)))
@@ -187,7 +195,8 @@ internal static partial class PreviewNodePlacement
             }
 
             string Word = Text.Substring(WordStart, I - WordStart);
-            if (Words >= 2 && PreviousWord != "in" && Word is "above" or "below" or "left-of" or "right-of" or "push")
+            if (Words >= 2 && PreviousWord != "in" && (Word is "above" or "below" or "left-of" or "right-of" or "push"
+                || Word.ToUpperInvariant() is "NW" or "NE" or "SE" or "SW"))
             {
                 OldHintStart = WordStart;
                 break;

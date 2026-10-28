@@ -54,7 +54,7 @@ public sealed class EnterpriseParser : Parser
         @"^direction\s+(TB|TD|BT|LR|RL)$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private const string PLACEMENT_HINT_PATTERN = @"(?:(?<relative>above|below|left-of|right-of)\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+))?|push\s+(?<push>[NSEW]))";
+    private const string PLACEMENT_HINT_PATTERN = @"(?:(?<relative>above|below|left-of|right-of)\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+))?|(?<relative>(?i:NW|NE|SE|SW))\s+(?<peer>" + ID_PATTERN + @")(?:\s+\+(?<offset>\d+)(?:\s+\+(?<columnOffset>\d+))?)?|push\s+(?<push>[NSEW]))";
 
     private static readonly Regex GroupRegex = new Regex(
         @"^group\s+(?<id>" + ID_PATTERN + @")(?:\s+(?<label>" + STRING_PATTERN + @"))?(?:\s+in\s+(?<parent>" + ID_PATTERN + @"))?(?:\s+(?<placement>" + PLACEMENT_HINT_PATTERN + @"))?$",
@@ -715,9 +715,15 @@ public sealed class EnterpriseParser : Parser
             "above" => PlacementHintKind.Above,
             "below" => PlacementHintKind.Below,
             "left-of" => PlacementHintKind.LeftOf,
+            "nw" => PlacementHintKind.NorthWest,
+            "ne" => PlacementHintKind.NorthEast,
+            "se" => PlacementHintKind.SouthEast,
+            "sw" => PlacementHintKind.SouthWest,
             _ => PlacementHintKind.RightOf
         };
         Hint.PeerId = Match.Groups["peer"].Value;
+        if (Match.Groups["columnOffset"].Success)
+            Hint.ColumnOffset = int.Parse(Match.Groups["columnOffset"].Value, System.Globalization.CultureInfo.InvariantCulture);
         if (Match.Groups["offset"].Success)
         {
             Hint.Offset = int.Parse(Match.Groups["offset"].Value, System.Globalization.CultureInfo.InvariantCulture);

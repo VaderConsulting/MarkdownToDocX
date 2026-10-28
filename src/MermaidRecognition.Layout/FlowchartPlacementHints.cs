@@ -209,6 +209,15 @@ internal static partial class FlowchartPlacementHints
         int Gap = Math.Max(DiagramGridMetrics.NODE_GAP_PX, MinimumGap);
         int Extra = Hint.Offset * DiagramGridMetrics.GRID_UNIT_PX;
         int XSign = 0, YSign = 0;
+        if (Hint.IsDiagonal)
+        {
+            (YSign, XSign) = DiagonalSigns(Hint.Kind);
+            int ColumnExtra = checked((Hint.ColumnOffset ?? Hint.Offset) * DiagramGridMetrics.GRID_UNIT_PX);
+            TargetX = XSign < 0 ? Anchor.Left - Gap - ColumnExtra - Owner.Width / 2
+                : Anchor.Right + Gap + ColumnExtra + Owner.Width / 2;
+            TargetY = YSign < 0 ? Anchor.Top - Gap - Extra - Owner.Height / 2
+                : Anchor.Bottom + Gap + Extra + Owner.Height / 2;
+        }
         // Placement hints run before RouteCoordinateStage flips the layout to Y-up.
         // At this point grid Y increases down the page, so page-up means smaller Y.
         switch (Hint.Kind)

@@ -16,7 +16,11 @@ public enum PlacementHintKind
     Below,
     LeftOf,
     RightOf,
-    Push
+    Push,
+    NorthWest,
+    NorthEast,
+    SouthEast,
+    SouthWest
 }
 
 /// <summary>Parsed placement hint attached to one node or group declaration.</summary>
@@ -27,6 +31,12 @@ public sealed class PlacementHintContract
     public string? PeerId { get; set; }
 
     public int Offset { get; set; }
+
+    /// <summary>Horizontal gap for diagonal placement; omitted uses Offset on both axes.</summary>
+    public int? ColumnOffset { get; set; }
+
+    public bool IsDiagonal => Kind is PlacementHintKind.NorthWest or PlacementHintKind.NorthEast
+        or PlacementHintKind.SouthEast or PlacementHintKind.SouthWest;
 
     public LayoutHintDirection? Direction { get; set; }
 
