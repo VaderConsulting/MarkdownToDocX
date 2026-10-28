@@ -9,13 +9,14 @@ namespace MermaidRecognition.Layout;
 public static partial class DiagramGridLayout
 {
     /// <summary>Immutable geometry values plus references owned exclusively by one private candidate.</summary>
-    private sealed class RetainedRouteSnapshot
+    private sealed partial class RetainedRouteSnapshot
     {
         internal readonly DiagramContract Contract;
         internal readonly Dictionary<string, FlowchartLayoutNodeBounds> Bounds;
         private readonly RouteValue[] Routes;
         private readonly Dictionary<FlowchartLayoutEdgeRoute, RouteValue> ByRoute;
         private readonly RetainedRouteDependencyIndex Dependencies;
+        private readonly HashSet<FlowchartLayoutEdgeRoute> VisibleRoutes;
 
         internal RetainedRouteSnapshot(GridLayoutState State, RetainedRouteDependencyIndex Dependencies)
         {
@@ -24,6 +25,8 @@ public static partial class DiagramGridLayout
             Bounds = State.Copy.NodeBounds.Concat(State.Copy.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
             Routes = State.Copy.EdgeRoutes.Select(Route => new RouteValue(Route)).ToArray();
             ByRoute = Routes.ToDictionary(Item => Item.Route);
+            VisibleRoutes = Routes.Select(Item => Item.Route).Where(Route => FindContractEdge(Contract, Route) is { } Edge
+                && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToHashSet();
         }
 
         internal HashSet<FlowchartLayoutEdgeRoute> RoutesAffectedBy(GridLayoutState State)
@@ -82,6 +85,14 @@ public static partial class DiagramGridLayout
             internal readonly (double X, double Y)[] Points;
             internal readonly string Exit, Entry;
             private readonly (double, double, double, double) Normals;
+            private FlowchartLayoutEdgeRoute? CheckCopy;
+            internal FlowchartLayoutEdgeRoute CheckRoute()
+            {
+                if (CheckCopy != null) return CheckCopy;
+                CheckCopy = new() { EdgeId = Route.EdgeId, SourceId = Source, TargetId = Target };
+                CheckCopy.Points.AddRange(Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
+                return CheckCopy;
+            }
             internal RouteValue(FlowchartLayoutEdgeRoute Route)
             {
                 this.Route = Route; Source = Route.SourceId; Target = Route.TargetId;

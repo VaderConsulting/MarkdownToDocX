@@ -234,6 +234,13 @@ public static partial class DiagramGridLayout
                         Route.Points.AddRange(Path.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
                         if (!Legal(Route)) { return "The affected relationship cannot be routed legally with fixed geometry."; }
                     }
+                    Original.RepairInteractions(State, Affected);
+                    var Witnesses = Original.AddedInteractions(State, Affected, FrozenOnly: true);
+                    if (Witnesses.Length > 0)
+                    {
+                        Affected.UnionWith(Witnesses.Select(Item => Item.Second));
+                        continue;
+                    }
                     break;
                     bool Legal(FlowchartLayoutEdgeRoute Route) => FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route,
                         Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Prepared);
@@ -254,7 +261,13 @@ public static partial class DiagramGridLayout
                     }
                 }
                 Layout.BumpGeometryVersion();
-                var NewFindings = FlowchartRouteRuleChecker.Check(State.Contract, Layout).Where(Finding => !ExistingFindings.Contains(Finding)).ToArray();
+                // Pair identity is structural, not the checker's presentation order.
+                // A source reorder cannot turn an unchanged baseline pair into a new fault.
+                var PairFindings = Original.AddedInteractions(State, Affected, FrozenOnly: false);
+                if (PairFindings.Length > 0) return "Local validation rejected the move: routing dependencies still conflict ("
+                    + PairFindings[0].Rule + ", " + PairFindings[0].First.EdgeId + " x " + PairFindings[0].Second.EdgeId + ").";
+                var NewFindings = FlowchartRouteRuleChecker.Check(State.Contract, Layout)
+                    .Where(Finding => Finding.Rule is not ("5.1" or "5.9") && !ExistingFindings.Contains(Finding)).ToArray();
                 if (NewFindings.Length > 0) { return "Local validation rejected the move: " + NewFindings[0].Description; }
                 var Boxes = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToArray();
                 var Points = Layout.EdgeRoutes.SelectMany(Route => Route.Points).ToArray();
