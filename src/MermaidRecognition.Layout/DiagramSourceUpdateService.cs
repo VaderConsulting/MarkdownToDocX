@@ -53,6 +53,24 @@ internal sealed class DiagramSourceUpdateService
     internal string DocumentId { get; }
     internal DiagramLayoutOptions Options => Committed.Geometry.Options;
 
+    private DiagramSourceUpdateService(string DocumentId, Accepted Value, long SourceRevision, long LayoutRevision)
+    {
+        this.DocumentId = DocumentId; Committed = Value;
+        LatestSourceRevision = SourceRevision; Revision = LayoutRevision;
+    }
+
+    /// <summary>A private source/geometry branch for a preview that may be cancelled.</summary>
+    internal DiagramSourceUpdateService ForkForEvaluation()
+    {
+        lock (Gate)
+        {
+            if (InvalidationReason != null || LatestSourceRevision != Committed.SourceRevision)
+                throw new InvalidOperationException("A stale source session cannot start a placement preview.");
+            return new(DocumentId, Committed with { Model = DiagramSourceModel.Copy(Committed.Model), Geometry = Committed.Geometry.Fork() },
+                LatestSourceRevision, Revision);
+        }
+    }
+
     /// <summary>Document/options switches and explicit Auto layout retire this instance permanently.</summary>
     internal void Invalidate(string Reason)
     {

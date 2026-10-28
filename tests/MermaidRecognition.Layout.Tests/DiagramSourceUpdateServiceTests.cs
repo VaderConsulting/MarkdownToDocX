@@ -11,6 +11,82 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class DiagramSourceUpdateServiceTests
 {
     [Test]
+    public void EvaluationForkPreservesIdentitiesAndCannotPublishIntoTheAcceptedService()
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var Fork = Service.ForkForEvaluation();
+        Assert.That(Fork.CopySnapshot().Identities.Bindings.Select(Binding => Binding.Id), Is.EqualTo(Before.Identities.Bindings.Select(Binding => Binding.Id)));
+        var Model = Parsed(Fork);
+        Node(Model, "B").PlacementHint = Below("A", 3);
+        Fork.ObserveSourceRevision(1);
+        var Candidate = Fork.Prepare("document", 1, "private placement preview", Model, Fork.Options);
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Assert.That(Service.TryCommit(Candidate, out var Reason), Is.False);
+        Assert.That(Reason, Does.Contain("another"));
+        Commit(Fork, Candidate);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)));
+            Assert.That(Service.CopySnapshot().SourceText, Is.EqualTo(Before.SourceText));
+            Assert.That(Service.CopySnapshot().Revision, Is.EqualTo(Before.Revision));
+            Assert.That(Service.CopySnapshot().IsStale, Is.False);
+            Assert.That(Geometry(Fork.CopySnapshot().Layout), Is.Not.EqualTo(Geometry(Before.Layout)));
+        });
+    }
+
+    [Test]
+    public void AStaleOrRetiredServiceCannotStartAnEvaluationFork()
+    {
+        var (Service, _, _) = Fixture();
+        Service.ObserveSourceRevision(1);
+        Assert.Throws<InvalidOperationException>(() => Service.ForkForEvaluation());
+        var (Other, _, _) = Fixture();
+        Other.Invalidate("document changed");
+        Assert.Throws<InvalidOperationException>(() => Other.ForkForEvaluation());
+    }
+
+    [Test]
+    public void AContainedSourcePinPreservesFrozenFramesAndUndoWhileAnEscapingPinRejects()
+    {
+        var Seed = new DiagramLayoutSession("seed", 0);
+        foreach (var (Id, Row) in new[] { ("A", 2), ("B", 5) })
+        {
+            var Add = Seed.PrepareAddNode(0, new() { Id = Id, Label = "item", Shape = "rect" }, new(Row, 2, 1, 1));
+            Assert.That(Seed.TryCommit(Add, out _), Is.True);
+        }
+        Assert.That(Seed.TryCommit(Seed.PrepareAddRelationship(0, "ab", new() { SourceId = "A", TargetId = "B" }), out _), Is.True);
+        var Snapshot = Seed.CopySnapshot();
+        var Model = DiagramSourceModel.Copy(Snapshot.RoutingModel);
+        var Group = new GroupContract { Id = "g", Title = "Members" };
+        foreach (string Id in new[] { "A", "B" })
+        {
+            Group.ChildNodeIdsMutable.Add(Id); Node(Model, Id).ParentGroupId = "g";
+            Snapshot.Layout.CellNodes!.Single(Node => Node.Id == Id).GroupId = "g";
+        }
+        Model.GroupsMutable.Add(Group);
+        foreach (var Edge in Model.Edges) Edge.IsUserDefinedId = false;
+        Snapshot.Layout.ClusterBoundsMutable.Add(new() { NodeId = "g", CenterX = 525, CenterY = -570, Width = 750, Height = 1110 });
+        var Service = new DiagramSourceUpdateService("document", 0, "accepted", Model, Snapshot.Layout);
+        var Before = Service.CopySnapshot();
+        var Changed = Parsed(Service);
+        Node(Changed, "B").PlacementHint = new() { Kind = PlacementHintKind.At, CellRow = 6, CellColumn = 2 };
+        var Move = Prepare(Service, 1, Changed, "contained pin");
+        Assert.That(Move.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting));
+        Commit(Service, Move);
+        Assert.That(Region(Service, "B"), Is.EqualTo(new FlowchartCellRegion(6, 2, 1, 1)));
+        Assert.That(JsonSerializer.Serialize(Service.CopySnapshot().Layout.ClusterBounds), Is.EqualTo(JsonSerializer.Serialize(Before.Layout.ClusterBounds)));
+        Changed = Parsed(Service); Node(Changed, "B").PlacementHint = null;
+        Commit(Service, Prepare(Service, 2, Changed, "undo"));
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)));
+        Changed = Parsed(Service); Node(Changed, "B").PlacementHint = new() { Kind = PlacementHintKind.At, CellRow = 10, CellColumn = 2 };
+        var Outside = Prepare(Service, 3, Changed, "outside");
+        Assert.That(Outside.FailureReason, Does.Contain("containing group"));
+        Assert.That(Service.TryCommit(Outside, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)));
+    }
+
+    [Test]
     public void RelationshipTextUsesStableIdentityAndLeavesRoutingToMeasuredDependencies()
     {
         var (Service, _, _) = Fixture();

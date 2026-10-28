@@ -11,7 +11,7 @@ using MermaidRecognition.Layout.Enterprise;
 namespace LiveEditor;
 
 /// <summary>Worker candidates are isolated; only the current UI request can publish them.</summary>
-internal sealed class RetainedEnterprisePreview
+internal sealed partial class RetainedEnterprisePreview
 {
     private readonly object Gate = new();
     private readonly string DocumentId = Guid.NewGuid().ToString();
@@ -25,6 +25,27 @@ internal sealed class RetainedEnterprisePreview
     private long Revision;
     private long AcceptedRevision;
     private bool Retired;
+
+    internal RetainedEnterprisePreview() { }
+
+    private RetainedEnterprisePreview(RetainedEnterprisePreview Original)
+    {
+        DocumentId = Original.DocumentId;
+        Service = Original.Service!.ForkForEvaluation();
+        Frame = new() { MinLeft = Original.Frame!.MinLeft, MaxTop = Original.Frame.MaxTop, DiagramPaddingPx = Original.Frame.DiagramPaddingPx };
+        PresentationGeometry = Original.PresentationGeometry; Paint = Original.Paint; Labels = Original.Labels;
+        LabelHistory = Original.LabelHistory; LabelScene = Original.LabelScene;
+        Revision = Original.Revision; AcceptedRevision = Original.AcceptedRevision;
+    }
+
+    internal RetainedEnterprisePreview ForkForEvaluation()
+    {
+        lock (Gate)
+        {
+            if (Retired || Service == null || Frame == null) throw new InvalidOperationException("No current retained scene is available for placement preview.");
+            return new(this);
+        }
+    }
 
     internal void Observe(long SourceRevision)
     {
@@ -51,7 +72,7 @@ internal sealed class RetainedEnterprisePreview
     }
 
     internal Prepared Prepare(string Source, long SourceRevision, EnterpriseAnalysisResult Analysis,
-        DiagramLayoutOptions Options)
+        DiagramLayoutOptions Options, bool AllowInitialLayout = true)
     {
         DiagramSourceUpdateService? Current;
         FlowchartSvgCoordinateFrame? CurrentFrame;
@@ -92,6 +113,8 @@ internal sealed class RetainedEnterprisePreview
         }
 
         bool Rebuild = Current == null || RebuildReason != null;
+        if (Rebuild && !AllowInitialLayout)
+            throw new InvalidOperationException("Placement preview requires retained geometry: " + (RebuildReason ?? "No accepted session."));
         DiagramSourceUpdateService CandidateService;
         DiagramSourceUpdateService.Snapshot Snapshot;
         FlowchartSvgCoordinateFrame CandidateFrame;

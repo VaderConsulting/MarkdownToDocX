@@ -841,8 +841,8 @@ public sealed class EnterpriseParser : Parser
         {
             if (Hint.Kind == PlacementHintKind.At)
             {
-                if (Document.Groups.ContainsKey(Id) || Document.Notes.ContainsKey(Id) || !string.IsNullOrEmpty(ParentId))
-                    RejectPlacementHint(Hint, Diagnostics, "absolute cell placement currently requires an ungrouped regular element");
+                if (Document.Groups.ContainsKey(Id))
+                    RejectPlacementHint(Hint, Diagnostics, "absolute cell placement of a group requires a group containment operation");
                 continue;
             }
             if (!Hint.IsActive || Hint.Kind == PlacementHintKind.Push)

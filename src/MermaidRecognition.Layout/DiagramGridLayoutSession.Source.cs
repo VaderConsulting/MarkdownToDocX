@@ -48,14 +48,6 @@ public static partial class DiagramGridLayout
             State.Nodes = State.Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
             string? Failure = DiagramSourcePlacementHints.Plan(State.Contract, SizedRegions, ChangedHints, out var Targets, Restored);
             if (Failure != null) { return Failure; }
-            foreach (var Pair in Targets)
-            {
-                GridNode Node = Placed[Pair.Key];
-                if (!string.IsNullOrEmpty(Node.GroupId) && Before.Regions[Pair.Key] != Pair.Value)
-                {
-                    return "Moving a grouped node requires a group containment operation.";
-                }
-            }
             if (!Grid.TryPrepare(Targets, [], out var After)
                 || !FlowchartPlacementHints.CellHintsMatch(State.Contract, State.Placed, After!.Regions))
             {
@@ -83,6 +75,8 @@ public static partial class DiagramGridLayout
                     Layout.NodeBoundsMutable[Index] = Node.CellNode!.Bounds(Node.GeometryProvider);
                 }
             }
+            string? Containment = ValidateFrozenContainment(Targets.Where(Target => Before.Regions[Target.Key] != Target.Value).Select(Target => Target.Key));
+            if (Containment != null) return Containment;
             HashSet<FlowchartLayoutEdgeRoute> Changed = [];
             foreach (string Id in ChangedEdges)
             {

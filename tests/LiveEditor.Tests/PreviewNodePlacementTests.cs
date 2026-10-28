@@ -7,6 +7,20 @@ namespace LiveEditor.Tests;
 [TestFixture]
 public sealed class PreviewNodePlacementTests
 {
+    [TestCase("application-component")]
+    [TestCase("note")]
+    public void SuggestionPinsPreserveQuotedHintWordsCommentsAndLineEndings(string Kind)
+    {
+        string Script = "enterprise\r\n  " + Kind + " item \"at; below\" %% keep\r\n";
+        Assert.That(PreviewNodePlacement.TryCreateAt(Script, "item", new(-3, 4, 1, 1), out var Edit, out var Reason), Is.True, Reason);
+        string Changed = Edit!.Apply(Script);
+        Assert.That(Changed, Does.Contain("\"at; below\" at -3 4 %% keep\r\n"));
+        Assert.That(EnterpriseValidator.Analyze(Changed).HasErrors, Is.False);
+        Assert.That(Changed.Replace("\r\n", ""), Does.Not.Contain("\n"));
+        Assert.That(PreviewNodePlacement.TryCreateAt(Changed, "item", new(0, 0, 1, 1), out _, out _), Is.False,
+            "suggestions must preserve an existing mandatory pin");
+    }
+
     internal const string Source = "enterprise\n  title LiveEditor preview\n"
         + "  application-component webShop \"Web Shop\"\n"
         + "  application-service orderApi \"Order API\"\n"

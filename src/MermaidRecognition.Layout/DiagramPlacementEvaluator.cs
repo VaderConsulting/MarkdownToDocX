@@ -13,11 +13,11 @@ internal enum DiagramPlacementTrialKind { RouteOnly, NodeMove }
 
 internal sealed class DiagramPlacementTrial
 {
-    private readonly DiagramLayoutSession.Update? Candidate;
+    private readonly DiagramGridLayout.RetainedRoutingState? State;
     internal DiagramPlacementTrial(DiagramEvaluationOrigin Origin, DiagramPlacementTrialKind Kind,
         IReadOnlyDictionary<string, FlowchartCellRegion> Targets, DiagramLayoutSession.Update? Candidate, string? Failure)
     {
-        this.Origin = Origin; this.Kind = Kind; this.Candidate = Candidate;
+        this.Origin = Origin; this.Kind = Kind; State = Candidate?.State;
         this.Targets = Targets.ToImmutableDictionary(StringComparer.Ordinal);
         FailureReason = Failure ?? Candidate?.FailureReason;
         AffectedRouteIds = Candidate?.AffectedRouteIds.ToImmutableArray() ?? [];
@@ -29,10 +29,19 @@ internal sealed class DiagramPlacementTrial
     internal string? FailureReason { get; }
     internal ImmutableArray<string> AffectedRouteIds { get; }
     internal ImmutableArray<string> RebuiltRouteIds { get; }
+    private DiagramPlacementTrial(DiagramEvaluationOrigin Origin, IReadOnlyDictionary<string, FlowchartCellRegion> Targets,
+        DiagramLayoutSession.Snapshot Snapshot, IEnumerable<string> Affected, IEnumerable<string> Rebuilt)
+    {
+        this.Origin = Origin; Kind = DiagramPlacementTrialKind.NodeMove; this.Targets = Targets.ToImmutableDictionary(StringComparer.Ordinal);
+        State = DiagramGridLayout.RetainedRoutingState.Capture(Snapshot.RoutingModel, Snapshot.Layout);
+        AffectedRouteIds = Affected.ToImmutableArray(); RebuiltRouteIds = Rebuilt.ToImmutableArray();
+    }
+    internal static DiagramPlacementTrial FromValidatedGeometry(DiagramEvaluationOrigin Origin, IReadOnlyDictionary<string, FlowchartCellRegion> Targets,
+        DiagramLayoutSession.Snapshot Snapshot, IEnumerable<string> Affected, IEnumerable<string> Rebuilt) => new(Origin, Targets, Snapshot, Affected, Rebuilt);
     internal DiagramLayoutSession.Snapshot? CopyCandidate()
     {
-        if (Candidate?.State == null || FailureReason != null) return null;
-        var Copy = Candidate.State.Fork();
+        if (State == null || FailureReason != null) return null;
+        var Copy = State.Fork();
         return new(Origin.DocumentId, Origin.SourceRevision, Origin.LayoutRevision, Copy.Contract, Copy.Layout);
     }
 }

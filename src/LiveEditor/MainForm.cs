@@ -60,7 +60,11 @@ public partial class MainForm : Form
     internal string? LastRetainedUpdateKind { get; private set; }
     internal string[] LastRebuiltRouteIds { get; private set; } = [];
     private sealed record RenderRequest(string Source, int Generation, int TextVersion, bool LegacyPreview,
-        DiagramLayoutOptions Options, RetainedEnterprisePreview Retained, CancellationToken Token);
+        DiagramLayoutOptions Options, RetainedEnterprisePreview Retained, CancellationToken Token)
+    {
+        internal int? PlacementSuggestion { get; init; }
+        internal string? RelationshipIdentity { get; init; }
+    }
     private byte[]? _LastPngBytes;
     private string? _LastSvg;
     private readonly PreviewHoverWindow _PreviewHoverWindow = new PreviewHoverWindow();
@@ -135,6 +139,7 @@ public partial class MainForm : Form
         InitializeComponent();
         _PreviewHoverDismiss = new PreviewHoverDismissFilter(this);
         WireEvents();
+        WirePlacementSuggestions();
         ApplySettings();
         AssignSampleSources();
         BuildRecentFilesMenu();
@@ -379,6 +384,7 @@ public partial class MainForm : Form
         AzureMenuItem.Enabled = LiveEditorFeatureGate.AE_AzureResourceGraphImport;
         SamplesMenu.Enabled = LiveEditorFeatureGate.K_SampleGallery;
         AutoLayoutMenuItem.Visible = LiveEditorFeatureGate.AF_IncrementalDiagramRouting || LiveEditorFeatureGate.AG_RouteAwareDiagramConstruction;
+        _SuggestPlacementMenuItem.Visible = LiveEditorFeatureGate.AG_RouteAwareDiagramConstruction;
     }
 
     private void ApplySettings()
@@ -650,6 +656,7 @@ public partial class MainForm : Form
 
     private void QueueRender()
     {
+        ClearPlacementSuggestion();
         ClearRouteDiagnostics();
         Preview.CancelNodeMove();
         int Revision = Interlocked.Increment(ref _RenderGeneration);
@@ -687,6 +694,11 @@ public partial class MainForm : Form
             SetStatus("Idle");
             return;
         }
+        SubmitWorkerRequest(Request, "Rendering...");
+    }
+
+    private void SubmitWorkerRequest(RenderRequest Request, string Status)
+    {
         bool StartWorker;
         lock (_RenderWorkerGate)
         {
@@ -694,7 +706,7 @@ public partial class MainForm : Form
             StartWorker = !_RenderWorkerRunning;
             _RenderWorkerRunning = true;
         }
-        SetStatus(CaretStatusOr("Rendering..."));
+        SetStatus(CaretStatusOr(Status));
         if (StartWorker) Task.Run(RenderWorkerLoop);
     }
 
@@ -724,7 +736,11 @@ public partial class MainForm : Form
                 if (_PendingRender == null) { _RenderWorkerRunning = false; return; }
                 Request = _PendingRender; _PendingRender = null;
             }
-            try { RenderWorkerPass(Request); }
+            try
+            {
+                if (Request.PlacementSuggestion.HasValue) PlacementSuggestionWorkerPass(Request);
+                else RenderWorkerPass(Request);
+            }
             catch (OperationCanceledException) { }
         }
     }

@@ -161,6 +161,29 @@ public sealed class EnterpriseParserTests
         Assert.That(Hint.CellColumn, Is.EqualTo(Column));
     }
 
+    [TestCase("note", false)]
+    [TestCase("application-component", true)]
+    [TestCase("note", true)]
+    public void AbsolutePinsRemainActiveForNotesAndContainedMembers(string Kind, bool Grouped)
+    {
+        string Source = "enterprise\ngroup area\n" + Kind + " item \"Item\"" + (Grouped ? " in area" : "") + " at 1 2\n";
+        var Result = EnterpriseParser.ParseDocument(Source);
+        Assert.That(Result.HasErrors, Is.False);
+        var Hint = Kind == "note" ? Result.Document.Notes["item"].PlacementHint : Result.Document.Elements["item"].PlacementHint;
+        Assert.That(Hint, Is.Not.Null);
+        Assert.That(Hint!.IsActive, Is.True, Hint.UnhonouredReason);
+        Assert.That(Hint.CellRow, Is.EqualTo(1)); Assert.That(Hint.CellColumn, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void AbsoluteGroupPinsStillRequireASeparateContainmentOperation()
+    {
+        var Result = EnterpriseParser.ParseDocument("enterprise\ngroup area at 1 2\n");
+        Assert.That(Result.HasErrors, Is.False);
+        Assert.That(Result.Document.Groups["area"].PlacementHint!.IsActive, Is.False);
+        Assert.That(Result.Document.Groups["area"].PlacementHint!.UnhonouredReason, Does.Contain("group containment"));
+    }
+
     [TestCase("SE a", 0, null)]
     [TestCase("SE a +2", 2, null)]
     [TestCase("SE a +2 +0", 2, 0)]

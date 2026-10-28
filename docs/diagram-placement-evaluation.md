@@ -8,7 +8,7 @@
 
 The default maximum reads canonical `repair_candidate_moves` (currently 48), and retained routing uses canonical `repair_chain_lines` (currently 24). A caller may request smaller bounds. The values remain unchanged and provisional under the rulebook's release/performance requirement. Crossing/final-repair diagnostic messages now report those actual configured limits rather than historical literals 16/12.
 
-Contained-member trials may use vacant cells inside their existing group frames. Every ancestor remains fixed; canonical member inset and measured title strips are protected. Membership, frame position/size, cell spans and unrelated geometry remain unchanged. Leaving a frame or entering its title rejects the candidate. This is a distinct engine opt-in; source/GUI grouped movement and group refitting retain their existing boundaries until their own source publication work is complete.
+Contained-member trials may use vacant cells inside their existing group frames. Every ancestor remains fixed; canonical member inset and measured title strips are protected. Membership, frame position/size, cell spans and unrelated geometry remain unchanged. Leaving a frame or entering its title rejects the candidate. Source pins and verified suggestions now use the same containment checks. Group refitting, membership changes and grouped mouse gestures retain separate boundaries.
 
 Trial results own their candidate state privately. Each `CopyCandidate` returns fresh model, route and grid objects, so rendering or scoring a copy cannot corrupt another trial. Origin revisions describe the accepted scene; they do not authorize publishing the result into a newer scene. A later selected suggestion must pass the ordinary source/revision transaction again.
 
@@ -36,4 +36,4 @@ History is scoped to the document, source revision, captured options, explicit l
 
 Results retain each trial's reason, skipped locked nodes, unique/duplicate/revisited counts and budget exhaustion. A no-result message says that no verified improvement was found among generated candidates or within the budget; it never claims a global optimum. Cancellation is checked before work and between candidate operations. Cancelled work has no publishable result and leaves accepted geometry/history unchanged.
 
-Repeated-acceptance tests compare predicted and ordinarily committed states, require strict improvement and reject repeated scenes. Visual preview and undoable source publication remain QUALITY-4 work. Search does not commit a candidate and makes no incremental speed claim.
+Repeated-acceptance tests compare predicted and ordinarily committed states, require strict improvement and reject repeated scenes. The [placement review](placement-suggestions.md) preflights an isolated source/label transaction before one undoable source edit. Search itself does not commit a candidate and makes no incremental speed claim.

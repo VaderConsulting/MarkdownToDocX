@@ -10,6 +10,22 @@ namespace MermaidRecognition.Layout.Tests.Enterprise;
 [TestFixture]
 public sealed class PlacementHintLayoutTests
 {
+    [TestCase("note", false)]
+    [TestCase("note", true)]
+    [TestCase("application-component", true)]
+    public void InitialAbsolutePinsUseTheRequestedCellsForNotesAndContainedMembers(string Kind, bool Grouped)
+    {
+        string Source = "enterprise\n" + (Grouped ? "group area\n" : "") + Kind + " item \"Item\""
+            + (Grouped ? " in area" : "") + " at 1 2\n";
+        var Analysis = EnterpriseValidator.Analyze(Source);
+        Assert.That(Analysis.HasErrors, Is.False);
+        var Context = EnterpriseLayoutEngine.Layout(Analysis.Document).RoutingContext!;
+        Assert.That(Context, Is.Not.Null);
+        var Region = Context.Layout.CellNodes!.Single(Node => Node.Id == "item").CellNode!.Region;
+        Assert.That((Region.StartRow, Region.StartColumn), Is.EqualTo((1, 2)));
+        Assert.That(FlowchartRouteRuleChecker.Check(Context.Contract, Context.Layout), Is.Empty);
+    }
+
     [Test]
     public void DirectionHints_AreAppliedInFinishedPageCoordinates()
     {
