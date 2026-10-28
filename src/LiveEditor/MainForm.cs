@@ -377,6 +377,7 @@ public partial class MainForm : Form
 
     private void ApplyEditorPreferences()
     {
+        LiveEditorFeatureGate.ApplyLayoutSettings(_Settings);
         CodeView.AutoIndent = _Settings.AutoIndent;
         CodeView.InsertSpaces = _Settings.InsertSpaces;
         CodeView.IndentSize = _Settings.IndentSize;

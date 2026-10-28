@@ -10,7 +10,7 @@ namespace LiveEditor.Editor;
 /// <summary>
 /// Persists LiveEditor session preferences and recent files.
 /// </summary>
-internal sealed class SessionSettings
+internal sealed partial class SessionSettings
 {
     private const int MAX_RECENT = 12;
 
