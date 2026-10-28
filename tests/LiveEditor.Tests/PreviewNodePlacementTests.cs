@@ -65,6 +65,23 @@ public sealed class PreviewNodePlacementTests
         Assert.That(PreviewNodePlacement.TryCreate(Multiline, "order", Items(), new(195, 145), out _, out _), Is.False);
     }
 
+    [Test]
+    public void MultipleStatementsOnOneLineAreNotOverwritten()
+    {
+        string Text = Source.Replace("\"Order\"", "\"Order\" push E; application-component other");
+        Assert.That(EnterpriseValidator.Analyze(Text).HasErrors, Is.False);
+        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out var Edit, out _), Is.False);
+        Assert.That(Edit, Is.Null);
+    }
+
+    [Test]
+    public void QuotedSemicolonsAndInlineCommentsSurviveTheHintEdit()
+    {
+        string Text = Source.Replace("\"Order\"", "\"Order; label\" %% keep this ; comment");
+        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out var Edit, out var Reason), Is.True, Reason);
+        Assert.That(Edit!.Apply(Text), Does.Contain("\"Order; label\" left-of webShop %% keep this ; comment\n"));
+    }
+
     internal static PreviewObject[] Items() =>
     [
         new() { Id = "webShop", Kind = PreviewObjectKind.Node, Left = 300, Top = 100, Right = 450, Bottom = 190 },

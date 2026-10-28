@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 
@@ -51,12 +52,20 @@ internal static class PreviewNodePlacement
         string Hint = Direction + " " + Peer.Id + (Offset == 0 ? string.Empty : " +" + Offset.ToString(CultureInfo.InvariantCulture));
         if (!TryRewrite(Source, Element.LineNumber, Hint, out Change))
         {
-            Reason = "This declaration spans multiple lines; edit its placement hint in the source.";
+            Reason = "Drag supports one declaration per line; edit this placement hint in the source.";
             return false;
         }
         var Updated = EnterpriseValidator.Analyze(Change!.Apply(Source));
+        var ExpectedKind = Direction switch
+        {
+            "left-of" => PlacementHintKind.LeftOf, "right-of" => PlacementHintKind.RightOf,
+            "above" => PlacementHintKind.Above, _ => PlacementHintKind.Below
+        };
         if (Updated.HasErrors || !Updated.Document.Elements.TryGetValue(NodeId, out var After)
-            || After.PlacementHint?.PeerId != Peer.Id || After.Label != Element.Label || After.ParentId != Element.ParentId)
+            || After.PlacementHint?.PeerId != Peer.Id || After.PlacementHint.Kind != ExpectedKind || After.PlacementHint.Offset != Offset
+            || After.Label != Element.Label || After.ParentId != Element.ParentId
+            || !Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal).SequenceEqual(
+                Updated.Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal)))
         {
             Change = null;
             Reason = "The placement hint could not be applied without changing the declaration.";
@@ -97,6 +106,7 @@ internal static class PreviewNodePlacement
         int End = Start;
         while (End < Source.Length && Source[End] != '\r' && Source[End] != '\n') End++;
         string Text = Source.Substring(Start, End - Start);
+        if (!IsSingleStatement(Text)) return false;
         char Quote = '\0';
         bool Escaped = false;
         int Suffix = Text.Length, OldHintStart = -1;
@@ -140,5 +150,23 @@ internal static class PreviewNodePlacement
         if (Suffix < Text.Length) Replacement += " " + Text.Substring(Suffix);
         Change = new(Start, End - Start, Replacement, Hint);
         return true;
+    }
+
+    private static bool IsSingleStatement(string Text)
+    {
+        char Quote = '\0';
+        for (int I = 0; I < Text.Length; I++)
+        {
+            char C = Text[I];
+            if (Quote != '\0')
+            {
+                if (C == '\\') I++;
+                else if (C == Quote) Quote = '\0';
+            }
+            else if (C is '\'' or '"') Quote = C;
+            else if (C == ';') return false;
+            else if (C == '%' && I + 1 < Text.Length && Text[I + 1] == '%') break;
+        }
+        return Quote == '\0';
     }
 }
