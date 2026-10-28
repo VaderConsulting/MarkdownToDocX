@@ -71,13 +71,15 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         string Source = ReadScenario("A", 64);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
-
-        List<FlowchartLayoutNodeBounds> Members = [.. Layout.NodeBounds.Where(Box => Box.NodeId.StartsWith("a", StringComparison.Ordinal))];
+        var MemberIds = Contract.Groups.Single().ChildNodeIds.ToHashSet(StringComparer.Ordinal);
+        List<FlowchartLayoutNodeBounds> Members = [.. Layout.NodeBounds.Where(Box => MemberIds.Contains(Box.NodeId))];
         Assert.Multiple(() =>
         {
             Assert.That(Members.Select(Box => Box.CenterX).Distinct().Count(), Is.GreaterThan(1));
             Assert.That(Members.Select(Box => Box.CenterY).Distinct().Count(), Is.GreaterThan(1));
+            Assert.That(Members.Count, Is.EqualTo(MemberIds.Count));
             Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).Score, Is.Not.Null);
+            Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout), Is.Empty);
         });
     }
 

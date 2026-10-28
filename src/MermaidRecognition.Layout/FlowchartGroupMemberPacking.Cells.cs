@@ -9,7 +9,7 @@ internal static partial class FlowchartGroupMemberPacking
 {
     /// <summary>Scores every finite declared-order column count and publishes only the best complete legal improvement.</summary>
     /// <param name="Members">Complete standalone group in declared order.</param>
-    /// <returns>Whether the accepted complete reservation plan improves the established block score.</returns>
+    /// <returns>Whether a legal complete plan reduces wrap overflow, then block score and area.</returns>
     internal static bool ApplyCellMembers(List<DiagramGridLayout.GridNode> Members)
     {
         if (Members.Count < 2)
@@ -23,6 +23,16 @@ internal static partial class FlowchartGroupMemberPacking
         long Top = Before.Regions.Values.Min(Region => Region.StartRow), Bottom = Before.Regions.Values.Max(Region => Region.EndRow);
         (double Score, double Area) Current = FlowchartCellCandidateScore.Measure(Members, Before, IncludeEmptySpace: false);
         double BestScore = Current.Score, BestArea = Current.Area;
+        // Rule 2.16 wraps the isolated piece's own rows/columns. The general
+        // score has no height penalty, so a tall zero-score column must first
+        // compete on its measured wrap overflow, rather than remain a tie.
+        double WrapLimit = FlowchartLayoutRules.DiagramUsableWidthPx;
+        (double Width, double Height) Overflow(FlowchartLogicalGrid.Snapshot State, double Area)
+        {
+            double Width = FlowchartCellCandidateScore.MeasureWidth(Members, State);
+            return (Math.Max(0, Width - WrapLimit), Math.Max(0, Area / Width - WrapLimit));
+        }
+        var BestOverflow = Overflow(Before, Current.Area);
         FlowchartCellRepair.Assignment? Best = null;
         for (int Count = 1; Count <= Members.Count; Count++)
         {
@@ -43,9 +53,12 @@ internal static partial class FlowchartGroupMemberPacking
             }
 
             (double Score, double Area) Candidate = FlowchartCellCandidateScore.Measure(Members, Plan.After, IncludeEmptySpace: false);
-            if (Candidate.Score < BestScore - 0.0001 || (Best != null && Candidate.Score == BestScore && Candidate.Area < BestArea))
+            var CandidateOverflow = Overflow(Plan.After, Candidate.Area);
+            int WrapComparison = CandidateOverflow.CompareTo(BestOverflow);
+            if (WrapComparison < 0 || (WrapComparison == 0 && (Candidate.Score < BestScore - 0.0001
+                || (Candidate.Score == BestScore && Candidate.Area < BestArea))))
             {
-                Best = Plan; BestScore = Candidate.Score; BestArea = Candidate.Area;
+                Best = Plan; BestScore = Candidate.Score; BestArea = Candidate.Area; BestOverflow = CandidateOverflow;
             }
         }
         return Best?.TryApply() == true;

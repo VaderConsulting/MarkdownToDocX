@@ -8,7 +8,7 @@ Current foundation status: empty-canvas construction, explicit node additions/mo
 
 Validation: the expanded editor selection passes 249 cases and the broad shared-engine selection passes 218. The final loop-label clearance adjustment passes 102 shared source/session/loop cases and six editor label cases. The unchanged parser selection previously passed 82. Details are in each completed task entry; remaining phase criteria stay open.
 
-Next work: continue the foundation regression audit and compact-layout failures, followed by diagnostics, width/construction and benchmarks. The three earlier cell rejection/frame-overlap failures and four return-route/cardinal-hub cases are resolved. Ungrouped node and relationship labels now use local measured transactions and exact undo. Group containment/format/font changes retain explicit rebuild semantics. AF/AG/AH remain default off.
+Next work: continue the foundation regression audit, the five remaining compact cases and newly exposed fan-packing failures, followed by diagnostics, width/construction and benchmarks. The earlier cell rejection/frame-overlap, return-route/cardinal-hub and standalone artifact-container cases are resolved. Ungrouped node and relationship labels now use local measured transactions and exact undo. Group containment/format/font changes retain explicit rebuild semantics. AF/AG/AH remain default off.
 
 ## Working rule
 
@@ -392,3 +392,13 @@ The two aligned-return assertions conflicted with canonical rule 5.3, which requ
 Validation: all 258 expanded shared cases and 249 editor regressions pass. New coverage compares incremental and full candidate scores, requires the complete hub solution to be straight, and preserves hinted and independent geometry exactly. Builds pass with existing nullable warnings only. Logs: out/port-audit-repro.log, out/port-audit-targeted.log, out/port-audit-build.log, out/port-audit-layout-regressions.log and out/port-audit-editor-regressions.log. The six compact cases recorded in the preceding audit remain the next work; a full-suite result remains pending.
 
 Task rollbacks: **0**. Next: compact-layout diagnosis/repair and foundation acceptance, then the remaining diagnostics, width/construction, visual review and benchmark tasks. AF/AG/AH defaults remain off.
+
+## Completed task - standalone artifact-container cell packing (29 October 2026)
+
+Resolved A64 and the directly related standalone cell-packing regression. The general width score has no height penalty and can be zero for a tall column and every usable block. The packer therefore never chose its first tied candidate; its area tie-break required an earlier winner. Standalone pieces now compare measured width overflow, then height overflow against their own canonical wrap length before score/area. This applies rule 2.16's existing local wrapping requirement without stretching cells or changing global score weights. Candidates retain declared order, ownership, spans and hint checks; repeating an accepted pack makes no further change. Wider diagrams with routed or mixed group membership keep their separate producer.
+
+Validation: 94 source/placement/width/band cases pass, followed by all 14 selected standalone/disconnected/root/empty-group checks. Unit cases cover 9, 10 and 30 independent owners, measured width, reduced height, exact spans, exclusive occupancy, idempotence and rejected locked candidates. A64 now identifies members through declared group ownership and additionally checks complete inventory and independent legality. All 76 retained-preview cases pass, including a new packed artifact-container capture with exact cells through comment and paint edits. Builds pass without new warnings. Logs: out/artifact-packing-repro.log, out/artifact-packing-targeted.log, out/artifact-packing-regressions.log, out/artifact-packing-final.log and out/artifact-packing-editor-regressions.log.
+
+The broader packing/profile audit passed 15 cases and exposed 12 fan-packing failures before its 120-second inactivity limit on `GroupFrameRefitProfileTests.ProfileGroupFrameRefits("A164")`. It is not a successful full-suite result. Fan cases and that large-profile limit are active follow-up work; the other five compact cases still fail their reproduced selection. Logs: out/artifact-packing-group-regressions.log and out/compact-audit-repro.log.
+
+Task rollbacks: **0**. Next: fan packing and remaining compact-layout diagnosis/repair, then foundation acceptance, diagnostics/suggestions, width/construction, visual review and benchmarks. AF/AG/AH defaults remain off.

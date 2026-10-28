@@ -9,6 +9,26 @@ namespace LiveEditor.Tests;
 
 public sealed partial class RetainedEnterprisePreviewTests
 {
+    [Test]
+    public void PackedArtifactContainerRetainsCellsThroughPaintAndMetadataEdits()
+    {
+        string Script = "enterprise\nnode container \"Files\"\n"
+            + string.Concat(Enumerable.Range(0, 10).Select(Index => $"artifact n{Index} \"File {Index}\" in container\ncontainer -assignment-> n{Index}\n"));
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, Script, 1);
+        var Before = Session.CopyInteractionSnapshot()!;
+        Assert.That(Before.Layout.NodeBounds.Select(Node => Node.CenterX).Distinct().Count(), Is.GreaterThan(1));
+        Assert.That(Before.Layout.NodeBounds.Select(Node => Node.CenterY).Distinct().Count(), Is.GreaterThan(1));
+        var Comment = Accept(Session, Script + "%% same placement\n", 2);
+        Assert.That(Comment.Svg, Is.EqualTo(Initial.Svg));
+        var Paint = Accept(Session, Script + "style n0 fill:#ff0000\n", 3);
+        Assert.That(Paint.Rebuild, Is.False);
+        Assert.That(Paint.RebuiltRouteIds, Is.Empty);
+        Assert.That(Paint.Svg, Does.Contain("#ff0000"));
+        Assert.That(Session.CopyInteractionSnapshot()!.Layout.CellNodes!.Select(Node => Node.CellNode!.Region),
+            Is.EqualTo(Before.Layout.CellNodes!.Select(Node => Node.CellNode!.Region)));
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void MeasuredNodeLabelChangesStayLocalWithWidthOptions(bool Width)
