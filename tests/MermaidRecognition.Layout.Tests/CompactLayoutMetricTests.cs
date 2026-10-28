@@ -103,8 +103,14 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         {
             Assert.That(Metrics.Disconnections, Is.Zero);
             Assert.That(Metrics.Bends, Is.LessThanOrEqualTo(6));
-            Assert.That(Route(Layout, "checkout", "invoicing").Points, Has.Count.EqualTo(2));
-            Assert.That(Route(Layout, "pick", "pack").Points, Has.Count.EqualTo(2));
+            foreach (var Line in new[] { Route(Layout, "checkout", "invoicing"), Route(Layout, "pick", "pack") })
+            {
+                bool Aligned = Math.Abs(Line.Points[0].X - Line.Points[^1].X) < 0.001
+                    || Math.Abs(Line.Points[0].Y - Line.Points[^1].Y) < 0.001;
+                Assert.That(FlowchartLayoutScore.CountCorners(Line.Points), Is.EqualTo(Aligned ? 0 : 1),
+                    "Use the minimum corners allowed by the actual allocated ports.");
+            }
+            Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout), Is.Empty);
         });
     }
 
@@ -283,7 +289,43 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         string Source = ReadScenario("A", 110);
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
-        Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).ForcedMinimum, Is.EqualTo(243));
+        EnterpriseElementType TypeOf(NodeContract Node) => Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue);
+        var Types = Contract.Nodes.ToDictionary(Node => Node.Id, TypeOf, StringComparer.Ordinal);
+        var Cells = Layout.CellNodes!.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
+        var Rows = Cells.Values.Select(Cell => Cell.StartRow).Distinct().Order().ToArray();
+        int ChooseTwo(int Count) => Count * (Count - 1) / 2;
+        int CompleteBlock(EnterpriseElementType SourceType, EnterpriseElementType TargetType)
+        {
+            var Sources = Types.Where(Item => Item.Value == SourceType).Select(Item => Item.Key).ToHashSet(StringComparer.Ordinal);
+            var Targets = Types.Where(Item => Item.Value == TargetType).Select(Item => Item.Key).ToHashSet(StringComparer.Ordinal);
+            Assert.That(Contract.Edges.Count(Edge => Sources.Contains(Edge.SourceId) && Targets.Contains(Edge.TargetId)),
+                Is.EqualTo(Sources.Count * Targets.Count), "The declared source/target block must actually be complete.");
+            return Sources.GroupBy(Id => Cells[Id].StartRow).Sum(SourceRow => Targets.GroupBy(Id => Cells[Id].StartRow)
+                .Where(TargetRow => Math.Abs(Array.IndexOf(Rows, SourceRow.Key) - Array.IndexOf(Rows, TargetRow.Key)) == 1)
+                .Sum(TargetRow => ChooseTwo(SourceRow.Count()) * ChooseTwo(TargetRow.Count())));
+        }
+        int Expected = CompleteBlock(EnterpriseElementType.ApplicationService, EnterpriseElementType.BusinessProcess)
+            + CompleteBlock(EnterpriseElementType.TechnologyService, EnterpriseElementType.ApplicationComponent);
+        Assert.That(FlowchartLayoutScore.Measure(Contract, Layout).ForcedMinimum, Is.EqualTo(Expected));
+
+        // A positive control keeps the original analytic 225 + 18 guarantee.
+        // It uses the same graph with these complete blocks on adjacent rows;
+        // the production semantic-band placement may insert a row between them.
+        var Adjacent = new FlowchartLayoutResult();
+        var RowByType = new Dictionary<EnterpriseElementType, int>
+        {
+            [EnterpriseElementType.BusinessProcess] = 0, [EnterpriseElementType.ApplicationService] = 1,
+            [EnterpriseElementType.ApplicationComponent] = 2, [EnterpriseElementType.TechnologyService] = 3
+        };
+        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        foreach (var Group in Contract.Nodes.GroupBy(TypeOf))
+            foreach (var Item in Group.Select((Node, Column) => (Node, Column)))
+                Adjacent.NodeBoundsMutable.Add(new() { NodeId = Item.Node.Id,
+                    CenterX = Item.Column * (Configuration.CellWidth + Configuration.ColumnGap),
+                    CenterY = RowByType[Group.Key] * (Configuration.CellHeight + Configuration.RowGap),
+                    Width = Configuration.CellWidth, Height = Configuration.CellHeight });
+        Assert.That(FlowchartLayoutScore.ForcedCrossingMinimum(Contract, Adjacent),
+            Is.EqualTo(ChooseTwo(6) * ChooseTwo(6) + ChooseTwo(4) * ChooseTwo(3)));
     }
 
     private static string ReadScenario(string Catalogue, int Number)
