@@ -31,6 +31,8 @@ internal sealed partial class CodeEditor : UserControl
 
     private int _MarkedLength;
 
+    private Font? _OwnedEditorFont;
+
     private readonly List<int> _MarkedStarts = new List<int>();
 
     /// <summary>
@@ -39,6 +41,7 @@ internal sealed partial class CodeEditor : UserControl
     public CodeEditor()
     {
         InitializeComponent();
+        _OwnedEditorFont = SourceEditor.Font;
         _SessionFontSize = SourceEditor.Font.Size;
         PlaceBesideLineNumbers();
         LineNumberColumn.Bind(SourceEditor);
@@ -283,13 +286,7 @@ internal sealed partial class CodeEditor : UserControl
     {
         float Size = Math.Max(8F, Math.Min(32F, FontSize));
         _SessionFontSize = Size;
-        bool OtherFamily = !string.Equals(SourceEditor.Font.Name, EditorFonts.MonospaceFamily, StringComparison.OrdinalIgnoreCase);
-        if (OtherFamily || Math.Abs(SourceEditor.Font.Size - Size) > 0.01F)
-        {
-            Font PreviousFont = SourceEditor.Font;
-            SourceEditor.Font = EditorFonts.Monospace(Size);
-            PreviousFont.Dispose();
-        }
+        ReplaceEditorFont(Size);
 
         SourceEditor.WordWrap = WordWrap;
         SourceEditor.ScrollBars = WordWrap ? RichTextBoxScrollBars.Vertical : RichTextBoxScrollBars.Both;
@@ -1164,13 +1161,13 @@ internal sealed partial class CodeEditor : UserControl
     /// <summary>Increases the editor font size by one point.</summary>
     internal void ZoomIn()
     {
-        SetEditorFont(SourceEditor.Font.Size + 1F);
+        SetEditorFont((_OwnedEditorFont?.Size ?? _SessionFontSize) + 1F);
     }
 
     /// <summary>Decreases the editor font size by one point.</summary>
     internal void ZoomOut()
     {
-        SetEditorFont(SourceEditor.Font.Size - 1F);
+        SetEditorFont((_OwnedEditorFont?.Size ?? _SessionFontSize) - 1F);
     }
 
     /// <summary>Restores the editor font size from the start of the session.</summary>
@@ -1350,16 +1347,31 @@ internal sealed partial class CodeEditor : UserControl
     private void SetEditorFont(float Size)
     {
         float Limited = Math.Max(8F, Math.Min(32F, Size));
-        if (Math.Abs(SourceEditor.Font.Size - Limited) <= 0.01F)
+        if (!ReplaceEditorFont(Limited))
         {
             return;
         }
 
-        Font PreviousFont = SourceEditor.Font;
-        SourceEditor.Font = EditorFonts.Monospace(Limited);
-        PreviousFont.Dispose();
         FontSizeChanged?.Invoke(this, Limited);
         StatusRequested?.Invoke(this, "Editor font " + Limited.ToString("0") + " pt.");
+    }
+
+    private bool ReplaceEditorFont(float Size)
+    {
+        // SourceEditor.Font may be a WinForms-owned DPI-scaled font. Compare and
+        // dispose only the explicit font assigned by this editor.
+        Font? Previous = _OwnedEditorFont;
+        if (Previous != null && string.Equals(Previous.Name, EditorFonts.MonospaceFamily, StringComparison.OrdinalIgnoreCase)
+            && Math.Abs(Previous.Size - Size) <= 0.01F)
+        {
+            return false;
+        }
+
+        Font Next = EditorFonts.Monospace(Size);
+        SourceEditor.Font = Next;
+        _OwnedEditorFont = Next;
+        Previous?.Dispose();
+        return true;
     }
 
     private string IndentUnitText()
@@ -1457,6 +1469,8 @@ internal sealed partial class CodeEditor : UserControl
         _EditorWheel.ReleaseHandle();
         _IntelliSense.Dispose();
         _GhostText?.Dispose();
+        _OwnedEditorFont?.Dispose();
+        _OwnedEditorFont = null;
     }
 
     /// <summary>

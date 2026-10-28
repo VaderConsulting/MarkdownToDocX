@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
@@ -13,6 +14,78 @@ namespace LiveEditor.Tests;
 [Apartment(ApartmentState.STA)]
 public sealed class LineNumberGutterTests
 {
+    [Test]
+    public void RebindingWhileDpiFontIsActiveDoesNotDisposeTheExplicitFont()
+    {
+        IntPtr PreviousContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
+        try
+        {
+            using Font EditorFont = new Font("Consolas", 11F);
+            using Font ScaledFont = new Font("Consolas", 16.5F);
+            using RichTextBox Editor = new RichTextBox { Font = EditorFont, Text = "one\ntwo" };
+            using LineNumberGutter Gutter = new LineNumberGutter();
+            Editor.CreateControl();
+            Gutter.Bind(Editor);
+            var ScaledFontField = typeof(Control).GetField("_scaledControlFont",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            try
+            {
+                ScaledFontField.SetValue(Gutter, ScaledFont);
+                Assert.That(Gutter.Font, Is.SameAs(ScaledFont));
+                Gutter.Bind(Editor);
+            }
+            finally
+            {
+                ScaledFontField.SetValue(Gutter, null);
+            }
+            Assert.That(Gutter.Font.Height, Is.GreaterThan(0));
+            using Bitmap Picture = new Bitmap(Gutter.Width, 100);
+            Gutter.DrawToBitmap(Picture, new Rectangle(Point.Empty, Picture.Size));
+        }
+        finally
+        {
+            SetThreadDpiAwarenessContext(PreviousContext);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr Context);
+
+    [Test]
+    public void PaintingDoesNotUseARetiredDpiFont()
+    {
+        IntPtr PreviousContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
+        try
+        {
+            using Font EditorFont = new Font("Consolas", 9F);
+            using Font ScaledFont = new Font("Consolas", 13.5F);
+            using RichTextBox Editor = new RichTextBox { Font = EditorFont, Text = "one\ntwo" };
+            using LineNumberGutter Gutter = new LineNumberGutter();
+            Editor.CreateControl();
+            Gutter.Bind(Editor);
+            var ScaledFontField = typeof(Control).GetField("_scaledControlFont",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            try
+            {
+                ScaledFontField.SetValue(Gutter, ScaledFont);
+                ScaledFont.Dispose();
+                using Bitmap Picture = new Bitmap(Gutter.Width, 100);
+                using Graphics Canvas = Graphics.FromImage(Picture);
+                using PaintEventArgs Paint = new PaintEventArgs(Canvas, new Rectangle(Point.Empty, Picture.Size));
+                typeof(LineNumberGutter).GetMethod("OnPaint",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(Gutter, new object[] { Paint });
+            }
+            finally
+            {
+                ScaledFontField.SetValue(Gutter, null);
+            }
+        }
+        finally
+        {
+            SetThreadDpiAwarenessContext(PreviousContext);
+        }
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void RebindingAnEditorWithTheSameFontKeepsThePaintFontAlive(bool DifferentEditor)

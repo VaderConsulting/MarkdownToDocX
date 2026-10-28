@@ -116,7 +116,7 @@ internal sealed class LineNumberGutter : Panel
     {
         base.OnPaint(E);
         E.Graphics.Clear(BackColor);
-        if (_Editor == null || _Editor.IsDisposed || !_Editor.IsHandleCreated || _Editor.TextLength < 0)
+        if (_Editor == null || _Editor.IsDisposed || !_Editor.IsHandleCreated || _OwnedFont == null)
         {
             return;
         }
@@ -133,8 +133,12 @@ internal sealed class LineNumberGutter : Panel
         FirstLine = Math.Max(0, FirstLine - 1);
         int LineCount = _Editor.GetLineFromCharIndex(Math.Max(0, _Editor.TextLength)) + 1;
         LastLine = Math.Min(LineCount - 1, LastLine + 1);
+        // DPI changes can retire Control.Font's scaled instance during a layout.
+        // Paint with our independent editor-font copy and this paint's graphics.
+        Font DrawingFont = _OwnedFont;
+        int LineHeight = Math.Max(1, (int)Math.Ceiling(DrawingFont.GetHeight(E.Graphics)));
         TextFormatFlags Flags = TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
-        Rectangle Row = new Rectangle(HORIZONTAL_PADDING, 0, Math.Max(1, ClientSize.Width - (HORIZONTAL_PADDING * 2)), Font.Height);
+        Rectangle Row = new Rectangle(HORIZONTAL_PADDING, 0, Math.Max(1, ClientSize.Width - (HORIZONTAL_PADDING * 2)), LineHeight);
         for (int Line = FirstLine; Line <= LastLine; Line++)
         {
             int Index = _Editor.GetFirstCharIndexFromLine(Line);
@@ -145,7 +149,6 @@ internal sealed class LineNumberGutter : Panel
 
             Point Position = _Editor.GetPositionFromCharIndex(Index);
             Row.Y = Position.Y;
-            Row.Height = Math.Max(Font.Height, _Editor.Font.Height);
             bool Current = Line == _Editor.GetLineFromCharIndex(_Editor.SelectionStart);
             if (Current)
             {
@@ -157,7 +160,7 @@ internal sealed class LineNumberGutter : Panel
             }
 
             string Label = (Line + 1).ToString(CultureInfo.InvariantCulture);
-            TextRenderer.DrawText(E.Graphics, Label, Font, Row, Current ? Color.FromArgb(0, 122, 204) : ForeColor, Flags);
+            TextRenderer.DrawText(E.Graphics, Label, DrawingFont, Row, Current ? Color.FromArgb(0, 122, 204) : ForeColor, Flags);
         }
     }
 
@@ -195,9 +198,9 @@ internal sealed class LineNumberGutter : Panel
         try
         {
             Font Next = new Font(_Editor.Font.FontFamily, _Editor.Font.Size, _Editor.Font.Style, GraphicsUnit.Point);
-            // Control.Font retains its current instance when the new font is equal.
-            // Keep that instance alive and discard only the unused replacement.
-            if (Font.Equals(Next))
+            // Compare the font we own, not Control.Font, which can be a DPI-scaled
+            // instance. An equal assignment can leave the owned font in use.
+            if (_OwnedFont != null && _OwnedFont.Equals(Next))
             {
                 Next.Dispose();
             }
@@ -230,7 +233,7 @@ internal sealed class LineNumberGutter : Panel
 
     private void ResizeToFourDigits()
     {
-        Size Measured = TextRenderer.MeasureText("9999", Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+        Size Measured = TextRenderer.MeasureText("9999", _OwnedFont, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
         Width = Measured.Width + (HORIZONTAL_PADDING * 2);
     }
 
