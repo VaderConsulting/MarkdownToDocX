@@ -44,7 +44,8 @@ internal static class EnterpriseLayoutEngine
 
     internal static EnterpriseLayoutResult FromGeometry(EnterpriseDocument Document, EnterpriseFlowchartRoutingContext Geometry)
     {
-        if (Geometry.SvgRects.Count == 0) throw new ArgumentException("The retained drawing has no node geometry.", nameof(Geometry));
+        if (Geometry.SvgRects.Count == 0 && (Document.Elements.Count != 0 || Document.Groups.Count != 0 || Document.Notes.Count != 0))
+            throw new ArgumentException("The retained drawing has no node geometry.", nameof(Geometry));
         return Build(Document, Geometry);
     }
 
@@ -112,7 +113,7 @@ internal static class EnterpriseLayoutEngine
             HasRoutingContext = true;
         }
         else { HasRoutingContext = EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(Document, Nodes, out RoutingContext); }
-        if (HasRoutingContext && RoutingContext != null && RoutingContext.SvgRects.Count > 0)
+        if (HasRoutingContext && RoutingContext != null && (RoutingContext.SvgRects.Count > 0 || Nodes.Count == 0))
         {
             ApplyFlowchartSvgRects(Nodes, RoutingContext);
             return new EnterpriseLayoutResult(

@@ -87,16 +87,27 @@ internal sealed class RetainedEnterprisePreview
         FlowchartSvgCoordinateFrame CandidateFrame;
         if (Rebuild)
         {
-            var Initial = EnterpriseLayoutEngine.Layout(Analysis.Document).RoutingContext
-                ?? throw new InvalidOperationException("Enterprise geometry cannot start a retained session.");
-            AddEnterpriseFacts(Analysis.Document, Initial.Contract);
-            CandidateService = new(DocumentId, SourceRevision, Source, Initial.Contract, Initial.Layout);
-            Snapshot = CandidateService.CopySnapshot();
-            CandidateFrame = new()
+            if (Model.Nodes.Count == 0 && Model.Groups.Count == 0)
             {
-                MinLeft = Initial.Frame.MinLeft, MaxTop = Initial.Frame.MaxTop,
-                DiagramPaddingPx = Initial.Frame.DiagramPaddingPx
-            };
+                var Empty = new FlowchartLayoutResult { UsesGridRoutes = true, CellNodes = [],
+                    RenderContext = new() { UseCellRegions = true, LayoutOptions = Options } };
+                CandidateService = new(DocumentId, SourceRevision, Source, Model, Empty);
+                Snapshot = CandidateService.CopySnapshot();
+                CandidateFrame = new() { DiagramPaddingPx = 20 };
+            }
+            else
+            {
+                var Initial = EnterpriseLayoutEngine.Layout(Analysis.Document).RoutingContext
+                ?? throw new InvalidOperationException("Enterprise geometry cannot start a retained session.");
+                AddEnterpriseFacts(Analysis.Document, Initial.Contract);
+                CandidateService = new(DocumentId, SourceRevision, Source, Initial.Contract, Initial.Layout);
+                Snapshot = CandidateService.CopySnapshot();
+                CandidateFrame = new()
+                {
+                    MinLeft = Initial.Frame.MinLeft, MaxTop = Initial.Frame.MaxTop,
+                    DiagramPaddingPx = Initial.Frame.DiagramPaddingPx
+                };
+            }
             Update = null;
         }
         else

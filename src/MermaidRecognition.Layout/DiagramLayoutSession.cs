@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using MermaidRecognition.Contract;
 
@@ -129,6 +130,21 @@ internal sealed class DiagramLayoutSession
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(Value);
         return Value;
     }
+
+    internal Update PrepareRemoveNode(long SourceRevision, string NodeId, int? RouteLimit = null)
+        => Prepare(SourceRevision, Candidate =>
+        {
+            var Model = DiagramGridLayout.CopyRoutingInputs(Candidate.Contract);
+            var Node = Model.NodesMutable.Find(Node => Node.Id == NodeId);
+            if (Node == null) return ("The node identity is unknown.", Array.Empty<string>(), Array.Empty<string>());
+            if (Model.Edges.Where(Edge => Edge.SourceId == NodeId || Edge.TargetId == NodeId).Any(Candidate.IsTimelineConstraint))
+                return ("Plateau triggering topology changes require a new semantic constraint session.", Array.Empty<string>(), Array.Empty<string>());
+            var Removed = Model.Edges.Where(Edge => Edge.SourceId == NodeId || Edge.TargetId == NodeId).Select(Edge => Edge.Id!).ToArray();
+            Model.NodesMutable.Remove(Node);
+            Model.EdgesMutable.RemoveAll(Edge => Edge.SourceId == NodeId || Edge.TargetId == NodeId);
+            string? Failure = Candidate.TrySourceUpdate(Model, [], Removed, Limit(RouteLimit), out var Affected, out var Rebuilt);
+            return (Failure, Affected, Rebuilt);
+        });
 
     private Update Prepare(long SourceRevision,
         Func<DiagramGridLayout.RetainedRoutingState, (string? Failure, string[] Affected, string[] Rebuilt)> Operation)

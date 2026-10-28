@@ -129,14 +129,14 @@ internal static partial class EnterpriseBandPlacement
 
         Context?.HasInitialCorridorCapacity |= InitialGaps.Count > 0;
         Grid.RegionConvention = Regions => MatchesConvention(Contract, Classes, Regions)
-            && (FixedPlacement == null || FixedPlacement.Regions.All(Pair => Regions[Pair.Key] == Pair.Value))
-            && LevelRows.All(Row => Row.All(Id => Regions[Id].StartRow == Regions[Row[0]].StartRow));
+            && (FixedPlacement == null || FixedPlacement.Regions.Where(Pair => Regions.ContainsKey(Pair.Key)).All(Pair => Regions[Pair.Key] == Pair.Value))
+            && LevelRows.All(Row => !Row.Where(Regions.ContainsKey).Select(Id => Regions[Id].StartRow).Distinct().Skip(1).Any());
         Grid.RegionConventionSnapshot = () =>
         {
             DiagramContract Frozen = DiagramGridLayout.CopyRoutingInputs(Contract);
             return Regions => MatchesConvention(Frozen, Classes, Regions)
-                && (FixedPlacement == null || FixedPlacement.Regions.All(Pair => Regions[Pair.Key] == Pair.Value))
-                && LevelRows.All(Row => Row.All(Id => Regions[Id].StartRow == Regions[Row[0]].StartRow));
+                && (FixedPlacement == null || FixedPlacement.Regions.Where(Pair => Regions.ContainsKey(Pair.Key)).All(Pair => Regions[Pair.Key] == Pair.Value))
+                && LevelRows.All(Row => !Row.Where(Regions.ContainsKey).Select(Id => Regions[Id].StartRow).Distinct().Skip(1).Any());
         };
         CompletePartners = () =>
         {
@@ -236,7 +236,7 @@ internal static partial class EnterpriseBandPlacement
         IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
     {
         int? End = null;
-        foreach (IGrouping<int, KeyValuePair<string, Classification>>? Band in Classes.Where(Pair => Pair.Value.Conventional).GroupBy(Pair => Pair.Value.Band).OrderBy(Group => Group.Key))
+        foreach (IGrouping<int, KeyValuePair<string, Classification>>? Band in Classes.Where(Pair => Pair.Value.Conventional && Regions.ContainsKey(Pair.Key)).GroupBy(Pair => Pair.Value.Band).OrderBy(Group => Group.Key))
         {
             if (End > Band.Min(Pair => Regions[Pair.Key].StartRow))
             {
@@ -247,7 +247,7 @@ internal static partial class EnterpriseBandPlacement
         }
         // A later route repair must retain the local aspect columns reserved
         // inside each frame, even when its members occupy different ranks.
-        foreach (IGrouping<(string? ParentGroupId, int Band), NodeContract> Part in Contract.Nodes.Where(Node => Node.ParentGroupId != null && Classes.ContainsKey(Node.Id))
+        foreach (IGrouping<(string? ParentGroupId, int Band), NodeContract> Part in Contract.Nodes.Where(Node => Node.ParentGroupId != null && Classes.ContainsKey(Node.Id) && Regions.ContainsKey(Node.Id))
             .GroupBy(Node => (Node.ParentGroupId, Classes[Node.Id].Band)))
         {
             int? Right = null;
@@ -261,7 +261,8 @@ internal static partial class EnterpriseBandPlacement
                 Right = Aspect.Max(Node => Regions[Node.Id].EndColumn);
             }
         }
-        return Contract.Edges.Where(IsTriggering).Where(Edge => Classes.GetValueOrDefault(Edge.SourceId)?.Type == EnterpriseElementType.Plateau
+        return Contract.Edges.Where(IsTriggering).Where(Edge => Regions.ContainsKey(Edge.SourceId) && Regions.ContainsKey(Edge.TargetId)
+            && Classes.GetValueOrDefault(Edge.SourceId)?.Type == EnterpriseElementType.Plateau
             && Classes.GetValueOrDefault(Edge.TargetId)?.Type == EnterpriseElementType.Plateau)
             .All(Edge => Regions[Edge.SourceId].EndColumn <= Regions[Edge.TargetId].StartColumn);
     }

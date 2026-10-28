@@ -36,7 +36,8 @@ public static partial class DiagramGridLayout
                     CenterY = (Band.Bottom + Band.Top) / 2, Width = Band.Right - Band.Left, Height = Band.Top - Band.Bottom });
             }
             double Margin = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
-            return [.. Routes.Where(Item => Changed.Contains(Item.Source) || Changed.Contains(Item.Target)
+            var Surviving = State.Copy.EdgeRoutes.ToHashSet();
+            return [.. Routes.Where(Item => Surviving.Contains(Item.Route)).Where(Item => Changed.Contains(Item.Source) || Changed.Contains(Item.Target)
                 || Enumerable.Range(1, Math.Max(0, Item.Points.Length - 1)).Any(Index => Obstacles.Any(Box =>
                     Math.Min(Item.Points[Index - 1].X, Item.Points[Index].X) <= Box.CenterX + Box.Width / 2 + Margin
                     && Math.Max(Item.Points[Index - 1].X, Item.Points[Index].X) >= Box.CenterX - Box.Width / 2 - Margin

@@ -38,7 +38,7 @@ public static partial class DiagramGridLayout
             ReplaceInputs();
             GridNode Owner = new() { Id = Item.Id, Shape = Item.Shape, IsDiamond = Diamond, GeometryProvider = Item.GeometryProvider };
             Owner.BindCells(Grid, Layout.RenderContext);
-            Owner.CellNode!.UseRoutingCoordinates(State.Placed.FirstOrDefault()?.CellNode?.RoutingOrigin ?? 0);
+            Owner.CellNode!.UseRoutingCoordinates(RoutingOrigin);
             State.Placed.Add(Owner); State.Nodes.Add(Item.Id, Item); State.Contract.NodesMutable.Add(Item);
             Layout.NodeBoundsMutable.Add(Owner.CellNode.Bounds(Owner.GeometryProvider));
             Layout.BumpGeometryVersion();
@@ -148,7 +148,7 @@ public static partial class DiagramGridLayout
             return [.. Layout.EdgeRoutes.Where(Route => OldBack.Contains(Route.EdgeId) != NewBack.Contains(Route.EdgeId))];
         }
 
-        private bool IsTimelineConstraint(EdgeContract Edge)
+        internal bool IsTimelineConstraint(EdgeContract Edge)
         {
             bool Plateau(string Id) => State.Nodes.TryGetValue(Id, out var Node)
                 && Node.Metadata.TryGetValue("enterpriseElementType", out var Type) && Type is RawMetadata { RawValue: "Plateau" };

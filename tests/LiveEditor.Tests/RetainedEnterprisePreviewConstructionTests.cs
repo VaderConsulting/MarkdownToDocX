@@ -9,6 +9,62 @@ namespace LiveEditor.Tests;
 
 public sealed partial class RetainedEnterprisePreviewTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ConstructionCanStartEmptyRemoveEverythingAndUndo(bool InitiallyEmpty)
+    {
+        const string Empty = "enterprise\n";
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, InitiallyEmpty ? Empty : Source, 1);
+        var Filled = InitiallyEmpty ? Accept(Session, Source, 2) : Initial;
+        long Revision = InitiallyEmpty ? 3 : 2;
+        var Removed = Accept(Session, Empty, Revision);
+        Assert.That(Removed.Rebuild, Is.False);
+        Assert.That(Session.CopyInteractionSnapshot()!.Layout.NodeBounds, Is.Empty);
+        var Undo = Accept(Session, Source, Revision + 1);
+        Assert.That(Undo.Rebuild, Is.False);
+        Assert.That(Undo.Svg, Is.EqualTo(Filled.Svg));
+        var Redo = Accept(Session, Empty, Revision + 2);
+        Assert.That(Redo.Svg, Is.EqualTo(Removed.Svg));
+    }
+
+    [Test]
+    public void WorkerConstructionUndoRestoresNodeAndAcceptedPictureWithoutRebuilding()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string OriginalSvg = Preview.RenderedSvg!;
+            Editor.Select(Editor.TextLength, 0);
+            Editor.SelectedText = "application-component extra\n";
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting");
+            string AddedSvg = Preview.RenderedSvg!;
+            Editor.Undo();
+            Wait(() => Preview.RenderedSvg == OriginalSvg);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+            Editor.Redo();
+            Wait(() => Preview.RenderedSvg == AddedSvg);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [Test]
+    public void UndoAfterDeletionStillRemembersTheFirstPlacementOrigin()
+    {
+        var Session = new RetainedEnterprisePreview();
+        string Original = Accept(Session, Source, 1).Svg;
+        string MovedSource = Source.Replace("application-component a \"A\"", "application-component a \"A\" at -2 0");
+        string Moved = Accept(Session, MovedSource, 2).Svg;
+        Accept(Session, "enterprise\n", 3);
+        Assert.That(Accept(Session, MovedSource, 4).Svg, Is.EqualTo(Moved));
+        Assert.That(Accept(Session, Source, 5).Svg, Is.EqualTo(Original));
+    }
     [TestCase("application-component extra right-of b +3\n")]
     [TestCase("node extra\n")]
     [TestCase("business-actor extra\n")]

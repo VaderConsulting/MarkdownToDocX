@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using MermaidRecognition.Contract;
 
@@ -9,6 +10,26 @@ public static partial class DiagramGridLayout
 {
     internal sealed partial class RetainedRoutingState
     {
+        private ImmutableDictionary<string, FlowchartCellRegion> RemovedNodeRegions = ImmutableDictionary<string, FlowchartCellRegion>.Empty;
+
+        private string? RemoveSourceNodes(DiagramContract Model)
+        {
+            var Ids = Model.Nodes.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            foreach (var Node in State.Placed.Where(Node => !Ids.Contains(Node.Id)).ToArray())
+            {
+                if (Model.Groups.Count != 0 || !string.IsNullOrEmpty(Node.GroupId))
+                    return "Grouped node removal requires a containment construction operation.";
+                if (Model.Edges.Any(Edge => Edge.SourceId == Node.Id || Edge.TargetId == Node.Id))
+                    return "A removed node still has declared relationships.";
+                var Region = Grid.RegionOf(Node.Id);
+                if (!Grid.TryRemove(Node.Id)) return "Node removal violates a retained cell constraint.";
+                RemovedNodeRegions = RemovedNodeRegions.SetItem(Node.Id, Region);
+                State.Placed.Remove(Node);
+                Layout.NodeBoundsMutable.RemoveAll(Box => Box.NodeId == Node.Id);
+            }
+            return null;
+        }
+
         private string? AddSourceNodes(DiagramContract Model)
         {
             var Config = Grid.Configuration;
@@ -31,8 +52,16 @@ public static partial class DiagramGridLayout
                     .Prepend(Node.PlacementHint is { IsActive: true, Kind: PlacementHintKind.At } Pin ? Pin.CellRow : 0)
                     .Distinct().Take(64);
                 FlowchartCellRegion? Selected = null;
+                if (RemovedNodeRegions.TryGetValue(Node.Id, out var Restored)
+                    && Grid.Measure(Restored).Width >= Node.LayoutWidth && Grid.Measure(Restored).Height >= Node.LayoutHeight
+                    && (!Diamond || Restored.RowSpan >= 2 * Restored.ColumnSpan))
+                {
+                    var Proposal = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal) { [Node.Id] = Restored };
+                    if (Enterprise.EnterpriseBandPlacement.RetainedAssignmentIsLegal(Model, Proposal) && Grid.TryPlace(Node.Id, Restored)) Selected = Restored;
+                }
                 foreach (int Row in RowCandidates)
                 {
+                    if (Selected != null) break;
                     var Region = new FlowchartCellRegion(Row, Right, Rows, Columns);
                     var Proposal = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal) { [Node.Id] = Region };
                     if (!Enterprise.EnterpriseBandPlacement.RetainedAssignmentIsLegal(Model, Proposal) || !Grid.TryPlace(Node.Id, Region)) continue;
@@ -41,7 +70,7 @@ public static partial class DiagramGridLayout
                 if (Selected == null) return "No legal local cell reservation was found for the added node within the construction budget.";
                 var Owner = new GridNode { Id = Node.Id, Shape = Node.Shape, IsDiamond = Diamond, GeometryProvider = Node.GeometryProvider };
                 Owner.BindCells(Grid, Layout.RenderContext);
-                Owner.CellNode!.UseRoutingCoordinates(State.Placed.FirstOrDefault()?.CellNode?.RoutingOrigin ?? 0);
+                Owner.CellNode!.UseRoutingCoordinates(RoutingOrigin);
                 State.Placed.Add(Owner);
                 Layout.NodeBoundsMutable.Add(Owner.CellNode.Bounds(Owner.GeometryProvider));
             }

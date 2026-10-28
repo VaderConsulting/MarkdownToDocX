@@ -18,12 +18,13 @@ public static partial class DiagramGridLayout
         private readonly Dictionary<string, FlowchartCellRegion> UnpinnedOrigins = new(StringComparer.Ordinal);
         private readonly GridLayoutState State;
         private readonly FlowchartLogicalGrid Grid;
+        private double RoutingOrigin;
         private RetainedRoutingState(GridLayoutState State, FlowchartLogicalGrid Grid) { this.State = State; this.Grid = Grid; }
         internal FlowchartLayoutResult Layout => State.Copy;
         internal DiagramContract Contract => State.Contract;
         internal DiagramLayoutOptions Options => Layout.RenderContext.LayoutOptions;
 
-        internal static RetainedRoutingState Capture(DiagramContract Contract, FlowchartLayoutResult Layout)
+        internal static RetainedRoutingState Capture(DiagramContract Contract, FlowchartLayoutResult Layout, FlowchartLogicalGrid? EmptyGrid = null)
         {
             ArgumentNullException.ThrowIfNull(Contract);
             ArgumentNullException.ThrowIfNull(Layout);
@@ -93,14 +94,25 @@ public static partial class DiagramGridLayout
             }
             // Read paths directly from the accepted model. Guide resolution can invoke routing.
             PublishGuides(Copy, Layout.ResolvedEdgeGuides);
-            return new(Copy, Grids.Values.SingleOrDefault() ?? new(FlowchartLogicalGridConfiguration.FromRules()));
+            var CapturedGrid = Grids.Values.SingleOrDefault() ?? new(EmptyGrid?.Configuration ?? FlowchartLogicalGridConfiguration.FromRules());
+            if (Grids.Count == 0 && EmptyGrid != null)
+            {
+                var Cells = EmptyGrid.Capture();
+                CapturedGrid.Restore(new(CapturedGrid, Cells.Regions, Cells.ColumnGaps, Cells.RowGaps));
+                CapturedGrid.RegionConvention = EmptyGrid.RegionConventionSnapshot?.Invoke() ?? EmptyGrid.RegionConvention;
+                var Convention = CapturedGrid.RegionConvention;
+                CapturedGrid.RegionConventionSnapshot = () => Convention;
+            }
+            return new(Copy, CapturedGrid) { RoutingOrigin = Copy.Placed.FirstOrDefault()?.CellNode?.RoutingOrigin ?? 0 };
         }
 
         internal RetainedRoutingState Fork()
         {
-            var Copy = Capture(State.Contract, Layout);
+            var Copy = Capture(State.Contract, Layout, Grid);
             foreach (var Pair in UnpinnedOrigins) Copy.UnpinnedOrigins.Add(Pair.Key, Pair.Value);
             Copy.PortAllocationHistory = PortAllocationHistory;
+            Copy.RemovedNodeRegions = RemovedNodeRegions;
+            Copy.RoutingOrigin = RoutingOrigin;
             return Copy;
         }
 

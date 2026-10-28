@@ -20,6 +20,8 @@ public static partial class DiagramGridLayout
             RetainedRouteSnapshot Original = new(State);
             var OriginalContract = State.Contract;
             var Findings = ExistingFindings();
+            string? RemovalFailure = RemoveSourceNodes(Model);
+            if (RemovalFailure != null) return RemovalFailure;
             bool AddedNodes = Model.Nodes.Any(Node => !State.Nodes.ContainsKey(Node.Id));
             string? AdditionFailure = AddSourceNodes(Model);
             if (AdditionFailure != null) return AdditionFailure;

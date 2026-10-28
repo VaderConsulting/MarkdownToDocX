@@ -147,6 +147,15 @@ internal sealed class FlowchartLogicalGrid
         return true;
     }
 
+    internal bool TryRemove(string NodeId)
+    {
+        var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
+        if (!Candidate.Remove(NodeId) || !CheckRegionConvention(Candidate)) return false;
+        Current = new(this, Candidate, ColumnGaps, RowGaps);
+        Requirements.Remove(NodeId);
+        return true;
+    }
+
     /// <summary>Validates a complete repair assignment before changing any occupied cell.</summary>
     /// <param name="Changes">Existing node ids and their proposed complete rectangular regions.</param>
     /// <returns>False without mutation if a node is missing or any final regions share a cell.</returns>

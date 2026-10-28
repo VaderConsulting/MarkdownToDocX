@@ -174,7 +174,8 @@ internal static partial class EnterpriseBandPlacement
                 .Where(Item => Item.Partners.Length > 0 && !Item.Partners.Any(Hinted.Contains))
                 .Select(Item => (Item.Id, Item.Partners, Maximum: Math.Max(1,
                     Math.Abs(Targets[Item.Id].StartColumn - MedianColumn(Item.Partners, Targets)))))];
-            return Regions => Constraints.All(Item => Math.Abs(Regions[Item.Id].StartColumn - MedianColumn(Item.Partners, Regions)) <= Item.Maximum);
+            return Regions => Constraints.Where(Item => Regions.ContainsKey(Item.Id) && Item.Partners.All(Regions.ContainsKey))
+                .All(Item => Math.Abs(Regions[Item.Id].StartColumn - MedianColumn(Item.Partners, Regions)) <= Item.Maximum);
         }
 
         /// <summary>Resolves cross-band relationships to actual member identities, including declared frame endpoints.</summary>

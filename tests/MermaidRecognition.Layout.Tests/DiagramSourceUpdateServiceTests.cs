@@ -12,6 +12,49 @@ public sealed class DiagramSourceUpdateServiceTests
 {
     [TestCase(false)]
     [TestCase(true)]
+    public void NodeRemovalAndUndoRetainRegionsAndSurvivingGeometry(bool All)
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var Original = Parsed(Service);
+        var Model = Parsed(Service);
+        Model.NodesMutable.RemoveAll(Node => All || Node.Id == "B");
+        Model.EdgesMutable.RemoveAll(Edge => All || Edge.TargetId == "B");
+        AssertNoPlacement(() =>
+        {
+            var Candidate = Prepare(Service, 1, Model);
+            Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting), Candidate.FailureReason);
+            Commit(Service, Candidate);
+            Assert.That(Candidate.RebuiltRouteIds, Is.Empty);
+            if (All)
+            {
+                Assert.That(Service.CopySnapshot().Layout.CellNodes, Is.Empty);
+                Assert.That(Service.CopySnapshot().Layout.NodeBounds, Is.Empty);
+            }
+            else Assert.That(Component(Service.CopySnapshot().Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+            Commit(Service, Prepare(Service, 2, Original));
+            foreach (var Node in Before.Layout.CellNodes!) Assert.That(Region(Service, Node.Id), Is.EqualTo(Node.CellNode!.Region));
+        });
+        var After = Service.CopySnapshot();
+        Assert.That(FlowchartRouteRuleChecker.Check(After.Model, After.Layout), Is.Empty);
+        foreach (var Route in Before.Layout.EdgeRoutes)
+            Assert.That(After.Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Route.SourceId).Points.Select(Point => (Point.X, Point.Y)),
+                Is.EqualTo(Route.Points.Select(Point => (Point.X, Point.Y))));
+    }
+
+    [Test]
+    public void RemovingNodeWithDeclaredRelationshipsRejectsWithoutLosingGeometry()
+    {
+        var (Service, _, _) = Fixture();
+        string Before = Geometry(Service.CopySnapshot().Layout);
+        var Model = Parsed(Service); Model.NodesMutable.RemoveAll(Node => Node.Id == "B");
+        var Candidate = Prepare(Service, 1, Model);
+        Assert.That(Candidate.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Candidate.FailureReason, Does.Contain("declared relationships"));
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+    }
+    [TestCase(false)]
+    [TestCase(true)]
     public void SourceNodeAdditionRetainsExistingGeometryAndRoutesOnlyItsNewRelationship(bool ExplicitHint)
     {
         var (Service, _, _) = Fixture();
@@ -478,7 +521,7 @@ public sealed class DiagramSourceUpdateServiceTests
 
     [TestCase("direction")]
     [TestCase("label")]
-    [TestCase("node")]
+    [TestCase("shape")]
     [TestCase("font")]
     [TestCase("group")]
     [TestCase("edge-label")]
@@ -490,7 +533,7 @@ public sealed class DiagramSourceUpdateServiceTests
         {
             case "direction": Model.Direction = "LR"; break;
             case "label": Model.Nodes[0].Label = "larger label"; break;
-            case "node": Model.NodesMutable.RemoveAt(2); break;
+            case "shape": Model.Nodes[0].Shape = "circle"; break;
             case "font": Model.Nodes[0].InlineStyle.FontSize = 24; break;
             case "group": Model.GroupsMutable.Add(new() { Id = "G" }); break;
             case "edge-label": Model.Edges[0].Label = "new relationship label"; break;

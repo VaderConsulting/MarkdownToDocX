@@ -229,9 +229,10 @@ internal sealed class DiagramSourceUpdateService
         }
         if (Json(Groups(Old)) != Json(Groups(New))) { return Rebuild("Group structure, title or placement changed."); }
         var OldNodes = Old.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        if (OldNodes.Keys.Except(New.Nodes.Select(Node => Node.Id), StringComparer.Ordinal).Any())
+        var RemovedNodes = OldNodes.Keys.Except(New.Nodes.Select(Node => Node.Id), StringComparer.Ordinal).ToArray();
+        if (RemovedNodes.Length > 0 && (Old.Groups.Count != 0 || RemovedNodes.Any(Id => !string.IsNullOrEmpty(OldNodes[Id].ParentGroupId))))
         {
-            return Rebuild("Node removal requires an explicit construction operation.");
+            return Rebuild("Grouped node removal requires a containment construction operation.");
         }
         List<string> Hints = [];
         foreach (NodeContract Node in New.Nodes)
@@ -284,7 +285,7 @@ internal sealed class DiagramSourceUpdateService
             Edges.Add(Edge.Id!);
         }
         if (Json(StyleGeometry(Old)) != Json(StyleGeometry(New))) { return Rebuild("Presentation fonts, line widths or curves changed."); }
-        return new(Hints.Count != 0 || Edges.Count != 0 ? DiagramSourceUpdateKind.LocalRouting
+        return new(Hints.Count != 0 || Edges.Count != 0 || RemovedNodes.Length != 0 ? DiagramSourceUpdateKind.LocalRouting
             : Json(Paint(Old)) != Json(Paint(New)) ? DiagramSourceUpdateKind.Redraw : DiagramSourceUpdateKind.MetadataOnly,
             Hints.ToArray(), Edges.ToArray());
     }

@@ -12,6 +12,19 @@ namespace MermaidRecognition.Layout.Tests;
 public sealed class DiagramLayoutSessionTests
 {
     [Test]
+    public void RemovingNodeAlsoRemovesItsIncidentRelationshipsAtomically()
+    {
+        var Session = TwoComponents();
+        var Before = Session.CopyLayout();
+        var Candidate = Session.PrepareRemoveNode(0, "A");
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Commit(Session, Candidate);
+        Assert.That(Component(Session.CopyLayout(), "X", "Y"), Is.EqualTo(Component(Before, "X", "Y")));
+        Assert.That(Session.CopyLayout().NodeBounds.Any(Box => Box.NodeId == "A"), Is.False);
+        Assert.That(Session.CopyLayout().EdgeRoutes.Any(Route => Route.SourceId == "A"), Is.False);
+        Assert.That(Session.PrepareRemoveNode(0, "missing").FailureReason, Does.Contain("unknown"));
+    }
+    [Test]
     public void NecessarySiblingRedistributionAndItsUndoRestoreTheOriginalAllocation()
     {
         DiagramLayoutSession Session = new("slot-conflict", 0);
@@ -63,6 +76,7 @@ public sealed class DiagramLayoutSessionTests
     [TestCase("add")]
     [TestCase("reconnect")]
     [TestCase("remove")]
+    [TestCase("remove-node")]
     public void TimelineTopologyCommandsRequireANewSemanticConstraintSession(string Operation)
     {
         var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
@@ -76,6 +90,7 @@ public sealed class DiagramLayoutSessionTests
         {
             "add" => Session.PrepareAddRelationship(0, "new", Edge),
             "reconnect" => Session.PrepareReconnect(0, Contract.Edges[0].Id!, "before", "app"),
+            "remove-node" => Session.PrepareRemoveNode(0, "before"),
             _ => Session.PrepareRemoveRelationship(0, Contract.Edges[0].Id!)
         };
         Assert.That(Candidate.FailureReason, Does.Contain("semantic constraint"));
