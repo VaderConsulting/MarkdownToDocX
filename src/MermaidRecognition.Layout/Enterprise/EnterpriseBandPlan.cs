@@ -92,7 +92,8 @@ internal static partial class EnterpriseBandPlacement
         {
             foreach (var Group in Contract.Groups.Where(Group => Group.ParentGroupId == null)) Widths[Group.Id] = SizeFrame(Group.Id, 0);
             foreach (var Node in Nodes.Where(Node => Node.GroupId == null)) { Widths[Node.Id] = Original[Node.Id].ColumnSpan; Offsets[Node.Id] = 0; }
-            MaximumWidth = Nodes.GroupBy(Node => (Classes[Node.Id].Band, Rows[Node.Id])).Max(Group => Group.Sum(Node => Original[Node.Id].ColumnSpan));
+            MaximumWidth = Nodes.GroupBy((DiagramGridLayout.GridNode Node) => (Classes[Node.Id].Band, Rows[Node.Id]))
+                .Max(Group => Group.Sum(int (DiagramGridLayout.GridNode Node) => Original[Node.Id].ColumnSpan));
             var Targets = Original.ToDictionary(Pair => Pair.Key, Pair => new FlowchartCellRegion(Rows[Pair.Key], Offsets[Pair.Key], Pair.Value.RowSpan, Pair.Value.ColumnSpan), StringComparer.Ordinal);
             ObservePlacement("local-ranks", Wrap, Targets);
             StackBands(Targets);

@@ -71,8 +71,8 @@ public sealed class BandRowDriftMeasurements
             BeforeShared = OriginalFindings.Count(Finding => Finding.Rule == "5.1"),
             AfterShared = CandidateFindings.Count(Finding => Finding.Rule == "5.1"),
             NewFindings = CandidateFindings.Where(Finding => !OriginalFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject)),
-            LengthAdded = Candidate.EdgeRoutes.Sum(Route => Route.Points.Zip(Route.Points.Skip(1)).Sum(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y)))
-                - Layout.EdgeRoutes.Sum(Route => Route.Points.Zip(Route.Points.Skip(1)).Sum(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y)))
+            LengthAdded = Candidate.EdgeRoutes.Sum(Route => Route.Points.Zip(Route.Points.Skip(1)).Sum(double ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Pair) => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y)))
+                - Layout.EdgeRoutes.Sum(Route => Route.Points.Zip(Route.Points.Skip(1)).Sum(double ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Pair) => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y)))
         }));
         Assert.That(CellProductionParityTests.Snapshot(Contract, Layout), Is.EqualTo(Before));
     }

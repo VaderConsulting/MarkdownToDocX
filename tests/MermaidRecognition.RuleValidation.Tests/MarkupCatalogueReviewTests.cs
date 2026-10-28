@@ -62,7 +62,7 @@ public sealed class MarkupCatalogueReviewTests
         for (int A = 0; A < Paths.Length; A++) for (int B = A + 1; B < Paths.Length; B++)
             Crossings += FlowchartBranchRouteOrder.Intersections(Paths[A], Paths[B]).Crossings;
         double Length = Paths.Sum(Path => Enumerable.Range(1, Math.Max(0, Path.Length - 1))
-            .Sum(Index => Math.Sqrt(Math.Pow(Path[Index].X - Path[Index - 1].X, 2) + Math.Pow(Path[Index].Y - Path[Index - 1].Y, 2))));
+            .Sum(double (int Index) => Math.Sqrt(Math.Pow(Path[Index].X - Path[Index - 1].X, 2) + Math.Pow(Path[Index].Y - Path[Index - 1].Y, 2))));
         var Actual = new Measurement(Scenario.Id, Complete, Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)),
             Crossings, Length, Complete && Marked.Contains(Scenario.Id) ? CellProductionParityTests.Snapshot(Contract, Layout) : null);
         File.AppendAllText(Output, JsonSerializer.Serialize(Actual) + Environment.NewLine);

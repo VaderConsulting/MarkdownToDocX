@@ -60,7 +60,7 @@ public sealed class FinalRepairA117DiagnosticTests
                 FiveNine = Findings.Count(Finding => Finding.Rule == "5.9"), TotalFindings = Findings.Count,
                 SameFanCrossings = FanPairs.Values.Sum(), FanPairs,
                 Score = (double)Score.Cost, Length = Layout.EdgeRoutes.Sum(Route => Enumerable.Range(1, Math.Max(0, Route.Points.Count - 1))
-                    .Sum(Index => Math.Abs(Route.Points[Index].X - Route.Points[Index - 1].X) + Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y))) }));
+                    .Sum(double (int Index) => Math.Abs(Route.Points[Index].X - Route.Points[Index - 1].X) + Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y))) }));
         }
     }
 }

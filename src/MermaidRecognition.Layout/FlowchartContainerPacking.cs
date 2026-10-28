@@ -168,9 +168,9 @@ internal static class FlowchartContainerPacking
         (double Width, double Height) Extents(Position[] Positions) =>
             (Enumerable.Range(0, Units.Count).Max(Index => Positions[Index].X + WidthOf(Index)),
              Enumerable.Range(0, Units.Count).Max(Index => Positions[Index].Y + HeightOf(Index)));
-        double RowBalance(Position[] Positions) => Positions.Select(Position => Position.Y).Distinct()
-            .Sum(Y => Math.Pow(Enumerable.Range(0, Units.Count).Where(Index => Math.Abs(Positions[Index].Y - Y) < 0.01)
-                .Max(Index => Positions[Index].X + WidthOf(Index)), 2));
+        double RowBalance(Position[] Positions) => Positions.Select((Position Position) => Position.Y).Distinct()
+            .Sum(double (double Y) => Math.Pow(Enumerable.Range(0, Units.Count).Where((int Index) => Math.Abs(Positions[Index].Y - Y) < 0.01)
+                .Max<int, double>((int Index) => Positions[Index].X + WidthOf(Index)), 2));
         void NormalizeRows(Position[] Positions)
         {
             double NextY = 0;

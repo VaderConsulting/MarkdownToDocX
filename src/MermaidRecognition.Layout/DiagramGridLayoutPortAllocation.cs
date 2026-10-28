@@ -484,10 +484,10 @@ public static partial class DiagramGridLayout
             if (!Shared(Source) && !Shared(Target)) continue;
             var Affected = ByNode[Source.Box.Id].Concat(ByNode[Target.Box.Id]).Select(End => End.Route).Distinct().ToArray();
             if (Affected.Length > FlowchartLayoutRules.RepairChainLines) continue;
-            double Left = Affected.Min(Route => Route.Points.Min(Point => Point.X));
-            double Right = Affected.Max(Route => Route.Points.Max(Point => Point.X));
-            double Bottom = Affected.Min(Route => Route.Points.Min(Point => Point.Y));
-            double Top = Affected.Max(Route => Route.Points.Max(Point => Point.Y));
+            double Left = Affected.Min<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Min((FlowchartLayoutPoint Point) => Point.X));
+            double Right = Affected.Max<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Max((FlowchartLayoutPoint Point) => Point.X));
+            double Bottom = Affected.Min<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Min((FlowchartLayoutPoint Point) => Point.Y));
+            double Top = Affected.Max<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Max((FlowchartLayoutPoint Point) => Point.Y));
             var Nearby = ByRoute.Keys.Where(Route => Route.Points.Max(Point => Point.X) >= Left
                 && Route.Points.Min(Point => Point.X) <= Right && Route.Points.Max(Point => Point.Y) >= Bottom
                 && Route.Points.Min(Point => Point.Y) <= Top).ToArray();

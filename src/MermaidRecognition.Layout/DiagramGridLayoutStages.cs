@@ -1223,7 +1223,7 @@ public static partial class DiagramGridLayout
         private static double RouteLength((FlowchartLayoutEdgeRoute Route, (double X, double Y)[] Points,
             string ExitSide, string EntrySide, double ExitNormalX, double ExitNormalY,
             double EntryNormalX, double EntryNormalY)[] routes) => routes.Sum(route =>
-                Enumerable.Range(1, Math.Max(0, route.Points.Length - 1)).Sum(index =>
+                Enumerable.Range(1, Math.Max(0, route.Points.Length - 1)).Sum(double (int index) =>
                     Math.Abs(route.Points[index].X - route.Points[index - 1].X)
                     + Math.Abs(route.Points[index].Y - route.Points[index - 1].Y)));
 
