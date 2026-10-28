@@ -4,6 +4,7 @@ using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
+using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout.Tests;
 
@@ -11,6 +12,17 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramLayoutSessionTests
 {
+    [Test]
+    public void ALoopCannotReserveTheSamePointForBothEnds()
+    {
+        var Session = TwoComponents();
+        string Before = Geometry(Session.CopyLayout());
+        var Candidate = Session.PrepareAddRelationship(0, "loop", new() { SourceId = "A", TargetId = "A", RoutingHint = new()
+            { Leave = LayoutHintDirection.East, Enter = LayoutHintDirection.East, LeavePoint = 0, EnterPoint = 0 } });
+        Assert.That(Candidate.FailureReason, Does.Contain("same exact connection point"));
+        Assert.That(Session.TryCommit(Candidate, out _), Is.False);
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Before));
+    }
     [Test]
     public void RemovingNodeAlsoRemovesItsIncidentRelationshipsAtomically()
     {
@@ -372,15 +384,30 @@ public sealed class DiagramLayoutSessionTests
         });
     }
 
-    [Test]
-    public void UnsupportedSelfLoopReportsReasonAndLeavesCanvasExact()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void SelfLoopConstructionIsLocalAndRetainsIndependentGeometry(bool Labelled)
     {
         DiagramLayoutSession Session = TwoComponents();
-        string Before = Geometry(Session.CopyLayout());
-        var Candidate = Session.PrepareAddRelationship(0, "loop", new() { SourceId = "A", TargetId = "A" });
-        Assert.That(Candidate.FailureReason, Does.Contain("self-loop"));
-        Assert.That(Session.TryCommit(Candidate, out _), Is.False);
-        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Before));
+        var Before = Session.CopyLayout();
+        var Candidate = Session.PrepareAddRelationship(0, "loop", new() { SourceId = "A", TargetId = "A", Label = Labelled ? "retry work" : "" });
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Commit(Session, Candidate);
+        Assert.That(Component(Session.CopyLayout(), "X", "Y"), Is.EqualTo(Component(Before, "X", "Y")));
+        var Loop = Session.CopyLayout().EdgeRoutes.Single(Route => Route.EdgeId == "loop");
+        Assert.That(Loop.Points.Count, Is.GreaterThanOrEqualTo(4));
+        if (Labelled)
+        {
+            var Options = MermaidRecognition.Render.FlowchartRenderOptions.FromContract(Session.CopySnapshot().RoutingModel);
+            var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel("retry work", Options, Options.EdgeLabelFontSizePx);
+            double Horizontal = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Size, Options.EdgeLabelFontSizePx, true) + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+            double Vertical = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Size, Options.EdgeLabelFontSizePx, false) + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+            Assert.That(Loop.Points.Zip(Loop.Points.Skip(1)).Any(Pair => Pair.First.Y == Pair.Second.Y
+                ? Math.Abs(Pair.First.X - Pair.Second.X) >= Horizontal : Math.Abs(Pair.First.Y - Pair.Second.Y) >= Vertical), Is.True,
+                "the loop must reserve measured label space on a straight segment");
+        }
+        Assert.That(FlowchartRouteRuleChecker.Check(Session.CopySnapshot().RoutingModel, Session.CopyLayout()), Is.Empty);
+        Commit(Session, Session.PrepareRemoveRelationship(0, "loop"));
     }
 
     [Test]

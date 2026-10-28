@@ -51,7 +51,7 @@ internal sealed class PreviewRelationshipMove
         int Index = IndexAtLine(Document, Item.LineNumber);
         if (Index < 0 || Index >= Snapshot.Model.Edges.Count) return null;
         var Edge = Snapshot.Model.Edges[Index];
-        if (Edge.SourceId != Item.SourceId || Edge.TargetId != Item.TargetId || Edge.SourceId == Edge.TargetId) return null;
+        if (Edge.SourceId != Item.SourceId || Edge.TargetId != Item.TargetId) return null;
         var Route = Snapshot.Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Edge.Id);
         if (Route == null || Route.Points.Count < 2) return null;
         var Boxes = Snapshot.Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
@@ -84,9 +84,8 @@ internal sealed class PreviewRelationshipMove
         bool Allowed(string Id, bool SourceEnd)
         {
             string SourceId = SourceEnd ? Id : Edge.SourceId, TargetId = SourceEnd ? Edge.TargetId : Id;
-            if (SourceId == TargetId) return false;
             if (Relationship == null)
-                return (Document.Notes.ContainsKey(SourceId) || Document.Notes.ContainsKey(TargetId))
+                return SourceId != TargetId && (Document.Notes.ContainsKey(SourceId) || Document.Notes.ContainsKey(TargetId))
                     && !Document.PlainConnections.Any(Line => Line.LineNumber != Item.LineNumber && Line.SourceId == SourceId && Line.TargetId == TargetId);
             if (!Document.Elements.ContainsKey(SourceId) || !Document.Elements.ContainsKey(TargetId)) return false;
             string SourceType = EnterpriseElementCatalog.GetKebabName(Document.Elements[SourceId].ElementType);
@@ -104,6 +103,8 @@ internal sealed class PreviewRelationshipMove
                 .SelectMany(Other => new[] { (Id: Other.SourceId, Side: Other.RoutingHint!.Leave, Step: Other.RoutingHint.LeavePoint),
                     (Id: Other.TargetId, Side: Other.RoutingHint!.Enter, Step: Other.RoutingHint.EnterPoint) }).ToHashSet();
             return [.. Inventory.Where(Pair => Allowed(Pair.Key, SourceEnd)).SelectMany(Pair => Pair.Value)
+                .Where(Point => Point.NodeId != (SourceEnd ? Finish.NodeId : Start.NodeId)
+                    || Point.Direction != (SourceEnd ? Finish.Direction : Start.Direction) || Point.Step != (SourceEnd ? Finish.Step : Start.Step))
                 .Where(Point => !Reserved.Contains((Point.NodeId, (LayoutHintDirection?)Point.Direction, (int?)Point.Step)))];
         }
         return new(Source, Document, Snapshot, Index, Item.LineNumber, [Start, Finish], [Candidates(true), Candidates(false)]);

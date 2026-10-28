@@ -195,6 +195,8 @@ public static partial class DiagramGridLayout
                     Expanded.ExceptWith(Affected);
                     if (Expanded.Count != 0) { Affected.UnionWith(Expanded); continue; }
 
+                    string? LoopLabelFailure = FlowchartSelfLoopLabelRouteRepair.ApplyRetained(Layout, State.Contract, Bounds, Affected);
+                    if (LoopLabelFailure != null) return LoopLabelFailure;
                     FlowchartAllocatedPortFallback.PreparedGeometry Prepared = FlowchartAllocatedPortFallback.Prepare(State.Contract, Bounds);
                     foreach (FlowchartLayoutEdgeRoute Route in Affected)
                     {

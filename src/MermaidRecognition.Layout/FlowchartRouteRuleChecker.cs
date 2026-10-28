@@ -347,6 +347,9 @@ public static class FlowchartRouteRuleChecker
     private static void CheckAlignedStraight(EdgeContract edge, FlowchartLayoutEdgeRoute route,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> boxes, List<Finding> findings)
     {
+        // A self-relationship must leave and return around its own body even when
+        // its terminal coordinates align. Its other legality checks still apply.
+        if (edge.SourceId == edge.TargetId) return;
         FlowchartLayoutPoint a = route.Points[0], b = route.Points[^1];
         if ((Math.Abs(a.X - b.X) <= Tolerance || Math.Abs(a.Y - b.Y) <= Tolerance)
             && route.Points.Count != 2 && edge.RoutingHint == null)

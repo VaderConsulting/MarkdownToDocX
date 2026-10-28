@@ -12,6 +12,63 @@ internal static class FlowchartSelfLoopLabelRouteRepair
 {
     private sealed record Candidate(List<FlowchartLayoutPoint> Points, string Side, int Crossings, double Length);
 
+    internal static string? ApplyRetained(FlowchartLayoutResult Layout, DiagramContract Contract,
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, IReadOnlySet<FlowchartLayoutEdgeRoute> Affected)
+    {
+        var Loops = Affected.Where(Route => Route.SourceId == Route.TargetId && Route.Points.Count >= 2
+            && !string.IsNullOrWhiteSpace(DiagramGridLayout.FindContractEdge(Contract, Route)?.Label)).ToArray();
+        if (Loops.Length == 0) return null;
+        var Options = FlowchartRenderOptions.FromContract(Contract);
+        var Prepared = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds);
+        foreach (var Route in Loops)
+        {
+            var Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
+            if (string.IsNullOrWhiteSpace(Edge?.Label) || !Bounds.TryGetValue(Route.SourceId, out var Box)) continue;
+            var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label, Options, Options.EdgeLabelFontSizePx);
+            double H = RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Size, Options.EdgeLabelFontSizePx, true)
+                + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            double V = RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Size, Options.EdgeLabelFontSizePx, false)
+                + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            bool Fits(IReadOnlyList<FlowchartLayoutPoint> Points) => Points.Zip(Points.Skip(1)).Any(Pair =>
+                Math.Abs(Pair.First.Y - Pair.Second.Y) < 0.01 ? Math.Abs(Pair.First.X - Pair.Second.X) >= H - 0.01
+                    : Math.Abs(Pair.First.Y - Pair.Second.Y) >= V - 0.01);
+            if (Fits(Route.Points)) continue;
+            var Candidates = FixedPorts(Box, Route, H, V)
+                .Where(Item => Fits(Item.Points) && FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route, Tuples(Item.Points), Prepared)
+                    && NoWorse(Item.Points, Route, Layout, out _, out _)
+                    && (Edge.RoutingHint is not { IsActive: true, Travel: not null } Hint
+                        || DiagramGridRouteBuilder.HasTravelDirection(Tuples(Item.Points), Hint.Travel.Value)))
+                .Select(Item => { NoWorse(Item.Points, Route, Layout, out int Crossings, out _); return Item with { Crossings = Crossings }; })
+                .OrderBy(Item => Item.Crossings).ThenBy(Item => Item.Length).ThenBy(Item => Item.Side, StringComparer.Ordinal);
+            var Best = Candidates.FirstOrDefault();
+            if (Best == null) return "The self-relationship label needs more space than its fixed ports and neighboring routes permit.";
+            Route.Points.Clear(); Route.Points.AddRange(Best.Points.Select(Copy));
+        }
+        return null;
+    }
+
+    private static IEnumerable<Candidate> FixedPorts(FlowchartLayoutNodeBounds Box, FlowchartLayoutEdgeRoute Route, double H, double V)
+    {
+        int Side(string Side) => Side switch { "top" => 0, "right" => 1, "bottom" => 2, _ => 3 };
+        double Left = Box.CenterX - Box.Width / 2 - H, Right = Box.CenterX + Box.Width / 2 + H;
+        double Top = Box.CenterY + Box.Height / 2 + V, Bottom = Box.CenterY - Box.Height / 2 - V;
+        var Start = Route.Points[0]; var End = Route.Points[^1];
+        (double X, double Y) Outside(FlowchartLayoutPoint Point, int Edge) => Edge switch
+            { 0 => (Point.X, Top), 1 => (Right, Point.Y), 2 => (Point.X, Bottom), _ => (Left, Point.Y) };
+        int From = Side(Route.ExitSide), To = Side(Route.EntrySide);
+        foreach (int Step in new[] { 1, -1 })
+        {
+            List<(double X, double Y)> Path = [(Start.X, Start.Y), Outside(Start, From)];
+            for (int Index = From; Index != To; Index = (Index + Step + 4) % 4)
+            {
+                int Corner = Step > 0 ? Index : (Index + 3) % 4;
+                Path.Add(Corner switch { 0 => (Right, Top), 1 => (Right, Bottom), 2 => (Left, Bottom), _ => (Left, Top) });
+            }
+            Path.Add(Outside(End, To)); Path.Add((End.X, End.Y));
+            yield return New(Route.ExitSide, DiagramGridRouteBuilder.SimplifyCollinear(Path));
+        }
+    }
+
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract)
     {
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);

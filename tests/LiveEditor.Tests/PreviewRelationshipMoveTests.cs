@@ -16,6 +16,21 @@ namespace LiveEditor.Tests;
 [TestFixture, NonParallelizable, Apartment(ApartmentState.STA)]
 public sealed class PreviewRelationshipMoveTests
 {
+    [TestCase(LayoutHintDirection.North, LayoutHintDirection.North)]
+    [TestCase(LayoutHintDirection.East, LayoutHintDirection.West)]
+    [TestCase(LayoutHintDirection.South, LayoutHintDirection.North)]
+    public void LoopFeedbackStaysOrthogonalAndOutsideItsNode(LayoutHintDirection Leave, LayoutHintDirection Enter)
+    {
+        PointF Port(LayoutHintDirection Side, int Offset) => Side switch { LayoutHintDirection.North => new(50 + Offset, 0),
+            LayoutHintDirection.South => new(50 + Offset, 60), LayoutHintDirection.East => new(100, 30 + Offset), _ => new(0, 30 + Offset) };
+        var Box = new RectangleF(0, 0, 100, 60);
+        var Path = PreviewEndpointGhost.Loop(Box, Port(Leave, 0), Leave, Port(Enter, 15), Enter);
+        for (int Index = 1; Index < Path.Length; Index++)
+        {
+            Assert.That(Path[Index].X == Path[Index - 1].X || Path[Index].Y == Path[Index - 1].Y, Is.True);
+            Assert.That(Box.Contains(new PointF((Path[Index].X + Path[Index - 1].X) / 2, (Path[Index].Y + Path[Index - 1].Y) / 2)), Is.False);
+        }
+    }
     internal const string Source = "enterprise\napplication-component a\napplication-component b below a +3\n"
         + "application-component c right-of b +3\na -flow-> b \"keep [this] label\"\n";
 
@@ -71,7 +86,34 @@ public sealed class PreviewRelationshipMoveTests
         var (_, _, Move) = Fixture();
         Assert.That(Move.TryCreateEdit(false, Move.Original(false), out _, out _), Is.False);
         Assert.That(Move.TryCreateEdit(false, Move.Original(false) with { NodeId = "missing" }, out _, out _), Is.False);
-        Assert.That(Move.Targets(false).Any(Point => Point.NodeId == "a"), Is.False, "loops have no incremental construction operation");
+        Assert.That(Move.Targets(false).Any(Point => Point.NodeId == Move.Original(true).NodeId
+            && Point.Direction == Move.Original(true).Direction && Point.Step == Move.Original(true).Step), Is.False,
+            "the opposite endpoint's exact point cannot be reused");
+    }
+
+    [Test]
+    public void ReconnectingIntoALoopRetainsIdentityAndCanReconnectOutAgain()
+    {
+        var (Session, _, Move) = Fixture();
+        var Target = Move.Targets(false).First(Point => Point.NodeId == "a" && Point.Direction == LayoutHintDirection.East && Point.Step == 0);
+        Assert.That(Move.TryCreateEdit(false, Target, out var Edit, out var Reason), Is.True, Reason);
+        string Updated = Source[..Edit!.Start] + Edit.Replacement + Source[(Edit.Start + Edit.Length)..];
+        Session.Observe(2);
+        var Candidate = Session.Prepare(Updated, 2, EnterpriseValidator.Analyze(Updated), new() { EnableIncrementalRouting = true });
+        Assert.That(Candidate.Kind, Is.EqualTo("LocalRouting"));
+        Assert.That(Session.TryCommit(Candidate), Is.True);
+        var Index = PreviewHoverIndex.Build(Candidate.Svg, Updated);
+        var Loop = PreviewRelationshipMove.Create(Updated, Index.Objects.Single(Item => Item.Kind == PreviewObjectKind.Relationship),
+            Index.Objects, Session.CopyInteractionSnapshot()!)!;
+        Assert.That(Loop.Identity, Is.EqualTo(Move.Identity));
+        Assert.That(Loop.Targets(false).Any(Point => Point.NodeId == "b"), Is.True);
+        Assert.That(Loop.TryCreateEdit(false, Loop.Targets(false).First(Point => Point.NodeId == "b" && Point.Direction == LayoutHintDirection.North && Point.Step == 0),
+            out var Reconnect, out Reason), Is.True, Reason);
+        Updated = Updated[..Reconnect!.Start] + Reconnect.Replacement + Updated[(Reconnect.Start + Reconnect.Length)..];
+        Session.Observe(3);
+        Candidate = Session.Prepare(Updated, 3, EnterpriseValidator.Analyze(Updated), new() { EnableIncrementalRouting = true });
+        Assert.That(Session.TryCommit(Candidate), Is.True);
+        Assert.That(Session.CopyInteractionSnapshot()!.Model.Edges.Single().TargetId, Is.EqualTo("b"));
     }
 
     [TestCase(false)]

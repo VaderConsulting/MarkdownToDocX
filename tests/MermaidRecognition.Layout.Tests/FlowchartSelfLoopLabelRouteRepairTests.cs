@@ -7,6 +7,26 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartSelfLoopLabelRouteRepairTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AlignedLoopExemptionKeepsOrdinaryStraighteningAndOwnBodyChecks(bool Loop)
+    {
+        var Contract = new DiagramContract();
+        Contract.NodesMutable.Add(new() { Id = "a", Shape = "rect" });
+        Contract.NodesMutable.Add(new() { Id = "b", Shape = "rect" });
+        Contract.EdgesMutable.Add(new() { Id = "line", SourceId = "a", TargetId = Loop ? "a" : "b" });
+        var Layout = new FlowchartLayoutResult();
+        Layout.NodeBoundsMutable.Add(new() { NodeId = "a", CenterX = 0, CenterY = 0, Width = 100, Height = 60 });
+        Layout.NodeBoundsMutable.Add(new() { NodeId = "b", CenterX = 300, CenterY = 0, Width = 100, Height = 60 });
+        var Route = new FlowchartLayoutEdgeRoute { EdgeId = "line", SourceId = "a", TargetId = Loop ? "a" : "b", ExitSide = "right", EntrySide = "left" };
+        var Points = Loop ? new[] { (50d, 0d), (0d, 0d), (-50d, 0d) }
+            : new[] { (50d, 0d), (70d, 0d), (70d, 80d), (230d, 80d), (230d, 0d), (250d, 0d) };
+        foreach (var (X, Y) in Points) Route.Points.Add(new() { X = X, Y = Y });
+        Layout.EdgeRoutesMutable.Add(Route);
+        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        Assert.That(Findings.Any(Item => Item.Rule == "4.2"), Is.EqualTo(!Loop));
+        if (Loop) Assert.That(Findings.Any(Item => Item.Rule == "10" && Item.Description.Contains("node 'a'")), Is.True);
+    }
     [Test]
     public void LabelledSelfLoop_ChoosesABoxSideWithMeasuredLabelRoom()
     {

@@ -413,6 +413,17 @@ public static partial class DiagramGridLayout
                     ProfileCall("joint-crossing-pair-assignments", () => RouteRepairStage.RepairCrossingPairAssignments(State, Bounds));
                 }
             }
+            if (!State.Open)
+            {
+                var LabelledLoops = Layout.EdgeRoutes.Where(Route => Route.SourceId == Route.TargetId
+                    && !string.IsNullOrWhiteSpace(FindContractEdge(State.Contract, Route)?.Label)).ToHashSet();
+                if (LabelledLoops.Count > 0)
+                {
+                    string? Failure = FlowchartSelfLoopLabelRouteRepair.ApplyRetained(Layout, State.Contract, Bounds, LabelledLoops);
+                    if (Failure != null) Layout.RenderContext.LayoutStageViolations.Add(new FlowchartLayoutQualityFailure(
+                        "SelfLoopLabelSpace", Failure, LabelledLoops.Select(Route => Route.EdgeId).ToArray(), null));
+                }
+            }
             // Painting consumes this cache directly. Guides resolved before
             // final allocation/repair would draw superseded hooks and terminals
             // even though the returned routing model contains the winning path.

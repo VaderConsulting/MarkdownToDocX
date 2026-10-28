@@ -7,15 +7,15 @@ public partial class MainForm
 {
     private (string Name, Action Execute)[] RelationshipAddChoices()
     {
-        if (!CanEditRetainedPreview() || Preview.SelectedItems is not { Count: 2 } Selected
+        if (!CanEditRetainedPreview() || Preview.SelectedItems is not { Count: >= 1 and <= 2 } Selected
             || Selected.Any(Item => Item.Kind != PreviewObjectKind.Node)
             || _RetainedPreview.CopyInteractionSnapshot() is not { } Snapshot) return [];
-        string Source = CodeView.Editor.Text, From = Selected[0].Id, To = Selected[1].Id;
+        string Source = CodeView.Editor.Text, From = Selected[0].Id, To = Selected[^1].Id;
         string Document = Snapshot.DocumentId;
         var Kinds = PreviewRelationshipCommands.AllowedKinds(DocumentForCaret(Source), From, To);
-        if (Kinds.Count == 0 || !PreviewRelationshipCommands.TryAdd(Source, From, To, Kinds[0], Snapshot, out _, out _)) return [];
         return [.. Kinds
-            .Select(Kind => (Kind.Name, (Action)(() => AddPreviewRelationship(From, To, Kind, Source, Document))))];
+            .Where(Kind => PreviewRelationshipCommands.TryAdd(Source, From, To, Kind, Snapshot, out _, out _))
+            .Select(Kind => (Kind.Name + (From == To ? " to itself" : ""), (Action)(() => AddPreviewRelationship(From, To, Kind, Source, Document))))];
     }
 
     internal bool AddPreviewRelationship(string From, string To, PreviewRelationshipCommands.Kind Kind, string Source, string Document)

@@ -9,6 +9,32 @@ namespace LiveEditor.Tests;
 
 public sealed partial class RetainedEnterprisePreviewTests
 {
+    [Test]
+    public void SingleNodeRelationshipMenuCreatesOneUndoableSelfRelationship()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            Preview.SelectedItems = [Preview.Items.Single(Item => Item.Id == "a" && Item.Kind == PreviewObjectKind.Node)];
+            var Choice = Preview.RelationshipAdds!().Single(Item => Item.Name == "flow to itself");
+            int Generation = Form.DiagramMetadata.Generation;
+            Choice.Execute();
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));
+            Assert.That(Editor.Text, Does.Contain("a -flow-> a [leave"));
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo("a"));
+            string Added = Preview.RenderedSvg!;
+            Editor.Undo(); Wait(() => Preview.RenderedSvg == Initial);
+            Editor.Redo(); Wait(() => Preview.RenderedSvg == Added);
+        }
+        finally { Restore(Previous); }
+    }
     [TestCase(false)]
     [TestCase(true)]
     public void ConstructionCanStartEmptyRemoveEverythingAndUndo(bool InitiallyEmpty)

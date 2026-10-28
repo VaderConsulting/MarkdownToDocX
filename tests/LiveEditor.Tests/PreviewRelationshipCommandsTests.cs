@@ -94,7 +94,7 @@ public sealed class PreviewRelationshipCommandsTests
     {
         var (Session, Svg) = Fixture(Source);
         var Document = EnterpriseValidator.Analyze(Source).Document;
-        Assert.That(PreviewRelationshipCommands.AllowedKinds(Document, "a", "a"), Is.Empty);
+        Assert.That(PreviewRelationshipCommands.AllowedKinds(Document, "missing", "missing"), Is.Empty);
         Assert.That(PreviewRelationshipCommands.AllowedKinds(Document, "a", "b").Any(Kind => Kind.Relationship == EnterpriseRelationshipKind.Flow), Is.False);
         var Item = PreviewHoverIndex.Build(Svg, Source).Objects.First(Item => Item.Kind == PreviewObjectKind.Relationship);
         Item.TargetId = "missing";

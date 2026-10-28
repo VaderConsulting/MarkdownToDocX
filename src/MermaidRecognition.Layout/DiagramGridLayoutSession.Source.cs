@@ -88,7 +88,6 @@ public static partial class DiagramGridLayout
                     Layout.EdgeRoutesMutable.Remove(Removed);
                     continue;
                 }
-                if (Edge.SourceId == Edge.TargetId) { return "Incremental self-loop construction is not supported yet."; }
                 if (!State.Nodes.ContainsKey(Edge.SourceId) || !State.Nodes.ContainsKey(Edge.TargetId))
                 {
                     return "Both relationship endpoints must already be placed nodes.";

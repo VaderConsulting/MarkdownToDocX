@@ -62,7 +62,6 @@ public static partial class DiagramGridLayout
             {
                 return "Both relationship endpoints must already be placed.";
             }
-            if (Relationship.SourceId == Relationship.TargetId) { return "Incremental self-loop construction is not supported yet."; }
             if (IsTimelineConstraint(Relationship)) return "Plateau triggering topology changes require a new semantic constraint session.";
             if (string.Equals(Relationship.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             {
@@ -77,14 +76,15 @@ public static partial class DiagramGridLayout
             FlowchartLayoutEdgeRoute Route = new() { EdgeId = Identity, SourceId = Edge.SourceId, TargetId = Edge.TargetId };
             SeedTerminals(Route);
             Layout.EdgeRoutesMutable.Add(Route);
-            return Complete(Original, Findings, [Route], RouteLimit, out AffectedIds, out RebuiltIds);
+            var Affected = ChangedTopologyRoutes(Original.Contract);
+            Affected.Add(Route);
+            return Complete(Original, Findings, Affected, RouteLimit, out AffectedIds, out RebuiltIds);
         }
 
         internal string? TryReconnect(string Identity, string SourceId, string TargetId, int RouteLimit,
             out string[] AffectedIds, out string[] RebuiltIds)
         {
             AffectedIds = []; RebuiltIds = [];
-            if (SourceId == TargetId) { return "Incremental self-loop construction is not supported yet."; }
             if (!State.Nodes.ContainsKey(SourceId) || !State.Nodes.ContainsKey(TargetId)) { return "Both reconnect endpoints must already be placed."; }
             var Edge = State.Contract.Edges.SingleOrDefault(Edge => Edge.Id == Identity);
             var Route = Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Identity);
@@ -102,7 +102,9 @@ public static partial class DiagramGridLayout
             Edge.SourceId = SourceId; Edge.TargetId = TargetId;
             Route.SourceId = SourceId; Route.TargetId = TargetId;
             SeedTerminals(Route);
-            return Complete(Original, Findings, [Route], RouteLimit, out AffectedIds, out RebuiltIds);
+            var Affected = ChangedTopologyRoutes(Original.Contract);
+            Affected.Add(Route);
+            return Complete(Original, Findings, Affected, RouteLimit, out AffectedIds, out RebuiltIds);
         }
 
         internal string? TryChangePorts(string Identity, RoutingHintContract Ports, int RouteLimit,

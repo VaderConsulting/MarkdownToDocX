@@ -111,10 +111,20 @@ internal sealed partial class PreviewCanvas
             Canvas.DrawLine(Handle, Point.X - 3, Point.Y, Point.X + 3, Point.Y);
             Canvas.DrawLine(Handle, Point.X, Point.Y - 3, Point.X, Point.Y + 3);
         }
-        PointF Fixed = Project(Move.Original(!_MovingSource).Point);
+        var FixedEnd = Move.Original(!_MovingSource);
+        PointF Fixed = Project(FixedEnd.Point);
         PointF Drop = _EndpointTarget is { } Target ? Project(Target.Point) : _EndpointPointer;
         using Pen Ghost = new(_EndpointTarget == null ? Color.Gray : _SelectionColour, 2) { DashStyle = DashStyle.Dash };
-        Canvas.DrawLines(Ghost, [Fixed, new(Fixed.X, (Fixed.Y + Drop.Y) / 2), new(Drop.X, (Fixed.Y + Drop.Y) / 2), Drop]);
+        PointF[] Path = [Fixed, new(Fixed.X, (Fixed.Y + Drop.Y) / 2), new(Drop.X, (Fixed.Y + Drop.Y) / 2), Drop];
+        if (_EndpointTarget is { } Snapped && Snapped.NodeId == FixedEnd.NodeId
+            && Index?.FindObject("node\u001f" + Snapped.NodeId) is { } Node)
+        {
+            var TopLeft = Project(new((float)Node.Left, (float)Node.Top));
+            var BottomRight = Project(new((float)Node.Right, (float)Node.Bottom));
+            Path = PreviewEndpointGhost.Loop(RectangleF.FromLTRB(TopLeft.X, TopLeft.Y, BottomRight.X, BottomRight.Y),
+                Fixed, FixedEnd.Direction, Drop, Snapped.Direction);
+        }
+        Canvas.DrawLines(Ghost, Path);
         if (_EndpointTarget != null) Canvas.DrawEllipse(Handle, Drop.X - 7, Drop.Y - 7, 14, 14);
     }
 }

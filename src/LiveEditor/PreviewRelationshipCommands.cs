@@ -17,9 +17,9 @@ internal static class PreviewRelationshipCommands
 
     internal static IReadOnlyList<Kind> AllowedKinds(EnterpriseDocument Document, string Source, string Target)
     {
-        if (Source == Target || !Ungrouped(Document, Source) || !Ungrouped(Document, Target)) return [];
+        if (!Ungrouped(Document, Source) || !Ungrouped(Document, Target)) return [];
         if (Document.Notes.ContainsKey(Source) || Document.Notes.ContainsKey(Target))
-            return Document.PlainConnections.Any(Line => Line.SourceId == Source && Line.TargetId == Target) ? [] : [new(null, "Note connection")];
+            return Source == Target || Document.PlainConnections.Any(Line => Line.SourceId == Source && Line.TargetId == Target) ? [] : [new(null, "Note connection")];
         string Letters = EnterpriseRulesCatalog.Instance.GetAllowedLetters(Document.Version,
             EnterpriseElementCatalog.GetKebabName(Document.Elements[Source].ElementType), EnterpriseElementCatalog.GetKebabName(Document.Elements[Target].ElementType));
         return [.. EnterpriseElementCatalog.Relationships.Values.Where(Kind => Letters.Contains(Kind.Letter)
@@ -39,14 +39,14 @@ internal static class PreviewRelationshipCommands
     internal static bool TryAdd(string Source, string From, string To, Kind Kind, DiagramSourceUpdateService.Snapshot Snapshot,
         out Edit? Change, out string Reason)
     {
-        Change = null; Reason = "Choose two eligible nodes, source first, and an allowed relationship type.";
+        Change = null; Reason = "Choose an eligible node for a self-relationship, or two nodes source first, and an allowed type.";
         if (Snapshot.IsStale || Snapshot.SourceText != Source) return false;
         var Analysis = EnterpriseValidator.Analyze(Source);
         if (Analysis.HasErrors || !AllowedKinds(Analysis.Document, From, To).Any(Allowed => Allowed.Relationship == Kind.Relationship)) return false;
         var Boxes = Snapshot.Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         var Nodes = Snapshot.Model.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         if (!Boxes.TryGetValue(From, out var A) || !Boxes.TryGetValue(To, out var B)) return false;
-        FlowchartConnectionPoint? FreePoint(string Id, FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other)
+        FlowchartConnectionPoint? FreePoint(string Id, FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other, FlowchartConnectionPoint? Reserved = null)
         {
             var Occupied = Snapshot.Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2)
                 .SelectMany(Route => new[] { (Id: Route.SourceId, Point: Route.Points[0]), (Id: Route.TargetId, Point: Route.Points[^1]) })
@@ -56,10 +56,11 @@ internal static class PreviewRelationshipCommands
                 : Dy >= 0 ? LayoutHintDirection.North : LayoutHintDirection.South;
             return FlowchartConnectionPoints.ForNode(Nodes[Id], Box)
                 .Where(Point => !Occupied.Any(End => Math.Abs(End.X - Point.X) < 0.51 && Math.Abs(End.Y - Point.Y) < 0.51))
+                .Where(Point => !Reserved.HasValue || Math.Abs(Reserved.Value.X - Point.X) >= 0.51 || Math.Abs(Reserved.Value.Y - Point.Y) >= 0.51)
                 .OrderBy(Point => Point.Direction != Facing).ThenBy(Point => Math.Abs(Point.Step)).ThenBy(Point => Point.Step)
                 .Select(Point => (FlowchartConnectionPoint?)Point).FirstOrDefault();
         }
-        var Leave = FreePoint(From, A, B); var Enter = FreePoint(To, B, A);
+        var Leave = FreePoint(From, A, B); var Enter = FreePoint(To, B, A, From == To ? Leave : null);
         if (Leave == null || Enter == null) { Reason = "The selected nodes have no free eligible connection points."; return false; }
         static string Endpoint(FlowchartConnectionPoint Point) => (Point.Direction switch { LayoutHintDirection.North => "N", LayoutHintDirection.South => "S",
             LayoutHintDirection.East => "E", _ => "W" }) + "@" + Point.Step.ToString(CultureInfo.InvariantCulture);
