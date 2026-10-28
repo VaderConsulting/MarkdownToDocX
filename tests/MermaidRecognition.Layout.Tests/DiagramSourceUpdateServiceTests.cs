@@ -10,6 +10,53 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramSourceUpdateServiceTests
 {
+    [Test]
+    public void RelationshipTextUsesStableIdentityAndLeavesRoutingToMeasuredDependencies()
+    {
+        var (Service, _, _) = Fixture();
+        string Before = Geometry(Service.CopySnapshot().Layout);
+        var Model = Parsed(Service);
+        Model.Edges[0].Label = "Changed relationship text";
+        AssertNoPlacement(() =>
+        {
+            var Update = Prepare(Service, 1, Model);
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.Redraw));
+            Assert.That(Update.ChangedLabelIds, Is.EqualTo(new[] { "relationship:1" }));
+            Assert.That(Update.AffectedRouteIds, Is.EqualTo(Update.ChangedLabelIds));
+            Assert.That(Update.RebuiltRouteIds, Is.Empty);
+            Commit(Service, Update);
+        });
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+        Service.ObserveSourceRevision(2);
+        var Dependency = Service.Prepare("document", 2, "measured dependency", Parsed(Service), Service.Options,
+            AdditionalRouteSeeds: new[] { "relationship:1" });
+        Assert.That(Dependency.RebuiltRouteIds, Is.EqualTo(new[] { "relationship:1" }));
+        Commit(Service, Dependency);
+    }
+
+    [Test]
+    public void RecordedRoutesCannotOverrideChangedBodyGeometryOrMandatoryPoints()
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        var Recorded = RetainedRouteCheckpoint.Capture(Before.Model, Before.Layout, null);
+        var Model = Parsed(Service);
+        Node(Model, "B").PlacementHint = Below("A", 3);
+        Service.ObserveSourceRevision(1);
+        var Moved = Service.Prepare("document", 1, "moved", Model, Service.Options, RestoreRoutes: Recorded);
+        Assert.That(Moved.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Moved.FailureReason, Does.Contain("different node/cell geometry"));
+        Assert.That(Service.TryCommit(Moved, out _), Is.False);
+        Model = Parsed(Service);
+        Model.Edges[0].RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 1 };
+        Service.ObserveSourceRevision(2);
+        var Pinned = Service.Prepare("document", 2, "pinned", Model, Service.Options, RestoreRoutes: Recorded);
+        Assert.That(Pinned.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Pinned.FailureReason, Is.Not.Null);
+        Assert.That(Service.TryCommit(Pinned, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Geometry(Before.Layout)));
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void ForeignNodeMoveOrResizeCannotEnterFrozenGroupSpace(bool Resize)
@@ -598,7 +645,7 @@ public sealed class DiagramSourceUpdateServiceTests
     [TestCase("shape")]
     [TestCase("font")]
     [TestCase("group")]
-    [TestCase("edge-label")]
+    [TestCase("edge-marker")]
     public void UnsupportedChangesRequestExplicitRebuildWithoutExecutingIt(string Change)
     {
         var (Service, _, _) = Fixture();
@@ -610,7 +657,7 @@ public sealed class DiagramSourceUpdateServiceTests
             case "shape": Model.Nodes[0].Shape = "circle"; break;
             case "font": Model.Nodes[0].InlineStyle.FontSize = 24; break;
             case "group": Model.GroupsMutable.Add(new() { Id = "G" }); break;
-            case "edge-label": Model.Edges[0].Label = "new relationship label"; break;
+            case "edge-marker": Model.Edges[0].MarkerEnd = EdgeEndpointMarker.Circle; break;
         }
         string Before = Geometry(Service.CopySnapshot().Layout);
         AssertNoPlacement(() =>

@@ -7,7 +7,7 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace MermaidRecognition.Layout.Enterprise;
 
 /// <summary>Wraps relationship text and staggers competing labels along straight runs.</summary>
-internal static class EnterpriseRelationshipLabelLayout
+internal static partial class EnterpriseRelationshipLabelLayout
 {
     private const double FontSize = 12;
     private const double Clearance = 6;
@@ -17,30 +17,41 @@ internal static class EnterpriseRelationshipLabelLayout
     /// <param name="Nodes">Fixed painted node bounds used for label clearance.</param>
     /// <param name="PreferFanLeafRuns">Whether production-cell fans reserve the leaf-side run before trying other segments.</param>
     /// <param name="PreserveRoutes">Whether label placement must keep every supplied path and terminal unchanged.</param>
+    /// <param name="FrozenLabels">Committed text placements outside the current dependency set.</param>
     internal static void Place(List<EnterpriseRoutedEdge> Edges,
-        Dictionary<string, EnterpriseLayoutNode> Nodes, bool PreferFanLeafRuns = false, bool PreserveRoutes = false)
+        Dictionary<string, EnterpriseLayoutNode> Nodes, bool PreferFanLeafRuns = false, bool PreserveRoutes = false,
+        IReadOnlyDictionary<string, EnterpriseLabelPlacement>? FrozenLabels = null)
     {
         Dictionary<string, int> Degree = Edges.SelectMany(Edge => new[] { Edge.Relationship.SourceId, Edge.Relationship.TargetId })
             .GroupBy(Id => Id).ToDictionary(Group => Group.Key, Group => Group.Count(), StringComparer.Ordinal);
         foreach (EnterpriseRoutedEdge Edge in Edges)
         {
+            double FontSize = Edge.LabelFontSize;
             Edge.LabelLines = Wrap(Edge.Label);
             Edge.LabelWidth = Edge.LabelLines.Count == 0 ? 0 : Edge.LabelLines.Max(Line =>
                 Line.Length * FontSize * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM);
-            Edge.LabelHeight = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : FontSize + (15 * (Edge.LabelLines.Count - 1));
+            Edge.LabelHeight = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : FontSize + (FontSize * 1.25 * (Edge.LabelLines.Count - 1));
         }
         List<EnterpriseRoutedEdge> Placed = [];
+        if (FrozenLabels != null)
+            foreach (var Edge in Edges.Where(Edge => FrozenLabels.TryGetValue(Edge.Identity, out var Label) && Label.Text == Edge.Label))
+            {
+                var Label = FrozenLabels[Edge.Identity];
+                Edge.LabelX = Label.X; Edge.LabelY = Label.Y; Edge.LabelWidth = Label.Width; Edge.LabelHeight = Label.Height;
+                Edge.LabelLines = Label.Lines.ToList(); Edge.LabelBreak = Label.Break; Placed.Add(Edge);
+            }
         // Reserve the most constrained text first. Stable ordering resolves equal sizes.
-        foreach (EnterpriseRoutedEdge? Edge in Edges.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label))
+        foreach (EnterpriseRoutedEdge? Edge in Edges.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label) && !Placed.Contains(Edge))
             .OrderByDescending(Edge => Edge.LabelWidth * Edge.LabelHeight))
         {
+            double FontSize = Edge.LabelFontSize;
             FlowchartEdgeLabelGapHelper.LabelSegmentBreak? Preferred = null;
             bool Found = false;
             foreach (int WrapWidth in new[] { 32, 24, 16, 8 })
             {
                 Edge.LabelLines = Wrap(Edge.Label, WrapWidth);
                 Edge.LabelWidth = Edge.LabelLines.Max(Line => Line.Length * FontSize * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM);
-                Edge.LabelHeight = FontSize + (15 * (Edge.LabelLines.Count - 1));
+                Edge.LabelHeight = FontSize + (FontSize * 1.25 * (Edge.LabelLines.Count - 1));
                 FlowchartLabelDimensions Dimensions = new FlowchartLabelDimensions { DisplayText = string.Join("\n", Edge.LabelLines),
                     Width = Edge.LabelWidth, Height = Edge.LabelHeight };
                 FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(Edge.SvgPoints, Dimensions, FontSize, out Preferred);
@@ -81,7 +92,7 @@ internal static class EnterpriseRelationshipLabelLayout
 
                         double X = A.X + ((B.X - A.X) * Along / Length);
                         double Y = A.Y + ((B.Y - A.Y) * Along / Length);
-                        if (!IsClear(X, Y, Edge.LabelWidth, Edge.LabelHeight, Nodes, Placed))
+                        if (!IsClear(X, Y, Edge.LabelWidth, Edge.LabelHeight, Nodes, Placed, AllowNegativeCoordinates: PreserveRoutes))
                         {
                             continue;
                         }
@@ -343,9 +354,9 @@ internal static class EnterpriseRelationshipLabelLayout
     }
 
     private static bool IsClear(double X, double Y, double Width, double Height,
-        Dictionary<string, EnterpriseLayoutNode> Nodes, List<EnterpriseRoutedEdge> Placed)
+        Dictionary<string, EnterpriseLayoutNode> Nodes, List<EnterpriseRoutedEdge> Placed, bool AllowNegativeCoordinates = false)
     {
-        if (X - (Width / 2) < Clearance || Y - (Height / 2) < Clearance)
+        if (!AllowNegativeCoordinates && (X - (Width / 2) < Clearance || Y - (Height / 2) < Clearance))
         {
             return false;
         }

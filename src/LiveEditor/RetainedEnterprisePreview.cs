@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
 using MermaidRecognition.Contract;
@@ -17,6 +19,9 @@ internal sealed class RetainedEnterprisePreview
     private FlowchartSvgCoordinateFrame? Frame;
     private string? PresentationGeometry;
     private string? Paint;
+    private EnterpriseLabelSnapshot Labels = EnterpriseLabelSnapshot.Empty;
+    private ImmutableDictionary<string, RetainedLabelScene> LabelHistory = ImmutableDictionary<string, RetainedLabelScene>.Empty;
+    private RetainedLabelScene? LabelScene;
     private long Revision;
     private long AcceptedRevision;
     private bool Retired;
@@ -52,12 +57,17 @@ internal sealed class RetainedEnterprisePreview
         FlowchartSvgCoordinateFrame? CurrentFrame;
         string? PreviousPresentation;
         string? PreviousPaint;
+        EnterpriseLabelSnapshot PreviousLabels;
+        ImmutableDictionary<string, RetainedLabelScene> History;
+        RetainedLabelScene? PreviousScene;
         long BaseRevision;
         lock (Gate)
         {
             if (Retired || Revision != SourceRevision) throw new OperationCanceledException();
             Current = Service; CurrentFrame = Frame; PreviousPresentation = PresentationGeometry;
             PreviousPaint = Paint; BaseRevision = AcceptedRevision;
+            PreviousLabels = Labels;
+            History = LabelHistory; PreviousScene = LabelScene;
         }
         if (Analysis.HasErrors)
             throw new InvalidOperationException(string.Join(" ", Analysis.Errors.Select(Error => Error.Message)));
@@ -116,15 +126,53 @@ internal sealed class RetainedEnterprisePreview
             Snapshot = CandidateService.CopyCandidateSnapshot(Update!);
             CandidateFrame = CurrentFrame!;
         }
-        if (!EnterpriseFlowchartEdgeRouter.TryBuildRetainedContext(Snapshot.Model, Snapshot.Layout, CandidateFrame, out var Geometry))
-            throw new InvalidOperationException("The accepted geometry could not be drawn.");
-
-        string Svg = EnterpriseSvgRenderer.RenderRetained(Analysis.Document, Geometry);
+        string Svg;
+        EnterpriseLabelSnapshot CandidateLabels;
+        string SceneKey = RetainedLabelScene.Key(Snapshot, Presentation, CandidateFrame);
+        RetainedLabelScene? Known = Rebuild ? null : History.GetValueOrDefault(SceneKey);
+        if (Known != null && (Known.Routes.Routes.Count != Snapshot.Layout.EdgeRoutes.Count
+            || Snapshot.Layout.EdgeRoutes.Any(Route => !Known.Routes.Routes.TryGetValue(Route.EdgeId, out var Old) || !Old.Matches(Route))))
+        {
+            Update = Current!.Prepare(DocumentId, SourceRevision, Source, Model, Options, CapturePlacementOrigins: true, RestoreRoutes: Known.Routes);
+            if (Update.FailureReason != null) throw new InvalidOperationException(Update.FailureReason);
+            Snapshot = CandidateService.CopyCandidateSnapshot(Update);
+        }
+        HashSet<string> LabelDependencies = new(StringComparer.Ordinal);
+        var PreviousIssues = (Known?.Labels ?? PreviousLabels).Issues.ToDictionary(Issue => Issue.Key, StringComparer.Ordinal);
+        while (true)
+        {
+            if (!EnterpriseFlowchartEdgeRouter.TryBuildRetainedContext(Snapshot.Model, Snapshot.Layout, CandidateFrame, out var Geometry))
+                throw new InvalidOperationException("The accepted geometry could not be drawn.");
+            var Affected = Update?.AffectedRouteIds.ToHashSet(StringComparer.Ordinal) ?? [];
+            var Frozen = Rebuild ? null : Known?.Labels.Placements ?? PreviousLabels.Placements.RemoveRange(Affected);
+            Svg = EnterpriseSvgRenderer.RenderRetained(Analysis.Document, Geometry, Frozen, out CandidateLabels);
+            if (Rebuild) break;
+            var ChangedLabels = Update!.ChangedLabelIds.ToHashSet(StringComparer.Ordinal);
+            var NewIssues = CandidateLabels.Issues.Where(Issue => (Known == null && ChangedLabels.Contains(Issue.Identity))
+                || !PreviousIssues.TryGetValue(Issue.Key, out var Old) || Issue.Severity > Old.Severity + 0.01).ToArray();
+            if (NewIssues.Length == 0) break;
+            var Present = Snapshot.Model.Edges.Select(Edge => Edge.Id!).ToHashSet(StringComparer.Ordinal);
+            string[] Witnesses = NewIssues.SelectMany(Issue => Issue.OtherIsRoute && Issue.OtherIdentity != null
+                    ? new[] { Issue.Identity, Issue.OtherIdentity } : new[] { Issue.Identity })
+                .Where(Id => Present.Contains(Id) && !Update.RebuiltRouteIds.Contains(Id)).Distinct(StringComparer.Ordinal).ToArray();
+            if (Witnesses.Length == 0 || Witnesses.All(LabelDependencies.Contains))
+                throw new InvalidOperationException("The retained label update cannot be placed legally: " + NewIssues[0].Message);
+            LabelDependencies.UnionWith(Witnesses);
+            if (LabelDependencies.Count > FlowchartLayoutRules.RepairChainLines)
+                throw new InvalidOperationException("Label dependencies exceed the local route limit.");
+            Update = Current!.Prepare(DocumentId, SourceRevision, Source, Model, Options, CapturePlacementOrigins: true,
+                AdditionalRouteSeeds: LabelDependencies);
+            if (Update.FailureReason != null) throw new InvalidOperationException(Update.FailureReason);
+            Snapshot = CandidateService.CopyCandidateSnapshot(Update);
+            Known = null;
+        }
+        var Scene = new RetainedLabelScene(RetainedRouteCheckpoint.Capture(Snapshot.Model, Snapshot.Layout,
+            Known?.Routes ?? PreviousScene?.Routes), CandidateLabels);
         return new(this, SourceRevision, BaseRevision, Source, Svg, CandidateService, Update, CandidateFrame,
             Presentation, NextPaint, Rebuild, RebuildReason,
             Rebuild ? "InitialLayout" : Update!.Kind == DiagramSourceUpdateKind.MetadataOnly && NextPaint != PreviousPaint
                 ? "Redraw" : Update.Kind.ToString(),
-            Update?.AffectedRouteIds.ToArray() ?? [], Update?.RebuiltRouteIds.ToArray() ?? []);
+            Update?.AffectedRouteIds.ToArray() ?? [], Update?.RebuiltRouteIds.ToArray() ?? [], CandidateLabels, SceneKey, Scene);
     }
 
     internal bool TryCommit(Prepared Candidate)
@@ -138,6 +186,10 @@ internal sealed class RetainedEnterprisePreview
             Service = Candidate.CandidateService; Frame = Candidate.Frame;
             PresentationGeometry = Candidate.Presentation;
             Paint = Candidate.Paint;
+            Labels = Candidate.Labels;
+            LabelScene = Candidate.Scene;
+            LabelHistory = (Candidate.Rebuild ? ImmutableDictionary<string, RetainedLabelScene>.Empty : LabelHistory)
+                .SetItem(Candidate.SceneKey, Candidate.Scene);
             AcceptedRevision++;
             Candidate.Committed = true;
             return true;
@@ -194,7 +246,7 @@ internal sealed class RetainedEnterprisePreview
     internal sealed record Prepared(RetainedEnterprisePreview Owner, long SourceRevision, long BaseRevision, string Source, string Svg,
         DiagramSourceUpdateService CandidateService, DiagramSourceUpdateService.Update? Update,
         FlowchartSvgCoordinateFrame Frame, string Presentation, string Paint, bool Rebuild, string? RebuildReason,
-        string Kind, string[] AffectedRouteIds, string[] RebuiltRouteIds)
+        string Kind, string[] AffectedRouteIds, string[] RebuiltRouteIds, EnterpriseLabelSnapshot Labels, string SceneKey, RetainedLabelScene Scene)
     {
         internal bool Committed { get; set; }
     }

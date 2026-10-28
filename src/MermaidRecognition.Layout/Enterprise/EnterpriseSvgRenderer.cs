@@ -93,12 +93,23 @@ public static partial class EnterpriseSvgRenderer
     internal static string RenderRetained(EnterpriseDocument Document, EnterpriseFlowchartRoutingContext Geometry)
         => Finish(Document, BuildDrawing(Document, EnterpriseLayoutEngine.FromGeometry(Document, Geometry), true));
 
-    private static string BuildDrawing(EnterpriseDocument Document, EnterpriseLayoutResult Layout, bool Retained = false)
+    internal static string RenderRetained(EnterpriseDocument Document, EnterpriseFlowchartRoutingContext Geometry,
+        IReadOnlyDictionary<string, EnterpriseLabelPlacement>? FrozenLabels, out EnterpriseLabelSnapshot Labels)
+    {
+        EnterpriseLabelSnapshot Captured = EnterpriseLabelSnapshot.Empty;
+        string Drawing = BuildDrawing(Document, EnterpriseLayoutEngine.FromGeometry(Document, Geometry), true, FrozenLabels, Value => Captured = Value);
+        Labels = Captured;
+        return Finish(Document, Drawing);
+    }
+
+    private static string BuildDrawing(EnterpriseDocument Document, EnterpriseLayoutResult Layout, bool Retained = false,
+        IReadOnlyDictionary<string, EnterpriseLabelPlacement>? FrozenLabels = null, Action<EnterpriseLabelSnapshot>? LabelCapture = null)
     {
         EnterpriseFlowchartRoutingContext? RoutingContext = Layout.RoutingContext;
         List<EnterpriseRoutedEdge> RoutedEdges = Measure("enterprise-edge-routing", () => RoutingContext == null
             ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
-            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext, PreserveGeometry: Retained));
+            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext, PreserveGeometry: Retained, FrozenLabels: FrozenLabels));
+        LabelCapture?.Invoke(EnterpriseRelationshipLabelLayout.Capture(RoutedEdges, Layout.Nodes, FrozenLabels));
         Dictionary<string, EnterpriseJunctionCaptionLayout.Caption> Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
         double Width = Math.Ceiling(Math.Max(Layout.Width, 40));

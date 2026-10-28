@@ -30,8 +30,13 @@ internal static class FlowchartSelfLoopLabelRouteRepair
             double V = RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(Size, Options.EdgeLabelFontSizePx, false)
                 + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
             bool Fits(IReadOnlyList<FlowchartLayoutPoint> Points) => Points.Zip(Points.Skip(1)).Any(Pair =>
-                Math.Abs(Pair.First.Y - Pair.Second.Y) < 0.01 ? Math.Abs(Pair.First.X - Pair.Second.X) >= H - 0.01
-                    : Math.Abs(Pair.First.Y - Pair.Second.Y) >= V - 0.01);
+            {
+                bool Room = Math.Abs(Pair.First.Y - Pair.Second.Y) < 0.01
+                    ? Math.Abs(Pair.First.X - Pair.Second.X) >= H - 0.01 : Math.Abs(Pair.First.Y - Pair.Second.Y) >= V - 0.01;
+                double X = (Pair.First.X + Pair.Second.X) / 2, Y = (Pair.First.Y + Pair.Second.Y) / 2;
+                return Room && (Math.Abs(X - Box.CenterX) >= (Box.Width + Size.Width) / 2 + 6
+                    || Math.Abs(Y - Box.CenterY) >= (Box.Height + Size.Height) / 2 + 6);
+            });
             if (Fits(Route.Points)) continue;
             var Candidates = FixedPorts(Box, Route, H, V)
                 .Where(Item => Fits(Item.Points) && FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route, Tuples(Item.Points), Prepared)

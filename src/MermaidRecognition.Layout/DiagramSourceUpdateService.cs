@@ -111,7 +111,8 @@ internal sealed class DiagramSourceUpdateService
     }
 
     internal Update Prepare(string DocumentId, long SourceRevision, string SourceText, DiagramContract Model,
-        DiagramLayoutOptions Options, int? RouteLimit = null, bool CapturePlacementOrigins = false)
+        DiagramLayoutOptions Options, int? RouteLimit = null, bool CapturePlacementOrigins = false,
+        IReadOnlyCollection<string>? AdditionalRouteSeeds = null, RetainedRouteCheckpoint? RestoreRoutes = null)
     {
         ArgumentNullException.ThrowIfNull(SourceText);
         ArgumentNullException.ThrowIfNull(Model);
@@ -146,17 +147,28 @@ internal sealed class DiagramSourceUpdateService
         DiagramContract Bound = DiagramSourceModel.Bind(Parsed, Identities);
         var Classification = Classify(Previous.Model, Bound);
         if (Classification.Reason != null) { return Failure(DiagramSourceUpdateKind.RebuildRequired, Classification.Reason); }
+        var Requested = Classification.Edges.Concat(AdditionalRouteSeeds ?? []).Distinct(StringComparer.Ordinal).ToArray();
+        if (AdditionalRouteSeeds?.Count > Limit) return Failure(DiagramSourceUpdateKind.Rejected, "Routing dependencies exceed the local route limit.");
+        if (AdditionalRouteSeeds?.Any(Id => !Bound.Edges.Any(Edge => Edge.Id == Id)) == true)
+            return Failure(DiagramSourceUpdateKind.Rejected, "A routing dependency names an unknown relationship.");
+        var Kind = AdditionalRouteSeeds is { Count: > 0 } ? DiagramSourceUpdateKind.LocalRouting : Classification.Kind;
         var Geometry = Previous.Geometry.Fork();
         string[] Affected = [], Rebuilt = [];
         try
         {
-            if (Classification.Kind == DiagramSourceUpdateKind.LocalRouting)
+            if (Kind == DiagramSourceUpdateKind.LocalRouting)
             {
-                string? Reason = Geometry.TrySourceUpdate(Bound, Classification.Hints, Classification.Edges,
+                string? Reason = Geometry.TrySourceUpdate(Bound, Classification.Hints, Requested,
                     Limit, out Affected, out Rebuilt, CapturePlacementOrigins);
                 if (Reason != null) { return Failure(DiagramSourceUpdateKind.Rejected, Reason, Affected, Rebuilt); }
             }
             else { Geometry.ReplaceSourceMetadata(Bound); }
+            if (RestoreRoutes != null)
+            {
+                string? Reason = Geometry.RestoreAcceptedRoutes(RestoreRoutes, out var Restored);
+                if (Reason != null) return Failure(DiagramSourceUpdateKind.Rejected, Reason, Affected, Rebuilt);
+                Affected = Affected.Concat(Restored).Distinct(StringComparer.Ordinal).ToArray();
+            }
         }
         catch (InvalidOperationException Error)
         {
@@ -166,9 +178,9 @@ internal sealed class DiagramSourceUpdateService
         {
             return Failure(DiagramSourceUpdateKind.Rejected, "The source update exceeds the supported cell coordinate range.", Affected, Rebuilt);
         }
-        return new(this, SourceRevision, BaseRevision, Classification.Kind,
-            new(SourceRevision, SourceText, Bound, Identities, Geometry), Affected, Rebuilt,
-            Reconciliation.Notices.ToArray(), null);
+        return new(this, SourceRevision, BaseRevision, Kind,
+            new(SourceRevision, SourceText, Bound, Identities, Geometry), Affected.Concat(Classification.Labels ?? []).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(), Rebuilt,
+            Reconciliation.Notices.ToArray(), null, Classification.Labels);
 
         Update Failure(DiagramSourceUpdateKind Kind, string Reason, string[]? Affected = null, string[]? Rebuilt = null)
             => new(this, SourceRevision, BaseRevision, Kind, null, Affected ?? [], Rebuilt ?? [], [], Reason);
@@ -199,12 +211,13 @@ internal sealed class DiagramSourceUpdateService
     internal sealed class Update
     {
         internal Update(DiagramSourceUpdateService Owner, long SourceRevision, long BaseRevision,
-            DiagramSourceUpdateKind Kind, Accepted? Value, string[] Affected, string[] Rebuilt, string[] Notices, string? Reason)
+            DiagramSourceUpdateKind Kind, Accepted? Value, string[] Affected, string[] Rebuilt, string[] Notices, string? Reason, string[]? Labels = null)
         {
             this.Owner = Owner; this.SourceRevision = SourceRevision; this.BaseRevision = BaseRevision;
             this.Kind = Kind; this.Value = Value; FailureReason = Reason;
             AffectedRouteIds = Array.AsReadOnly(Affected); RebuiltRouteIds = Array.AsReadOnly(Rebuilt);
             this.Notices = Array.AsReadOnly(Notices);
+            ChangedLabelIds = Array.AsReadOnly(Labels ?? []);
         }
         internal DiagramSourceUpdateService Owner { get; }
         internal long SourceRevision { get; }
@@ -215,9 +228,10 @@ internal sealed class DiagramSourceUpdateService
         internal IReadOnlyList<string> AffectedRouteIds { get; }
         internal IReadOnlyList<string> RebuiltRouteIds { get; }
         internal IReadOnlyList<string> Notices { get; }
+        internal IReadOnlyList<string> ChangedLabelIds { get; }
     }
 
-    private sealed record Classification(DiagramSourceUpdateKind Kind, string[] Hints, string[] Edges, string? Reason = null);
+    private sealed record Classification(DiagramSourceUpdateKind Kind, string[] Hints, string[] Edges, string? Reason = null, string[]? Labels = null);
 
     private static Classification Classify(DiagramContract Old, DiagramContract New)
     {
@@ -257,6 +271,7 @@ internal sealed class DiagramSourceUpdateService
         }
         var OldEdges = Old.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
         List<string> Edges = [];
+        List<string> Labels = [];
         foreach (string Removed in OldEdges.Keys.Except(New.Edges.Select(Edge => Edge.Id!), StringComparer.Ordinal))
         {
             if (IsTimelineConstraint(Old, OldEdges[Removed]))
@@ -271,8 +286,9 @@ internal sealed class DiagramSourceUpdateService
             {
                 if (Json(EdgeGeometry(Previous)) != Json(EdgeGeometry(Edge)))
                 {
-                    return Rebuild("Relationship label, kind, marker or layout constraint changed: " + Edge.Id);
+                    return Rebuild("Relationship text format, kind, marker or layout constraint changed: " + Edge.Id);
                 }
+                if (Previous.Label != Edge.Label) Labels.Add(Edge.Id!);
                 if (Previous.SourceId == Edge.SourceId && Previous.TargetId == Edge.TargetId
                     && Json(Ports(Previous.RoutingHint)) == Json(Ports(Edge.RoutingHint))) { continue; }
             }
@@ -289,8 +305,8 @@ internal sealed class DiagramSourceUpdateService
         }
         if (Json(StyleGeometry(Old)) != Json(StyleGeometry(New))) { return Rebuild("Presentation fonts, line widths or curves changed."); }
         return new(Hints.Count != 0 || Edges.Count != 0 || RemovedNodes.Length != 0 ? DiagramSourceUpdateKind.LocalRouting
-            : Json(Paint(Old)) != Json(Paint(New)) ? DiagramSourceUpdateKind.Redraw : DiagramSourceUpdateKind.MetadataOnly,
-            Hints.ToArray(), Edges.ToArray());
+            : Labels.Count > 0 || Json(Paint(Old)) != Json(Paint(New)) ? DiagramSourceUpdateKind.Redraw : DiagramSourceUpdateKind.MetadataOnly,
+            Hints.ToArray(), Edges.ToArray(), Labels: Labels.ToArray());
     }
 
     private static string Json(object? Value) => JsonSerializer.Serialize(Value);
@@ -308,7 +324,7 @@ internal sealed class DiagramSourceUpdateService
     private static object NodeStructure(NodeContract Node) => new { Node.LabelType, Node.Shape, Node.ShapeSource,
         Node.ParentGroupId, Metadata = Metadata(Node.Metadata), Classes = Node.Classes.Order(StringComparer.Ordinal),
         Font = Font(Node.InlineStyle) };
-    private static object EdgeGeometry(EdgeContract Edge) => new { Edge.Label, Edge.LabelType, Edge.MinLength,
+    private static object EdgeGeometry(EdgeContract Edge) => new { Edge.LabelType, Edge.MinLength,
         Edge.MarkerStart, Edge.MarkerEnd, Edge.Stroke, Edge.Curve, Metadata = Metadata(Edge.Metadata), Classes = Edge.Classes.Order(StringComparer.Ordinal) };
     private static object Metadata(IReadOnlyDictionary<string, MermaidMetadataValue> Values) => Values.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
         .Where(Pair => Pair.Value is not AnimationMetadata).Select(Pair => new { Pair.Key, Type = Pair.Value.GetType().FullName,

@@ -51,7 +51,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         EnterpriseDocument Document,
         Dictionary<string, EnterpriseLayoutNode> Nodes,
         EnterpriseFlowchartRoutingContext Context,
-        bool PreserveGeometry = false)
+        bool PreserveGeometry = false, IReadOnlyDictionary<string, EnterpriseLabelPlacement>? FrozenLabels = null)
     {
         HashSet<string> UsedEdgeIds = new HashSet<string>(StringComparer.Ordinal);
         Dictionary<string, List<(double X, double Y)>> CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
@@ -166,6 +166,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                 ResolveEnterpriseMarkers(Relationship, out StartMarker, out EndMarker);
             }
 
+            double FontSize = EnterpriseLabelFont.Resolve(Document, Relationship, out bool SupportedFont);
             Routed.Add(new EnterpriseRoutedEdge(
                 Relationship,
                 IsPlainConnection,
@@ -176,10 +177,10 @@ internal static class EnterpriseFlowchartEdgeRouter
                 IsPlainConnection ? null : DashArray(Relationship),
                 Label,
                 LabelX,
-                LabelY));
+                LabelY) { Identity = Edge.Id ?? "", LabelFontSize = FontSize, LabelMeasurementSupported = SupportedFont });
         }
         EnterpriseRelationshipLabelLayout.Place(Routed, Nodes, Context.Layout.RenderContext.UseCellRegions,
-            PreserveRoutes: PreserveGeometry);
+            PreserveRoutes: PreserveGeometry, FrozenLabels: FrozenLabels);
         return Routed;
     }
 
@@ -278,12 +279,13 @@ internal static class EnterpriseFlowchartEdgeRouter
             Builder.Append("<text x=\"")
                 .Append(EnterpriseSvgFormat.Number(Routed.LabelX))
                 .Append("\" y=\"")
-                .Append(EnterpriseSvgFormat.Number(Routed.LabelY - ((Routed.LabelLines.Count - 1) * 7.5) + 4))
-                .Append("\" text-anchor=\"middle\" font-size=\"12\" font-family=\"&quot;trebuchet ms&quot;, verdana, arial, sans-serif\" fill=\"#333\">");
+                .Append(EnterpriseSvgFormat.Number(Routed.LabelY - ((Routed.LabelLines.Count - 1) * Routed.LabelFontSize * 1.25 / 2) + Routed.LabelFontSize / 3))
+                .Append("\" text-anchor=\"middle\" font-size=\"").Append(EnterpriseSvgFormat.Number(Routed.LabelFontSize))
+                .Append("\" font-family=\"&quot;trebuchet ms&quot;, verdana, arial, sans-serif\" fill=\"#333\">");
             for (int Index = 0; Index < Routed.LabelLines.Count; Index++)
             {
                 Builder.Append("<tspan x=\"").Append(EnterpriseSvgFormat.Number(Routed.LabelX))
-                    .Append("\" dy=\"").Append(Index == 0 ? "0" : "15").Append("\">")
+                    .Append("\" dy=\"").Append(Index == 0 ? "0" : EnterpriseSvgFormat.Number(Routed.LabelFontSize * 1.25)).Append("\">")
                     .Append(EnterpriseSvgFormat.Escape(Routed.LabelLines[Index])).Append("</tspan>");
             }
             Builder.Append("</text>");
@@ -733,6 +735,9 @@ internal sealed class EnterpriseFlowchartPathFact
 /// </summary>
 internal sealed class EnterpriseRoutedEdge
 {
+    internal string Identity { get; set; } = "";
+    internal double LabelFontSize { get; set; } = 12;
+    internal bool LabelMeasurementSupported { get; set; } = true;
     internal EnterpriseRoutedEdge(
         EnterpriseRelationship Relationship,
         string PathData,
