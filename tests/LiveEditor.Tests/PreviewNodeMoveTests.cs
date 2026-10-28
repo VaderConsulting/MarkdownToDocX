@@ -67,6 +67,77 @@ public sealed partial class PreviewNodeMoveTests
         Assert.That(Preview.IsMovingNode, Is.False);
     }
 
+    [TestCase(false, 650, 420)]
+    [TestCase(true, 650, 420)]
+    [TestCase(false, 310, 100)]
+    public void CapturedDragPaintsAllFourSidesAndCommitsInCanvasSpaceOutsideTheImage(bool Fitted, int TargetX, int TargetY)
+    {
+        using var Host = new Form { ClientSize = new(800, 600), ShowInTaskbar = false };
+        using var Preview = new PreviewCanvas { Dock = DockStyle.Fill };
+        Host.Controls.Add(Preview); Host.Show(); Application.DoEvents();
+        const string Source = "enterprise\napplication-component a\n";
+        const string Svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\"><g class=\"element application-component\" data-id=\"a\"><rect x=\"100\" y=\"70\" width=\"80\" height=\"60\"/></g></svg>";
+        using var Image = new Bitmap(300, 200); using var Stream = new MemoryStream();
+        using (var Graphics = System.Drawing.Graphics.FromImage(Image)) Graphics.Clear(Color.White);
+        Image.Save(Stream, System.Drawing.Imaging.ImageFormat.Png);
+        Preview.LoadAccepted(Source, Svg, Stream.ToArray(), null, false);
+        Preview.FitToWindow = Fitted; Preview.Zoom = 1;
+        if (Fitted) Preview.SetFitObstacle(new(0, 250, 750, 350));
+        Preview.ApplyView();
+        var Picture = (PictureBox)Preview.Controls.Find("DiagramPicture", true)[0];
+        var Viewport = (Panel)Preview.Controls.Find("Viewport", true)[0];
+        PreviewSelection.TryGetSvgToClient(Picture.Width, Picture.Height, 300, 200, 300, 200,
+            out var Sx, out var Sy, out var Ox, out var Oy);
+        Point Start = new((int)Math.Round(140 * Sx + Ox), (int)Math.Round(100 * Sy + Oy));
+        Point End = Picture.PointToClient(Viewport.PointToScreen(new(TargetX, TargetY)));
+        Assert.That(Picture.ClientRectangle.Contains(End), Is.False);
+        Preview.CanMoveNode = _ => true;
+        Preview.CreateNodeMoveSnap = _ => Point => Point;
+        int Requests = 0;
+        PointF Committed = default;
+        int CanvasInvalidations = 0;
+        Viewport.Invalidated += (_, _) => CanvasInvalidations++;
+        Preview.NodeMoveRequested += (_, Drop) => { Requests++; Committed = Drop; };
+        static IntPtr Packed(Point Point) => (IntPtr)((Point.Y << 16) | (Point.X & 0xffff));
+        SendMessage(Picture.Handle, 0x0201, (IntPtr)1, Packed(Start));
+        using var Before = new Bitmap(Viewport.Width, Viewport.Height);
+        Viewport.DrawToBitmap(Before, Viewport.ClientRectangle);
+        SendMessage(Picture.Handle, 0x0200, (IntPtr)1, Packed(End));
+        Assert.That(CanvasInvalidations, Is.GreaterThan(0));
+        using var After = new Bitmap(Viewport.Width, Viewport.Height);
+        Viewport.DrawToBitmap(After, Viewport.ClientRectangle);
+        int Left = (int)Math.Round(TargetX - 40 * Sx - 4), Right = (int)Math.Round(TargetX + 40 * Sx + 4);
+        int Top = (int)Math.Round(TargetY - 30 * Sy - 4), Bottom = (int)Math.Round(TargetY + 30 * Sy + 4);
+        int Changed(Rectangle Band)
+        {
+            int Count = 0;
+            for (int Y = Band.Top; Y < Band.Bottom; Y++)
+                for (int X = Band.Left; X < Band.Right; X++)
+                    if (Before.GetPixel(X, Y) != After.GetPixel(X, Y)) Count++;
+            return Count;
+        }
+        Assert.Multiple(() =>
+        {
+            Assert.That(Changed(new(Left - 2, Top, 5, Bottom - Top)), Is.GreaterThan(10), "left outline");
+            Assert.That(Changed(new(Right - 2, Top, 5, Bottom - Top)), Is.GreaterThan(10), "right outline");
+            Assert.That(Changed(new(Left, Top - 2, Right - Left, 5)), Is.GreaterThan(10), "top outline");
+            Assert.That(Changed(new(Left, Bottom - 2, Right - Left, 5)), Is.GreaterThan(10), "bottom outline");
+        });
+        SendMessage(Picture.Handle, 0x0202, IntPtr.Zero, Packed(End));
+        Assert.That(Requests, Is.EqualTo(1));
+        Assert.That(Committed.X, Is.EqualTo(140 + (End.X - Start.X) / Sx).Within(0.01));
+        Assert.That(Committed.Y, Is.EqualTo(100 + (End.Y - Start.Y) / Sy).Within(0.01));
+        Assert.That(Preview.RenderedSvg, Is.EqualTo(Svg));
+        Assert.That(Preview.LastPreviewPngBytes, Is.EqualTo(Stream.ToArray()));
+        using var Cleared = new Bitmap(Viewport.Width, Viewport.Height);
+        Viewport.DrawToBitmap(Cleared, Viewport.ClientRectangle);
+        int LeftoverPixels = 0;
+        for (int Y = Top - 2; Y <= Bottom + 2; Y++)
+            for (int X = Left - 2; X <= Right + 2; X++)
+                if (Cleared.GetPixel(X, Y) != Before.GetPixel(X, Y)) LeftoverPixels++;
+        Assert.That(LeftoverPixels, Is.Zero, "release must erase canvas feedback without leaving trails");
+    }
+
     [TestCase(0.5, 600, 0)]
     [TestCase(2.0, 300, -50)]
     public void DragProjectionPreservesGrabOffsetAcrossZoomRasterScaleAndViewBoxOrigin(double Zoom, int RasterWidth, int Origin)

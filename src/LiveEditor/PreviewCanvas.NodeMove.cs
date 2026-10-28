@@ -41,7 +41,7 @@ internal sealed partial class PreviewCanvas
                 (float)((_MovingNode.Left + _MovingNode.Right) / 2 + (Pointer.X - _MoveStart.X) / Sx),
                 (float)((_MovingNode.Top + _MovingNode.Bottom) / 2 + (Pointer.Y - _MoveStart.Y) / Sy)));
         if (_MoveThresholdPassed) DiagramPicture.Cursor = Cursors.SizeAll;
-        DiagramPicture.Invalidate();
+        InvalidateNodeMove();
     }
 
     private void Picture_MouseUp(object? Sender, MouseEventArgs E)
@@ -70,8 +70,30 @@ internal sealed partial class PreviewCanvas
         _MoveThresholdPassed = false;
         DiagramPicture.Capture = false;
         DiagramPicture.Cursor = Cursors.Default;
-        DiagramPicture.Invalidate();
+        InvalidateNodeMove();
         return true;
+    }
+
+    private void InvalidateNodeMove()
+    {
+        // The picture owns capture, but the visible drag surface is the entire
+        // viewport. Repaint both so an outline crossing the image edge stays
+        // continuous, and previous feedback is erased on move/cancellation.
+        DiagramPicture.Invalidate();
+        Viewport.Invalidate();
+    }
+
+    private void Viewport_Paint(object? Sender, PaintEventArgs E)
+    {
+        if (!IsMovingNode) return;
+        Point Origin = Viewport.PointToClient(DiagramPicture.PointToScreen(Point.Empty));
+        GraphicsState Saved = E.Graphics.Save();
+        try
+        {
+            E.Graphics.TranslateTransform(Origin.X, Origin.Y);
+            PaintNodeMove(E.Graphics);
+        }
+        finally { E.Graphics.Restore(Saved); }
     }
 
     private void PaintNodeMove(Graphics Canvas)

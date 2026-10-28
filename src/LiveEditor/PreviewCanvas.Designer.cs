@@ -51,6 +51,7 @@ namespace LiveEditor
             Viewport.Resize += Viewport_Resize;
             Viewport.MouseLeave += Picture_MouseLeave;
             Viewport.MouseDown += Viewport_MouseDown;
+            Viewport.Paint += Viewport_Paint;
             Viewport.Size = new Size(240, 406);
             Viewport.TabIndex = 0;
             //
