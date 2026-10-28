@@ -21,7 +21,7 @@ Call `Invalidate(reason)` when switching documents/options or starting explicit 
 | Comments, whitespace, parser ID/order changes, source spans, hint diagnostics, interactions | Metadata-only; no route rebuild |
 | Inline fill/stroke/text colour, existing class/link colour definitions, animation | Redraw; preserve accepted geometry |
 | Node placement hint addition/replacement/removal, supported push hint | Local transaction using fixed cell spans; NW/NE/SE/SW support independent gaps; `at row column` needs no peer |
-| Relationship addition/reconnect or endpoint/travel hint change/removal | Local routing with stable IDs |
+| Relationship addition/reconnect or endpoint/travel hint change/removal | Local routing with stable IDs; `leave E@step` / `enter W@step` retain exact usable connection points |
 | Direction/kind/options/configuration changes, group edits, node insertion/removal, relationship removal, labels, sizes, fonts, shapes, marker/kind/constraint changes | Explicit rebuild requirement; no rebuild executed |
 | Ambiguous identities, invalid analysed model, stale/retired instance, impossible supported local edit | Rejected; retain accepted state |
 

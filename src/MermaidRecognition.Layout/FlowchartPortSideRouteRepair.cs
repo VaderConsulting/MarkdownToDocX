@@ -417,7 +417,8 @@ internal static class FlowchartPortSideRouteRepair
     private static bool CanRerouteUnderHint(FlowchartLayoutEdgeRoute Route, DiagramContract Contract)
     {
         RoutingHintContract? Hint = DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint;
-        return Hint?.IsActive != true || (Hint.Travel == null && (Hint.Leave.HasValue || Hint.Enter.HasValue));
+        return Hint?.IsActive != true || (Hint.Travel == null && !Hint.LeavePoint.HasValue && !Hint.EnterPoint.HasValue
+            && (Hint.Leave.HasValue || Hint.Enter.HasValue));
     }
 
     private static bool MatchesRoutingHint(Candidate Candidate, EdgeContract? Edge)

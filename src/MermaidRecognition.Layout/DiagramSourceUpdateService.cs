@@ -303,7 +303,7 @@ internal sealed class DiagramSourceUpdateService
     private static object? Hint(PlacementHintContract? Value) => Value?.IsActive != true ? null
         : new { Value.Kind, Value.PeerId, Value.Offset, Value.ColumnOffset, Value.Direction, Value.CellRow, Value.CellColumn };
     private static object? Ports(RoutingHintContract? Value) => Value?.IsActive != true ? null
-        : new { Value.Leave, Value.Enter, Value.Travel };
+        : new { Value.Leave, Value.Enter, Value.Travel, Value.LeavePoint, Value.EnterPoint };
     private static object Font(RecognitionStyle Style) => new { Style.FontFamily, Style.FontSize, Style.FontWeight, Style.StrokeWidth };
     private static object StyleGeometry(DiagramContract Model) => new
     {

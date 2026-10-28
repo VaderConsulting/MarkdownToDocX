@@ -57,6 +57,7 @@ public static partial class DiagramGridLayout
             RoutingHint = Edge.RoutingHint is { } Hint ? new()
             {
                 Leave = Hint.Leave, Enter = Hint.Enter, Travel = Hint.Travel, SourceLine = Hint.SourceLine,
+                LeavePoint = Hint.LeavePoint, EnterPoint = Hint.EnterPoint,
                 IsActive = Hint.IsActive, UnhonouredReason = Hint.UnhonouredReason
             } : null
         };

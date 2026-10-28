@@ -6,6 +6,27 @@ namespace MermaidRecognition.Tests.Enterprise;
 [TestFixture]
 public sealed class EnterpriseParserTests
 {
+    [TestCase("leave E@0, enter W@-2", 0, -2)]
+    [TestCase("leave S@+2, enter N@1", 2, 1)]
+    public void ExactEndpointHintsKeepSignedConnectionPointSteps(string Hint, int Leave, int Enter)
+    {
+        var Result = EnterpriseParser.ParseDocument("enterprise\napplication-component a\napplication-component b\na -flow-> b [" + Hint + "]");
+        Assert.That(Result.HasErrors, Is.False);
+        var Ports = Result.Document.Relationships.Single().RoutingHint!;
+        Assert.That(Ports.IsActive, Is.True);
+        Assert.That(Ports.LeavePoint, Is.EqualTo(Leave));
+        Assert.That(Ports.EnterPoint, Is.EqualTo(Enter));
+    }
+
+    [TestCase("travel E@0")]
+    [TestCase("leave E@9999999999999999999")]
+    [TestCase("leave N@no")]
+    public void InvalidConnectionPointSyntaxDeactivatesTheHintWithoutThrowing(string Hint)
+    {
+        var Result = EnterpriseParser.ParseDocument("enterprise\napplication-component a\napplication-component b\na -flow-> b [" + Hint + "]");
+        Assert.That(Result.Document.Relationships.Single().RoutingHint!.IsActive, Is.False);
+        Assert.That(Result.Diagnostics, Is.Not.Empty);
+    }
     [Test]
     public void NotesAndPlainConnections_AreDrawingItemsWithHints()
     {

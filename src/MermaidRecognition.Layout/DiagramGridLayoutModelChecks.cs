@@ -2118,7 +2118,7 @@ public static partial class DiagramGridLayout
                         ? right.Other.CenterY.CompareTo(left.Other.CenterY)
                         : left.Other.CenterX.CompareTo(right.Other.CenterX);
                 });
-                ApplySlots(ends, state.Nodes);
+                ApplySlots(ends, state.Nodes, state.Contract);
             }
 
             HashSet<FlowchartLayoutEdgeRoute> changedRoutes = [];

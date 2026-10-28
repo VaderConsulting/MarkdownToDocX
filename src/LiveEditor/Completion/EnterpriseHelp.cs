@@ -159,7 +159,7 @@ internal static class EnterpriseHelp
 
         AppendField(Lines, "target", "Required. An existing element that can accept this relationship.", NameWidth);
         AppendField(Lines, "\"label\"", "Optional. Caption drawn on the relationship.", NameWidth);
-        AppendField(Lines, "routing", "Optional. leave, enter, or travel, then N, S, E, or W. Example: [leave E, travel S, enter W].", NameWidth);
+        AppendField(Lines, "routing", "Optional. leave, enter, or travel, then N, S, E, or W. Endpoint sides accept @step for an exact connection point, e.g. [leave E@0, enter W@-2].", NameWidth);
         Lines.Add(string.Empty);
         Lines.Add("Tab to insert. Esc to dismiss.");
         return Compose(Metadata.Name, "Relationship", Lines);

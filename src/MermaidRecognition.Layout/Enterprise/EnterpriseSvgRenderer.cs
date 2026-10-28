@@ -318,6 +318,8 @@ public static partial class EnterpriseSvgRenderer
         }
 
         Key.Append(Hint.Leave).Append('|').Append(Hint.Enter).Append('|').Append(Hint.Travel).Append('|');
+        if (Hint.LeavePoint.HasValue || Hint.EnterPoint.HasValue)
+            Key.Append("points=").Append(Hint.LeavePoint).Append(',').Append(Hint.EnterPoint).Append('|');
         Key.Append(Hint.IsActive).Append('\u001f');
     }
 

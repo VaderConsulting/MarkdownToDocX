@@ -10,6 +10,52 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramSourceUpdateServiceTests
 {
+    [TestCase(-2, 1)]
+    [TestCase(0, 0)]
+    [TestCase(2, -1)]
+    public void ExactEndpointMovesRetainTheirPointsAndIndependentGeometry(int Leave, int Enter)
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Service.CopySnapshot();
+        AssertNoPlacement(() =>
+        {
+            var Model = Parsed(Service);
+            Model.Edges[0].RoutingHint = new() { Leave = LayoutHintDirection.South, Enter = LayoutHintDirection.North,
+                LeavePoint = Leave, EnterPoint = Enter };
+            var Update = Prepare(Service, 1, Model);
+            Assert.That(Update.Kind, Is.EqualTo(DiagramSourceUpdateKind.LocalRouting), Update.FailureReason);
+            Commit(Service, Update);
+            var After = Service.CopySnapshot();
+            Assert.That(FlowchartConnectionPoints.Validate(After.Model, After.Layout, CheckRoutes: true), Is.Null);
+            Assert.That(After.Model.Edges[0].RoutingHint!.LeavePoint, Is.EqualTo(Leave));
+            Assert.That(Update.RebuiltRouteIds, Is.EqualTo(new[] { "relationship:1" }));
+            Assert.That(JsonSerializer.Serialize(After.Layout.NodeBounds), Is.EqualTo(JsonSerializer.Serialize(Before.Layout.NodeBounds)));
+            Assert.That(Component(After.Layout, "X", "Y"), Is.EqualTo(Component(Before.Layout, "X", "Y")));
+            Assert.That(FlowchartRouteRuleChecker.Check(After.Model, After.Layout), Is.Empty);
+        });
+    }
+
+    [Test]
+    public void UnavailableAndConflictingExactPointsRejectAtomically()
+    {
+        var (Service, _, _) = Fixture();
+        var Before = Geometry(Service.CopySnapshot().Layout);
+        var Model = Parsed(Service);
+        Model.Edges[0].RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 10000 };
+        var Invalid = Prepare(Service, 1, Model);
+        Assert.That(Invalid.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Invalid.FailureReason, Does.Contain("connection point"));
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+        Model = Parsed(Service);
+        Model.Edges[0].RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 0 };
+        Model.EdgesMutable.Add(new() { Id = "ac", SourceId = "A", TargetId = "C", MarkerEnd = EdgeEndpointMarker.Point,
+            RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 0 } });
+        Invalid = Prepare(Service, 2, Model);
+        Assert.That(Invalid.Kind, Is.EqualTo(DiagramSourceUpdateKind.Rejected));
+        Assert.That(Invalid.FailureReason, Does.Contain("same exact connection point"));
+        Assert.That(Service.TryCommit(Invalid, out _), Is.False);
+        Assert.That(Geometry(Service.CopySnapshot().Layout), Is.EqualTo(Before));
+    }
     [Test]
     public void CaptureBindsDetachedRoutesAndFullSourceMetadata()
     {

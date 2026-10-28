@@ -85,6 +85,15 @@ public static partial class DiagramGridLayout
         (RenderContext ?? LaidOut.RenderContext).SuppressReservedCorridorAssignment = false;
         FlowchartLayoutResult Result = ApplyWithRoutedBands(Contract, LaidOut, RenderContext);
         CompletePublishedRoutes(Contract, Result);
+        string? PointFailure = FlowchartConnectionPoints.Validate(Contract, Result, CheckRoutes: true);
+        if (PointFailure != null)
+        {
+            var Edges = Contract.Edges.Where(Edge => Edge.RoutingHint is { IsActive: true } Hint
+                && (Hint.LeavePoint.HasValue || Hint.EnterPoint.HasValue)).ToArray();
+            foreach (var Edge in Edges) Edge.RoutingHint!.UnhonouredReason = PointFailure;
+            Result.RenderContext.LayoutStageViolations.Add(new("NoLegalRoute", PointFailure,
+                Edges.Select(Edge => Edge.Id ?? Edge.SourceId + "->" + Edge.TargetId).ToArray(), null));
+        }
         PublishedLayoutObserver?.Invoke(Contract, Result);
         return Result;
     }

@@ -878,7 +878,7 @@ public static partial class DiagramGridLayout
             }
             if (!Diamond)
             {
-                ApplySlots(Ends, Nodes);
+                ApplySlots(Ends, Nodes, Contract);
             }
         }
 
@@ -1117,7 +1117,7 @@ public static partial class DiagramGridLayout
         // Reserving a corner inset here moves the grid away from the side centre
         // and makes the points depend on the renderer's corner radius.
         double SideLength = VerticalSide ? Box.Height : Box.Width;
-        double[]? GridFractions = PlanGridFractions(Group, Nodes);
+        double[]? GridFractions = PlanGridFractions(Group, Nodes, Contract);
         INodeConnectionBoundary? Boundary = Nodes.TryGetValue(Box.Id, out NodeContract? GridNode) && GridNode.GeometryProvider != null
             ? GridNode.GeometryProvider.Create(Box.Width, Box.Height).ConnectionBoundary
             : null;

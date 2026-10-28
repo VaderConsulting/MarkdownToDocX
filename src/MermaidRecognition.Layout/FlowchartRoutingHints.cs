@@ -343,6 +343,16 @@ internal static class FlowchartRoutingHints
             double[] GridFractions = circle
                 ? []
                 : ConnectionPointGrid.FractionsOnGrid(Boundary, Group.Key.Side, Length, Ordered.Length);
+            if (Ordered.Any(End => FlowchartConnectionPoints.Step(DiagramGridLayout.FindContractEdge(Contract, End.Route)?.RoutingHint, End.Source).HasValue))
+            {
+                var Points = ConnectionPointGrid.UsablePoints(Boundary, Group.Key.Side, Length, out double SegmentLength);
+                int[] Fixed = [.. Ordered.Select(End => FlowchartConnectionPoints.Step(
+                    DiagramGridLayout.FindContractEdge(Contract, End.Route)?.RoutingHint, End.Source) is { } Step
+                    ? Points.FindIndex(Point => Math.Abs(Point.Offset - SegmentLength / 2 - Step * FlowchartLayoutRules.LineSpacing)
+                        <= DiagramGridMetrics.PORT_GRID_TOLERANCE_PX) : -1)];
+                var Plan = ConnectionPointGrid.Plan(Points.Select(Point => Point.Offset).ToArray(), SegmentLength, Fixed);
+                if (Plan != null) GridFractions = [.. Plan.Select(Index => Points[Index].Fraction)];
+            }
             for (int Index = 0; Index < Ordered.Length; Index++)
             {
                 (FlowchartLayoutEdgeRoute Route, bool Source, FlowchartLayoutNodeBounds Box, FlowchartLayoutNodeBounds Other, string Side, bool IsHinted) End = Ordered[Index];
@@ -407,7 +417,8 @@ internal static class FlowchartRoutingHints
         {
             EdgeContract? Edge = DiagramGridLayout.FindContractEdge(Contract, Route);
             RoutingHintContract? Hint = Edge?.RoutingHint;
-            if (Hint?.IsActive != true || !Hint.Leave.HasValue || !Hint.Enter.HasValue || !Hint.Travel.HasValue)
+            if (Hint?.IsActive != true || !Hint.Leave.HasValue || !Hint.Enter.HasValue || !Hint.Travel.HasValue
+                || Hint.LeavePoint.HasValue || Hint.EnterPoint.HasValue)
             {
                 continue;
             }

@@ -180,7 +180,8 @@ internal sealed class DiagramRelationshipIdentityMap
         new(Edge.SourceId, Edge.TargetId),
         new(Edge.Label ?? "", Edge.LabelType, Edge.MarkerStart, Edge.MarkerEnd, Edge.Stroke, Edge.MinLength, Edge.Curve,
             Raw(Edge, "enterpriseRelationshipKind"), Raw(Edge, "enterprisePlainConnection"),
-            Edge.RoutingHint?.Leave, Edge.RoutingHint?.Enter, Edge.RoutingHint?.Travel))).ToArray();
+            Edge.RoutingHint?.Leave, Edge.RoutingHint?.Enter, Edge.RoutingHint?.Travel,
+            Edge.RoutingHint?.LeavePoint, Edge.RoutingHint?.EnterPoint))).ToArray();
 
     private static string? Raw(EdgeContract Edge, string Key) =>
         Edge.Metadata.TryGetValue(Key, out var Value) && Value is RawMetadata Raw ? Raw.RawValue : null;
@@ -204,5 +205,5 @@ internal sealed class DiagramRelationshipIdentityMap
 
     private sealed record Content(string Label, MermaidLabelType LabelType, EdgeEndpointMarker Start, EdgeEndpointMarker End,
         string? Stroke, int MinLength, string? Curve, string? EnterpriseKind, string? PlainConnection,
-        LayoutHintDirection? Leave, LayoutHintDirection? Enter, LayoutHintDirection? Travel);
+        LayoutHintDirection? Leave, LayoutHintDirection? Enter, LayoutHintDirection? Travel, int? LeavePoint, int? EnterPoint);
 }

@@ -149,6 +149,8 @@ public static partial class DiagramGridLayout
             HashSet<string> Rebuilt = new(StringComparer.Ordinal);
             try
             {
+                string? PointFailure = FlowchartConnectionPoints.Validate(State.Contract, Layout);
+                if (PointFailure != null) return PointFailure;
                 // A growing, finite set reaches a fixed point or the explicit route budget.
                 // A peer whose terminal changed on the final refinement pass must itself be rebuilt.
                 for (int Pass = 0; Pass <= Layout.EdgeRoutes.Count; Pass++)
@@ -194,6 +196,8 @@ public static partial class DiagramGridLayout
                         Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Prepared);
                 }
                 if (!Original.UnchangedOutside(Affected)) { return "Routing changed geometry outside its dependency set."; }
+                PointFailure = FlowchartConnectionPoints.Validate(State.Contract, Layout, CheckRoutes: true);
+                if (PointFailure != null) return PointFailure;
                 foreach (FlowchartLayoutEdgeRoute Route in Affected)
                 {
                     if (FindContractEdge(State.Contract, Route)?.RoutingHint is not { IsActive: true } Hint) { continue; }

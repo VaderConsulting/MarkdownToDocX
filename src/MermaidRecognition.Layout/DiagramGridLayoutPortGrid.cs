@@ -19,8 +19,9 @@ public static partial class DiagramGridLayout
     /// </summary>
     /// <param name="Group">Lines sharing the side, in side order.</param>
     /// <param name="Nodes">Shape and geometry-provider definitions.</param>
+    /// <param name="Contract">Optional source hints with exact endpoint reservations.</param>
     /// <returns>Connection-boundary fractions per line, or null when the side's grid cannot hold the group.</returns>
-    private static double[]? PlanGridFractions(List<PortEnd> Group, Dictionary<string, NodeContract> Nodes)
+    private static double[]? PlanGridFractions(List<PortEnd> Group, Dictionary<string, NodeContract> Nodes, DiagramContract? Contract)
     {
         BoxRef Box = Group[0].Box;
         string Side = Group[0].Side;
@@ -34,7 +35,17 @@ public static partial class DiagramGridLayout
         HashSet<int> Taken = [];
         for (int Index = 0; Index < Group.Count; Index++)
         {
-            if (!Group[Index].KeepsCentre)
+            var End = Group[Index];
+            var Hint = Contract == null ? null : FindContractEdge(Contract, End.Route)?.RoutingHint;
+            if (FlowchartConnectionPoints.Step(Hint, End.IsSource) is not { } Step) continue;
+            double Offset = Length / 2 + Step * FlowchartLayoutRules.LineSpacing;
+            int Point = Points.FindIndex(Point => Math.Abs(Point.Offset - Offset) <= DiagramGridMetrics.PORT_GRID_TOLERANCE_PX);
+            if (Point < 0 || !Taken.Add(Point)) return null;
+            Fixed[Index] = Point;
+        }
+        for (int Index = 0; Index < Group.Count; Index++)
+        {
+            if (Fixed[Index] >= 0 || !Group[Index].KeepsCentre)
             {
                 continue;
             }

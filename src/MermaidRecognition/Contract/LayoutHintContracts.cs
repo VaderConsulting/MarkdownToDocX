@@ -57,7 +57,13 @@ public sealed class RoutingHintContract
 {
     public LayoutHintDirection? Leave { get; set; }
 
+    /// <summary>Signed connection-grid steps from the source side's centre; requires Leave.</summary>
+    public int? LeavePoint { get; set; }
+
     public LayoutHintDirection? Enter { get; set; }
+
+    /// <summary>Signed connection-grid steps from the target side's centre; requires Enter.</summary>
+    public int? EnterPoint { get; set; }
 
     public LayoutHintDirection? Travel { get; set; }
 

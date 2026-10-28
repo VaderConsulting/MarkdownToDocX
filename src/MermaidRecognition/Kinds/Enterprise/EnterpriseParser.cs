@@ -752,7 +752,7 @@ public sealed class EnterpriseParser : Parser
         HashSet<string> Seen = new(StringComparer.OrdinalIgnoreCase);
         foreach (string RawPart in Match.Groups["routing"].Value.Split(','))
         {
-            Match Part = Regex.Match(RawPart.Trim(), @"^(leave|enter|travel)\s+([NSEW])$", RegexOptions.IgnoreCase);
+            Match Part = Regex.Match(RawPart.Trim(), @"^(leave|enter|travel)\s+([NSEW])(?:@([+-]?\d+))?$", RegexOptions.IgnoreCase);
             if (!Part.Success)
             {
                 DeactivateHint(Hint, "invalid line hint \"" + RawPart.Trim() + "\"");
@@ -767,13 +767,26 @@ public sealed class EnterpriseParser : Parser
             }
 
             LayoutHintDirection Direction = ParseHintDirection(Part.Groups[2].Value);
+            int? Point = null;
+            if (Part.Groups[3].Success)
+            {
+                if (Name == "travel" || !int.TryParse(Part.Groups[3].Value, System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out int Step))
+                {
+                    DeactivateHint(Hint, "invalid connection point in " + Name + " hint");
+                    continue;
+                }
+                Point = Step;
+            }
             if (Name == "leave")
             {
                 Hint.Leave = Direction;
+                Hint.LeavePoint = Point;
             }
             else if (Name == "enter")
             {
                 Hint.Enter = Direction;
+                Hint.EnterPoint = Point;
             }
             else
             {
