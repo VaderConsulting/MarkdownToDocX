@@ -1,0 +1,233 @@
+{
+  "Captured": "2026-10-28",
+  "Context": "700dbcb plus existing uncommitted workspace changes; all experiments off; production cells on",
+  "Cases": [
+    {
+      "Id": "single-layer-free",
+      "SourceHash": "E527E4DA29C08E4524452AB8ED0CC93E615F119063C17E357EF6910FAC946F54",
+      "Width": 166,
+      "Height": 1756,
+      "Nodes": 12,
+      "Routes": 0,
+      "Bends": 0,
+      "Crossings": 0,
+      "HardFindings": 0,
+      "GeometryHash": "401F8ABA83D29FF2EA1FBF6F8A6C85B8F54A91EA1E4EB1664491CDB1D510778C",
+      "FindingsHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "SvgHash": "AFB6F7F46B86300FACC8FC6983C12930319BBF439F75FB0103764C9B87B913B2",
+      "Milliseconds": 426.4875,
+      "Wraps": []
+    },
+    {
+      "Id": "single-layer-fan",
+      "SourceHash": "54926539AEC09708E406AA18E153BED71C0EA1E86A39FADE8176FB4802E7D1C4",
+      "Width": 1006,
+      "Height": 1396,
+      "Nodes": 9,
+      "Routes": 8,
+      "Bends": 4,
+      "Crossings": 0,
+      "HardFindings": 0,
+      "GeometryHash": "99693CA1D308ADD2E395C0F3EFEEDEBDF820F2E3DF3FBB4C91DAE77030E5B1A4",
+      "FindingsHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "SvgHash": "6656352B5573FCD353701EB79A0929AA8E5713887D371BDBB4225B85D7AA3114",
+      "Milliseconds": 3592.2884,
+      "Wraps": []
+    },
+    {
+      "Id": "cross-layer-fan",
+      "SourceHash": "B9FA811BC9C1B5415776486C584DEB6326AFCF499D89865D951E0F25F3C5401D",
+      "Width": 526,
+      "Height": 1516,
+      "Nodes": 9,
+      "Routes": 8,
+      "Bends": 6,
+      "Crossings": 0,
+      "HardFindings": 0,
+      "GeometryHash": "7AFACB8A00047DF3E6D59967DFF7131ACDF38C91F4797F270AFA32A386277C62",
+      "FindingsHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "SvgHash": "B914FDA31B1BF1070FA8C602CA663494062EB57061DB18FC03B0BFA03F3FC589",
+      "Milliseconds": 3561.903,
+      "Wraps": [
+        {
+          "Columns": 2147483647,
+          "Legal": true,
+          "WidthPx": 1410,
+          "HeightPx": 450,
+          "Bends": 8,
+          "Crossings": 0
+        },
+        {
+          "Columns": 3,
+          "Legal": true,
+          "WidthPx": 750,
+          "HeightPx": 780,
+          "Bends": 16,
+          "Crossings": 0
+        },
+        {
+          "Columns": 8,
+          "Legal": true,
+          "WidthPx": 1410,
+          "HeightPx": 450,
+          "Bends": 9,
+          "Crossings": 0
+        },
+        {
+          "Columns": 4,
+          "Legal": true,
+          "WidthPx": 690,
+          "HeightPx": 600,
+          "Bends": 17,
+          "Crossings": 0
+        },
+        {
+          "Columns": 2,
+          "Legal": true,
+          "WidthPx": 750,
+          "HeightPx": 900,
+          "Bends": 24,
+          "Crossings": 0
+        },
+        {
+          "Columns": 1,
+          "Legal": true,
+          "WidthPx": 510,
+          "HeightPx": 1500,
+          "Bends": 6,
+          "Crossings": 0
+        }
+      ]
+    },
+    {
+      "Id": "nested-and-parallel",
+      "SourceHash": "663C1105529D0D876EAD046CB74C9353FE8F42FEA5AFDA3FB74AF164FA715088",
+      "Width": 346,
+      "Height": 706,
+      "Nodes": 3,
+      "Routes": 3,
+      "Bends": 0,
+      "Crossings": 0,
+      "HardFindings": 0,
+      "GeometryHash": "1248A8A83CB636B7A3A3944094069EB045EE3E45E57EC3B05FA9FE27CB5BE2BF",
+      "FindingsHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "SvgHash": "C7FB9344877D28207B0372BB145B580509827FB7B2FABE0CCD3F11D43554DBD9",
+      "Milliseconds": 126.7425,
+      "Wraps": [
+        {
+          "Columns": 2147483647,
+          "Legal": true,
+          "WidthPx": 330,
+          "HeightPx": 690,
+          "Bends": 0,
+          "Crossings": 0
+        },
+        {
+          "Columns": 2,
+          "Legal": true,
+          "WidthPx": 330,
+          "HeightPx": 690,
+          "Bends": 0,
+          "Crossings": 0
+        },
+        {
+          "Columns": 1,
+          "Legal": true,
+          "WidthPx": 600,
+          "HeightPx": 540,
+          "Bends": 1,
+          "Crossings": 0
+        }
+      ]
+    },
+    {
+      "Id": "horizontal-chain",
+      "SourceHash": "9131D2F13925EF93B294D7C2B5CCE4C89F4FFD514943493A9875A87DE4AEBAC9",
+      "Width": 1426,
+      "Height": 106,
+      "Nodes": 8,
+      "Routes": 7,
+      "Bends": 0,
+      "Crossings": 0,
+      "HardFindings": 0,
+      "GeometryHash": "90547609415AB1A779109CC30A008341C059F15A3AFB0A29BFEB5F90C0354A0F",
+      "FindingsHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "SvgHash": "F2D5E0243EB578E1BF66C78843C1FC121C894E250E73C2E5882497C154CC996B",
+      "Milliseconds": 11.9775,
+      "Wraps": []
+    },
+    {
+      "Id": "enterprise-complete",
+      "SourceHash": "3D0700E62D984A9EBCF86880B73B2652E531522BE3FEDAC067548977D7C22D3D",
+      "Width": 2146,
+      "Height": 1666,
+      "Nodes": 25,
+      "Routes": 20,
+      "Bends": 19,
+      "Crossings": 1,
+      "HardFindings": 0,
+      "GeometryHash": "0B51E2C50BE53EEC8F0296AB8775A55B0B74F46BCECA8D5AB02DB74C7BC890C6",
+      "FindingsHash": "471671DA1832AF94EB81E6A9209A45D389B277D487E4F5B7D3F83BA9D3D88FE2",
+      "SvgHash": "82990508C5CE69844E07FA43CBB325D18AF1B2823B10EABE76A56D9E28A887BD",
+      "Milliseconds": 11638.0568,
+      "Wraps": [
+        {
+          "Columns": 2147483647,
+          "Legal": true,
+          "WidthPx": 2130,
+          "HeightPx": 1590,
+          "Bends": 20,
+          "Crossings": 1
+        },
+        {
+          "Columns": 11,
+          "Legal": true,
+          "WidthPx": 2130,
+          "HeightPx": 1590,
+          "Bends": 20,
+          "Crossings": 1
+        },
+        {
+          "Columns": 7,
+          "Legal": true,
+          "WidthPx": 2130,
+          "HeightPx": 1590,
+          "Bends": 20,
+          "Crossings": 1
+        },
+        {
+          "Columns": 4,
+          "Legal": false,
+          "WidthPx": 2130,
+          "HeightPx": 1890,
+          "Bends": 23,
+          "Crossings": 2
+        },
+        {
+          "Columns": 3,
+          "Legal": true,
+          "WidthPx": 2250,
+          "HeightPx": 1830,
+          "Bends": 28,
+          "Crossings": 3
+        },
+        {
+          "Columns": 2,
+          "Legal": true,
+          "WidthPx": 2130,
+          "HeightPx": 2160,
+          "Bends": 32,
+          "Crossings": 2
+        },
+        {
+          "Columns": 1,
+          "Legal": true,
+          "WidthPx": 2130,
+          "HeightPx": 2910,
+          "Bends": 27,
+          "Crossings": 2
+        }
+      ]
+    }
+  ]
+}

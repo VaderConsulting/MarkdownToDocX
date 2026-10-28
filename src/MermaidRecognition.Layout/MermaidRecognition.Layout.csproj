@@ -63,6 +63,10 @@
       <_Parameter1>LayoutCatalogueBench</_Parameter1>
     </AssemblyAttribute>
 
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>DiagramLayoutBench</_Parameter1>
+    </AssemblyAttribute>
+
   </ItemGroup>
 
 

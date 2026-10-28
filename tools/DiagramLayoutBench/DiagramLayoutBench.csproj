@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>none</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/MermaidRecognition.Layout/MermaidRecognition.Layout.csproj" />
+    <Compile Include="../../src/LiveEditor/Editor/SampleCatalog.cs" Link="SampleCatalog.cs" />
+  </ItemGroup>
+</Project>

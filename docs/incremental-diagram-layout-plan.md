@@ -2,6 +2,8 @@
 
 Status: proposed implementation plan. 28 October 2026.
 
+Progress: the plan is committed in `9ab0801`; default-off AF/AG/AH switches, request options, scoped Enterprise propagation and geometry-cache isolation are implemented in `700dbcb`. A dedicated `tools/DiagramLayoutBench` captures width and routing evidence. The initial Complete sample is 2146 x 1666; its current wrap candidates cannot materially reduce width. Width policy and incremental edit operations remain to be implemented. See the benchmark README and baseline JSON under `docs/bench` for evidence and known pre-existing test failures.
+
 ## Intended outcome
 
 Build and edit large diagrams while retaining a readable arrangement. Detaching and reconnecting a relationship should reroute its dependencies without unnecessarily moving nodes. Initial construction should account for routing quality and usable width. Problematic routes should be identifiable, with measured placement improvements available to the user.
@@ -28,7 +30,7 @@ Existing behaviour, scoring and rules remain unchanged when flags are off. New c
 - [ ] **BASE-2:** Trace why the wide examples remain wide: declared direction, explicit row constraints, group sizes, band/chain/component wrapping candidates, routing corridors and final rendered extents. Record formed and rejected wrap candidates and rejection reasons.
 - [ ] **BASE-3:** Record rendered width/height, label size at a declared fit-to-width viewport, bends, crossings, legality findings, layout time and route-rebuild count. For edits, also record affected-route count, moved nodes and fallback reason.
 - [ ] **BASE-4:** Establish baseline geometry/findings hashes, known failures and practical latency/readability targets before changing algorithms. Preserve existing independent checkers.
-- [ ] **BASE-5:** Add the three default-off flags and explicit option plumbing, with a clear entry point for selecting each experimental mode.
+- [x] **BASE-5:** Add the three default-off flags and explicit option plumbing, with a clear entry point for selecting each experimental mode.
 
 Acceptance: reproducible baseline, explained width causes for selected examples, and flag-off output unchanged. Performance and quality claims use those same fixtures and settings.
 
