@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Collections.Generic;
 using System.Xml.Linq;
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
@@ -91,7 +92,7 @@ internal static class ArchiHintProperties
                 + (Hint.Offset != 0 || Hint.ColumnOffset.HasValue ? " +" + Hint.Offset.ToString(CultureInfo.InvariantCulture) : string.Empty)
                 + (Hint.ColumnOffset.HasValue ? " +" + Hint.ColumnOffset.Value.ToString(CultureInfo.InvariantCulture) : string.Empty);
         }
-        return Hint.Kind switch
+        string Suffix = Hint.Kind switch
         {
             PlacementHintKind.Above when !string.IsNullOrWhiteSpace(Hint.PeerId) => " above " + Hint.PeerId,
             PlacementHintKind.Below when !string.IsNullOrWhiteSpace(Hint.PeerId) => " below " + Hint.PeerId,
@@ -100,6 +101,51 @@ internal static class ArchiHintProperties
             PlacementHintKind.Push => " push " + DirectionLetter(Hint.Direction),
             _ => string.Empty
         };
+        return Suffix + (Suffix.Length > 0 && Hint.Kind != PlacementHintKind.Push && Hint.Offset != 0
+            ? " +" + Hint.Offset.ToString(CultureInfo.InvariantCulture) : string.Empty);
+    }
+
+    public static void WriteRouting(XElement Element, RoutingHintContract? Hint)
+    {
+        if (Hint is not { IsActive: true }) return;
+        EnsureProperty(Element, ROUTING_KEY, string.Join("|", Hint.Leave, Hint.Enter, Hint.Travel,
+            Hint.LeavePoint?.ToString(CultureInfo.InvariantCulture), Hint.EnterPoint?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public static RoutingHintContract? ReadRouting(XElement Element)
+    {
+        string[]? Parts = ReadProperty(Element, ROUTING_KEY)?.Split('|');
+        if (Parts is not { Length: 5 }) return null;
+        bool Direction(string Text, out LayoutHintDirection? Value)
+        {
+            Value = null;
+            if (Text.Length == 0) return true;
+            if (!Enum.TryParse<LayoutHintDirection>(Text, true, out var Parsed) || !Enum.IsDefined(Parsed)) return false;
+            Value = Parsed; return true;
+        }
+        bool Point(string Text, out int? Value)
+        {
+            Value = null;
+            if (Text.Length == 0) return true;
+            if (!int.TryParse(Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int Parsed)) return false;
+            Value = Parsed; return true;
+        }
+        if (!Direction(Parts[0], out var Leave) || !Direction(Parts[1], out var Enter) || !Direction(Parts[2], out var Travel)
+            || !Point(Parts[3], out var LeavePoint) || !Point(Parts[4], out var EnterPoint)
+            || (LeavePoint.HasValue && !Leave.HasValue) || (EnterPoint.HasValue && !Enter.HasValue)) return null;
+        return new() { Leave = Leave, Enter = Enter, Travel = Travel, LeavePoint = LeavePoint, EnterPoint = EnterPoint };
+    }
+
+    public static string FormatRoutingSuffix(RoutingHintContract? Hint)
+    {
+        if (Hint is not { IsActive: true }) return string.Empty;
+        List<string> Parts = [];
+        string End(LayoutHintDirection Direction, int? Step) => DirectionLetter(Direction)
+            + (Step.HasValue ? "@" + Step.Value.ToString(CultureInfo.InvariantCulture) : string.Empty);
+        if (Hint.Leave.HasValue) Parts.Add("leave " + End(Hint.Leave.Value, Hint.LeavePoint));
+        if (Hint.Enter.HasValue) Parts.Add("enter " + End(Hint.Enter.Value, Hint.EnterPoint));
+        if (Hint.Travel.HasValue) Parts.Add("travel " + DirectionLetter(Hint.Travel));
+        return Parts.Count == 0 ? string.Empty : " [" + string.Join(", ", Parts) + "]";
     }
 
     private static string DirectionLetter(LayoutHintDirection? Direction)

@@ -1257,21 +1257,25 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void CopyPngMenuItem_Click(object? Sender, EventArgs E)
     {
-        Image? Shown = Image;
-        if (Shown == null)
-        {
-            return;
-        }
-
-        using Bitmap Copy = new Bitmap(Shown);
-        using MemoryStream Stream = new MemoryStream();
-        Copy.Save(Stream, ImageFormat.Png);
-        Stream.Position = 0;
-        using MemoryStream Png = new MemoryStream(Stream.ToArray());
+        byte[]? Bytes = PngForCopy();
+        if (Bytes == null) return;
+        using MemoryStream Png = new MemoryStream(Bytes);
+        using Bitmap Loaded = new Bitmap(Png);
+        using Bitmap Copy = new Bitmap(Loaded);
+        Png.Position = 0;
         DataObject Data = new DataObject();
         Data.SetData(DataFormats.Bitmap, true, Copy);
         Data.SetData("PNG", false, Png);
         Clipboard.SetDataObject(Data, true);
+    }
+
+    internal byte[]? PngForCopy()
+    {
+        if (LastPreviewPngBytes is { } Bytes) return (byte[])Bytes.Clone();
+        if (Image == null) return null;
+        using MemoryStream Stream = new MemoryStream();
+        Image.Save(Stream, ImageFormat.Png);
+        return Stream.ToArray();
     }
 
     private void Viewport_MouseDown(object? Sender, MouseEventArgs E)

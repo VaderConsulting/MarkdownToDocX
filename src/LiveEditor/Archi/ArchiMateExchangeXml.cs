@@ -143,7 +143,8 @@ internal static class ArchiMateExchangeXml
                     SourceMermaidId = SourceMermaidId,
                     TargetMermaidId = TargetMermaidId,
                     Kind = Kind,
-                    Label = ReadName(Relationship) ?? string.Empty
+                    Label = ReadName(Relationship) ?? string.Empty,
+                    RoutingHint = LiveEditorFeatureGate.W_ArchiHintRoundTrip ? ArchiHintProperties.ReadRouting(Relationship) : null
                 });
             }
         }
@@ -220,6 +221,7 @@ internal static class ArchiMateExchangeXml
                 Node.Add(new XElement(ExchangeNs + "name", Relationship.Label));
             }
 
+            if (LiveEditorFeatureGate.W_ArchiHintRoundTrip) ArchiHintProperties.WriteRouting(Node, Relationship.RoutingHint);
             RelationshipsNode.Add(Node);
         }
 

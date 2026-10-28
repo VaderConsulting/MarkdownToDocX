@@ -10,6 +10,8 @@ The worker analyses once, then prepares metadata-only, redraw or local-routing u
 
 The retained state contains model/cell regions, routes, hints, identities and accepted source metadata. Every accepted edit generates a fresh SVG/PNG. The last successful image remains available for display/export while new text is invalid; it is not the geometry authority for routing.
 
+PNG copy and file export preserve the accepted image payload without drawing selection/gesture overlays or entering layout. SVG export uses the accepted SVG; with AF enabled it refuses an export when no accepted drawing exists. Source save writes the editor's current text even when invalid, retaining explicit placement and exact endpoint hints for reload. Reload creates a fresh session, reapplies hints and arranges automatic nodes; it does not promise every retained cell, route bend or camera position. Archi/model-exchange hint properties follow the existing W switch. See [relationship-commands.md](relationship-commands.md) for the persistence contract.
+
 ## Failures and rebuilds
 
 Invalid text, ambiguous identity edits and rejected supported local operations preserve typed text and the last accepted picture. The banner identifies the preview as stale and gives the reason, even when the ordinary keep-last-good-preview switch is off. The next valid revision compares with the last accepted model. A failed local transaction cannot become initial placement or whole-diagram routing.

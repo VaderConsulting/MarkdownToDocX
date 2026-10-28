@@ -2057,7 +2057,7 @@ public partial class MainForm : Form
         };
         if (Dialog.ShowDialog(this) == DialogResult.OK)
         {
-            File.WriteAllBytes(Dialog.FileName, Bytes);
+            ExportDiagramFile(Dialog.FileName, Svg: false);
             SetStatus($"Exported {Path.GetFileName(Dialog.FileName)}");
         }
     }
@@ -2071,10 +2071,7 @@ public partial class MainForm : Form
 
         try
         {
-            if (LiveEditorFeatureGate.CaptureLayoutOptions().EnableIncrementalRouting && _LastSvg == null)
-                throw new InvalidOperationException("No accepted diagram is available to export.");
-            string Svg = _LastSvg ?? MermaidDiagramExport.RenderSvg(CodeView.Editor.Text);
-            _LastSvg = Svg;
+            _ = SvgForExport();
             using SaveFileDialog Dialog = new SaveFileDialog
             {
                 Filter = "SVG image (*.svg)|*.svg",
@@ -2083,7 +2080,7 @@ public partial class MainForm : Form
             };
             if (Dialog.ShowDialog(this) == DialogResult.OK)
             {
-                File.WriteAllText(Dialog.FileName, Svg);
+                ExportDiagramFile(Dialog.FileName, Svg: true);
                 SetStatus($"Exported {Path.GetFileName(Dialog.FileName)}");
             }
         }
@@ -2091,6 +2088,19 @@ public partial class MainForm : Form
         {
             MessageBox.Show(this, Ex.Message, "Export SVG failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private string SvgForExport()
+    {
+        if (LiveEditorFeatureGate.CaptureLayoutOptions().EnableIncrementalRouting && _LastSvg == null)
+            throw new InvalidOperationException("No accepted diagram is available to export.");
+        return _LastSvg ??= MermaidDiagramExport.RenderSvg(CodeView.Editor.Text);
+    }
+
+    internal void ExportDiagramFile(string Path, bool Svg)
+    {
+        if (Svg) File.WriteAllText(Path, SvgForExport());
+        else File.WriteAllBytes(Path, _LastPngBytes ?? throw new InvalidOperationException("No rendered PNG is available."));
     }
 
     private void ToggleThemeMenuItem_Click(object? Sender, EventArgs E)
@@ -2563,7 +2573,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void TrySaveSource(string SourcePath)
+    internal void TrySaveSource(string SourcePath)
     {
         try
         {

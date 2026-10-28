@@ -106,7 +106,8 @@ internal static class ArchiNativeModelXml
                     SourceMermaidId = SourceArchiId,
                     TargetMermaidId = TargetArchiId,
                     Kind = Kind,
-                    Label = (string?)Element.Attribute("name") ?? string.Empty
+                    Label = (string?)Element.Attribute("name") ?? string.Empty,
+                    RoutingHint = LiveEditorFeatureGate.W_ArchiHintRoundTrip ? ArchiHintProperties.ReadRouting(Element) : null
                 });
             }
             else
@@ -211,6 +212,7 @@ internal static class ArchiNativeModelXml
                 Node.SetAttributeValue("name", Relationship.Label);
             }
 
+            if (LiveEditorFeatureGate.W_ArchiHintRoundTrip) ArchiHintProperties.WriteRouting(Node, Relationship.RoutingHint);
             RelationsFolder.Add(Node);
         }
 

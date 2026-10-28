@@ -239,4 +239,7 @@ internal sealed class ArchiExchangeRelationship
 
     /// <summary>Gets or sets the Mermaid minimum rank span. Archi files do not store this, so import leaves it at 1.</summary>
     public int MinLength { get; set; } = 1;
+
+    /// <summary>Optional source routing intent, including exact connection-grid steps.</summary>
+    public RoutingHintContract? RoutingHint { get; set; }
 }

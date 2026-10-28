@@ -92,7 +92,8 @@ internal static class EnterpriseArchiMapper
                 Label = Relationship.Label,
                 AccessKind = Relationship.AccessKind,
                 DirectedAssociation = Relationship.DirectedAssociation,
-                MinLength = Relationship.MinLength
+                MinLength = Relationship.MinLength,
+                RoutingHint = Relationship.RoutingHint
             };
             Model.Relationships.Add(Mapped);
             RelationshipIndex++;
@@ -195,6 +196,9 @@ internal static class EnterpriseArchiMapper
                 Builder.Append(' ');
                 Builder.Append(QuoteLabel(Relationship.Label));
             }
+
+            if (LiveEditorFeatureGate.W_ArchiHintRoundTrip)
+                Builder.Append(ArchiHintProperties.FormatRoutingSuffix(Relationship.RoutingHint));
 
             Builder.AppendLine();
         }

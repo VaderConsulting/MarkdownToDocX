@@ -12,7 +12,7 @@ using NUnit.Framework;
 namespace LiveEditor.Tests;
 
 [TestFixture, NonParallelizable, Apartment(ApartmentState.STA)]
-public sealed class RetainedEnterprisePreviewTests
+public sealed partial class RetainedEnterprisePreviewTests
 {
     private const string Source = "enterprise\n"
         + "application-component a \"A\"\napplication-component b \"B\" below a +2\n"
