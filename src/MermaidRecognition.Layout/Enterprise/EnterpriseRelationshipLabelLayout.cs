@@ -16,8 +16,9 @@ internal static class EnterpriseRelationshipLabelLayout
     /// <param name="Edges">Completed painted paths whose label bounds and breaks are updated.</param>
     /// <param name="Nodes">Fixed painted node bounds used for label clearance.</param>
     /// <param name="PreferFanLeafRuns">Whether production-cell fans reserve the leaf-side run before trying other segments.</param>
+    /// <param name="PreserveRoutes">Whether label placement must keep every supplied path and terminal unchanged.</param>
     internal static void Place(List<EnterpriseRoutedEdge> Edges,
-        Dictionary<string, EnterpriseLayoutNode> Nodes, bool PreferFanLeafRuns = false)
+        Dictionary<string, EnterpriseLayoutNode> Nodes, bool PreferFanLeafRuns = false, bool PreserveRoutes = false)
     {
         Dictionary<string, int> Degree = Edges.SelectMany(Edge => new[] { Edge.Relationship.SourceId, Edge.Relationship.TargetId })
             .GroupBy(Id => Id).ToDictionary(Group => Group.Key, Group => Group.Count(), StringComparer.Ordinal);
@@ -124,7 +125,7 @@ internal static class EnterpriseRelationshipLabelLayout
             }
             Placed.Add(Edge);
         }
-        ResolveRouteLabelConflicts(Edges, Nodes);
+        if (!PreserveRoutes) ResolveRouteLabelConflicts(Edges, Nodes);
     }
 
     private static void ResolveRouteLabelConflicts(List<EnterpriseRoutedEdge> Edges,

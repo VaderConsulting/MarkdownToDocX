@@ -20,6 +20,8 @@ Unsupported structural changes, grouped sizing, fonts/text format, Enterprise ti
 
 `EnterpriseLayoutEngine.FromGeometry`, the supplied-layout routing context and the Enterprise drawing builder consume accepted geometry without entering the initial-layout entry point. Retained drawing bypasses the ordinary geometry-SVG cache. A fixed layout-to-SVG frame prevents recentering unrelated components; negative drawing extents expand the viewBox instead of translating model geometry.
 
+Retained drawing reads the exact stored relationship identity/endpoints and path. Missing authoritative model/path entries reject drawing rather than calling a route resolver. Compound/group endpoint adjustments and drawing-time label-conflict endpoint shifts are disabled on this supplied-geometry path. Label placement may choose text positions, but drawing cannot move a committed terminal or connector. Ordinary initial rendering retains its existing route-completion behavior. Measured label conflict handling for retained label changes remains separate work.
+
 ## View and editing
 
 Hit testing accounts for viewBox origin. Supported redraws preserve the model-to-screen scale and camera position across changed extents and preview raster downscaling. A fitted view becomes a fixed camera on the first supported edit so it does not automatically refit on every keystroke. **Fit preview** explicitly recomputes the view. These view changes do not run layout.

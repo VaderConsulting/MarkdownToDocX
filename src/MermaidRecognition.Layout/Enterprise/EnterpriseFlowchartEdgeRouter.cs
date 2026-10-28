@@ -50,7 +50,8 @@ internal static class EnterpriseFlowchartEdgeRouter
     internal static List<EnterpriseRoutedEdge> Route(
         EnterpriseDocument Document,
         Dictionary<string, EnterpriseLayoutNode> Nodes,
-        EnterpriseFlowchartRoutingContext Context)
+        EnterpriseFlowchartRoutingContext Context,
+        bool PreserveGeometry = false)
     {
         HashSet<string> UsedEdgeIds = new HashSet<string>(StringComparer.Ordinal);
         Dictionary<string, List<(double X, double Y)>> CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
@@ -65,17 +66,28 @@ internal static class EnterpriseFlowchartEdgeRouter
             EdgeContract? Edge = FindUnusedEdge(Context.Contract, Relationship, UsedEdgeIds);
             if (Edge == null)
             {
+                if (PreserveGeometry) throw new InvalidOperationException("Accepted geometry has no authoritative relationship for '"
+                    + Relationship.SourceId + "->" + Relationship.TargetId + "'.");
                 continue;
             }
 
             UsedEdgeIds.Add(Edge.Id ?? string.Empty);
-            if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
+            List<(double X, double Y)> LayoutPoints;
+            if (PreserveGeometry)
+            {
+                var Stored = Context.Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Edge.Id
+                    && Route.SourceId == Edge.SourceId && Route.TargetId == Edge.TargetId);
+                if (Stored == null || Stored.Points.Count < 2)
+                    throw new InvalidOperationException("Accepted geometry has no authoritative route for relationship '" + Edge.Id + "'.");
+                LayoutPoints = Stored.Points.Select(Point => (Point.X, Point.Y)).ToList();
+            }
+            else if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                     Edge,
                     Context.Contract,
                     Context.BoundsById,
                     Context.NodeById,
                     Context.Direction,
-                    out List<(double X, double Y)> LayoutPoints,
+                    out LayoutPoints,
                     out FlowchartEdgeRouteKind RouteKind,
                     Context.Layout)
                 || LayoutPoints.Count < 2)
@@ -83,7 +95,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
-            FlowchartCompoundEndpointHelper.ReattachVisiblePorts(Edge, Context.Contract, Context.Layout,
+            if (!PreserveGeometry) FlowchartCompoundEndpointHelper.ReattachVisiblePorts(Edge, Context.Contract, Context.Layout,
                 Context.BoundsById, Context.NodeById, Context.Direction, LayoutPoints, CompoundPorts);
             List<(double X, double Y)> SvgPoints = [];
             foreach ((double LayoutX, double LayoutY) in LayoutPoints)
@@ -91,7 +103,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                 SvgPoints.Add(Context.Frame.LayoutToSvg(LayoutX, LayoutY));
             }
 
-            if (!TryRouteInsideContainer(Edge, Context.Contract, Nodes, SvgPoints))
+            if (!PreserveGeometry && !TryRouteInsideContainer(Edge, Context.Contract, Nodes, SvgPoints))
             {
                 AttachCompoundEnd(Relationship.SourceId, SvgPoints, true, Nodes);
                 AttachCompoundEnd(Relationship.TargetId, SvgPoints, false, Nodes);
@@ -166,7 +178,8 @@ internal static class EnterpriseFlowchartEdgeRouter
                 LabelX,
                 LabelY));
         }
-        EnterpriseRelationshipLabelLayout.Place(Routed, Nodes, Context.Layout.RenderContext.UseCellRegions);
+        EnterpriseRelationshipLabelLayout.Place(Routed, Nodes, Context.Layout.RenderContext.UseCellRegions,
+            PreserveRoutes: PreserveGeometry);
         return Routed;
     }
 

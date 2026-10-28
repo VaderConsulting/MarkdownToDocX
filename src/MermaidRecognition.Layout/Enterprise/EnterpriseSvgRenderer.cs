@@ -98,7 +98,7 @@ public static partial class EnterpriseSvgRenderer
         EnterpriseFlowchartRoutingContext? RoutingContext = Layout.RoutingContext;
         List<EnterpriseRoutedEdge> RoutedEdges = Measure("enterprise-edge-routing", () => RoutingContext == null
             ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
-            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext));
+            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext, PreserveGeometry: Retained));
         Dictionary<string, EnterpriseJunctionCaptionLayout.Caption> Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
         double Width = Math.Ceiling(Math.Max(Layout.Width, 40));
