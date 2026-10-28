@@ -73,6 +73,7 @@ internal sealed partial class PreviewCanvas : UserControl
         _SelectionColour = DEFAULT_SELECTION_COLOUR;
         _SelectionStyle = PreviewStyle.ForCurrentDiagram(DEFAULT_SELECTION_COLOUR);
         InitializeComponent();
+        FocusSink.LostFocus += (_, _) => CancelNodeMove();
     }
 
     /// <summary>Raised when the pointer moves over the picture.</summary>
@@ -1037,6 +1038,7 @@ internal sealed partial class PreviewCanvas : UserControl
     /// <summary>Lays the picture out for the current zoom or fit mode.</summary>
     public void ApplyView()
     {
+        CancelNodeMove();
         if (DiagramPicture.Image == null)
         {
             DiagramPicture.Dock = DockStyle.Fill;
@@ -1215,6 +1217,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void Picture_MouseMove(object? Sender, MouseEventArgs E)
     {
+        UpdateNodeMove(E.Location);
         PictureMouseMove?.Invoke(this, E);
     }
 
@@ -1288,6 +1291,7 @@ internal sealed partial class PreviewCanvas : UserControl
             }
 
             ApplyClick(Hit, Extend);
+            BeginNodeMove(Hit, PicturePoint, ModifierKeys != Keys.None);
             return;
         }
 
@@ -1296,6 +1300,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void Picture_MouseDown(object? Sender, MouseEventArgs E)
     {
+        if (E.Button != MouseButtons.Left) CancelNodeMove();
         if (E.Button == MouseButtons.Left)
         {
             FocusForKeys();
@@ -1309,6 +1314,8 @@ internal sealed partial class PreviewCanvas : UserControl
             ApplyClick(Hit, Extend);
         }
 
+        if (E.Button == MouseButtons.Left)
+            BeginNodeMove(HitItem(E.Location), E.Location, ModifierKeys != Keys.None);
         PictureMouseDown?.Invoke(this, E);
     }
 
@@ -1332,6 +1339,7 @@ internal sealed partial class PreviewCanvas : UserControl
             }
         }
 
+        PaintNodeMove(E.Graphics);
         PicturePaint?.Invoke(this, E);
     }
 
@@ -1385,6 +1393,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void AssignSelectedItems(IReadOnlyList<PreviewObject>? Next)
     {
+        CancelNodeMove();
         List<PreviewObject> Desired = [];
         if (Next != null)
         {
@@ -1570,6 +1579,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void FocusSink_EscapePressed(object? Sender, EventArgs E)
     {
+        if (CancelNodeMove()) return;
         EscapePressed?.Invoke(this, E);
     }
 

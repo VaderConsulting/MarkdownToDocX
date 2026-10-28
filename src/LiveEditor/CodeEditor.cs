@@ -1130,6 +1130,24 @@ internal sealed partial class CodeEditor : UserControl
         }
     }
 
+    /// <summary>Applies one source command without completion or caret side effects.</summary>
+    internal void ReplaceSourceSpan(int Start, int Length, string Replacement)
+    {
+        _IntelliSense.Suppress = true;
+        _SuppressCaretUi = true;
+        try
+        {
+            SourceEditor.Select(Start, Length);
+            SourceEditor.SelectedText = Replacement;
+            SourceEditor.Select(Start, Replacement.Length);
+        }
+        finally
+        {
+            _IntelliSense.Suppress = false;
+            _SuppressCaretUi = false;
+        }
+    }
+
     /// <summary>Redoes the last undone edit.</summary>
     internal void RedoEdit()
     {

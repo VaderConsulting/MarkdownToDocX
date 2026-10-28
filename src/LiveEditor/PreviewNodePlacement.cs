@@ -10,7 +10,7 @@ using MermaidRecognition.Layout;
 namespace LiveEditor;
 
 /// <summary>Converts a dropped element centre into a same-group, same-layer relative placement hint.</summary>
-internal static class PreviewNodePlacement
+internal static partial class PreviewNodePlacement
 {
     internal sealed record Edit(int Start, int Length, string Replacement, string Hint)
     {
@@ -18,7 +18,7 @@ internal static class PreviewNodePlacement
     }
 
     internal static bool TryCreate(string Source, string NodeId, IReadOnlyList<PreviewObject> Items,
-        PointF Drop, out Edit? Change, out string Reason)
+        PointF Drop, out Edit? Change, out string Reason, GridSnap? Grid = null)
     {
         Change = null;
         Reason = "Drop near another element in the same group and layer.";
@@ -62,6 +62,14 @@ internal static class PreviewNodePlacement
         double Extra = (Horizontal ? Math.Abs(Dx) - HalfWidth : Math.Abs(Dy) - HalfHeight) - DiagramGridMetrics.NODE_GAP_PX;
         int Offset = (int)Math.Clamp(Math.Round(Extra / DiagramGridMetrics.GRID_UNIT_PX), 0, 10000);
         string Hint = Direction + " " + Peer.Id + (Offset == 0 ? string.Empty : " +" + Offset.ToString(CultureInfo.InvariantCulture));
+        if (Grid != null)
+        {
+            var Snapped = Grid.Snap(NodeId, Drop);
+            if (Snapped == null) return false;
+            Peer = Items.First(Item => Item.Id == Snapped.PeerId && Item.Kind == PreviewObjectKind.Node);
+            Direction = Snapped.Direction; Offset = Snapped.Offset;
+            Hint = Direction + " " + Peer.Id + (Offset == 0 ? string.Empty : " +" + Offset.ToString(CultureInfo.InvariantCulture));
+        }
         if (!TryRewrite(Source, Element.LineNumber, Hint, out Change))
         {
             Reason = "Drag supports one declaration per line; edit this placement hint in the source.";

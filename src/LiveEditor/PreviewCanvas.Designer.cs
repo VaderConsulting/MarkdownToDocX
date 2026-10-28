@@ -67,6 +67,8 @@ namespace LiveEditor
             DiagramPicture.MouseMove += Picture_MouseMove;
             DiagramPicture.MouseLeave += Picture_MouseLeave;
             DiagramPicture.MouseDown += Picture_MouseDown;
+            DiagramPicture.MouseUp += Picture_MouseUp;
+            DiagramPicture.MouseCaptureChanged += Picture_MouseCaptureChanged;
             DiagramPicture.Paint += Picture_Paint;
             DiagramPicture.Size = new Size(240, 406);
             DiagramPicture.SizeMode = PictureBoxSizeMode.Zoom;

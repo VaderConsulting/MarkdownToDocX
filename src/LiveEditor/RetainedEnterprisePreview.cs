@@ -35,6 +35,11 @@ internal sealed class RetainedEnterprisePreview
         lock (Gate) { Retired = true; Service?.Invalidate(Reason); }
     }
 
+    internal FlowchartLayoutResult? CopyPlacementLayout()
+    {
+        lock (Gate) { return Retired ? null : Service?.CopySnapshot().Layout; }
+    }
+
     internal Prepared Prepare(string Source, long SourceRevision, EnterpriseAnalysisResult Analysis,
         DiagramLayoutOptions Options)
     {

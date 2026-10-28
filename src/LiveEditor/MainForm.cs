@@ -336,6 +336,10 @@ public partial class MainForm : Form
 
     private void WireEvents()
     {
+        Preview.CanMoveNode = CanMovePreviewNode;
+        Preview.CreateNodeMoveSnap = CreateNodeMoveSnap;
+        Preview.NodeMoveRequested += (Id, Drop) => MovePreviewNode(Id, Drop);
+        Deactivate += (_, _) => Preview.CancelNodeMove();
         Application.AddMessageFilter(_PreviewHoverDismiss);
         ElementToolbar.BindSource(CurrentEditorText);
         CodeView.Editor.TextChanged += Editor_TextChanged;
@@ -634,6 +638,7 @@ public partial class MainForm : Form
 
     private void QueueRender()
     {
+        Preview.CancelNodeMove();
         int Revision = Interlocked.Increment(ref _RenderGeneration);
         _RenderCancellation?.Cancel();
         _RetainedPreview.Observe(Revision);
@@ -956,6 +961,7 @@ public partial class MainForm : Form
 
     private void Preview_PictureMouseMove(object? Sender, MouseEventArgs E)
     {
+        if (Preview.IsMovingNode) { HidePreviewHover(); return; }
         if (!Preview.HasPicture || Preview.Index == null)
         {
             HidePreviewHover();

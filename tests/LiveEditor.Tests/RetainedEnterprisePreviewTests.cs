@@ -314,6 +314,129 @@ public sealed class RetainedEnterprisePreviewTests
         return Form;
     }
 
+    [Test]
+    public void SnappedGuiMoveMatchesTypedHintPreservesSelectionAndIsOneUndoableSourceEdit()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        var PreviousObserver = MermaidRecognition.Layout.Enterprise.EnterpriseFlowchartEdgeRouter.StageTimingObserver;
+        try
+        {
+            var Reference = new RetainedEnterprisePreview();
+            Accept(Reference, Source, 1);
+            string Typed = Source.Replace("below a +2", "below a +3");
+            var Expected = Accept(Reference, Typed, 2);
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            Form.SelectPreviewObject(Preview.Index!.FindObject("node\u001fb"));
+            int Generation = Form.DiagramMetadata.Generation;
+            var Stages = new System.Collections.Concurrent.ConcurrentBag<string>();
+            MermaidRecognition.Layout.Enterprise.EnterpriseFlowchartEdgeRouter.StageTimingObserver =
+                (Stage, Time) => { if (Time < 0) Stages.Add(Stage); };
+            // Reference now has +3. Use its SVG centre with a small off-grid
+            // pointer displacement; the command must still write exactly +3.
+            var ExpectedIndex = PreviewHoverIndex.Build(Expected.Svg, Typed);
+            var Target = ExpectedIndex.FindObject("node\u001fb")!;
+            Assert.That(Form.MovePreviewNode("b", new((float)((Target.Left + Target.Right) / 2 + 7),
+                (float)((Target.Top + Target.Bottom) / 2 + 8))), Is.True);
+            Assert.That(Editor.Text, Is.EqualTo(Typed));
+            Wait(() => Preview.RenderedSvg == Expected.Svg && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));
+            Assert.That(Form.LastRebuiltRouteIds, Is.EqualTo(Expected.RebuiltRouteIds));
+            Assert.That(Preview.SelectedItems!.Single().Id, Is.EqualTo("b"));
+            foreach (string Id in new[] { "x", "y" })
+                Assert.That(Node(Preview.RenderedSvg!, Id), Is.EqualTo(Node(Initial, Id)));
+            Assert.That(Edge(Preview.RenderedSvg!, "x"), Is.EqualTo(Edge(Initial, "x")));
+            Editor.Undo();
+            Assert.That(Editor.Text, Is.EqualTo(Source));
+            Wait(() => Preview.RenderedSvg == Initial);
+            Editor.Redo();
+            Assert.That(Editor.Text, Is.EqualTo(Typed));
+            Wait(() => Preview.RenderedSvg == Expected.Svg);
+            Assert.That(Stages, Does.Not.Contain("enterprise-shared-flowchart-layout"));
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+        }
+        finally
+        {
+            Restore(Previous);
+            MermaidRecognition.Layout.Enterprise.EnterpriseFlowchartEdgeRouter.StageTimingObserver = PreviousObserver;
+        }
+    }
+
+    [Test]
+    public void NoOpAndStaleGuiDropsDoNotRewriteSourceOrSubmitAnotherRender()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var B = Preview.Index!.FindObject("node\u001fb")!;
+            PointF Center = new((float)((B.Left + B.Right) / 2), (float)((B.Top + B.Bottom) / 2));
+            int Generation = Form.DiagramMetadata.Generation;
+            Assert.That(Form.MovePreviewNode("b", Center), Is.False);
+            Assert.That(Editor.Text, Is.EqualTo(Source));
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation));
+            Editor.AppendText("%% newer source\n");
+            Assert.That(Form.MovePreviewNode("b", new(Center.X, Center.Y + 100)), Is.False);
+            Assert.That(Editor.Text, Is.EqualTo(Source + "%% newer source\n"));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [Test]
+    public void RejectedGuiDropKeepsTypedHintAndAcceptedExportAndCanBeUndone()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            byte[] Png = Preview.LastPreviewPngBytes!;
+            var X = Preview.Index!.FindObject("node\u001fx")!;
+            Assert.That(Form.MovePreviewNode("b", new((float)((X.Left + X.Right) / 2),
+                (float)((X.Top + X.Bottom) / 2))), Is.True);
+            Wait(() => Form.DiagramMetadata.RenderFailed);
+            Assert.That(Editor.Text, Does.Contain("right-of a +5"));
+            Assert.That(Preview.RenderedSvg, Is.EqualTo(Initial));
+            Assert.That(Preview.LastPreviewPngBytes, Is.SameAs(Png));
+            Editor.Undo();
+            Assert.That(Editor.Text, Is.EqualTo(Source));
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.RenderedSvg, Is.EqualTo(Initial));
+            Assert.That(Form.LastRebuiltRouteIds, Is.Empty);
+        }
+        finally { Restore(Previous); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void GuiMovementRequiresAnAcceptedRetainedGridPreview(bool OpenLayout)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(OpenLayout);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            Editor.Text = OpenLayout ? Source.Replace("enterprise\n", "enterprise\n%%{init: {\"layout\":\"open\"}}%%\n") : Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Before = Editor.Text;
+            Assert.That(Form.MovePreviewNode("b", new(300, 300)), Is.False);
+            Assert.That(Editor.Text, Is.EqualTo(Before));
+        }
+        finally { Restore(Previous); }
+    }
+
     private static void Wait(Func<bool> Complete)
     {
         DateTime End = DateTime.UtcNow.AddSeconds(30);
