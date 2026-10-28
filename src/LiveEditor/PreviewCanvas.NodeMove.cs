@@ -79,10 +79,13 @@ internal sealed partial class PreviewCanvas
         if (_MovingNode == null || !_MoveThresholdPassed || _MoveDrop is not { } Drop
             || !TryGetPictureTransform(out double Sx, out double Sy, out double Ox, out double Oy)) return;
         using Pen Outline = new(_SelectionColour, 2) { DashStyle = DashStyle.Dash };
+        // Separate feedback from the solid selection border even when the
+        // pointer has moved but snapping still selects the original cell.
+        const float Margin = 4;
         Canvas.DrawRectangle(Outline,
-            (float)((Drop.X - (_MovingNode.Right - _MovingNode.Left) / 2) * Sx + Ox),
-            (float)((Drop.Y - (_MovingNode.Bottom - _MovingNode.Top) / 2) * Sy + Oy),
-            (float)((_MovingNode.Right - _MovingNode.Left) * Sx),
-            (float)((_MovingNode.Bottom - _MovingNode.Top) * Sy));
+            (float)((Drop.X - (_MovingNode.Right - _MovingNode.Left) / 2) * Sx + Ox) - Margin,
+            (float)((Drop.Y - (_MovingNode.Bottom - _MovingNode.Top) / 2) * Sy + Oy) - Margin,
+            (float)((_MovingNode.Right - _MovingNode.Left) * Sx) + 2 * Margin,
+            (float)((_MovingNode.Bottom - _MovingNode.Top) * Sy) + 2 * Margin);
     }
 }

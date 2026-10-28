@@ -1281,7 +1281,8 @@ internal sealed partial class PreviewCanvas : UserControl
 
         FocusForKeys();
         bool Extend = (ModifierKeys & Keys.Control) == Keys.Control;
-        Point PicturePoint = DiagramPicture.PointToClient(Viewport.PointToScreen(E.Location));
+        Point ScreenPoint = Viewport.PointToScreen(E.Location);
+        Point PicturePoint = DiagramPicture.PointToClient(ScreenPoint);
         if (DiagramPicture.ClientRectangle.Contains(PicturePoint))
         {
             PreviewObject? Hit = null;
@@ -1291,7 +1292,7 @@ internal sealed partial class PreviewCanvas : UserControl
             }
 
             ApplyClick(Hit, Extend);
-            BeginNodeMove(Hit, PicturePoint, ModifierKeys != Keys.None);
+            BeginNodeMove(Hit, DiagramPicture.PointToClient(ScreenPoint), ModifierKeys != Keys.None);
             return;
         }
 
@@ -1304,6 +1305,7 @@ internal sealed partial class PreviewCanvas : UserControl
         if (E.Button == MouseButtons.Left)
         {
             FocusForKeys();
+            Point ScreenPoint = DiagramPicture.PointToScreen(E.Location);
             bool Extend = (ModifierKeys & Keys.Control) == Keys.Control;
             PreviewObject? Hit = null;
             if (IsOnDiagram(E.Location))
@@ -1312,10 +1314,12 @@ internal sealed partial class PreviewCanvas : UserControl
             }
 
             ApplyClick(Hit, Extend);
+            // Selecting a different node can resize the floating details panel
+            // and refit the picture. Keep the original hit and rebase the grab
+            // point into the updated picture instead of hit-testing it again.
+            BeginNodeMove(Hit, DiagramPicture.PointToClient(ScreenPoint), ModifierKeys != Keys.None);
         }
 
-        if (E.Button == MouseButtons.Left)
-            BeginNodeMove(HitItem(E.Location), E.Location, ModifierKeys != Keys.None);
         PictureMouseDown?.Invoke(this, E);
     }
 

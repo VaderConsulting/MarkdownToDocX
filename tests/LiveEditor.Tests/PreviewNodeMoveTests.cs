@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using MermaidRecognition.Layout;
@@ -11,8 +12,61 @@ using NUnit.Framework;
 namespace LiveEditor.Tests;
 
 [TestFixture, NonParallelizable, Apartment(ApartmentState.STA)]
-public sealed class PreviewNodeMoveTests
+public sealed partial class PreviewNodeMoveTests
 {
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
+
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(true, true)]
+    public void NativeMouseDragStartsOnTheOriginalNodeWhenSelectionRefitsThePicture(bool Refit, bool ThroughViewport)
+    {
+        using var Host = new Form { ClientSize = new(800, 600), ShowInTaskbar = false };
+        using var Preview = new PreviewCanvas { Dock = DockStyle.Fill };
+        Host.Controls.Add(Preview); Host.Show(); Application.DoEvents();
+        const string Source = "enterprise\napplication-component a\n";
+        const string Svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"600\" height=\"400\"><g class=\"element application-component\" data-id=\"a\"><rect x=\"400\" y=\"180\" width=\"150\" height=\"60\"/></g></svg>";
+        using var Bitmap = new Bitmap(600, 400); using var Stream = new MemoryStream();
+        Bitmap.Save(Stream, System.Drawing.Imaging.ImageFormat.Png);
+        Preview.LoadAccepted(Source, Svg, Stream.ToArray(), null, false);
+        var Picture = (PictureBox)Preview.Controls.Find("DiagramPicture", true)[0];
+        var Viewport = (Panel)Preview.Controls.Find("Viewport", true)[0];
+        var A = Preview.Items.Single();
+        Preview.CanMoveNode = _ => true;
+        PointF? Projected = null;
+        Preview.CreateNodeMoveSnap = _ => Point => { Projected = Point; return Point; };
+        int Requests = 0;
+        Preview.NodeMoveRequested += (_, _) => Requests++;
+        PreviewSelection.TryGetSvgToClient(Picture.Width, Picture.Height, 600, 400, 600, 400,
+            out var Sx, out var Sy, out var Ox, out var Oy);
+        Point Start = new((int)Math.Round(475 * Sx + Ox), (int)Math.Round(210 * Sy + Oy));
+        Point ScreenStart = Picture.PointToScreen(Start);
+        Preview.SelectedItemsChanged += (_, _) =>
+        {
+            if (Refit) Preview.SetFitObstacle(new Rectangle(0, 280, 700, 320));
+        };
+        static IntPtr Packed(Point Point) => (IntPtr)((Point.Y << 16) | (Point.X & 0xffff));
+        Control PressTarget = ThroughViewport ? Viewport : Picture;
+        SendMessage(PressTarget.Handle, 0x0201, (IntPtr)1, Packed(PressTarget.PointToClient(ScreenStart)));
+        Assert.That(Preview.SelectedItems!.Single(), Is.SameAs(A));
+        Assert.That(Preview.IsMovingNode, Is.True, "Selection must not lose the original mouse-down hit after refitting.");
+        Point CurrentStart = Picture.PointToClient(ScreenStart);
+        Point End = new(CurrentStart.X + 24, CurrentStart.Y + 20);
+        SendMessage(Picture.Handle, 0x0200, (IntPtr)1, Packed(End));
+        Assert.That(Preview.IsMovingNode, Is.True);
+        PreviewSelection.TryGetSvgToClient(Picture.Width, Picture.Height, 600, 400, 600, 400,
+            out Sx, out Sy, out Ox, out Oy);
+        Assert.That(Projected, Is.Not.Null);
+        Assert.That(Projected!.Value.X, Is.EqualTo(475 + 24 / Sx).Within(0.01));
+        Assert.That(Projected.Value.Y, Is.EqualTo(210 + 20 / Sy).Within(0.01));
+        Assert.That(Viewport.ClientRectangle.Contains(Viewport.PointToClient(Picture.PointToScreen(End))), Is.True);
+        SendMessage(Picture.Handle, 0x0202, IntPtr.Zero, Packed(End));
+        Assert.That(Requests, Is.EqualTo(1), "Native mouse-up must publish before capture is released.");
+        Assert.That(Preview.IsMovingNode, Is.False);
+    }
+
     [TestCase(0.5, 600, 0)]
     [TestCase(2.0, 300, -50)]
     public void DragProjectionPreservesGrabOffsetAcrossZoomRasterScaleAndViewBoxOrigin(double Zoom, int RasterWidth, int Origin)
@@ -77,6 +131,40 @@ public sealed class PreviewNodeMoveTests
         Assert.That(PreviewNodePlacement.TryCreate(Source, "b", Items, Snap.Center, out var Edit, out var Reason, Planner), Is.True, Reason);
         Assert.That(Edit!.Hint, Is.EqualTo(Direction + " a +2"));
         Assert.That(Grid.Capture(), Is.SameAs(Before), "Feedback must not mutate occupancy, gaps or routes.");
+    }
+
+    [Test]
+    public void FeedbackIsVisibleWhenThePointerMovesButTheNodeSnapsToItsOriginalCell()
+    {
+        using var Host = new Form { ClientSize = new(800, 600), ShowInTaskbar = false };
+        using var Preview = new PreviewCanvas { Dock = DockStyle.Fill };
+        Host.Controls.Add(Preview); Host.Show(); Application.DoEvents();
+        const string Source = "enterprise\napplication-component a\n";
+        const string Svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"600\" height=\"400\"><g class=\"element application-component\" data-id=\"a\"><rect x=\"100\" y=\"100\" width=\"150\" height=\"60\"/></g></svg>";
+        using var Image = new Bitmap(600, 400); using var Stream = new MemoryStream();
+        using (var Graphics = System.Drawing.Graphics.FromImage(Image)) Graphics.Clear(Color.White);
+        Image.Save(Stream, System.Drawing.Imaging.ImageFormat.Png);
+        Preview.LoadAccepted(Source, Svg, Stream.ToArray(), null, false);
+        Preview.FitToWindow = false; Preview.Zoom = 1; Preview.ApplyView();
+        var Picture = (PictureBox)Preview.Controls.Find("DiagramPicture", true)[0];
+        Preview.CanMoveNode = _ => true;
+        Preview.CreateNodeMoveSnap = _ => _ => new(175, 130);
+        static IntPtr Packed(int X, int Y) => (IntPtr)((Y << 16) | X);
+        SendMessage(Picture.Handle, 0x0201, (IntPtr)1, Packed(175, 130));
+        using var Before = new Bitmap(Picture.Width, Picture.Height);
+        Picture.DrawToBitmap(Before, Picture.ClientRectangle);
+        SendMessage(Picture.Handle, 0x0200, (IntPtr)1, Packed(190, 140));
+        using var After = new Bitmap(Picture.Width, Picture.Height);
+        Picture.DrawToBitmap(After, Picture.ClientRectangle);
+        int ChangedPixels = 0;
+        // The normal selection already paints the node border. Feedback must
+        // have its own visible footprint even before snapping to another cell.
+        for (int Y = 91; Y < 170; Y++)
+            for (int X = 91; X < 260; X++)
+                if ((X < 98 || X > 252 || Y < 98 || Y > 162)
+                    && Before.GetPixel(X, Y) != After.GetPixel(X, Y)) ChangedPixels++;
+        Assert.That(ChangedPixels, Is.GreaterThan(20));
+        Preview.CancelNodeMove();
     }
 
     [TestCase("escape")]
