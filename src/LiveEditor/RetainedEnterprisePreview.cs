@@ -166,13 +166,20 @@ internal sealed class RetainedEnterprisePreview
             Snapshot = CandidateService.CopyCandidateSnapshot(Update);
             Known = null;
         }
+        int[] RelationshipLines = [.. Analysis.Document.Relationships.Where(Edge => !Edge.HiddenByNesting).Select(Edge => Edge.LineNumber),
+            .. Analysis.Document.PlainConnections.Select(Edge => Edge.LineNumber)];
         var Scene = new RetainedLabelScene(RetainedRouteCheckpoint.Capture(Snapshot.Model, Snapshot.Layout,
             Known?.Routes ?? PreviousScene?.Routes), CandidateLabels);
         return new(this, SourceRevision, BaseRevision, Source, Svg, CandidateService, Update, CandidateFrame,
             Presentation, NextPaint, Rebuild, RebuildReason,
             Rebuild ? "InitialLayout" : Update!.Kind == DiagramSourceUpdateKind.MetadataOnly && NextPaint != PreviousPaint
                 ? "Redraw" : Update.Kind.ToString(),
-            Update?.AffectedRouteIds.ToArray() ?? [], Update?.RebuiltRouteIds.ToArray() ?? [], CandidateLabels, SceneKey, Scene);
+            Update?.AffectedRouteIds.ToArray() ?? [], Update?.RebuiltRouteIds.ToArray() ?? [], CandidateLabels, SceneKey, Scene)
+        {
+            RouteReport = Options.EnableRouteAwareConstruction ? DiagramRouteDiagnostics.Measure(Snapshot.Model, Snapshot.Layout) : null,
+            RouteLines = Snapshot.Identities.Bindings.ToImmutableDictionary(Binding => Binding.Id,
+                Binding => Binding.ParsedEdgeIndex < RelationshipLines.Length ? RelationshipLines[Binding.ParsedEdgeIndex] : 0, StringComparer.Ordinal)
+        };
     }
 
     internal bool TryCommit(Prepared Candidate)
@@ -249,5 +256,7 @@ internal sealed class RetainedEnterprisePreview
         string Kind, string[] AffectedRouteIds, string[] RebuiltRouteIds, EnterpriseLabelSnapshot Labels, string SceneKey, RetainedLabelScene Scene)
     {
         internal bool Committed { get; set; }
+        internal DiagramRouteReport? RouteReport { get; init; }
+        internal ImmutableDictionary<string, int> RouteLines { get; init; } = ImmutableDictionary<string, int>.Empty;
     }
 }

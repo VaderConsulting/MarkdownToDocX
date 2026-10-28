@@ -431,6 +431,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         {
             LayoutOptions = FlowchartRenderContext.Current.LayoutOptions,
             UseCellRegions = FlowchartRenderContext.Current.LayoutOptions.EnableIncrementalRouting
+                || FlowchartRenderContext.Current.LayoutOptions.EnableRouteAwareConstruction
                 || Contract.Nodes.Any(Node => Node.PlacementHint is { IsActive: true, Kind: PlacementHintKind.At })
                 || !AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool Cells) || Cells
         };

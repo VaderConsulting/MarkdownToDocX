@@ -378,7 +378,7 @@ public partial class MainForm : Form
         RecentFilesMenuItem.Enabled = LiveEditorFeatureGate.U_RecentFiles;
         AzureMenuItem.Enabled = LiveEditorFeatureGate.AE_AzureResourceGraphImport;
         SamplesMenu.Enabled = LiveEditorFeatureGate.K_SampleGallery;
-        AutoLayoutMenuItem.Visible = LiveEditorFeatureGate.AF_IncrementalDiagramRouting;
+        AutoLayoutMenuItem.Visible = LiveEditorFeatureGate.AF_IncrementalDiagramRouting || LiveEditorFeatureGate.AG_RouteAwareDiagramConstruction;
     }
 
     private void ApplySettings()
@@ -601,6 +601,7 @@ public partial class MainForm : Form
             CodeView.TintErrorLines(ErrorLines);
         }
 
+        RefreshRouteDiagnostics();
         UpdateCaretDiagnosticStatus();
     }
 
@@ -634,6 +635,11 @@ public partial class MainForm : Form
 
     private void DiagnosticsList_DoubleClick(object? Sender, EventArgs E)
     {
+        if (DiagnosticsList.SelectedItem is RouteDiagnosticListItem RouteItem)
+        {
+            if (RouteItem.LineNumber > 0 && LastRouteReport != null) JumpToLine(RouteItem.LineNumber);
+            return;
+        }
         if (DiagnosticsList.SelectedItem is not DiagnosticListItem Item || Item.Diagnostic.LineNumber <= 0)
         {
             return;
@@ -644,6 +650,7 @@ public partial class MainForm : Form
 
     private void QueueRender()
     {
+        ClearRouteDiagnostics();
         Preview.CancelNodeMove();
         int Revision = Interlocked.Increment(ref _RenderGeneration);
         _RenderCancellation?.Cancel();
@@ -693,6 +700,7 @@ public partial class MainForm : Form
 
     private void ResetRetainedPreview(string Reason)
     {
+        ClearRouteDiagnostics();
         _RetainedPreview.Invalidate(Reason);
         _RetainedPreview = new();
         _RetainedPreview.Observe(_RenderGeneration);
@@ -726,7 +734,8 @@ public partial class MainForm : Form
         Stopwatch Timer = Stopwatch.StartNew();
         int Generation = Request.Generation;
         CancellationToken Token = Request.Token;
-        bool Retained = Request.Options.EnableIncrementalRouting && !Request.LegacyPreview
+        bool RetainedMode = Request.Options.EnableIncrementalRouting || Request.Options.EnableRouteAwareConstruction;
+        bool Retained = RetainedMode && !Request.LegacyPreview
             && EnterpriseParser.IsEnterpriseSource(Request.Source);
         try
         {
@@ -753,9 +762,9 @@ public partial class MainForm : Form
             {
                 Preview.PrepareImage(Request.Source, Analysis, Request.LegacyPreview, Request.Options,
                     out Svg, out Png, out Failure, out Advisory);
-                if (Request.Options.EnableIncrementalRouting && !Request.LegacyPreview
+                if (RetainedMode && !Request.LegacyPreview
                     && Analysis?.Document.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open && Failure == null)
-                    Advisory = "Incremental routing requires grid layout; showing the open-layout preview.";
+                    Advisory = "Retained routing and route diagnostics require grid layout; showing the open-layout preview.";
             }
             Token.ThrowIfCancellationRequested();
             if (Failure != null || Png == null || string.IsNullOrWhiteSpace(Svg))
@@ -773,12 +782,18 @@ public partial class MainForm : Form
                     Preview.UseLegacyRenderer = Request.LegacyPreview;
                     if (!Preview.LoadAccepted(Request.Source, Svg, Png, Advisory, Candidate is { Rebuild: false },
                         () => Candidate == null || Request.Retained.TryCommit(Candidate))) return;
-                    if (Candidate == null && Request.Options.EnableIncrementalRouting && !Request.LegacyPreview)
+                    if (Candidate == null && RetainedMode && !Request.LegacyPreview)
                         ResetRetainedPreview("Diagram kind or layout mode changed.");
                     LastRetainedUpdateKind = Candidate?.Kind;
                     LastRebuiltRouteIds = Candidate?.RebuiltRouteIds ?? [];
                     _RenderTextVersion = Request.TextVersion;
                     CompleteRender(Generation, Timer.ElapsedMilliseconds, Request.LegacyPreview);
+                    if (!_DiagramMetadata.RenderFailed && Generation == _RenderGeneration && Request.TextVersion == _EditorTextVersion)
+                    {
+                        LastRouteReport = Candidate?.RouteReport;
+                        _RouteDiagnosticLines = Candidate?.RouteLines ?? System.Collections.Immutable.ImmutableDictionary<string, int>.Empty;
+                        RefreshRouteDiagnostics();
+                    }
                 }
                 finally { _IgnorePreviewSelection = false; }
             });
@@ -790,9 +805,9 @@ public partial class MainForm : Form
                 BeginInvoke(() =>
                 {
                     if (!Token.IsCancellationRequested && Request.TextVersion == _EditorTextVersion)
-                        ApplyRenderFailure(Generation, Request.Options.EnableIncrementalRouting && !Request.LegacyPreview
+                        ApplyRenderFailure(Generation, RetainedMode && !Request.LegacyPreview
                                 ? "Preview stale: " + Ex.Message : Ex.Message,
-                            Timer.ElapsedMilliseconds, Request.Options.EnableIncrementalRouting && !Request.LegacyPreview);
+                            Timer.ElapsedMilliseconds, RetainedMode && !Request.LegacyPreview);
                 });
         }
     }
