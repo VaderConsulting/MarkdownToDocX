@@ -6,6 +6,9 @@ namespace LiveEditor;
 public partial class MainForm
 {
     private (string Document, string Identity)? _SelectedRelationshipIdentity;
+    private (string Document, string Source, string OtherSource, int Line)? _RelationshipCommandSelection;
+    private bool HasRelationshipCommandSelection => _RelationshipCommandSelection is { } Command
+        && (CodeView.Editor.Text == Command.Source || CodeView.Editor.Text == Command.OtherSource);
 
     private bool CanEditRetainedPreview()
     {
@@ -41,6 +44,7 @@ public partial class MainForm
     private void RememberRelationshipSelection(PreviewObject? Selected)
     {
         if (_IgnorePreviewSelection || !PreviewIndexIsCurrent) return;
+        _RelationshipCommandSelection = null;
         _SelectedRelationshipIdentity = null;
         if (Selected?.Kind != PreviewObjectKind.Relationship || !CanEditRetainedPreview()
             || _RetainedPreview.CopyInteractionSnapshot() is not { } Snapshot) return;
@@ -51,7 +55,15 @@ public partial class MainForm
 
     private PreviewObject? RestoredRelationshipSelection()
     {
-        if (_SelectedRelationshipIdentity is not { } Selected || _RetainedPreview.CopyInteractionSnapshot() is not { } Snapshot
+        var Snapshot = _RetainedPreview.CopyInteractionSnapshot();
+        if (Snapshot != null && _RelationshipCommandSelection is { } Command && Snapshot.DocumentId == Command.Document
+            && Snapshot.SourceText == Command.Source)
+        {
+            int Index = PreviewRelationshipMove.IndexAtLine(DocumentForCaret(Command.Source), Command.Line);
+            var Restored = Snapshot.Identities.Bindings.SingleOrDefault(Binding => Binding.ParsedEdgeIndex == Index);
+            if (Restored != null) _SelectedRelationshipIdentity = (Snapshot.DocumentId, Restored.Id);
+        }
+        if (_SelectedRelationshipIdentity is not { } Selected || Snapshot == null
             || Snapshot.DocumentId != Selected.Document || Snapshot.SourceText != CodeView.Editor.Text) return null;
         var Binding = Snapshot.Identities.Bindings.SingleOrDefault(Binding => Binding.Id == Selected.Identity);
         if (Binding == null) return null;

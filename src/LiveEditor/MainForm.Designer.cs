@@ -154,8 +154,8 @@ namespace LiveEditor
             CoArchiMenu = new ToolStripMenuItem();
             OpenCoArchiFolderMenuItem = new ToolStripMenuItem();
             SaveCoArchiFolderMenuItem = new ToolStripMenuItem();
-            BodySplit = new SplitContainer();
-            EditorSplit = new SplitContainer();
+            BodySplit = new ResilientSplitContainer();
+            EditorSplit = new ResilientSplitContainer();
             CodeView = new CodeEditor();
             SelectionDetails = new SelectionPanel();
             Preview = new PreviewCanvas();

@@ -28,6 +28,7 @@ internal sealed class PreviewFocusSink : Control
 
     /// <summary>Raised when Up or Down is pressed while the sink has focus.</summary>
     public event EventHandler<KeyEventArgs>? LineStepPressed;
+    public event EventHandler? DeletePressed;
 
     /// <summary>
     /// Handles a key pressed while the preview has focus.
@@ -36,7 +37,12 @@ internal sealed class PreviewFocusSink : Control
     /// <returns>True when the key was used.</returns>
     internal bool HandleKey(Keys Key)
     {
-        if (Key != Keys.Escape)
+        if (Key == Keys.Delete)
+        {
+            DeletePressed?.Invoke(this, EventArgs.Empty);
+            return true;
+        }
+        if ((Key & Keys.KeyCode) != Keys.Escape)
         {
             return false;
         }
@@ -50,7 +56,7 @@ internal sealed class PreviewFocusSink : Control
     {
         Keys Code = KeyData & Keys.KeyCode;
         bool Plain = (KeyData & (Keys.Control | Keys.Alt | Keys.Shift)) == Keys.None;
-        if (Code == Keys.Escape || (Plain && (Code == Keys.Up || Code == Keys.Down)))
+        if (Code == Keys.Escape || (Plain && (Code == Keys.Up || Code == Keys.Down || Code == Keys.Delete)))
         {
             return true;
         }
@@ -76,7 +82,7 @@ internal sealed class PreviewFocusSink : Control
             return;
         }
 
-        if (HandleKey(E.KeyCode))
+        if (HandleKey(E.KeyData))
         {
             E.Handled = true;
             E.SuppressKeyPress = true;

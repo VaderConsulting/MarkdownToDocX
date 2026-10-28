@@ -16,6 +16,28 @@ namespace LiveEditor.Tests;
 [Apartment(ApartmentState.STA)]
 public sealed partial class PreviewSelectionTests
 {
+    private readonly System.Collections.Generic.List<Exception> _UiFailures = [];
+    [SetUp]
+    public void CaptureUiExceptions()
+    {
+        _UiFailures.Clear();
+        Application.ThreadException += OnUiException;
+    }
+    [TearDown]
+    public void ReportUiExceptions()
+    {
+        Application.ThreadException -= OnUiException;
+        Assert.That(_UiFailures, Is.Empty, string.Join("\n", _UiFailures));
+    }
+    private void OnUiException(object Sender, ThreadExceptionEventArgs E) => _UiFailures.Add(E.Exception);
+
+    [Test]
+    public void SplitterGuardDoesNotHideUnrelatedLayoutErrors()
+    {
+        using var Split = new ResilientSplitContainer();
+        Split.Layout += (_, _) => throw new ExternalException("unrelated layout error");
+        Assert.That(() => Split.PerformLayout(), Throws.TypeOf<ExternalException>().With.Message.EqualTo("unrelated layout error"));
+    }
     private const string SOURCE = "enterprise\n"
         + "group box \"Box\"\n"
         + "application-component shop \"Shop\" in box\n"

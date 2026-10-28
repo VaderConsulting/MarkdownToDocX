@@ -316,6 +316,115 @@ public sealed class RetainedEnterprisePreviewTests
 
     [TestCase(false)]
     [TestCase(true)]
+    public void GuiRelationshipAddAndKeyboardDeleteEachSubmitOneUndoableSourceCommand(bool Styled)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            string Script = Styled ? PreviewRelationshipCommandsTests.StyledSource : PreviewRelationshipCommandsTests.Source;
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Script; Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            Preview.SelectedItems = [Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == "a"),
+                Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == "c")];
+            var Choices = Preview.RelationshipAdds!();
+            Assert.That(Choices.Any(Choice => Choice.Name == "flow"), Is.True);
+            int Generation = Form.DiagramMetadata.Generation;
+            Choices.Single(Choice => Choice.Name == "flow").Execute();
+            string Added = Editor.Text;
+            Assert.That(Added, Is.Not.EqualTo(Script));
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            string AddedSvg = Preview.RenderedSvg!;
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));
+            Assert.That(Preview.SelectedItems!.Single().SourceId, Is.EqualTo("a"));
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo("c"));
+            Editor.Undo(); Assert.That(Editor.Text, Is.EqualTo(Script));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+            Editor.Redo(); Assert.That(Editor.Text, Is.EqualTo(Added));
+            Wait(() => Preview.RenderedSvg == AddedSvg && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo("c"));
+            Generation = Form.DiagramMetadata.Generation;
+            var FocusSink = (PreviewFocusSink)Preview.Controls.Find("PreviewFocusSink", true).FirstOrDefault()!
+                ?? (PreviewFocusSink)Preview.Controls.Find("FocusSink", true).Single();
+            Assert.That(FocusSink.HandleKey(Keys.Control | Keys.Delete), Is.False);
+            Assert.That(Editor.Text, Is.EqualTo(Added));
+            Assert.That(FocusSink.HandleKey(Keys.Delete), Is.True);
+            Assert.That(Editor.Text, Is.EqualTo(Script));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.DiagramMetadata.Generation, Is.EqualTo(Generation + 1));
+            Assert.That(Form.LastRebuiltRouteIds, Is.Empty);
+            Assert.That(Preview.SelectedItems, Is.Null.Or.Empty);
+            Editor.Undo(); Assert.That(Editor.Text, Is.EqualTo(Added));
+            Wait(() => Preview.RenderedSvg == AddedSvg && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.SelectedItems!.Single().TargetId, Is.EqualTo("c"));
+            Editor.Redo(); Assert.That(Editor.Text, Is.EqualTo(Script));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+        }
+        finally { Restore(Previous); }
+    }
+
+    [Test]
+    public void GuiDeletePreservesIndexedStylesAndRestoresSelectionOnUndo()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = PreviewRelationshipCommandsTests.StyledSource;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            Form.SelectPreviewObject(Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Relationship && Item.SourceId == "a"));
+            Assert.That(Form.DeletePreviewRelationship(), Is.True);
+            string Removed = Editor.Text;
+            Assert.That(Removed, Does.Contain("linkStyle 0 stroke:#00d,font-size:21px").And.Not.Contain("#d00"));
+            Wait(() => Form.LastRetainedUpdateKind == "LocalRouting" && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRebuiltRouteIds, Is.Empty);
+            Editor.Undo(); Assert.That(Editor.Text, Is.EqualTo(PreviewRelationshipCommandsTests.StyledSource));
+            Wait(() => Preview.RenderedSvg == Initial && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.SelectedItems!.Single().SourceId, Is.EqualTo("a"));
+            Editor.Redo(); Assert.That(Editor.Text, Is.EqualTo(Removed));
+            Wait(() => Preview.Items.Count(Item => Item.Kind == PreviewObjectKind.Relationship) == 1 && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void RelationshipMenusRespectFeatureGuardsAndCanReopenWithoutStaleCommands(bool Incremental)
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(Incremental);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = PreviewRelationshipCommandsTests.Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            Preview.SelectedItems = [Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == "a"),
+                Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == "c")];
+            var Opening = typeof(PreviewCanvas).GetMethod("DiagramMenu_Opening", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            Opening.Invoke(Preview, [null, new System.ComponentModel.CancelEventArgs()]);
+            Opening.Invoke(Preview, [null, new System.ComponentModel.CancelEventArgs()]);
+            var Picture = (PictureBox)Preview.Controls.Find("DiagramPicture", true)[0];
+            var Add = (ToolStripMenuItem)Picture.ContextMenuStrip!.Items.Find("AddRelationshipMenuItem", false).Single();
+            Assert.That(Add.Available, Is.EqualTo(Incremental));
+            var Choices = Preview.RelationshipAdds!();
+            Assert.That(Choices.Length > 0, Is.EqualTo(Incremental));
+            Editor.AppendText("%% superseded menu\n");
+            string Current = Editor.Text;
+            foreach (var Choice in Choices) Choice.Execute();
+            Assert.That(Editor.Text, Is.EqualTo(Current));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
     public void TypedRelationshipRemovalAndUndoRedoUseRetainedGeometryWithoutRouting(bool RemoveAll)
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();

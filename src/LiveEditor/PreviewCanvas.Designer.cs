@@ -31,6 +31,8 @@ namespace LiveEditor
             ClearMenuItem = new ToolStripMenuItem();
             RefreshMenuItem = new ToolStripMenuItem();
             CopyPngMenuItem = new ToolStripMenuItem();
+            AddRelationshipMenuItem = new ToolStripMenuItem();
+            DeleteRelationshipMenuItem = new ToolStripMenuItem();
             Viewport.SuspendLayout();
             DiagramMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)DiagramPicture).BeginInit();
@@ -131,12 +133,14 @@ namespace LiveEditor
             FocusSink.Name = "FocusSink";
             FocusSink.EscapePressed += FocusSink_EscapePressed;
             FocusSink.LineStepPressed += FocusSink_LineStepPressed;
+            FocusSink.DeletePressed += FocusSink_DeletePressed;
             FocusSink.TabIndex = 6;
             //
             // DiagramMenu
             //
-            DiagramMenu.Items.AddRange(new ToolStripItem[] { ClearMenuItem, RefreshMenuItem, CopyPngMenuItem });
+            DiagramMenu.Items.AddRange(new ToolStripItem[] { ClearMenuItem, RefreshMenuItem, CopyPngMenuItem, AddRelationshipMenuItem, DeleteRelationshipMenuItem });
             DiagramMenu.Name = "DiagramMenu";
+            DiagramMenu.ShowItemToolTips = true;
             DiagramMenu.Opening += DiagramMenu_Opening;
             DiagramMenu.Size = new Size(240, 82);
             //
@@ -160,6 +164,12 @@ namespace LiveEditor
             CopyPngMenuItem.Click += CopyPngMenuItem_Click;
             CopyPngMenuItem.Size = new Size(239, 22);
             CopyPngMenuItem.Text = "Save to Clipboard (.png)";
+            AddRelationshipMenuItem.Name = "AddRelationshipMenuItem";
+            AddRelationshipMenuItem.Text = "Add relationship";
+            AddRelationshipMenuItem.ToolTipText = "Select the source node first, then Ctrl-select the target node.";
+            DeleteRelationshipMenuItem.Name = "DeleteRelationshipMenuItem";
+            DeleteRelationshipMenuItem.Text = "Delete relationship";
+            DeleteRelationshipMenuItem.Click += DeleteRelationshipMenuItem_Click;
             //
             // PreviewCanvas
             //
@@ -190,5 +200,7 @@ namespace LiveEditor
         private ToolStripMenuItem ClearMenuItem;
         private ToolStripMenuItem RefreshMenuItem;
         private ToolStripMenuItem CopyPngMenuItem;
+        private ToolStripMenuItem AddRelationshipMenuItem;
+        private ToolStripMenuItem DeleteRelationshipMenuItem;
     }
 }

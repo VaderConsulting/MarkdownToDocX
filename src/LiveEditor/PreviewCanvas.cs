@@ -1231,6 +1231,7 @@ internal sealed partial class PreviewCanvas : UserControl
     {
         ClearMenuItem.Enabled = SelectedItems != null;
         CopyPngMenuItem.Enabled = Image != null;
+        RefreshRelationshipMenu();
     }
 
     private void ClearMenuItem_Click(object? Sender, EventArgs E)

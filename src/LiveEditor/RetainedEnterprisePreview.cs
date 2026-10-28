@@ -136,9 +136,19 @@ internal sealed class RetainedEnterprisePreview
     private static void AddEnterpriseFacts(EnterpriseDocument Document, DiagramContract Model)
     {
         int Index = 0;
-        foreach (var Edge in Document.Relationships.Where(Edge => !Edge.HiddenByNesting))
-            Model.Edges[Index++].MetadataMutable["enterpriseDrawing"] = new RawMetadata("enterpriseDrawing",
+        foreach (var Item in Document.Relationships.Select((Edge, Position) => (Edge, Position)).Where(Item => !Item.Edge.HiddenByNesting))
+        {
+            var Edge = Item.Edge;
+            var Mapped = Model.Edges[Index++];
+            Mapped.MetadataMutable["enterpriseDrawing"] = new RawMetadata("enterpriseDrawing",
                 JsonSerializer.Serialize(new { Edge.IsMarkdownLabel, Edge.AccessKind, Edge.InfluenceStrength, Edge.DirectedAssociation }));
+            var Style = new System.Collections.Generic.Dictionary<string, string>(Document.Styles.DefaultLink, StringComparer.OrdinalIgnoreCase);
+            if (Document.Styles.Links.TryGetValue(Item.Position, out var Overrides))
+                foreach (var Pair in Overrides) Style[Pair.Key] = Pair.Value;
+            Mapped.MetadataMutable["enterpriseDrawingStyle"] = new RawMetadata("enterpriseDrawingStyle",
+                JsonSerializer.Serialize(Style.OrderBy(Pair => Pair.Key, StringComparer.OrdinalIgnoreCase)
+                    .Where(Pair => Pair.Key.ToLowerInvariant() is not ("fill" or "stroke" or "color" or "opacity" or "fill-opacity" or "stroke-opacity"))));
+        }
     }
 
     // The shared flowchart mapper omits these Enterprise drawing facts. Colour-only
@@ -157,8 +167,6 @@ internal sealed class RetainedEnterprisePreview
             Groups = Document.Groups.Values.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node => new { Node.Id, Node.IsMarkdownLabel }),
             Notes = Document.Notes.Values.OrderBy(Node => Node.Id, StringComparer.Ordinal).Select(Node => new { Node.Id, Node.IsMarkdownLabel }),
             Styles = Document.Styles.Elements.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
-                .Select(Pair => new { Pair.Key, Values = Properties(Pair.Value) }),
-            Links = Document.Styles.Links.OrderBy(Pair => Pair.Key).Where(Pair => Pair.Value.Keys.Any(Key => Key.ToLowerInvariant() is not ("fill" or "stroke" or "color" or "opacity")))
                 .Select(Pair => new { Pair.Key, Values = Properties(Pair.Value) }),
             DefaultLink = Properties(Document.Styles.DefaultLink)
         });

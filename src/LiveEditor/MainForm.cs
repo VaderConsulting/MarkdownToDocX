@@ -341,6 +341,10 @@ public partial class MainForm : Form
         Preview.NodeMoveRequested += (Id, Drop) => MovePreviewNode(Id, Drop);
         Preview.CreateRelationshipMove = CreateRelationshipMove;
         Preview.EndpointMoveRequested += (Move, SourceEnd, Target) => MovePreviewRelationship(Move, SourceEnd, Target);
+        Preview.RelationshipCommandsVisible = () => LiveEditorFeatureGate.CaptureLayoutOptions().EnableIncrementalRouting;
+        Preview.RelationshipAdds = RelationshipAddChoices;
+        Preview.DeleteRelationshipAllowed = CanDeletePreviewRelationship;
+        Preview.DeleteRelationshipRequested += () => DeletePreviewRelationship();
         Deactivate += (_, _) => Preview.CancelNodeMove();
         Application.AddMessageFilter(_PreviewHoverDismiss);
         ElementToolbar.BindSource(CurrentEditorText);
@@ -1401,7 +1405,7 @@ public partial class MainForm : Form
             Restored.Clear(); Restored.Add(Relationship);
         }
 
-        if (_FollowPreviewFromCaret && CodeView.Editor.Focused)
+        if (_FollowPreviewFromCaret && CodeView.Editor.Focused && !HasRelationshipCommandSelection)
         {
             PreviewObject? AtCaret = PreviewObjectAtCaret();
             if (AtCaret != null)
