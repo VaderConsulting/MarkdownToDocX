@@ -1,0 +1,40 @@
+# Shared source updates
+
+`DiagramSourceUpdateService` is the internal engine portion of CORE-9/10/11, joining `DiagramRelationshipIdentityMap` to retained routing. It is independent of LiveEditor and feature switches. It does not currently run in the LiveEditor worker or render/export a preview.
+
+## Lifecycle and publication
+
+Capture a valid parsed flowchart contract (including the Enterprise mapper's output), its completed authoritative cell layout, document ID, source revision and source text. Capture detaches the model/layout and replaces parser route IDs with the stable relationship bindings. Each parsed edge must have a unique nonempty parser ID and exactly one accepted route; unsupported/invisible inventories require a different session entry path.
+
+Call `ObserveSourceRevision` on every edit, including invalid text, before dispatching analysis. After successful analysis call `Prepare(documentId, revision, text, model, options)`. Preparation forks the accepted state and returns a candidate with classification, affected/rebuilt route IDs, identity policy notices and any failure reason. It does not publish or modify caller-owned parser inputs. `TryCommit` checks instance ownership, the current observed source revision and accepted-layout revision, then accepts text, full source model, identities and retained geometry together. Duplicate commits and competing/superseded candidates fail. Discarded candidates do not consume stable identities.
+
+`CopySnapshot` returns detached geometry and a complete source/presentation contract using the stable IDs. Source spans, declarations, styles, configuration, interactions and identity bindings belong to that same accepted source revision. Resolved guides refer to the full snapshot edges. It performs no initial placement or route rebuild. `SourceRevision` identifies the accepted source; `ObservedSourceRevision` and `IsStale` identify later unaccepted text. The host keeps the user's current typed script and displays a candidate's failure reason; the service never replaces the script with accepted text.
+
+Call `Invalidate(reason)` when switching documents/options or starting explicit Auto layout, then create a new instance from the new authoritative layout. Retirement is permanent, including for in-flight candidates. A replacement instance rejects old candidates even when document IDs and revision numbers happen to match. Option mismatches report a rebuild requirement; preparation never silently replaces an instance.
+
+## Classification and local operations
+
+| Edit | Result |
+| --- | --- |
+| Comments, whitespace, parser ID/order changes, source spans, hint diagnostics, interactions | Metadata-only; no route rebuild |
+| Inline fill/stroke/text colour, existing class/link colour definitions, animation | Redraw; preserve accepted geometry |
+| Relative node placement hint addition/replacement/removal, supported push hint | Local transaction using fixed cell spans |
+| Relationship addition/reconnect or endpoint/travel hint change/removal | Local routing with stable IDs |
+| Direction/kind/options/configuration changes, group edits, node insertion/removal, relationship removal, labels, sizes, fonts, shapes, marker/kind/constraint changes | Explicit rebuild requirement; no rebuild executed |
+| Ambiguous identities, invalid analysed model, stale/retired instance, impossible supported local edit | Rejected; retain accepted state |
+
+Mixed supported changes replace routing inputs and plan all changed hints before computing one dependency closure. They publish together or fail together. New relative hints resolve their changed peers first; existing relative-hint dependents move with a changed anchor. Above/below/left/right use the peer's start alignment, owner/peer spans and whole-cell offset, matching existing cell-hint conventions. Cycles, missing node peers, coordinate overflow and occupied cells reject the edit. Hint removal releases the lock without rearranging the diagram. Push uses the frozen sibling envelope and existing cell checks; complex simultaneous push dependencies may reject rather than seek an arrangement. Group peers, group moves/refitting and automatic collision displacement are outside this slice.
+
+The engine validates retained hints and cell/semantic constraints, includes incident and newly obstructed routes, expands for terminal redistribution and applies the existing bounded route completion and independent legality checker. A failed local edit stays rejected; it cannot turn into a full rebuild. Adding/reconnecting plateau-to-plateau triggering relationships requests a new semantic constraint session: the old convention snapshot must not validate a changed timeline. Local label resizing, source node insertion/removal, self-loop construction, manual port-slot order and GUI undo/redo remain future work. Label/style geometry changes conservatively request rebuilding until corresponding local measured-geometry operations exist. Initial capture can retain existing grouped geometry; grouped movement remains unsupported.
+
+## Validation
+
+On 28 October 2026, all 29 new source-update cases and 67 existing selected regressions pass (96 total):
+
+```powershell
+dotnet test tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj --no-restore --filter 'FullyQualifiedName~DiagramSourceUpdateServiceTests|FullyQualifiedName~DiagramRelationshipIdentityMapTests|FullyQualifiedName~DiagramLayoutSessionTests|FullyQualifiedName~DiagramLayoutOptionsTests|FullyQualifiedName~WidthConstrainedLayoutTests' --verbosity minimal -m:1 -nodeReuse:false
+```
+
+Output: `out/source-update-regressions.log`. One existing nullable warning is emitted from `CompactLayoutMetricTests.cs:119`. Coverage includes typed-hint/direct-cell geometry and dependency equivalence, independent component preservation, moved obstacles, locked-hint replacement, hint dependencies, local additions/reconnects/ports, atomic budget failure, identity ambiguity, metadata isolation, stale source/accepted-layout results, invalid text gaps and permanent instance invalidation. Layout-stage instrumentation confirms no initial placement on supported edits. Existing feature-off tests remain passing. No large-diagram latency or memory claim is made.
+
+The next integration step belongs after Enterprise analysis in the single LiveEditor render worker: prepare/commit this service's update, draw the accepted snapshot without initial layout, identify stale previews on failure, and publish only if the host request still owns the current document/session. Keep the viewport transform in the host. Preview/export consistency, GUI command adapters and undo/redo require integration tests before AF enables these operations.

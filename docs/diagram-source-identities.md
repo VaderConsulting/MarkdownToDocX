@@ -10,7 +10,7 @@
 
 The host must publish the successor with its corresponding accepted model and geometry, after checking document ownership, layout options and the latest observed source/layout revisions. Revision validation in this map alone cannot detect text edited after reconciliation began. Invalid intermediate source revisions need no identity map: the next valid revision compares against the last accepted map. Keeping the old map on an ambiguous or failed local operation preserves that comparison baseline.
 
-Bindings expose the IDs that an adapter must use consistently for routing contracts, retained routes, selection and diagnostics. Reconciliation itself leaves parser-owned IDs untouched. The editor update service and atomic publication of identity maps with `DiagramLayoutSession` are subsequent integration work.
+Bindings expose the IDs that an adapter must use consistently for routing contracts, retained routes, selection and diagnostics. Reconciliation itself leaves parser-owned IDs untouched. The shared [source update service](diagram-source-updates.md) now applies bindings to detached contracts/routes and publishes identities, full source metadata and accepted geometry atomically. LiveEditor integration is still pending.
 
 ## Matching policy
 
@@ -36,4 +36,4 @@ On 28 October 2026, all 28 identity tests and all 39 selected retained-session, 
 dotnet test tests/MermaidRecognition.Layout.Tests/MermaidRecognition.Layout.Tests.csproj --no-restore --filter 'FullyQualifiedName~DiagramRelationshipIdentityMapTests|FullyQualifiedName~DiagramLayoutSessionTests|FullyQualifiedName~DiagramLayoutOptionsTests|FullyQualifiedName~WidthConstrainedLayoutTests' --verbosity minimal -m:1 -nodeReuse:false
 ```
 
-Next: the shared source update service must apply these bindings, classify geometry effects, resolve placement hints to cell transactions, and publish matching source metadata and accepted geometry. LiveEditor worker integration, stale-preview reporting, GUI commands, undo/redo and export remain pending. CORE-2 stays open until its editor-facing acceptance criteria are verified.
+The shared [source update service](diagram-source-updates.md) now applies these bindings, classifies supported geometry effects, resolves node placement hints to cell transactions and publishes matching source metadata/geometry. Next: LiveEditor worker integration, stale-preview reporting, GUI commands, undo/redo and export. CORE-2 stays open until its editor-facing acceptance criteria are verified.
