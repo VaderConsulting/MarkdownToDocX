@@ -45,6 +45,14 @@ public static partial class DiagramGridLayout
         }
         for (int Index = 0; Index < Group.Count; Index++)
         {
+            var End = Group[Index];
+            if (Fixed[Index] >= 0) continue;
+            int Preferred = RetainedPortPreferences.Find(End.Route.EdgeId, End.IsSource, End.Box.Id, End.Side, Points,
+                Point => GridPointPosition(End.Box, End.Side, Point, Nodes));
+            if (Preferred >= 0 && Taken.Add(Preferred)) Fixed[Index] = Preferred;
+        }
+        for (int Index = 0; Index < Group.Count; Index++)
+        {
             if (Fixed[Index] >= 0 || !Group[Index].KeepsCentre)
             {
                 continue;
@@ -103,6 +111,15 @@ public static partial class DiagramGridLayout
         }
 
         return Vertical ? Box.Top - Point.Offset : Box.Left + Point.Offset;
+    }
+
+    private static (double X, double Y) GridPointPosition(BoxRef Box, string Side, SideGridPoint Point, Dictionary<string, NodeContract> Nodes)
+    {
+        if (Nodes.TryGetValue(Box.Id, out var Node) && Node.GeometryProvider is { } Provider
+            && Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, Point.Fraction, out var Port))
+            return (Box.CenterX + Port.X, Box.CenterY - Port.Y);
+        return Side switch { "top" => (Box.Left + Point.Offset, Box.Top), "bottom" => (Box.Left + Point.Offset, Box.Bottom),
+            "left" => (Box.Left, Box.Top - Point.Offset), _ => (Box.Right, Box.Top - Point.Offset) };
     }
 
     /// <summary>

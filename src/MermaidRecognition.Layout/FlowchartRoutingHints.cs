@@ -343,13 +343,29 @@ internal static class FlowchartRoutingHints
             double[] GridFractions = circle
                 ? []
                 : ConnectionPointGrid.FractionsOnGrid(Boundary, Group.Key.Side, Length, Ordered.Length);
-            if (Ordered.Any(End => FlowchartConnectionPoints.Step(DiagramGridLayout.FindContractEdge(Contract, End.Route)?.RoutingHint, End.Source).HasValue))
+            if ((!circle && FlowchartRenderContext.Current.PreferredPorts != null) || Ordered.Any(End => FlowchartConnectionPoints.Step(DiagramGridLayout.FindContractEdge(Contract, End.Route)?.RoutingHint, End.Source).HasValue))
             {
                 var Points = ConnectionPointGrid.UsablePoints(Boundary, Group.Key.Side, Length, out double SegmentLength);
                 int[] Fixed = [.. Ordered.Select(End => FlowchartConnectionPoints.Step(
                     DiagramGridLayout.FindContractEdge(Contract, End.Route)?.RoutingHint, End.Source) is { } Step
                     ? Points.FindIndex(Point => Math.Abs(Point.Offset - SegmentLength / 2 - Step * FlowchartLayoutRules.LineSpacing)
                         <= DiagramGridMetrics.PORT_GRID_TOLERANCE_PX) : -1)];
+                var Taken = Fixed.Where(Index => Index >= 0).ToHashSet();
+                for (int Index = 0; Index < Ordered.Length; Index++)
+                {
+                    if (Fixed[Index] >= 0) continue;
+                    var End = Ordered[Index];
+                    int Preferred = RetainedPortPreferences.Find(End.Route.EdgeId, End.Source, End.Box.NodeId, End.Side, Points, Point =>
+                    {
+                        if (Boundary != null && Boundary.TryPort(End.Side, Point.Fraction, out var Port))
+                            return (End.Box.CenterX + Port.X, End.Box.CenterY - Port.Y);
+                        return End.Side switch { "left" => (End.Box.CenterX - End.Box.Width / 2, End.Box.CenterY + End.Box.Height / 2 - Point.Offset),
+                            "right" => (End.Box.CenterX + End.Box.Width / 2, End.Box.CenterY + End.Box.Height / 2 - Point.Offset),
+                            "top" => (End.Box.CenterX - End.Box.Width / 2 + Point.Offset, End.Box.CenterY + End.Box.Height / 2),
+                            _ => (End.Box.CenterX - End.Box.Width / 2 + Point.Offset, End.Box.CenterY - End.Box.Height / 2) };
+                    });
+                    if (Preferred >= 0 && Taken.Add(Preferred)) Fixed[Index] = Preferred;
+                }
                 var Plan = ConnectionPointGrid.Plan(Points.Select(Point => Point.Offset).ToArray(), SegmentLength, Fixed);
                 if (Plan != null) GridFractions = [.. Plan.Select(Index => Points[Index].Fraction)];
             }

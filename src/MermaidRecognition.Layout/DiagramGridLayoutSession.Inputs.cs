@@ -54,7 +54,8 @@ public static partial class DiagramGridLayout
             TargetId = Edge.TargetId, MarkerStart = Edge.MarkerStart, MarkerEnd = Edge.MarkerEnd,
             Stroke = Edge.Stroke, MinLength = Edge.MinLength, Label = Edge.Label, LabelType = Edge.LabelType,
             Curve = Edge.Curve, CreationIndex = Edge.CreationIndex,
-            RoutingHint = Edge.RoutingHint is { } Hint ? new()
+            RoutingHint = Edge.RoutingHint is { } Hint && !(Hint.IsActive && Hint.Leave == null && Hint.Enter == null
+                && Hint.Travel == null && Hint.LeavePoint == null && Hint.EnterPoint == null) ? new()
             {
                 Leave = Hint.Leave, Enter = Hint.Enter, Travel = Hint.Travel, SourceLine = Hint.SourceLine,
                 LeavePoint = Hint.LeavePoint, EnterPoint = Hint.EnterPoint,

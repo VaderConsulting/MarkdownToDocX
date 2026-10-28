@@ -16,6 +16,9 @@ public sealed class FlowchartRenderContext
     /// <summary>Experimental behaviour captured for this operation; all experiments default to off.</summary>
     public DiagramLayoutOptions LayoutOptions { get; init; } = DiagramLayoutOptions.Default;
 
+    /// <summary>Candidate-local preferences for accepted endpoints; explicit requests take priority.</summary>
+    internal IReadOnlyDictionary<(string Edge, bool Source), RetainedPortPreference>? PreferredPorts { get; set; }
+
     /// <summary>AppContext compatibility switch used by hosts that explicitly retain the legacy pixel layout.</summary>
     public const string CellRegionsSwitch = "MermaidRecognition.Layout.UseCellRegions";
     /// <summary>Uses authoritative whole-cell regions for closed diagrams. Defaults to enabled; open mode remains unbound.</summary>

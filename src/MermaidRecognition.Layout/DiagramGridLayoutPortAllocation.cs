@@ -272,7 +272,7 @@ public static partial class DiagramGridLayout
         }
 
         Stopwatch SideTimer = Stopwatch.StartNew();
-        ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Direction, Copy.RenderContext);
+        ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Direction, Copy.RenderContext, OnlyRoutes);
         LayoutStageTimingObserver?.Invoke("allocation/free-side-comparison", SideTimer.Elapsed.TotalMilliseconds);
 
     }
@@ -483,14 +483,17 @@ public static partial class DiagramGridLayout
     /// <param name="Contract">Declared links, frames and honoured hints.</param>
     /// <param name="Direction"></param>
     /// <param name="Context">The owning layout's search caches.</param>
+    /// <param name="OnlyRoutes">Routes eligible for side changes, or null for initial allocation.</param>
     private static void ChooseFreeSidesByRouteCost(List<PortEnd> Ends,
         Dictionary<string, NodeContract> Nodes, Dictionary<string, FlowchartLayoutNodeBounds> Bounds,
-        DiagramContract Contract, FlowchartDirection Direction, FlowchartRenderContext Context)
+        DiagramContract Contract, FlowchartDirection Direction, FlowchartRenderContext Context,
+        IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes)
     {
         Dictionary<string, List<PortEnd>> ByNode = Ends.GroupBy(End => End.Box.Id).ToDictionary(Group => Group.Key, Group => Group.ToList());
         string Obstacles = string.Join(";", Bounds.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
             .Select(Pair => FormattableString.Invariant($"{Pair.Key}:{Pair.Value.CenterX:R},{Pair.Value.CenterY:R},{Pair.Value.Width:R},{Pair.Value.Height:R}")));
-        string Geometry = Obstacles + "|" + string.Join(";", Ends.Select(End => $"{End.Route.EdgeId}:{End.IsSource}:{End.Side}:{End.IsHinted}"));
+        string Geometry = Obstacles + "|" + string.Join(";", Ends.Select(End => $"{End.Route.EdgeId}:{End.IsSource}:{End.Side}:{End.IsHinted}"))
+            + "|scope=" + (OnlyRoutes == null ? "all" : string.Join(",", OnlyRoutes.Select(Route => Route.EdgeId).Order(StringComparer.Ordinal)));
         if (!Context.TerminalCandidateCache.TryGetValue((Contract, Obstacles), out Dictionary<string, List<List<(double X, double Y)>>>? TerminalCache))
         {
             Context.TerminalCandidateCache[(Contract, Obstacles)] = TerminalCache = new(StringComparer.Ordinal);
@@ -575,6 +578,7 @@ public static partial class DiagramGridLayout
         Dictionary<(List<(double X, double Y)> A, List<(double X, double Y)> B), (int Crossings, double Overlap)> Interactions = [];
         foreach (KeyValuePair<FlowchartLayoutEdgeRoute, PortEnd[]> Pair in ByRoute)
         {
+            if (OnlyRoutes != null && !OnlyRoutes.Contains(Pair.Key)) continue;
             HashSet<FlowchartLayoutEdgeRoute> Cohort = CohortByRoute[Pair.Key];
             if (Cohort.Count > FlowchartLayoutRules.RepairChainLines)
             {

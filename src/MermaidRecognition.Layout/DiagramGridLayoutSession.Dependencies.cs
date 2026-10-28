@@ -11,8 +11,8 @@ public static partial class DiagramGridLayout
     /// <summary>Immutable geometry values plus references owned exclusively by one private candidate.</summary>
     private sealed class RetainedRouteSnapshot
     {
-        private readonly DiagramContract Contract;
-        private readonly Dictionary<string, FlowchartLayoutNodeBounds> Bounds;
+        internal readonly DiagramContract Contract;
+        internal readonly Dictionary<string, FlowchartLayoutNodeBounds> Bounds;
         private readonly RouteValue[] Routes;
 
         internal RetainedRouteSnapshot(GridLayoutState State)
@@ -53,12 +53,23 @@ public static partial class DiagramGridLayout
             .Where(Item => !Affected.Contains(Item.Route)).All(Item => Item.SameTerminals()
                 && Item.Route.Points.Select(Point => (Point.X, Point.Y)).SequenceEqual(Item.Points));
 
+        internal Dictionary<(string Edge, bool Source), RetainedPortPreference> PreferredPorts(IReadOnlySet<FlowchartLayoutEdgeRoute> Affected)
+        {
+            Dictionary<(string Edge, bool Source), RetainedPortPreference> Result = [];
+            foreach (var Item in Routes.Where(Item => !Affected.Contains(Item.Route) && Item.Points.Length >= 2))
+            {
+                Result[(Item.Route.EdgeId, true)] = new(Item.Source, Item.Exit, Item.Points[0].X, Item.Points[0].Y);
+                Result[(Item.Route.EdgeId, false)] = new(Item.Target, Item.Entry, Item.Points[^1].X, Item.Points[^1].Y);
+            }
+            return Result;
+        }
+
         private sealed class RouteValue
         {
             internal readonly FlowchartLayoutEdgeRoute Route;
             internal readonly string Source, Target;
             internal readonly (double X, double Y)[] Points;
-            private readonly string Exit, Entry;
+            internal readonly string Exit, Entry;
             private readonly (double, double, double, double) Normals;
             internal RouteValue(FlowchartLayoutEdgeRoute Route)
             {

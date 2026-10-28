@@ -11,6 +11,55 @@ namespace MermaidRecognition.Layout.Tests;
 [NonParallelizable]
 public sealed class DiagramLayoutSessionTests
 {
+    [Test]
+    public void NecessarySiblingRedistributionAndItsUndoRestoreTheOriginalAllocation()
+    {
+        DiagramLayoutSession Session = new("slot-conflict", 0);
+        AddNode(Session, "root", 0, 1); AddNode(Session, "left", 4, 0);
+        AddNode(Session, "middle", 4, 1); AddNode(Session, "X", 0, 8); AddNode(Session, "Y", 4, 8);
+        AddEdge(Session, "left-line", "root", "left"); AddEdge(Session, "middle-line", "root", "middle"); AddEdge(Session, "xy", "X", "Y");
+        Commit(Session, Session.PreparePorts(0, "left-line", new() { Leave = LayoutHintDirection.South, Enter = LayoutHintDirection.North }));
+        Commit(Session, Session.PreparePorts(0, "middle-line", new() { Leave = LayoutHintDirection.South, Enter = LayoutHintDirection.North }));
+        string Before = Geometry(Session.CopyLayout());
+        var Rejected = Session.PreparePorts(0, "left-line", new() { Leave = LayoutHintDirection.South, LeavePoint = 0,
+            Enter = LayoutHintDirection.North, EnterPoint = 0 }, RouteLimit: 1);
+        Assert.That(Rejected.FailureReason, Does.Contain("route limit"));
+        Assert.That(Session.TryCommit(Rejected, out _), Is.False);
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Before));
+        var Candidate = Session.PreparePorts(0, "left-line", new() { Leave = LayoutHintDirection.South, LeavePoint = 0,
+            Enter = LayoutHintDirection.North, EnterPoint = 0 });
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Assert.That(Candidate.RebuiltRouteIds, Does.Contain("middle-line").And.Not.Contain("xy"));
+        Commit(Session, Candidate);
+        string Moved = Geometry(Session.CopyLayout());
+        Commit(Session, Session.PreparePorts(0, "left-line", new() { Leave = LayoutHintDirection.South, Enter = LayoutHintDirection.North }));
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Before));
+        Commit(Session, Session.PreparePorts(0, "left-line", new() { Leave = LayoutHintDirection.South, LeavePoint = 0,
+            Enter = LayoutHintDirection.North, EnterPoint = 0 }));
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Moved));
+    }
+    [TestCase(2)]
+    [TestCase(3)]
+    [TestCase(4)]
+    public void AFreeExactPointMoveDoesNotRedistributeLegalSiblingPorts(int Step)
+    {
+        DiagramLayoutSession Session = new("slots", 0);
+        AddNode(Session, "root", 0, 1); AddNode(Session, "left", 4, 0);
+        AddNode(Session, "middle", 4, 1); AddNode(Session, "right", 4, 2);
+        AddEdge(Session, "left-line", "root", "left"); AddEdge(Session, "middle-line", "root", "middle"); AddEdge(Session, "right-line", "root", "right");
+        var Before = Session.CopySnapshot();
+        var Candidate = Session.PreparePorts(0, "right-line", new() { Leave = LayoutHintDirection.South, LeavePoint = Step,
+            Enter = LayoutHintDirection.North, EnterPoint = 0 }, RouteLimit: 1);
+        Assert.That(Candidate.FailureReason, Is.Null);
+        Assert.That(Candidate.RebuiltRouteIds, Is.EqualTo(new[] { "right-line" }));
+        Commit(Session, Candidate);
+        var After = Session.CopySnapshot();
+        foreach (string Id in new[] { "left-line", "middle-line" })
+            Assert.That(JsonSerializer.Serialize(After.Layout.EdgeRoutes.Single(Route => Route.EdgeId == Id)),
+                Is.EqualTo(JsonSerializer.Serialize(Before.Layout.EdgeRoutes.Single(Route => Route.EdgeId == Id))));
+        Commit(Session, Session.PreparePorts(0, "right-line", new()));
+        Assert.That(Geometry(Session.CopyLayout()), Is.EqualTo(Geometry(Before.Layout)));
+    }
     [TestCase("add")]
     [TestCase("reconnect")]
     [TestCase("remove")]
@@ -143,7 +192,7 @@ public sealed class DiagramLayoutSessionTests
         AddNode(Session, "C", 3, -2);
         var Before = Session.CopyLayout();
         var Candidate = Session.PrepareAddRelationship(0, "ac", new() { SourceId = "A", TargetId = "C", MarkerEnd = EdgeEndpointMarker.Point,
-            RoutingHint = new() { Leave = LayoutHintDirection.South, Enter = LayoutHintDirection.North } });
+            RoutingHint = new() { Leave = LayoutHintDirection.South, LeavePoint = 0, Enter = LayoutHintDirection.North } });
         Assert.That(Candidate.FailureReason, Is.Null);
         Commit(Session, Candidate);
         Assert.Multiple(() =>

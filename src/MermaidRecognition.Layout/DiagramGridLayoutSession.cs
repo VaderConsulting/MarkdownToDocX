@@ -100,6 +100,7 @@ public static partial class DiagramGridLayout
         {
             var Copy = Capture(State.Contract, Layout);
             foreach (var Pair in UnpinnedOrigins) Copy.UnpinnedOrigins.Add(Pair.Key, Pair.Value);
+            Copy.PortAllocationHistory = PortAllocationHistory;
             return Copy;
         }
 
@@ -147,6 +148,10 @@ public static partial class DiagramGridLayout
             AffectedIds = []; RebuiltIds = [];
             using IDisposable Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
             HashSet<string> Rebuilt = new(StringComparer.Ordinal);
+            var PreviousPreferences = Layout.RenderContext.PreferredPorts;
+            var Preferences = Original.PreferredPorts(Affected);
+            RestorePortAllocations(Original, Affected, Preferences);
+            Layout.RenderContext.PreferredPorts = Preferences;
             try
             {
                 string? PointFailure = FlowchartConnectionPoints.Validate(State.Contract, Layout);
@@ -225,6 +230,7 @@ public static partial class DiagramGridLayout
             }
             finally
             {
+                Layout.RenderContext.PreferredPorts = PreviousPreferences;
                 AffectedIds = Ids(Affected); RebuiltIds = Rebuilt.OrderBy(Id => Id, StringComparer.Ordinal).ToArray();
             }
         }
