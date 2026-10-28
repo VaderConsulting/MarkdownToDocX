@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using MermaidRecognition.Kinds.Flowchart;
 using MermaidRecognition.Render;
 
@@ -65,8 +66,9 @@ internal sealed class DiagramPlacementEvaluator
         return new(Origin, DiagramPlacementTrialKind.NodeMove, Targets, Candidate, null);
     }
 
-    internal DiagramPlacementExploration Explore(string RelationshipId, int? CandidateLimit = null, int? RouteLimit = null)
+    internal DiagramPlacementExploration Explore(string RelationshipId, int? CandidateLimit = null, int? RouteLimit = null, CancellationToken Token = default)
     {
+        Token.ThrowIfCancellationRequested();
         int Bound = CandidateLimit ?? FlowchartLayoutRules.RepairCandidateMoves;
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(Bound);
         if (Bound > FlowchartLayoutRules.RepairCandidateMoves) throw new ArgumentOutOfRangeException(nameof(CandidateLimit));
@@ -100,6 +102,7 @@ internal sealed class DiagramPlacementEvaluator
             foreach (var Move in DiagramGridLayout.CellRouteMoveCandidates(Baseline.RoutingModel, Placed, Horizontal,
                 Nominated.Where(Id => !Skipped.ContainsKey(Id) && Placed.Any(Node => Node.Id == Id)), IncludeOutputChains: false))
             {
+                Token.ThrowIfCancellationRequested();
                 if (!Visited.Add(Move.Key)) continue;
                 if (Trials.Count >= Bound) return new(Origin, Trials.ToImmutableArray(), Skipped.ToImmutable(), true, $"The candidate limit of {Bound} was reached.");
                 var Node = Move.Nodes.Single(); var Old = Node.CellNode!.Region;

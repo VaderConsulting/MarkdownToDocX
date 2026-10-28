@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
-using MermaidRecognition.Contract;
 using MermaidRecognition.Render;
 
 namespace MermaidRecognition.Layout;
@@ -21,6 +20,8 @@ internal sealed class DiagramPlacementScorer
     private readonly DiagramEvaluationOrigin Origin;
     private readonly double Padding;
     internal DiagramPlacementMetrics Before { get; }
+    internal double PaddingPx => Padding;
+    internal string RequestSignature { get; }
 
     internal DiagramPlacementScorer(DiagramLayoutSession.Snapshot Snapshot, double? PaddingPx = null)
     {
@@ -28,6 +29,7 @@ internal sealed class DiagramPlacementScorer
         Baseline = new DiagramLayoutSession(Snapshot.DocumentId, Snapshot.SourceRevision, Snapshot.RoutingModel, Snapshot.Layout).CopySnapshot();
         Padding = PaddingPx ?? FlowchartRenderOptions.FromContract(Baseline.RoutingModel).DiagramPaddingPx;
         if (!double.IsFinite(Padding) || Padding < 0) throw new ArgumentOutOfRangeException(nameof(PaddingPx));
+        RequestSignature = DiagramSourceUpdateService.PlacementRequestSignature(Baseline.RoutingModel);
         Before = Measure(Baseline);
     }
 
@@ -69,6 +71,33 @@ internal sealed class DiagramPlacementScorer
                 AfterFaults, Candidate.Canonical.HintsHonoured, Charged.Cost);
     }
 
+    // Both candidates pay their own repair charges relative to the same accepted
+    // scene. A selected incumbent must not silently lose its churn/length charge.
+    internal int CompareImprovements(DiagramPlacementComparison A, DiagramPlacementComparison B)
+    {
+        if (!A.IsImprovement || !B.IsImprovement || A.After == null || B.After == null || A.Trial.Origin != Origin || B.Trial.Origin != Origin)
+            throw new ArgumentException("Ranking requires two verified improvements from the captured scene.");
+        var Left = A.After.Canonical with { Cost = A.After.Canonical.Cost + A.RepairCharge };
+        var Right = B.After.Canonical with { Cost = B.After.Canonical.Cost + B.RepairCharge };
+        int Faults = FlowchartRepairCandidateComparison.RoutingFaultCount(Left.Violations).CompareTo(FlowchartRepairCandidateComparison.RoutingFaultCount(Right.Violations));
+        if (Faults != 0) return Faults;
+        int Hints = Right.HintsHonoured.CompareTo(Left.HintsHonoured);
+        if (Hints != 0) return Hints;
+        int Policy = Baseline.Layout.RenderContext.LayoutOptions.EnableWidthConstrainedLayout
+            ? DiagramGridLayout.PreferWidthCandidate(Left, Right, Baseline.Layout.RenderContext.LayoutOptions.TargetWidthPx, Padding) ? -1
+                : DiagramGridLayout.PreferWidthCandidate(Right, Left, Baseline.Layout.RenderContext.LayoutOptions.TargetWidthPx, Padding) ? 1 : 0
+            : Left.Cost.CompareTo(Right.Cost);
+        if (Policy != 0) return Policy;
+        int Cells = A.After.DisplacementCells.CompareTo(B.After.DisplacementCells);
+        if (Cells != 0) return Cells;
+        int Pixels = A.After.DisplacementPx.CompareTo(B.After.DisplacementPx);
+        if (Pixels != 0) return Pixels;
+        int Moved = A.After.MovedNodes.CompareTo(B.After.MovedNodes);
+        return Moved != 0 ? Moved : string.CompareOrdinal(TargetKey(A.Trial), TargetKey(B.Trial));
+        static string TargetKey(DiagramPlacementTrial Trial) => JsonSerializer.Serialize(Trial.Targets.OrderBy(Item => Item.Key, StringComparer.Ordinal)
+            .Select(Item => new { Id = Item.Key, Item.Value.StartRow, Item.Value.StartColumn, Item.Value.RowSpan, Item.Value.ColumnSpan }));
+    }
+
     private DiagramPlacementMetrics Measure(DiagramLayoutSession.Snapshot Snapshot)
     {
         using var Scope = FlowchartRenderContext.Activate(Snapshot.Layout.RenderContext);
@@ -95,7 +124,10 @@ internal sealed class DiagramPlacementScorer
     private string? CheckScope(DiagramPlacementTrial Trial, DiagramLayoutSession.Snapshot Candidate)
     {
         var Layout = Candidate.Layout;
-        if (!SameRequests(Baseline.RoutingModel, Candidate.RoutingModel) || Layout.RenderContext.LayoutOptions != Baseline.Layout.RenderContext.LayoutOptions)
+        var RequestNodes = Candidate.RoutingModel.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        if (RequestSignature != DiagramSourceUpdateService.PlacementRequestSignature(Candidate.RoutingModel)
+            || Baseline.RoutingModel.Nodes.Any(Node => !RequestNodes.TryGetValue(Node.Id, out var Other) || Other.GeometryProvider != Node.GeometryProvider)
+            || Layout.RenderContext.LayoutOptions != Baseline.Layout.RenderContext.LayoutOptions)
             return "The trial changes topology, geometry requests or the captured options.";
         var Nodes = Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         var Frames = Layout.ClusterBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
@@ -112,29 +144,6 @@ internal sealed class DiagramPlacementScorer
             || Region != (Trial.Targets.TryGetValue(Node.Id, out var Target) ? Target : Node.CellNode!.Region)))
             return "The candidate does not match its declared authoritative cell targets.";
         return null;
-    }
-
-    private static bool SameRequests(DiagramContract A, DiagramContract B)
-    {
-        if (A.Kind != B.Kind || A.Direction != B.Direction || A.Nodes.Count != B.Nodes.Count || A.Edges.Count != B.Edges.Count || A.Groups.Count != B.Groups.Count)
-            return false;
-        var Nodes = B.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Edges = B.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
-        var Groups = B.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
-        return A.Nodes.All(Node => Nodes.TryGetValue(Node.Id, out var Other)
-                && (Node.Shape, Node.Label, Node.LabelType, Node.ParentGroupId, Node.LayoutWidth, Node.LayoutHeight, Node.GeometryProvider)
-                == (Other.Shape, Other.Label, Other.LabelType, Other.ParentGroupId, Other.LayoutWidth, Other.LayoutHeight, Other.GeometryProvider)
-                && Hint(Node.PlacementHint) == Hint(Other.PlacementHint))
-            && A.Edges.All(Edge => Edges.TryGetValue(Edge.Id!, out var Other)
-                && (Edge.SourceId, Edge.TargetId, Edge.Label, Edge.LabelType, Edge.Stroke) == (Other.SourceId, Other.TargetId, Other.Label, Other.LabelType, Other.Stroke)
-                && Routing(Edge.RoutingHint) == Routing(Other.RoutingHint))
-            && A.Groups.All(Group => Groups.TryGetValue(Group.Id, out var Other) && (Group.ParentGroupId, Group.Title, Group.Direction) == (Other.ParentGroupId, Other.Title, Other.Direction)
-                && Group.ChildNodeIds.SequenceEqual(Other.ChildNodeIds) && Group.ChildGroupIds.SequenceEqual(Other.ChildGroupIds)
-                && Hint(Group.PlacementHint) == Hint(Other.PlacementHint));
-        static string Hint(PlacementHintContract? Item) => Item == null ? "" : JsonSerializer.Serialize(new
-            { Item.Kind, Item.PeerId, Item.Offset, Item.ColumnOffset, Item.Direction, Item.CellRow, Item.CellColumn, Item.IsActive });
-        static string Routing(RoutingHintContract? Item) => Item == null ? "" : JsonSerializer.Serialize(new
-            { Item.Leave, Item.Enter, Item.LeavePoint, Item.EnterPoint, Item.Travel, Item.IsActive });
     }
 
     private static bool SameBox(FlowchartLayoutNodeBounds A, FlowchartLayoutNodeBounds B) =>

@@ -310,6 +310,17 @@ internal sealed class DiagramSourceUpdateService
     }
 
     private static string Json(object? Value) => JsonSerializer.Serialize(Value);
+
+    // Geometry requests, not source positions or paint. Shared with placement
+    // verification/history so a changed hint, font or semantic fact starts a new search.
+    internal static string PlacementRequestSignature(DiagramContract Model) => Json(new
+    {
+        Model.Kind, Model.Direction, Model.LayoutMode, Config = Config(Model), Groups = Groups(Model), Styles = StyleGeometry(Model),
+        Nodes = Model.Nodes.Select(Node => new { Node.Id, Node.Label, Structure = NodeStructure(Node), Node.LayoutWidth, Node.LayoutHeight,
+            Provider = Node.GeometryProvider?.GetType().FullName, Hint = Hint(Node.PlacementHint) }),
+        Edges = Model.Edges.Select(Edge => new { Edge.Id, Edge.SourceId, Edge.TargetId, Edge.Label, Edge.CreationIndex,
+            Geometry = EdgeGeometry(Edge), Ports = Ports(Edge.RoutingHint) })
+    });
     private static bool IsTimelineConstraint(DiagramContract Model, EdgeContract Edge)
         => Edge.Metadata.TryGetValue("enterpriseRelationshipKind", out var Kind) && Kind is RawMetadata { RawValue: "Triggering" }
             && Model.Nodes.Any(Node => Node.Id == Edge.SourceId && Node.Metadata.TryGetValue("enterpriseElementType", out var Type)

@@ -26,4 +26,14 @@ Routing-fault/hint precedence remains authoritative. With AH off, comparison reu
 
 An improvement can retain documented baseline findings; it does not imply that every pre-existing defect is fixed. Existing and remaining findings stay in the measurements. Width/height here are complete **model** bounds and padding, not a claim of final glyph/title/marker SVG extents; WIDTH-3 remains responsible for that integration. All scoring is full-scene and currently copies state. Latency/memory claims require the pending benchmarks.
 
-Verified candidate search/selection, oscillation limits, visual preview and undoable source publication remain subsequent tasks. A comparison never commits the trial.
+## Deterministic suggestion search (QUALITY-5)
+
+`DiagramPlacementSuggestionSearch.Find` evaluates the bounded candidates and selects only strict whole-scene improvements. Both the challenger and incumbent retain their own repair charges. Remaining ties use displacement in cells/pixels, moved-node count and a stable serialized target key. Repeating the same request chooses the same state.
+
+Complete state keys combine deterministic geometry and authoritative cell/gap digests. The current baseline and already examined complete candidates are skipped. An optional immutable accepted-state journal prevents returning to an earlier accepted arrangement during a sequence of moves. Keep `HistoryAfterAcceptance` only after ordinary publication succeeds; cancelling a preview or rejecting a transaction must not advance the journal. Previously visited states are search evidence, not a new legality rule.
+
+History is scoped to the document, source revision, captured options, explicit locks, padding and geometry-request signature. The signature shares the source service's typed constraint/font/metadata serializers, including derived metadata values; it excludes source positions and paint. Changes to semantic metadata, hints, fonts, topology or other geometry requests start a fresh scope. Layout revisions alone may advance within the same automatic sequence. The signature also strengthens independent trial verification against accidental changes to these inputs.
+
+Results retain each trial's reason, skipped locked nodes, unique/duplicate/revisited counts and budget exhaustion. A no-result message says that no verified improvement was found among generated candidates or within the budget; it never claims a global optimum. Cancellation is checked before work and between candidate operations. Cancelled work has no publishable result and leaves accepted geometry/history unchanged.
+
+Repeated-acceptance tests compare predicted and ordinarily committed states, require strict improvement and reject repeated scenes. Visual preview and undoable source publication remain QUALITY-4 work. Search does not commit a candidate and makes no incremental speed claim.
