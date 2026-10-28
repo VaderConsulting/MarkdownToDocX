@@ -127,10 +127,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             }
 
             RaiseLayoutChangeEvent(delta);
-            if (Curve != null)
-            {
-                Curve.Translate(delta);
-            }
+            Curve?.Translate(delta);
 
             if (SmoothedPolyline != null)
             {
@@ -142,15 +139,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 }
             }
 
-            if (SourceArrowhead != null)
-            {
-                SourceArrowhead.TipPosition += delta;
-            }
+            SourceArrowhead?.TipPosition += delta;
 
-            if (TargetArrowhead != null)
-            {
-                TargetArrowhead.TipPosition += delta;
-            }
+            TargetArrowhead?.TipPosition += delta;
         }
 
         internal double GetMaxArrowheadLength() {
@@ -178,10 +169,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         /// <param name="newValue"></param>
         public void RaiseLayoutChangeEvent(object newValue) {
-            if (LayoutChangeEvent != null)
-            {
-                LayoutChangeEvent(this, new LayoutChangeEventArgs{DataAfterChange = newValue});
-            }
+            LayoutChangeEvent?.Invoke(this, new LayoutChangeEventArgs { DataAfterChange = newValue });
         }
     }
 }

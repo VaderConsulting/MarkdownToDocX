@@ -11,9 +11,9 @@ public sealed class FlowchartCellPixelWriteGuardTests
     [Test]
     public void DetachedTrialWritesUseTheActiveDiagramCoverage()
     {
-        var Coverage = new FlowchartCellWriteCoverage { Nodes = 1 };
-        using var Scope = FlowchartCellPixelWriteGuard.ActivateCoverage(Coverage);
-        var Trial = new DiagramGridLayout.GridNode
+        FlowchartCellWriteCoverage Coverage = new FlowchartCellWriteCoverage { Nodes = 1 };
+        using IDisposable Scope = FlowchartCellPixelWriteGuard.ActivateCoverage(Coverage);
+        DiagramGridLayout.GridNode Trial = new DiagramGridLayout.GridNode
         {
             X = 12.5
         };
@@ -25,11 +25,15 @@ public sealed class FlowchartCellPixelWriteGuardTests
     [Test]
     public void NestedCoverageAggregatesChecksAndRestoresTheParent()
     {
-        var Parent = new FlowchartCellWriteCoverage { Nodes = 2 };
-        var Child = new FlowchartCellWriteCoverage { Nodes = 1 };
-        using var ParentScope = FlowchartCellPixelWriteGuard.ActivateCoverage(Parent);
-        var Trial = new DiagramGridLayout.GridNode();
-        using (FlowchartCellPixelWriteGuard.ActivateCoverage(Child)) Trial.X = 12.5;
+        FlowchartCellWriteCoverage Parent = new FlowchartCellWriteCoverage { Nodes = 2 };
+        FlowchartCellWriteCoverage Child = new FlowchartCellWriteCoverage { Nodes = 1 };
+        using IDisposable ParentScope = FlowchartCellPixelWriteGuard.ActivateCoverage(Parent);
+        DiagramGridLayout.GridNode Trial = new DiagramGridLayout.GridNode();
+        using (FlowchartCellPixelWriteGuard.ActivateCoverage(Child))
+        {
+            Trial.X = 12.5;
+        }
+
         Trial.Y = 12.5;
         Assert.That(Child.Checks, Is.EqualTo(1));
         Assert.That(Parent.Checks, Is.EqualTo(2));
@@ -45,8 +49,8 @@ public sealed class FlowchartCellPixelWriteGuardTests
     [TestCase("Axis")]
     public void TestsThrowAndNameTheRepairPath(string Member)
     {
-        var Fixture = Create();
-        var Before = Fixture.Grid.Capture();
+        (FlowchartLogicalGrid Grid, DiagramGridLayout.GridNode Node, FlowchartRenderContext Context) Fixture = Create();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         Assert.That(() => AttemptWrite(Fixture.Node, Member), Throws.TypeOf<InvalidOperationException>());
         Assert.That(Fixture.Grid.Capture(), Is.SameAs(Before));
         Assert.That(Fixture.Context.RejectedCellPixelWrites.Single().Description,
@@ -85,8 +89,8 @@ public sealed class FlowchartCellPixelWriteGuardTests
     [Test]
     public void UnboundWritesDoNotClaimGuardCoverage()
     {
-        var Coverage = new FlowchartCellWriteCoverage { Nodes = 1 };
-        var Node = new DiagramGridLayout.GridNode
+        FlowchartCellWriteCoverage Coverage = new FlowchartCellWriteCoverage { Nodes = 1 };
+        DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode
         {
             CellWriteCoverage = Coverage,
             X = 12.5
@@ -119,10 +123,10 @@ public sealed class FlowchartCellPixelWriteGuardTests
     /// <returns>The owning grid, bound node and diagnostic context.</returns>
     private static (FlowchartLogicalGrid Grid, DiagramGridLayout.GridNode Node, FlowchartRenderContext Context) Create()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("guarded", new(0, 0, 1, 1));
-        var Context = new FlowchartRenderContext { ActiveLayoutStage = "test-stage" };
-        var Node = new DiagramGridLayout.GridNode { Id = "guarded" };
+        FlowchartRenderContext Context = new FlowchartRenderContext { ActiveLayoutStage = "test-stage" };
+        DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = "guarded" };
         Node.BindCells(Grid, Context);
         return (Grid, Node, Context);
     }

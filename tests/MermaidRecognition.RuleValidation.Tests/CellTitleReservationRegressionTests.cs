@@ -13,7 +13,7 @@ public sealed class CellTitleReservationRegressionTests
     [Test]
     public void LongTitleStaysLegalWithoutAnyLateResize()
     {
-        var Scenario = new RouteRuleCatalogueAuditTests.Scenario("long-frame-title", """
+        RouteRuleCatalogueAuditTests.Scenario Scenario = new RouteRuleCatalogueAuditTests.Scenario("long-frame-title", """
             flowchart LR
               subgraph G["Operations and governance with a deliberately long measured frame title"]
                 A[Input]
@@ -30,11 +30,13 @@ public sealed class CellTitleReservationRegressionTests
         {
             CompletedContract = Contract; Completed = Layout;
             Assert.That(Fitted, Is.Not.Null);
-            foreach (var Frame in Layout.ClusterBounds)
+            foreach (FlowchartLayoutNodeBounds Frame in Layout.ClusterBounds)
+            {
                 Assert.That((Frame.Width, Frame.Height), Is.EqualTo(Fitted![Frame.NodeId]));
+            }
         }, Nodes => CheckFinalModel(CompletedContract!, Completed!, Nodes), PrepareBeforeRouting: Nodes =>
         {
-            var Frames = DiagramGridLayout.ProjectCellFrames(MermaidRecognition.Core.MermaidRecognizer.Parse(Scenario.Source),
+            List<DiagramGridLayout.GridFrame> Frames = DiagramGridLayout.ProjectCellFrames(MermaidRecognition.Core.MermaidRecognizer.Parse(Scenario.Source),
                 Nodes, Nodes[0].CellNode!.Grid.Capture());
             Fitted = Frames.ToDictionary(Frame => Frame.Id, Frame => ((double)(Frame.Right - Frame.Left), (double)Math.Abs(Frame.Bottom - Frame.Top)));
             Assert.That(Fitted["G"].Width, Is.GreaterThan(Nodes.Single(Node => Node.Id == "A").Width));
@@ -52,7 +54,7 @@ public sealed class CellTitleReservationRegressionTests
     [TestCase("EIP84")]
     public void PreviousLateGrowthKeepsTheDerivedFrame(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
         DiagramContract? CompletedContract = null;
         FlowchartLayoutResult? Completed = null;

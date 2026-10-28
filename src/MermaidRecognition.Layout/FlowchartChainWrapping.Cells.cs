@@ -15,45 +15,63 @@ internal static partial class FlowchartChainWrapping
     /// <returns>Whether the complete legal wrap fit within diagram usable width.</returns>
     internal static bool ApplyCellPath(List<DiagramGridLayout.GridNode> Path, bool Horizontal, int ColumnGap, int RowGap)
     {
-        if (Path.Count < FlowchartWrapPlan.MinimumRun + 1) return false;
-        var Before = FlowchartCellRepair.Capture(Path); var Grid = Path[0].CellNode!.Grid;
+        if (Path.Count < FlowchartWrapPlan.MinimumRun + 1)
+        {
+            return false;
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Path); FlowchartLogicalGrid Grid = Path[0].CellNode!.Grid;
         int RowPitch = Path.Max(Node => Before.Regions[Node.Id].RowSpan), ColumnPitch = Path.Max(Node => Before.Regions[Node.Id].ColumnSpan);
         int Top = Path.Min(Node => Before.Regions[Node.Id].StartRow), Left = Path.Min(Node => Before.Regions[Node.Id].StartColumn);
-        var Size = Grid.Measure(new(Top, Left, RowPitch, ColumnPitch));
-        var Wrap = FlowchartWrapPlan.Choose(Path.Count, checked((int)Math.Ceiling(Size.Width)), checked((int)Math.Ceiling(Size.Height)),
+        (double Width, double Height) Size = Grid.Measure(new(Top, Left, RowPitch, ColumnPitch));
+        FlowchartWrapPlan.Plan Wrap = FlowchartWrapPlan.Choose(Path.Count, checked((int)Math.Ceiling(Size.Width)), checked((int)Math.Ceiling(Size.Height)),
             Math.Max(ColumnGap, checked((int)Math.Ceiling(Grid.Configuration.ColumnGap))),
             Math.Max(RowGap, checked((int)Math.Ceiling(Grid.Configuration.RowGap))), Horizontal);
-        if (Wrap.Columns >= Path.Count || Wrap.Rows >= Path.Count) return false;
-        double OldWidth = Path.Max(Node => Node.X + Node.Width / 2d) - Path.Min(Node => Node.X - Node.Width / 2d);
-        double OldHeight = Path.Max(Node => Node.Y + Node.Height / 2d) - Path.Min(Node => Node.Y - Node.Height / 2d);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+        if (Wrap.Columns >= Path.Count || Wrap.Rows >= Path.Count)
+        {
+            return false;
+        }
+
+        double OldWidth = Path.Max(Node => Node.X + (Node.Width / 2d)) - Path.Min(Node => Node.X - (Node.Width / 2d));
+        double OldHeight = Path.Max(Node => Node.Y + (Node.Height / 2d)) - Path.Min(Node => Node.Y - (Node.Height / 2d));
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
         for (int Index = 0; Index < Path.Count; Index++)
         {
             int Column = Horizontal ? Index % Wrap.Columns : Index / Wrap.Rows;
             int Row = Horizontal ? Index / Wrap.Columns : Index % Wrap.Rows;
-            var Region = Before.Regions[Path[Index].Id];
-            Targets.Add(Path[Index].Id, new(checked(Top + Row * RowPitch), checked(Left + Column * ColumnPitch), Region.RowSpan, Region.ColumnSpan));
+            FlowchartCellRegion Region = Before.Regions[Path[Index].Id];
+            Targets.Add(Path[Index].Id, new(checked(Top + (Row * RowPitch)), checked(Left + (Column * ColumnPitch)), Region.RowSpan, Region.ColumnSpan));
         }
-        var Growth = new List<FlowchartCellGapGrowth>();
+        List<FlowchartCellGapGrowth> Growth = [];
         for (int Column = 1; Column < Wrap.Columns; Column++)
         {
-            int After = checked(Left + Column * ColumnPitch - 1);
+            int After = checked(Left + (Column * ColumnPitch) - 1);
             double Existing = Before.ColumnGaps.GetValueOrDefault(After, Grid.Configuration.ColumnGap);
-            if (ColumnGap > Existing) Growth.Add(new(true, After, ColumnGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
+            if (ColumnGap > Existing)
+            {
+                Growth.Add(new(true, After, ColumnGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
+            }
         }
         for (int Row = 1; Row < Wrap.Rows; Row++)
         {
-            int After = checked(Top + Row * RowPitch - 1);
+            int After = checked(Top + (Row * RowPitch) - 1);
             double Existing = Before.RowGaps.GetValueOrDefault(After, Grid.Configuration.RowGap);
-            if (RowGap > Existing) Growth.Add(new(false, After, RowGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
+            if (RowGap > Existing)
+            {
+                Growth.Add(new(false, After, RowGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
+            }
         }
-        var Plan = FlowchartCellRepair.PlanAssignment(Path, Targets, Growth);
-        if (Plan?.TryApply() != true) return false;
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Path, Targets, Growth);
+        if (Plan?.TryApply() != true)
+        {
+            return false;
+        }
+
         bool Accepted = false;
         try
         {
-            double Width = Path.Max(Node => Node.X + Node.Width / 2d) - Path.Min(Node => Node.X - Node.Width / 2d);
-            double Height = Path.Max(Node => Node.Y + Node.Height / 2d) - Path.Min(Node => Node.Y - Node.Height / 2d);
+            double Width = Path.Max(Node => Node.X + (Node.Width / 2d)) - Path.Min(Node => Node.X - (Node.Width / 2d));
+            double Height = Path.Max(Node => Node.Y + (Node.Height / 2d)) - Path.Min(Node => Node.Y - (Node.Height / 2d));
             Accepted = ShouldAcceptWrap(Horizontal, OldWidth, OldHeight, new FlowchartWrapPlan.Plan(
                 Wrap.Columns, Wrap.Rows, checked((int)Math.Ceiling(Width)), checked((int)Math.Ceiling(Height))));
             return Accepted;
@@ -61,7 +79,10 @@ internal static partial class FlowchartChainWrapping
         finally
         {
             // Rejected wraps roll back gaps grown during the trial, including every region.
-            if (!Accepted) Plan.Rollback();
+            if (!Accepted)
+            {
+                Plan.Rollback();
+            }
         }
     }
 }

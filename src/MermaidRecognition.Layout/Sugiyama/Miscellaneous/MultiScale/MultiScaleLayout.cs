@@ -51,7 +51,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.MultiScale
             double totalGraphCount = GraphStack.Count + 1;
             while (GraphStack.Count > 0)
             {
-                List<Node> toCenter = new List<Node>();
+                List<Node> toCenter = [];
                 foreach (Node u in G.Nodes)
                 {
                     if (u.UserData is Node v)
@@ -108,12 +108,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.MultiScale
                 MinorIterations = 3,
                 GravityConstant = 1.0 - level,
                 RepulsiveForceConstant =
-                    Math.Log(edgeLengthMultiplier * level * 500 + Math.E),
+                    Math.Log((edgeLengthMultiplier * level * 500) + Math.E),
                 InitialStepSize = 0.6
             };
             foreach (Edge e in graph.Edges)
             {
-                e.Length *= Math.Log(level * 500 + Math.E);
+                e.Length *= Math.Log((level * 500) + Math.E);
             }
 
             settings.InitializeLayout(graph, settings.MinConstraintLevel);
@@ -141,13 +141,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.MultiScale
             Set<Node> nodes = new Set<Node>(graph.Nodes);
             Random rand = new Random(1);
             // edges sorted by increasing weight, edges with the same weight shuffled
-            List<Edge> edges = (from e in graph.Edges
+            List<Edge> edges = [.. (from e in graph.Edges
                          let r = rand.Next()
                          orderby e.Length, r
-                         select e).ToList();
+                         select e)];
             // mapping from nodes in graph to nodes in g2
             // each node in g2 may represent either 1 or 2 nodes from graph
-            Dictionary<Node, Node> nodeMap = new Dictionary<Node, Node>();
+            Dictionary<Node, Node> nodeMap = [];
 
             // populate g2 with nodes representing pairs of nodes, paired across the shortest edges first
             foreach (Edge? e in edges)
@@ -176,7 +176,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.MultiScale
                 nodeMap[u] = v;
             }
             // populate g2 with edges - no duplicates, reverse duplicates or self edges allowed
-            Set<KeyValuePair<Node, Node>> neighbours = new Set<KeyValuePair<Node, Node>>();
+            Set<KeyValuePair<Node, Node>> neighbours = [];
             foreach (Edge? e in edges)
             {
                 Node u = nodeMap[e.Source], v = nodeMap[e.Target];

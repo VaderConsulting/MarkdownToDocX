@@ -8,12 +8,12 @@ public sealed class FlowchartCellInitialPlacementTests
     [Test]
     public void ExistingNodePlacementPublishesACompleteLogicalSwap()
     {
-        var Grid = FlowchartCellInitialPlacement.Create(FlowchartLogicalGridConfiguration.FromRules(),
+        FlowchartLogicalGrid Grid = FlowchartCellInitialPlacement.Create(FlowchartLogicalGridConfiguration.FromRules(),
             [new("A", 0, 0, 1, 1), new("B", 0, 1, 1, 1)], false);
-        var A = new DiagramGridLayout.GridNode { Id = "A", Rank = 0, Column = 1 };
-        var B = new DiagramGridLayout.GridNode { Id = "B", Rank = 0, Column = 0 };
+        DiagramGridLayout.GridNode A = new DiagramGridLayout.GridNode { Id = "A", Rank = 0, Column = 1 };
+        DiagramGridLayout.GridNode B = new DiagramGridLayout.GridNode { Id = "B", Rank = 0, Column = 0 };
         A.BindCells(Grid); B.BindCells(Grid);
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartCellInitialPlacement.TryAssign([A, B], false), Is.True);
         Assert.That(Grid.RegionOf("A"), Is.EqualTo(Before.Regions["B"]));
         Assert.That(Grid.RegionOf("B"), Is.EqualTo(Before.Regions["A"]));
@@ -24,12 +24,12 @@ public sealed class FlowchartCellInitialPlacementTests
     [Test]
     public void ExistingNodePlacementPreservesLockedHintCells()
     {
-        var Grid = FlowchartCellInitialPlacement.Create(FlowchartLogicalGridConfiguration.FromRules(),
+        FlowchartLogicalGrid Grid = FlowchartCellInitialPlacement.Create(FlowchartLogicalGridConfiguration.FromRules(),
             [new("A", 0, 0, 1, 1), new("B", 0, 1, 1, 1)], false);
-        var A = new DiagramGridLayout.GridNode { Id = "A", Rank = 0, Column = 1 };
-        var B = new DiagramGridLayout.GridNode { Id = "B", Rank = 0, Column = 0 };
+        DiagramGridLayout.GridNode A = new DiagramGridLayout.GridNode { Id = "A", Rank = 0, Column = 1 };
+        DiagramGridLayout.GridNode B = new DiagramGridLayout.GridNode { Id = "B", Rank = 0, Column = 0 };
         A.BindCells(Grid); B.BindCells(Grid); B.PlacementHintLocked = true;
-        var Fixed = Grid.RegionOf("B");
+        FlowchartCellRegion Fixed = Grid.RegionOf("B");
         Assert.That(FlowchartCellInitialPlacement.TryAssign([A, B], false), Is.True);
         Assert.That(Grid.RegionOf("B"), Is.SameAs(Fixed));
         Assert.That(Grid.RegionOf("A").Overlaps(Fixed), Is.False);
@@ -44,15 +44,15 @@ public sealed class FlowchartCellInitialPlacementTests
     {
         bool Horizontal = Direction is "LR" or "RL";
         bool Reverse = Direction is "BT" or "RL";
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Inputs = new[]
-        {
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartCellPlacementSeed[] Inputs =
+        [
             new FlowchartCellPlacementSeed("start", Reverse ? 1 : 0, 0, 1, 1),
             new FlowchartCellPlacementSeed("decision", Reverse ? 0 : 1, 0, 2, 1)
-        };
-        var Grid = FlowchartCellInitialPlacement.Create(Configuration, Inputs, Horizontal);
-        var Start = Grid.Origin(Grid.RegionOf("start"));
-        var Decision = Grid.Origin(Grid.RegionOf("decision"));
+        ];
+        FlowchartLogicalGrid Grid = FlowchartCellInitialPlacement.Create(Configuration, Inputs, Horizontal);
+        (double X, double Y) Start = Grid.Origin(Grid.RegionOf("start"));
+        (double X, double Y) Decision = Grid.Origin(Grid.RegionOf("decision"));
         double Delta = Horizontal ? Decision.X - Start.X : Decision.Y - Start.Y;
         Assert.That(Math.Sign(Delta), Is.EqualTo(Reverse ? -1 : 1));
         Assert.That(Grid.RegionOf("start").Overlaps(Grid.RegionOf("decision")), Is.False);
@@ -64,10 +64,10 @@ public sealed class FlowchartCellInitialPlacementTests
     [Test]
     public void DuplicateProposalsProduceTheSameCompletePlanInEitherInputOrder()
     {
-        var Inputs = new[] { new FlowchartCellPlacementSeed("A", 0, 0, 1, 1), new FlowchartCellPlacementSeed("B", 0, 0, 1, 1) };
-        var Config = FlowchartLogicalGridConfiguration.FromRules();
-        var First = FlowchartCellInitialPlacement.Create(Config, Inputs, false);
-        var Second = FlowchartCellInitialPlacement.Create(Config, Inputs.Reverse().ToArray(), false);
+        FlowchartCellPlacementSeed[] Inputs = [new FlowchartCellPlacementSeed("A", 0, 0, 1, 1), new FlowchartCellPlacementSeed("B", 0, 0, 1, 1)];
+        FlowchartLogicalGridConfiguration Config = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGrid First = FlowchartCellInitialPlacement.Create(Config, Inputs, false);
+        FlowchartLogicalGrid Second = FlowchartCellInitialPlacement.Create(Config, Inputs.Reverse().ToArray(), false);
         Assert.That(First.Capture().Regions, Is.EquivalentTo(Second.Capture().Regions));
         Assert.That(First.RegionOf("A"), Is.EqualTo(new FlowchartCellRegion(0, 0, 1, 1)));
         Assert.That(First.RegionOf("B"), Is.EqualTo(new FlowchartCellRegion(0, 1, 1, 1)));

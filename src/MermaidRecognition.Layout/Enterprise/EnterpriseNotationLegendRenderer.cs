@@ -19,13 +19,28 @@ public static class EnterpriseNotationLegendRenderer
 
     public static string ApplyToDiagram(EnterpriseDocument Document, string Svg)
     {
-        if (!Document.Configuration.TryGetValue("legend", out string? Raw)) return Svg;
+        if (!Document.Configuration.TryGetValue("legend", out string? Raw))
+        {
+            return Svg;
+        }
+
         string Setting = (Raw ?? string.Empty).Trim().ToLowerInvariant();
-        if (Setting is "" or "off" or "false" or "table") return Svg;
-        if (Setting == "on" || Setting == "true") Setting = "bottom-right";
+        if (Setting is "" or "off" or "false" or "table")
+        {
+            return Svg;
+        }
+
+        if (Setting == "on" || Setting == "true")
+        {
+            Setting = "bottom-right";
+        }
+
         string Position = Setting.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
         if (Position is not ("bottom-right" or "bottom-left" or "top-right" or "top-left" or "below" or "right")
-            && !Position.EndsWith("-of", StringComparison.Ordinal)) Position = "bottom-right";
+            && !Position.EndsWith("-of", StringComparison.Ordinal))
+        {
+            Position = "bottom-right";
+        }
 
         (string Body, double LegendHeight) = CompactBody(Document);
         XDocument Xml = XDocument.Parse(Svg, LoadOptions.PreserveWhitespace);
@@ -66,58 +81,81 @@ public static class EnterpriseNotationLegendRenderer
 
     public static IReadOnlyList<string> EntryNames(EnterpriseDocument Document)
     {
-        var Items = new List<(int Line, string Key)>();
-        Items.AddRange(Document.Groups.Values.Select(Group => (Group.LineNumber, "Group")));
-        Items.AddRange(Document.Elements.Values.Select(Element => (Element.LineNumber,
-            Readable(Element.ElementType == EnterpriseElementType.Junction
-                ? "junction-" + Element.JunctionKind : EnterpriseElementCatalog.GetKebabName(Element.ElementType)))));
-        Items.AddRange(Document.Notes.Values.Select(Note => (Note.LineNumber, "Note")));
-        var Result = Items.OrderBy(Item => Item.Line).GroupBy(Item => Item.Key).Select(Group => Group.Key).ToList();
+        List<(int Line, string Key)> Items =
+        [
+            .. Document.Groups.Values.Select(Group => (Group.LineNumber, "Group")),
+            .. Document.Elements.Values.Select(Element => (Element.LineNumber,
+                Readable(Element.ElementType == EnterpriseElementType.Junction
+                    ? "junction-" + Element.JunctionKind : EnterpriseElementCatalog.GetKebabName(Element.ElementType)))),
+            .. Document.Notes.Values.Select(Note => (Note.LineNumber, "Note")),
+        ];
+        List<string> Result = [.. Items.OrderBy(Item => Item.Line).GroupBy(Item => Item.Key).Select(Group => Group.Key)];
         Result.AddRange(Document.Relationships.Where(Rel => !Rel.HiddenByNesting).OrderBy(Rel => Rel.LineNumber)
             .GroupBy(Rel => Rel.Kind + ":" + Rel.AccessKind + ":" + Rel.DirectedAssociation)
             .Select(Group => Readable(Group.First().Kind == EnterpriseRelationshipKind.Access
                 ? "access " + Group.First().AccessKind : Group.First().Kind.ToString())));
-        if (Document.PlainConnections.Count > 0) Result.Add("Plain connection");
+        if (Document.PlainConnections.Count > 0)
+        {
+            Result.Add("Plain connection");
+        }
+
         return Result;
     }
 
     private static (string Body, double Height) CompactBody(EnterpriseDocument Document)
     {
-        var NodeKinds = new List<(int Line, string Key, EnterpriseElementType? Type, EnterpriseJunctionKind? Junction)>();
-        NodeKinds.AddRange(Document.Groups.Values.Select(Group => (Group.LineNumber, "group", (EnterpriseElementType?)EnterpriseElementType.Grouping, (EnterpriseJunctionKind?)null)));
-        NodeKinds.AddRange(Document.Elements.Values.Select(Element => (Element.LineNumber,
-            Element.ElementType == EnterpriseElementType.Junction ? "junction-" + Element.JunctionKind : EnterpriseElementCatalog.GetKebabName(Element.ElementType),
-            (EnterpriseElementType?)Element.ElementType, Element.JunctionKind)));
-        NodeKinds.AddRange(Document.Notes.Values.Select(Note => (Note.LineNumber, "note", (EnterpriseElementType?)null, (EnterpriseJunctionKind?)null)));
-        var Nodes = NodeKinds.OrderBy(Item => Item.Line).GroupBy(Item => Item.Key).Select(Group => Group.First()).ToList();
-        var Lines = Document.Relationships.Where(Rel => !Rel.HiddenByNesting).Select(Rel => (Rel.LineNumber,
+        List<(int Line, string Key, EnterpriseElementType? Type, EnterpriseJunctionKind? Junction)> NodeKinds =
+        [
+            .. Document.Groups.Values.Select(Group => (Group.LineNumber, "group", (EnterpriseElementType?)EnterpriseElementType.Grouping, (EnterpriseJunctionKind?)null)),
+            .. Document.Elements.Values.Select(Element => (Element.LineNumber,
+                Element.ElementType == EnterpriseElementType.Junction ? "junction-" + Element.JunctionKind : EnterpriseElementCatalog.GetKebabName(Element.ElementType),
+                (EnterpriseElementType?)Element.ElementType, Element.JunctionKind)),
+            .. Document.Notes.Values.Select(Note => (Note.LineNumber, "note", (EnterpriseElementType?)null, (EnterpriseJunctionKind?)null)),
+        ];
+        List<(int Line, string Key, EnterpriseElementType? Type, EnterpriseJunctionKind? Junction)> Nodes = [.. NodeKinds.OrderBy(Item => Item.Line).GroupBy(Item => Item.Key).Select(Group => Group.First())];
+        List<(int LineNumber, string Key, EnterpriseRelationship Rel)> Lines = [.. Document.Relationships.Where(Rel => !Rel.HiddenByNesting).Select(Rel => (Rel.LineNumber,
             Key: Rel.Kind + ":" + Rel.AccessKind + ":" + Rel.DirectedAssociation, Rel)).OrderBy(Item => Item.LineNumber)
-            .GroupBy(Item => Item.Key).Select(Group => Group.First()).ToList();
+            .GroupBy(Item => Item.Key).Select(Group => Group.First())];
         bool Plain = Document.PlainConnections.Count > 0;
         int NodeRows = (Nodes.Count + 1) / 2;
         double Y = 38;
         StringBuilder B = new();
         B.Append("<rect x=\"0\" y=\"0\" width=\"").Append(COMPACT_WIDTH).Append("\" height=\"")
-            .Append(70 + NodeRows * 76 + (Lines.Count + (Plain ? 1 : 0)) * 42).Append("\" fill=\"white\" stroke=\"#333\"/>")
+            .Append(70 + (NodeRows * 76) + ((Lines.Count + (Plain ? 1 : 0)) * 42)).Append("\" fill=\"white\" stroke=\"#333\"/>")
             .Append("<text x=\"").Append(COMPACT_WIDTH / 2).Append("\" y=\"24\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"bold\">Legend</text>");
         for (int Index = 0; Index < Nodes.Count; Index++)
         {
-            double X = COMPACT_MARGIN + (Index % 2) * 205; double RowY = Y + (Index / 2) * 76;
-            var Item = Nodes[Index]; string Caption = Readable(Item.Key);
-            if (Item.Key == "note") B.Append(EnterpriseNotationSvg.NoteBoxSvg(X, RowY, 150, 48));
-            else if (Item.Type == EnterpriseElementType.Grouping) B.Append(EnterpriseNotationSvg.GroupingTabSvg(X, RowY, 150, 48, Caption));
-            else if (Item.Type == EnterpriseElementType.Junction) B.Append(EnterpriseNotationSvg.JunctionSvg(X + 62, RowY + 10, Item.Junction));
-            else B.Append(EnterpriseNotationSvg.ElementBoxSvg(Item.Type!.Value, X, RowY, 150, 48, Item.Junction));
+            double X = COMPACT_MARGIN + ((Index % 2) * 205); double RowY = Y + ((Index / 2) * 76);
+            (int Line, string Key, EnterpriseElementType? Type, EnterpriseJunctionKind? Junction) Item = Nodes[Index]; string Caption = Readable(Item.Key);
+            if (Item.Key == "note")
+            {
+                B.Append(EnterpriseNotationSvg.NoteBoxSvg(X, RowY, 150, 48));
+            }
+            else if (Item.Type == EnterpriseElementType.Grouping)
+            {
+                B.Append(EnterpriseNotationSvg.GroupingTabSvg(X, RowY, 150, 48, Caption));
+            }
+            else if (Item.Type == EnterpriseElementType.Junction)
+            {
+                B.Append(EnterpriseNotationSvg.JunctionSvg(X + 62, RowY + 10, Item.Junction));
+            }
+            else
+            {
+                B.Append(EnterpriseNotationSvg.ElementBoxSvg(Item.Type!.Value, X, RowY, 150, 48, Item.Junction));
+            }
+
             if (Item.Type != EnterpriseElementType.Grouping)
+            {
                 B.Append("<text x=\"").Append(X + 75).Append("\" y=\"").Append(RowY + 64)
                     .Append("\" text-anchor=\"middle\" font-size=\"10\">").Append(EnterpriseSvgFormat.Escape(Caption)).Append("</text>");
+            }
         }
         Y += NodeRows * 76;
-        foreach (var Item in Lines)
+        foreach ((int LineNumber, string Key, EnterpriseRelationship Rel) Item in Lines)
         {
             EnterpriseRelationship Rel = Item.Rel;
             B.Append(RelationshipSampleSvg(new LegendRelationship(Rel.Kind, Rel.AccessKind, Rel.DirectedAssociation,
-                Readable(Rel.Kind == EnterpriseRelationshipKind.Access ? "access " + Rel.AccessKind : Rel.Kind.ToString())), COMPACT_MARGIN, Y, COMPACT_WIDTH - 2 * COMPACT_MARGIN));
+                Readable(Rel.Kind == EnterpriseRelationshipKind.Access ? "access " + Rel.AccessKind : Rel.Kind.ToString())), COMPACT_MARGIN, Y, COMPACT_WIDTH - (2 * COMPACT_MARGIN)));
             Y += 42;
         }
         if (Plain)
@@ -132,7 +170,11 @@ public static class EnterpriseNotationLegendRenderer
     private static string Readable(string Value)
     {
         string Text = Value.Replace("-", " ", StringComparison.Ordinal).Replace("_", " ", StringComparison.Ordinal);
-        if (Text.StartsWith("junction ", StringComparison.Ordinal)) Text = "junction (" + Text[9..] + ")";
+        if (Text.StartsWith("junction ", StringComparison.Ordinal))
+        {
+            Text = "junction (" + Text[9..] + ")";
+        }
+
         return Text.Length == 0 ? Text : char.ToUpperInvariant(Text[0]) + Text[1..].ToLowerInvariant();
     }
     private const double BOX_WIDTH = 196;
@@ -283,8 +325,8 @@ public static class EnterpriseNotationLegendRenderer
 
     private static List<LegendSection> BuildSections()
     {
-        return new List<LegendSection>
-        {
+        return
+        [
             Section(
                 "Motivation",
                 EnterpriseElementType.Stakeholder,
@@ -361,17 +403,16 @@ public static class EnterpriseNotationLegendRenderer
                 EnterpriseElementType.Location),
             new LegendSection(
                 "Junction",
-                new List<LegendItem>
-                {
+                [
                     new LegendItem(EnterpriseElementType.Junction, EnterpriseJunctionKind.And, "Junction (and)"),
                     new LegendItem(EnterpriseElementType.Junction, EnterpriseJunctionKind.Or, "Junction (or)")
-                })
-        };
+                ])
+        ];
     }
 
     private static LegendSection Section(string Title, params EnterpriseElementType[] Types)
     {
-        List<LegendItem> Items = new List<LegendItem>();
+        List<LegendItem> Items = [];
         foreach (EnterpriseElementType ElementType in Types)
         {
             Items.Add(new LegendItem(ElementType, null, EnterpriseElementCatalog.GetSpecName(ElementType)));
@@ -382,7 +423,7 @@ public static class EnterpriseNotationLegendRenderer
 
     private static List<(string Line, int LineIndex)> WrapCaption(string Caption)
     {
-        List<(string Line, int LineIndex)> Lines = new List<(string Line, int LineIndex)>();
+        List<(string Line, int LineIndex)> Lines = [];
         if (string.IsNullOrEmpty(Caption))
         {
             return Lines;
@@ -411,7 +452,7 @@ public static class EnterpriseNotationLegendRenderer
 
     private static List<string> SplitCamelCase(string Caption)
     {
-        List<string> Parts = new List<string>();
+        List<string> Parts = [];
         int Start = 0;
         for (int Index = 1; Index < Caption.Length; Index++)
         {
@@ -428,8 +469,8 @@ public static class EnterpriseNotationLegendRenderer
 
     private static List<LegendRelationship> BuildRelationships()
     {
-        return new List<LegendRelationship>
-        {
+        return
+        [
             new LegendRelationship(EnterpriseRelationshipKind.Composition, null, false, "composition"),
             new LegendRelationship(EnterpriseRelationshipKind.Aggregation, null, false, "aggregation"),
             new LegendRelationship(EnterpriseRelationshipKind.Assignment, null, false, "assignment"),
@@ -445,7 +486,7 @@ public static class EnterpriseNotationLegendRenderer
             new LegendRelationship(EnterpriseRelationshipKind.Specialization, null, false, "specialization"),
             new LegendRelationship(EnterpriseRelationshipKind.Association, null, false, "association"),
             new LegendRelationship(EnterpriseRelationshipKind.Association, null, true, "association (directed)")
-        };
+        ];
     }
 
     private static string RelationshipSampleSvg(LegendRelationship Relationship, double X, double Y, double Width)

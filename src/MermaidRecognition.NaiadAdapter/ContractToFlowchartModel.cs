@@ -72,7 +72,7 @@ public static class ContractToFlowchartModel
                 continue;
             }
 
-            Model.ClassesByNodeId[SourceNode.Id] = SourceNode.Classes.ToList();
+            Model.ClassesByNodeId[SourceNode.Id] = [.. SourceNode.Classes];
         }
 
         foreach (LinkStyleDirective LinkStyle in Contract.LinkStyles)

@@ -1,4 +1,6 @@
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -71,11 +73,13 @@ public sealed class CellJointMoveBendReviewTests
     /// <returns>Each source, historical group and measured bend baselines.</returns>
     public static IEnumerable<TestCaseData> Cases()
     {
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Baselines.TryGetValue(Scenario.Id, out var Before))
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Baselines.TryGetValue(Scenario.Id, out (string Group, int Off, int On) Before))
+            {
                 yield return new TestCaseData(Scenario, Before.Group, Before.Off, Before.On).SetName("CellJointBendReview_" + Scenario.Id);
+            }
         }
     }
 
@@ -87,23 +91,25 @@ public sealed class CellJointMoveBendReviewTests
     [TestCaseSource(nameof(Cases))]
     public void CompareFinishedJointMoves(RouteRuleCatalogueAuditTests.Scenario Scenario, string Group, int ExpectedOff, int BeforeOn)
     {
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out var Off), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out FlowchartLayoutResult? Off), Is.True);
         int OffBends = Off.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
         Assert.That(OffBends, Is.EqualTo(ExpectedOff));
-        var Counts = new Dictionary<string, long>(StringComparer.Ordinal);
-        var Available = new Dictionary<string, int>(StringComparer.Ordinal);
-        var ProbeContract = Scenario.Enterprise
+        Dictionary<string, long> Counts = new Dictionary<string, long>(StringComparer.Ordinal);
+        Dictionary<string, int> Available = new Dictionary<string, int>(StringComparer.Ordinal);
+        DiagramContract ProbeContract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        var Previous = FlowchartRenderContext.OperationCountObserver;
+        Action<string, long>? Previous = FlowchartRenderContext.OperationCountObserver;
         FlowchartRenderContext.OperationCountObserver = (Name, Count) =>
         {
             Previous?.Invoke(Name, Count);
             if (Name.StartsWith("cell-candidate/", StringComparison.Ordinal) || Name.StartsWith("cell-winner/", StringComparison.Ordinal))
+            {
                 Counts[Name] = Counts.GetValueOrDefault(Name) + Count;
+            }
         };
         try
         {
@@ -114,22 +120,26 @@ public sealed class CellJointMoveBendReviewTests
                 CompletedContract = OnContract; CompletedLayout = On;
                 int After = On.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
                 TestContext.Out.WriteLine($"CELL_JOINT_BENDS|{Scenario.Id}|group={Group}|off={OffBends}|before={BeforeOn}|on={After}|candidates={On.RenderContext.MoveBeforeDetourBudget.CandidateMoves}|counts={JsonSerializer.Serialize(Counts)}|available={JsonSerializer.Serialize(Available)}");
-                var Findings = FlowchartRouteRuleChecker.Check(OnContract, On);
+                IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(OnContract, On);
                 Assert.That(Findings.Where(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7"), Is.Empty);
                 Assert.That(On.RenderContext.MoveBeforeDetourBudget.CandidateMoves, Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
                 Assert.That(After, Is.LessThanOrEqualTo(BeforeOn), "Adding a candidate family must not lose an already better complete option.");
             }, ObserveBoundNodes: Nodes =>
             {
                 Assert.That(CellGridAudit.Faults(CompletedContract!, CompletedLayout!, Nodes), Is.Empty);
-                Assert.That(FlowchartPlacementHints.CellHintsMatch(CompletedContract!, Nodes.ToList(), FlowchartCellRepair.Capture(Nodes).Regions), Is.True);
+                Assert.That(FlowchartPlacementHints.CellHintsMatch(CompletedContract!, [.. Nodes], FlowchartCellRepair.Capture(Nodes).Regions), Is.True);
             }, PrepareBeforeRouting: Nodes =>
             {
-                var Before = FlowchartCellRepair.Capture(Nodes);
+                FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes);
                 bool Horizontal = MermaidRecognition.Render.FlowchartDirectionNormalizer.Normalize(ProbeContract.Direction) is MermaidRecognition.Kinds.Flowchart.FlowchartDirection.LeftToRight
                     or MermaidRecognition.Kinds.Flowchart.FlowchartDirection.RightToLeft;
-                foreach (var Family in DiagramGridLayout.CellJointRouteAssignments(ProbeContract, Nodes, Horizontal,
+                foreach (IGrouping<string, DiagramGridLayout.CellJointRouteCandidate> Family in DiagramGridLayout.CellJointRouteAssignments(ProbeContract, Nodes, Horizontal,
                     ProbeContract.Nodes.Select(Node => Node.Id).Concat(ProbeContract.Groups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal))
-                    .GroupBy(Option => Option.Key.Split('|')[0])) Available[Family.Key] = Family.Count();
+                    .GroupBy(Option => Option.Key.Split('|')[0]))
+                {
+                    Available[Family.Key] = Family.Count();
+                }
+
                 Assert.That(FlowchartCellRepair.Capture(Nodes), Is.SameAs(Before));
             });
         }

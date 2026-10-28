@@ -107,10 +107,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
         static LinkedPoint TrySplitHorizontalPoint(LinkedPoint horizontalPoint, Point point, bool xAligned) {
             Debug.Assert(ApproximateComparer.Close(horizontalPoint.Y, horizontalPoint.Next.Y));
-            if (xAligned && horizontalPoint.X + ApproximateComparer.DistanceEpsilon < point.X &&
-                point.X + ApproximateComparer.DistanceEpsilon < horizontalPoint.Next.X ||
-                !xAligned && horizontalPoint.Next.X + ApproximateComparer.DistanceEpsilon < point.X &&
-                point.X + ApproximateComparer.DistanceEpsilon < horizontalPoint.X) {
+            if ((xAligned && horizontalPoint.X + ApproximateComparer.DistanceEpsilon < point.X &&
+                point.X + ApproximateComparer.DistanceEpsilon < horizontalPoint.Next.X) ||
+                (!xAligned && horizontalPoint.Next.X + ApproximateComparer.DistanceEpsilon < point.X &&
+                point.X + ApproximateComparer.DistanceEpsilon < horizontalPoint.X)) {
                 horizontalPoint.SetNewNext(point);
                 return horizontalPoint.Next;
             }

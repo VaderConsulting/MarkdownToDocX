@@ -22,27 +22,39 @@ internal static class PreviewNodePlacement
     {
         Change = null;
         Reason = "Drop near another element in the same group and layer.";
-        if (!float.IsFinite(Drop.X) || !float.IsFinite(Drop.Y)) return false;
-        var Analysis = EnterpriseValidator.Analyze(Source);
-        var Document = Analysis.Document;
-        if (Analysis.HasErrors || !Document.Elements.TryGetValue(NodeId, out var Element)
+        if (!float.IsFinite(Drop.X) || !float.IsFinite(Drop.Y))
+        {
+            return false;
+        }
+
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source);
+        EnterpriseDocument Document = Analysis.Document;
+        if (Analysis.HasErrors || !Document.Elements.TryGetValue(NodeId, out EnterpriseElement? Element)
             || Document.Groups.ContainsKey(NodeId))
         {
             Reason = "Move a regular element in a valid Enterprise diagram.";
             return false;
         }
-        var Moving = Items.FirstOrDefault(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == NodeId);
-        if (Moving == null || Moving.Right <= Moving.Left || Moving.Bottom <= Moving.Top) return false;
-        var Layer = EnterpriseElementCatalog.Elements[Element.ElementType].Layer;
-        var Peer = Items.Where(Item => Item.Kind == PreviewObjectKind.Node && Item.Id != NodeId
+        PreviewObject? Moving = Items.FirstOrDefault(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == NodeId);
+        if (Moving == null || Moving.Right <= Moving.Left || Moving.Bottom <= Moving.Top)
+        {
+            return false;
+        }
+
+        EnterpriseLayer Layer = EnterpriseElementCatalog.Elements[Element.ElementType].Layer;
+        PreviewObject? Peer = Items.Where(Item => Item.Kind == PreviewObjectKind.Node && Item.Id != NodeId
             && Item.Right > Item.Left && Item.Bottom > Item.Top
-            && Document.Elements.TryGetValue(Item.Id, out var Other) && !Document.Groups.ContainsKey(Item.Id)
+            && Document.Elements.TryGetValue(Item.Id, out EnterpriseElement? Other) && !Document.Groups.ContainsKey(Item.Id)
             && Other.ParentId == Element.ParentId && EnterpriseElementCatalog.Elements[Other.ElementType].Layer == Layer
             && !DependsOn(Document, Other.Id, NodeId))
             .OrderBy(Item => DistanceSquared(Drop, Item)).ThenBy(Item => Item.Id, StringComparer.Ordinal).FirstOrDefault();
-        if (Peer == null) return false;
-        double Dx = Drop.X - (Peer.Left + Peer.Right) / 2;
-        double Dy = Drop.Y - (Peer.Top + Peer.Bottom) / 2;
+        if (Peer == null)
+        {
+            return false;
+        }
+
+        double Dx = Drop.X - ((Peer.Left + Peer.Right) / 2);
+        double Dy = Drop.Y - ((Peer.Top + Peer.Bottom) / 2);
         double HalfWidth = (Moving.Right - Moving.Left + Peer.Right - Peer.Left) / 2;
         double HalfHeight = (Moving.Bottom - Moving.Top + Peer.Bottom - Peer.Top) / 2;
         bool Horizontal = Math.Abs(Dx) / HalfWidth >= Math.Abs(Dy) / HalfHeight;
@@ -55,13 +67,13 @@ internal static class PreviewNodePlacement
             Reason = "Drag supports one declaration per line; edit this placement hint in the source.";
             return false;
         }
-        var Updated = EnterpriseValidator.Analyze(Change!.Apply(Source));
-        var ExpectedKind = Direction switch
+        EnterpriseAnalysisResult Updated = EnterpriseValidator.Analyze(Change!.Apply(Source));
+        PlacementHintKind ExpectedKind = Direction switch
         {
             "left-of" => PlacementHintKind.LeftOf, "right-of" => PlacementHintKind.RightOf,
             "above" => PlacementHintKind.Above, _ => PlacementHintKind.Below
         };
-        if (Updated.HasErrors || !Updated.Document.Elements.TryGetValue(NodeId, out var After)
+        if (Updated.HasErrors || !Updated.Document.Elements.TryGetValue(NodeId, out EnterpriseElement? After)
             || After.PlacementHint?.PeerId != Peer.Id || After.PlacementHint.Kind != ExpectedKind || After.PlacementHint.Offset != Offset
             || After.Label != Element.Label || After.ParentId != Element.ParentId
             || !Document.Elements.Keys.OrderBy(Id => Id, StringComparer.Ordinal).SequenceEqual(
@@ -77,11 +89,19 @@ internal static class PreviewNodePlacement
 
     private static bool DependsOn(EnterpriseDocument Document, string Peer, string Moving)
     {
-        var Seen = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
         while (Seen.Add(Peer))
         {
-            if (Peer == Moving) return true;
-            if (!Document.Elements.TryGetValue(Peer, out var Element) || string.IsNullOrEmpty(Element.PlacementHint?.PeerId)) return false;
+            if (Peer == Moving)
+            {
+                return true;
+            }
+
+            if (!Document.Elements.TryGetValue(Peer, out EnterpriseElement? Element) || string.IsNullOrEmpty(Element.PlacementHint?.PeerId))
+            {
+                return false;
+            }
+
             Peer = Element.PlacementHint.PeerId;
         }
         return true;
@@ -89,8 +109,8 @@ internal static class PreviewNodePlacement
 
     private static double DistanceSquared(PointF Point, PreviewObject Item)
     {
-        double X = Point.X - (Item.Left + Item.Right) / 2, Y = Point.Y - (Item.Top + Item.Bottom) / 2;
-        return X * X + Y * Y;
+        double X = Point.X - ((Item.Left + Item.Right) / 2), Y = Point.Y - ((Item.Top + Item.Bottom) / 2);
+        return (X * X) + (Y * Y);
     }
 
     private static bool TryRewrite(string Source, int LineNumber, string Hint, out Edit? Change)
@@ -100,13 +120,25 @@ internal static class PreviewNodePlacement
         for (int Line = 1; Line < LineNumber; Line++)
         {
             int Next = Source.IndexOf('\n', Start);
-            if (Next < 0) return false;
+            if (Next < 0)
+            {
+                return false;
+            }
+
             Start = Next + 1;
         }
         int End = Start;
-        while (End < Source.Length && Source[End] != '\r' && Source[End] != '\n') End++;
+        while (End < Source.Length && Source[End] != '\r' && Source[End] != '\n')
+        {
+            End++;
+        }
+
         string Text = Source.Substring(Start, End - Start);
-        if (!IsSingleStatement(Text)) return false;
+        if (!IsSingleStatement(Text))
+        {
+            return false;
+        }
+
         char Quote = '\0';
         bool Escaped = false;
         int Suffix = Text.Length, OldHintStart = -1;
@@ -117,17 +149,35 @@ internal static class PreviewNodePlacement
             char C = Text[I];
             if (Quote != '\0')
             {
-                if (Escaped) Escaped = false;
-                else if (C == '\\') Escaped = true;
-                else if (C == Quote) Quote = '\0';
+                if (Escaped)
+                {
+                    Escaped = false;
+                }
+                else if (C == '\\')
+                {
+                    Escaped = true;
+                }
+                else if (C == Quote)
+                {
+                    Quote = '\0';
+                }
+
                 continue;
             }
             if (C is '\'' or '"') { Quote = C; continue; }
             if (Text.AsSpan(I).StartsWith(":::".AsSpan(), StringComparison.Ordinal)
                 || Text.AsSpan(I).StartsWith("%%".AsSpan(), StringComparison.Ordinal)) { Suffix = I; break; }
-            if (char.IsWhiteSpace(C)) continue;
+            if (char.IsWhiteSpace(C))
+            {
+                continue;
+            }
+
             int WordStart = I;
-            while (I < Text.Length && !char.IsWhiteSpace(Text[I])) I++;
+            while (I < Text.Length && !char.IsWhiteSpace(Text[I]))
+            {
+                I++;
+            }
+
             string Word = Text.Substring(WordStart, I - WordStart);
             if (Words >= 2 && PreviousWord != "in" && Word is "above" or "below" or "left-of" or "right-of" or "push")
             {
@@ -136,7 +186,10 @@ internal static class PreviewNodePlacement
             }
             PreviousWord = Word; Words++; I--;
         }
-        if (Quote != '\0') return false;
+        if (Quote != '\0')
+        {
+            return false;
+        }
         // Scan the tail separately so an existing hint is replaced before any
         // inline class or comment, while quoted label words remain untouched.
         if (OldHintStart >= 0)
@@ -147,7 +200,11 @@ internal static class PreviewNodePlacement
         }
         int PrefixEnd = OldHintStart >= 0 ? OldHintStart : Suffix;
         string Replacement = Text.Substring(0, PrefixEnd).TrimEnd() + " " + Hint;
-        if (Suffix < Text.Length) Replacement += " " + Text.Substring(Suffix);
+        if (Suffix < Text.Length)
+        {
+            Replacement += " " + Text.Substring(Suffix);
+        }
+
         Change = new(Start, End - Start, Replacement, Hint);
         return true;
     }
@@ -160,12 +217,27 @@ internal static class PreviewNodePlacement
             char C = Text[I];
             if (Quote != '\0')
             {
-                if (C == '\\') I++;
-                else if (C == Quote) Quote = '\0';
+                if (C == '\\')
+                {
+                    I++;
+                }
+                else if (C == Quote)
+                {
+                    Quote = '\0';
+                }
             }
-            else if (C is '\'' or '"') Quote = C;
-            else if (C == ';') return false;
-            else if (C == '%' && I + 1 < Text.Length && Text[I + 1] == '%') break;
+            else if (C is '\'' or '"')
+            {
+                Quote = C;
+            }
+            else if (C == ';')
+            {
+                return false;
+            }
+            else if (C == '%' && I + 1 < Text.Length && Text[I + 1] == '%')
+            {
+                break;
+            }
         }
         return Quote == '\0';
     }

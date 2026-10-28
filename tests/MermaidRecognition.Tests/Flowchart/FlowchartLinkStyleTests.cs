@@ -30,7 +30,7 @@ public class FlowchartLinkStyleTests
             """);
 
         LinkStyleDirective Indexed = Contract.LinkStyles.Single(Style => !Style.IsDefault);
-        Assert.That(Indexed.EdgeIndexes, Is.EqualTo(new[] { 1 }));
+        Assert.That(Indexed.EdgeIndexes, Is.EqualTo([1]));
         Assert.That(Indexed.Style.Stroke, Is.EqualTo("#00f"));
     }
 

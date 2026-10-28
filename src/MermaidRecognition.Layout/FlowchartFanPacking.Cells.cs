@@ -20,10 +20,14 @@ internal static partial class FlowchartFanPacking
     internal static bool ApplyCellFan(List<DiagramGridLayout.GridNode> Nodes, DiagramGridLayout.GridNode Hub,
         List<DiagramGridLayout.GridNode> Leaves, bool FanOut, bool Horizontal, bool Reverse, int TrackGap, double LabelTrackPitch)
     {
-        var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Hub.CellNode!.Grid;
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes); FlowchartLogicalGrid Grid = Hub.CellNode!.Grid;
         string Side = Horizontal ? (Reverse == FanOut ? "left" : "right") : (Reverse == FanOut ? "top" : "bottom");
         double PortPitch = FlowchartLayoutRules.LineSpacing;
-        if (!DiagramGridLayout.TryPlanCellPortCapacity(Hub, Before.Regions[Hub.Id], Side, Leaves.Count, PortPitch, out var HubSpan)) return false;
+        if (!DiagramGridLayout.TryPlanCellPortCapacity(Hub, Before.Regions[Hub.Id], Side, Leaves.Count, PortPitch, out FlowchartCellRegion? HubSpan))
+        {
+            return false;
+        }
+
         bool MandatoryGrowth = HubSpan != Before.Regions[Hub.Id];
         int LeafRows = Leaves.Max(Node => Before.Regions[Node.Id].RowSpan), LeafColumns = Leaves.Max(Node => Before.Regions[Node.Id].ColumnSpan);
         int OriginRow = Leaves.Append(Hub).Min(Node => Before.Regions[Node.Id].StartRow);
@@ -42,8 +46,12 @@ internal static partial class FlowchartFanPacking
             double RequiredRows = Horizontal ? Math.Max(DiagramGridMetrics.NODE_GAP_PX, (Columns - 1) * LabelTrackPitch) : DiagramGridMetrics.NODE_GAP_PX;
             int ColumnStride = CellFanStride(LeafColumns, Grid.Configuration.CellWidth, Grid.Configuration.ColumnGap, RequiredColumns);
             int RowStride = CellFanStride(LeafRows, Grid.Configuration.CellHeight, Grid.Configuration.RowGap, RequiredRows);
-            if (ColumnStride == 0 || RowStride == 0) continue;
-            int BlockColumns = checked((Columns - 1) * ColumnStride + LeafColumns), BlockRows = checked((Rows - 1) * RowStride + LeafRows);
+            if (ColumnStride == 0 || RowStride == 0)
+            {
+                continue;
+            }
+
+            int BlockColumns = checked(((Columns - 1) * ColumnStride) + LeafColumns), BlockRows = checked(((Rows - 1) * RowStride) + LeafRows);
             int HubRow, HubColumn, BlockRow, BlockColumn;
             if (Horizontal)
             {
@@ -59,32 +67,40 @@ internal static partial class FlowchartFanPacking
                 BlockRow = Reverse == FanOut ? OriginRow : checked(OriginRow + HubSpan.RowSpan);
                 HubRow = Reverse == FanOut ? checked(OriginRow + BlockRows) : OriginRow;
             }
-            var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal)
+            Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal)
                 { [Hub.Id] = new(HubRow, HubColumn, HubSpan.RowSpan, HubSpan.ColumnSpan) };
             for (int Index = 0; Index < Leaves.Count; Index++)
             {
-                var Region = Before.Regions[Leaves[Index].Id];
-                Targets[Leaves[Index].Id] = new(checked(BlockRow + Index / Columns * RowStride),
-                    checked(BlockColumn + Index % Columns * ColumnStride), Region.RowSpan, Region.ColumnSpan);
+                FlowchartCellRegion Region = Before.Regions[Leaves[Index].Id];
+                Targets[Leaves[Index].Id] = new(checked(BlockRow + (Index / Columns * RowStride)),
+                    checked(BlockColumn + (Index % Columns * ColumnStride)), Region.RowSpan, Region.ColumnSpan);
             }
             int After = Horizontal ? (Reverse == FanOut ? HubColumn - 1 : checked(HubColumn + HubSpan.ColumnSpan - 1))
                 : (Reverse == FanOut ? HubRow - 1 : checked(HubRow + HubSpan.RowSpan - 1));
             double Existing = (Horizontal ? Before.ColumnGaps : Before.RowGaps).GetValueOrDefault(After,
                 Horizontal ? Grid.Configuration.ColumnGap : Grid.Configuration.RowGap);
-            var Growth = new List<FlowchartCellGapGrowth>();
+            List<FlowchartCellGapGrowth> Growth = [];
             if (TrackGap > Existing)
             {
                 if (Targets.Values.Any(Region => Horizontal ? Region.StartColumn <= After && Region.EndColumn > After + 1
-                    : Region.StartRow <= After && Region.EndRow > After + 1)) continue;
+                    : Region.StartRow <= After && Region.EndRow > After + 1))
+                {
+                    continue;
+                }
+
                 Growth.Add(new(Horizontal, After, TrackGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
             }
-            var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Targets, Growth);
-            if (Plan == null) continue;
+            FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, Targets, Growth);
+            if (Plan == null)
+            {
+                continue;
+            }
+
             double Width = FlowchartCellCandidateScore.MeasureWidth(Nodes, Plan.After);
             double Score = FlowchartCellCandidateScore.Measure(Nodes, Plan.After).Score;
-            bool Better = Width <= Usable + 1e-9 && BestWidth > Usable + 1e-9
-                || (Width <= Usable + 1e-9) == (BestWidth <= Usable + 1e-9)
-                    && (Width < BestWidth - 1e-9 || Math.Abs(Width - BestWidth) <= 1e-9 && Score < BestScore - 0.0001);
+            bool Better = (Width <= Usable + 1e-9 && BestWidth > Usable + 1e-9)
+                || ((Width <= Usable + 1e-9) == (BestWidth <= Usable + 1e-9)
+                    && (Width < BestWidth - 1e-9 || (Math.Abs(Width - BestWidth) <= 1e-9 && Score < BestScore - 0.0001)));
             if (Better) { Best = Plan; BestScore = Score; BestWidth = Width; }
         }
         return Best?.TryApply() == true && BestWidth < BeforeWidth - 1e-9;
@@ -99,7 +115,13 @@ internal static partial class FlowchartFanPacking
     private static int CellFanStride(int Span, double Cell, double Gap, double Needed)
     {
         for (int Extra = 0; Extra < FlowchartLayoutRules.RepairCandidateMoves; Extra++)
-            if (Extra * Cell + (Extra + 1d) * Gap >= Needed) return checked(Span + Extra);
+        {
+            if ((Extra * Cell) + ((Extra + 1d) * Gap) >= Needed)
+            {
+                return checked(Span + Extra);
+            }
+        }
+
         return 0;
     }
 

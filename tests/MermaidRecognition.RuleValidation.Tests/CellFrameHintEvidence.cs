@@ -22,15 +22,15 @@ internal static class CellFrameHintEvidence
     /// <returns>Deterministic key/value evidence, including inactive declarations.</returns>
     internal static Dictionary<string, string> Capture(DiagramContract Contract)
     {
-        var Result = Contract.Nodes.Where(Node => Node.PlacementHint != null)
+        Dictionary<string, string> Result = Contract.Nodes.Where(Node => Node.PlacementHint != null)
             .Select(Node => (Key: "node:" + Node.Id, Hint: Node.PlacementHint!))
             .Concat(Contract.Groups.Where(Group => Group.PlacementHint != null)
                 .Select(Group => (Key: "group:" + Group.Id, Hint: Group.PlacementHint!)))
             .ToDictionary(Item => Item.Key, Item => JsonSerializer.Serialize(new
                 { Item.Hint.Kind, Item.Hint.PeerId, Item.Hint.Offset, Item.Hint.Direction, Item.Hint.IsActive }));
-        foreach (var Item in Contract.Edges.Select((Edge, Index) => (Edge, Index)).Where(Item => Item.Edge.RoutingHint != null))
+        foreach ((EdgeContract Edge, int Index) Item in Contract.Edges.Select((Edge, Index) => (Edge, Index)).Where(Item => Item.Edge.RoutingHint != null))
         {
-            var Hint = Item.Edge.RoutingHint!;
+            RoutingHintContract Hint = Item.Edge.RoutingHint!;
             Result.Add("edge:" + Item.Index, JsonSerializer.Serialize(new { Hint.Leave, Hint.Enter, Hint.Travel, Hint.IsActive }));
         }
         return Result;

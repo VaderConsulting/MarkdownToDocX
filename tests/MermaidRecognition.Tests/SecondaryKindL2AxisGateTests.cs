@@ -18,12 +18,12 @@ public sealed class SecondaryKindL2AxisGateTests
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetPieFixtureDirectory(),
-            new[] { "init-leading" },
+            ["init-leading"],
             Contract => Contract.Configuration.RawDirectiveValues.ContainsKey("theme"));
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetPieFixtureDirectory(),
-            new[] { "comment", "simple", "title-showData", "init-leading" },
+            ["comment", "simple", "title-showData", "init-leading"],
             Contract => !Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "pie.body"));
     }
 
@@ -37,12 +37,12 @@ public sealed class SecondaryKindL2AxisGateTests
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "excludes" },
+            ["excludes"],
             Contract => Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gantt.excludes"));
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "init-leading" },
+            ["init-leading"],
             Contract => Contract.Configuration.RawDirectiveValues.ContainsKey("theme"));
     }
 
@@ -56,12 +56,12 @@ public sealed class SecondaryKindL2AxisGateTests
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetMindmapFixtureDirectory(),
-            new[] { "simple", "comment" },
+            ["simple", "comment"],
             Contract => Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "mindmap.node"));
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetMindmapFixtureDirectory(),
-            new[] { "init-leading" },
+            ["init-leading"],
             Contract => Contract.Configuration.RawDirectiveValues.ContainsKey("theme"));
     }
 
@@ -75,14 +75,14 @@ public sealed class SecondaryKindL2AxisGateTests
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGitGraphFixtureDirectory(),
-            new[] { "branch-history", "simple" },
+            ["branch-history", "simple"],
             Contract =>
                 Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gitGraph.branch")
                 && Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gitGraph.commit"));
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGitGraphFixtureDirectory(),
-            new[] { "init-leading" },
+            ["init-leading"],
             Contract => Contract.Configuration.RawDirectiveValues.ContainsKey("theme"));
     }
 }

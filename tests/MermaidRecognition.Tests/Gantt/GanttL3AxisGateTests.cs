@@ -13,12 +13,12 @@ public sealed class GanttL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "simple", "section" },
+            ["simple", "section"],
             Contract => Contract.Nodes.Count > 0);
 
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "section" },
+            ["section"],
             Contract => Contract.Groups.Count > 0);
     }
 
@@ -27,7 +27,7 @@ public sealed class GanttL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "simple", "excludes" },
+            ["simple", "excludes"],
             Contract => Contract.Configuration.RawDirectiveValues.ContainsKey("gantt.title"));
     }
 
@@ -36,7 +36,7 @@ public sealed class GanttL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "accessibility" },
+            ["accessibility"],
             Contract =>
                 !string.IsNullOrEmpty(Contract.Accessibility.Title)
                 && !string.IsNullOrEmpty(Contract.Accessibility.Description));
@@ -47,7 +47,7 @@ public sealed class GanttL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "relative" },
+            ["relative"],
             Contract => Contract.Nodes.Count == 4);
     }
 
@@ -56,7 +56,7 @@ public sealed class GanttL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGanttFixtureDirectory(),
-            new[] { "milestone" },
+            ["milestone"],
             Contract => Contract.Nodes.Any(Node => Node.Shape == "ganttMilestone"));
     }
 

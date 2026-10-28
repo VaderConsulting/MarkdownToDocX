@@ -167,7 +167,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         */
 #if DEBUG && !SILVERLIGHT && !SHARPKIT
         static void ShowDimmedRails(Set<Rail> dimmedRails) {
-            List<DebugCurve> l = new List<DebugHelpers.DebugCurve>();
+            List<DebugCurve> l = [];
             foreach (Rail r in dimmedRails) {
                 string s = r.ToString();
                 string color =
@@ -226,7 +226,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         void SelectEdgesOnLevel(int i, List<Edge> edges) {
             LgLevel level = _levels[i];
-            Set<Rail> railsToHighlight = new Set<Rail>();
+            Set<Rail> railsToHighlight = [];
             foreach (Edge edge in edges) {
                 if (!level._railsOfEdges.TryGetValue(edge, out Set<Rail>? railsOfEdge))
                 {
@@ -259,7 +259,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public Set<Rail> GetRailsOfEdgesOnLevel(int i, List<Edge> edges)
         {
             LgLevel level = _levels[i];
-            Set<Rail> railsToHighlight = new Set<Rail>();
+            Set<Rail> railsToHighlight = [];
             foreach (Edge edge in edges)
             {
                 if (!level._railsOfEdges.TryGetValue(edge, out Set<Rail>? railsOfEdge))
@@ -280,7 +280,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         public Set<Rail> GetRailsOfEdgeOnLevel(int i, Edge edge)
         {
             LgLevel level = _levels[i];
-            Set<Rail> railsToHighlight = new Set<Rail>();
+            Set<Rail> railsToHighlight = [];
 
             if (level._railsOfEdges.TryGetValue(edge, out Set<Rail>? railsOfEdge))
             {
@@ -401,7 +401,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         static bool RailBelongsToLevel(LgLevel level, Rail rail) => level.ZoomLevel >= rail.ZoomLevel;
 
         Set<Rail> GetRailsThatShouldBeHighlighted(LgLevel level, Set<Edge> edgesToPutOff) {
-            Set<Rail> ret = new Set<Rail>();
+            Set<Rail> ret = [];
             foreach (Edge edge in SelectedEdges) {
                 if (edgesToPutOff.Contains(edge))
                 {
@@ -429,7 +429,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             }
         }
 
-        public void PutOffAllEdges() => UnselectEdges(SelectedEdges.ToList());
+        public void PutOffAllEdges() => UnselectEdges([.. SelectedEdges]);
 
         public void CreateLevelNodeTrees(double nodeDotWidth) {
             for (int i = 0; i < _levels.Count; i++) {

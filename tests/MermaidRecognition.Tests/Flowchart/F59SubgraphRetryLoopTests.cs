@@ -26,7 +26,7 @@ public sealed class F59SubgraphRetryLoopTests
         GroupContract Worker = Contract.Groups.Single(Group => Group.Id == "Worker");
         Assert.That(Worker.Title, Is.EqualTo("Worker pool"));
         Assert.That(Worker.Direction, Is.EqualTo("TopToBottom"));
-        Assert.That(Worker.ChildNodeIds, Is.EquivalentTo(new[] { "Q", "W", "P", "Wait" }));
+        Assert.That(Worker.ChildNodeIds, Is.EquivalentTo(["Q", "W", "P", "Wait"]));
 
         NodeContract Client = Contract.Nodes.Single(Node => Node.Id == "Client");
         NodeContract Out = Contract.Nodes.Single(Node => Node.Id == "Out");

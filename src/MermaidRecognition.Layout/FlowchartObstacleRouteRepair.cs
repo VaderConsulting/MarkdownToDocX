@@ -14,40 +14,73 @@ internal static class FlowchartObstacleRouteRepair
     {
         AttemptedRouteStates ??= new(StringComparer.Ordinal);
         FlowchartRouteSpatialIndex Spatial = new(Layout);
-        foreach (var Route in Layout.EdgeRoutes)
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
-            if (Route.Points.Count < 2) continue;
+            if (Route.Points.Count < 2)
+            {
+                continue;
+            }
+
             if (!AttemptedRouteStates.Add(RouteStateKey(Route) + "|"
-                    + Spatial.DependencySignature(Route.Points))) continue;
-            var Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
-            if (Edge == null) continue;
-            var Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge);
+                    + Spatial.DependencySignature(Route.Points)))
+            {
+                continue;
+            }
+
+            EdgeContract? Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
+            if (Edge == null)
+            {
+                continue;
+            }
+
+            List<FlowchartLayoutNodeBounds> Obstacles = FlowchartPaddedVisibilityRouter.CollectObstacles(Contract, Bounds, Edge);
             HashSet<FlowchartLayoutNodeBounds> ObstacleSet = [.. Obstacles];
-            List<FlowchartLayoutNodeBounds> Nearby = Spatial.QueryBoxes(Route.Points)
-                .Where(ObstacleSet.Contains).ToList();
+            List<FlowchartLayoutNodeBounds> Nearby = [.. Spatial.QueryBoxes(Route.Points).Where(ObstacleSet.Contains)];
             bool Blocked = IsBlocked(Route.Points, Nearby);
-            if (!Blocked) continue;
-            Bounds.TryGetValue(Route.SourceId, out var Source);
-            Bounds.TryGetValue(Route.TargetId, out var Target);
+            if (!Blocked)
+            {
+                continue;
+            }
+
+            Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source);
+            Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target);
             if (Source != null) { Obstacles.Add(Source); ObstacleSet.Add(Source); }
             if (Target != null && Target != Source) { Obstacles.Add(Target); ObstacleSet.Add(Target); }
-            List<FlowchartLayoutNodeBounds> NearbyWithEndpoints = Spatial.QueryBoxes(Route.Points)
-                .Where(ObstacleSet.Contains).ToList();
-            if (Source != null) NearbyWithEndpoints.Add(Source);
-            if (Target != null && Target != Source) NearbyWithEndpoints.Add(Target);
-            var Start = Route.Points[0]; var End = Route.Points[^1];
+            List<FlowchartLayoutNodeBounds> NearbyWithEndpoints = [.. Spatial.QueryBoxes(Route.Points).Where(ObstacleSet.Contains)];
+            if (Source != null)
+            {
+                NearbyWithEndpoints.Add(Source);
+            }
+
+            if (Target != null && Target != Source)
+            {
+                NearbyWithEndpoints.Add(Target);
+            }
+
+            FlowchartLayoutPoint Start = Route.Points[0]; FlowchartLayoutPoint End = Route.Points[^1];
             bool Routed = FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
-                NearbyWithEndpoints, Source, Target, out var Points,
+                NearbyWithEndpoints, Source, Target, out List<(double X, double Y)>? Points,
                 DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
-            FlowchartLayoutPoint[] CandidatePoints = Points.Select(Point =>
-                new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToArray();
+            FlowchartLayoutPoint[] CandidatePoints = [.. Points.Select(Point =>
+                new FlowchartLayoutPoint { X = Point.X, Y = Point.Y })];
             if (Routed && IsBlocked(Points, Spatial.QueryBoxes(CandidatePoints).Where(ObstacleSet.Contains).ToArray()))
+            {
                 Routed = FlowchartPaddedVisibilityRouter.TryRoute(Start.X, Start.Y, End.X, End.Y,
                     Obstacles, Source, Target, out Points,
                     DiagramGridRouteBuilder.CORNER_RADIUS_PX + 10, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
-            if (!Routed) continue;
+            }
+
+            if (!Routed)
+            {
+                continue;
+            }
+
             Route.Points.Clear();
-            foreach (var Point in Points) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            foreach ((double X, double Y) Point in Points)
+            {
+                Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            }
+
             Spatial.ReplaceRoute(Route);
         }
     }

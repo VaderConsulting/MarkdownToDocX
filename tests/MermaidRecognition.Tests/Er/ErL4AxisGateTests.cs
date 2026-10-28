@@ -24,8 +24,7 @@ public sealed class ErL4AxisGateTests
     public void G12_RelationshipCardinality_Fixtures_Produce_Edges_With_Expected_Markers()
     {
         (string FixtureName, string SourceId, string TargetId, string LeftMarker, string Link, string RightMarker)[] Cases =
-            new (string FixtureName, string SourceId, string TargetId, string LeftMarker, string Link, string RightMarker)[]
-            {
+            [
                 ("relationship", "CUSTOMER", "ORDER", "||", "--", "o{"),
                 ("relationship", "ORDER", "LINE-ITEM", "||", "--", "|{"),
                 ("relation-cardinality", "A", "B", "||", "--", "||"),
@@ -33,10 +32,10 @@ public sealed class ErL4AxisGateTests
                 ("relation-cardinality", "E", "F", "||", "..", "o{"),
                 ("relation-cardinality", "G", "H", "||", "--", "|{"),
                 ("relation-cardinality", "I", "J", "}o", "--", "||"),
-            };
+            ];
 
         string FixtureRoot = RecognitionFixturePaths.GetErFixtureDirectory();
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
 
         foreach ((string FixtureName, string SourceId, string TargetId, string LeftMarker, string Link, string RightMarker) in Cases)
         {
@@ -81,9 +80,7 @@ public sealed class ErL4AxisGateTests
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
         NodeContract Customer = Contract.Nodes.Single(Node => Node.Id == "CUSTOMER");
-        List<MermaidDeclaration> Attributes = Customer.Declarations
-            .Where(Declaration => Declaration.Kind == "attribute")
-            .ToList();
+        List<MermaidDeclaration> Attributes = [.. Customer.Declarations.Where(Declaration => Declaration.Kind == "attribute")];
 
         Assert.That(Attributes, Has.Count.EqualTo(2));
         Assert.That(Attributes[0].RawText, Is.EqualTo("string name"));

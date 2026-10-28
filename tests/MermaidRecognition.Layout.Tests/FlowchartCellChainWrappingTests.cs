@@ -10,7 +10,7 @@ public sealed class FlowchartCellChainWrappingTests
     [TestCase(true)]
     public void WrapsTheWholePathInOneCellAssignment(bool Horizontal)
     {
-        var (Path, Grid) = Fixture(Horizontal);
+        (List<DiagramGridLayout.GridNode>? Path, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
         Assert.That(FlowchartChainWrapping.ApplyCellPath(Path, Horizontal, 30, 60), Is.True);
         Assert.That(Path.Select(Node => Grid.RegionOf(Node.Id).StartColumn).Distinct().Count(), Is.GreaterThan(1));
         Assert.That(Path.Select(Node => Grid.RegionOf(Node.Id).StartRow).Distinct().Count(), Is.GreaterThan(1));
@@ -21,9 +21,9 @@ public sealed class FlowchartCellChainWrappingTests
     [Test]
     public void RejectedGapGrowthRestoresTheExactOriginalSnapshot()
     {
-        var (Path, Grid) = Fixture(true);
+        (List<DiagramGridLayout.GridNode>? Path, FlowchartLogicalGrid? Grid) = Fixture(true);
         Assert.That(FlowchartChainWrapping.ApplyCellPath(Path, true, 30, 60), Is.True);
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartChainWrapping.ApplyCellPath(Path, true, 120, 60), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -32,9 +32,9 @@ public sealed class FlowchartCellChainWrappingTests
     [Test]
     public void HintedTailRejectsTheWholeWrap()
     {
-        var (Path, Grid) = Fixture(true);
+        (List<DiagramGridLayout.GridNode>? Path, FlowchartLogicalGrid? Grid) = Fixture(true);
         Path[^1].PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartChainWrapping.ApplyCellPath(Path, true, 120, 120), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -44,13 +44,13 @@ public sealed class FlowchartCellChainWrappingTests
     /// <returns>Traversal-ordered members and shared grid.</returns>
     private static (List<DiagramGridLayout.GridNode> Path, FlowchartLogicalGrid Grid) Fixture(bool Horizontal)
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Path = new List<DiagramGridLayout.GridNode>();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Path = [];
         for (int Index = 0; Index < 12; Index++)
         {
             string Id = "N" + Index;
             Grid.TryPlace(Id, new(Horizontal ? 0 : Index, Horizontal ? Index : 0, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id }; Node.BindCells(Grid); Path.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id }; Node.BindCells(Grid); Path.Add(Node);
         }
         return (Path, Grid);
     }

@@ -186,7 +186,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             IEnumerable<DebugCurve> ttt = GetAllDebugCurves(metroMapOrdering, metroGraphData);
             if (station != null)
             {
-                ttt = ttt.Concat(new[] { new DebugCurve(255, 3, "pink", CurveFactory.CreateDiamond(20, 20, station.Position)) });
+                ttt = ttt.Concat([new DebugCurve(255, 3, "pink", CurveFactory.CreateDiamond(20, 20, station.Position))]);
             }
 
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(ttt);
@@ -212,7 +212,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         static List<Tuple<Point, Point>> GetInterestingSegs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering, Metroline line) {
-            List<Tuple<Point, Point>> ret = new List<Tuple<Point, Point>>();
+            List<Tuple<Point, Point>> ret = [];
             Point start = FindCurveStart(metroGraphData, metroMapOrdering, line);
             IEnumerable<ICurve> cubicSegs = HubSegsOfLine(metroGraphData, metroMapOrdering, line);
             foreach (ICurve seg in cubicSegs) {
@@ -251,7 +251,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         static IEnumerable<DebugCurve> DebugSegs(MetroGraphData metroGraphData, IMetroMapOrderingAlgorithm metroMapOrdering) {
 
-            List<ICurve> ls = new List<ICurve>();
+            List<ICurve> ls = [];
             foreach (Station s in metroGraphData.VirtualNodes()) {
                 foreach (BundleBase b in s.BundleBases.Values) {
                     foreach (OrientedHubSegment h in b.OrientedHubSegments) {
@@ -323,7 +323,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 }
             }
             else {
-                double d = b * b - 4 * a * c;
+                double d = (b * b) - (4 * a * c);
                 Debug.Assert(d >= -ApproximateComparer.Tolerance);
                 if (d < 0)
                 {
@@ -338,8 +338,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 }
             }
 
-            Point p1 = p0 + al * ts;
-            Point p3 = p4 + al * te;
+            Point p1 = p0 + (al * ts);
+            Point p3 = p4 + (al * te);
             Point p2 = 0.5 * (p1 + p3);
             Curve curve = new Curve();
             curve.AddSegs(ArcOn(p0, p1, p2), ArcOn(p2, p3, p4));
@@ -434,7 +434,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         internal static CubicBezierSegment StandardBezier(Point segStart, Point tangentAtStart, Point segEnd, Point tangentAtEnd) {
             double len = (segStart - segEnd).Length / 4.0;
-            return new CubicBezierSegment(segStart, segStart + tangentAtStart * len, segEnd + tangentAtEnd * len, segEnd);
+            return new CubicBezierSegment(segStart, segStart + (tangentAtStart * len), segEnd + (tangentAtEnd * len), segEnd);
         }
 
         void FanBezierSegs() {
@@ -543,11 +543,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             int steps = 0;
             const int maxSteps = 10;
-            Point lowP1 = (1 - SqueezeBound) * seg.Start + SqueezeBound * seg.B(1);
-            Point lowP2 = (1 - SqueezeBound) * seg.End + SqueezeBound * seg.B(2);
-            Point highP1 = 2 * seg.B(1) - seg.Start;
+            Point lowP1 = ((1 - SqueezeBound) * seg.Start) + (SqueezeBound * seg.B(1));
+            Point lowP2 = ((1 - SqueezeBound) * seg.End) + (SqueezeBound * seg.B(2));
+            Point highP1 = (2 * seg.B(1)) - seg.Start;
             //originally the tangents were 0.25 of the length of seg[1]-seg[0] - so were are safe to lengthen two times
-            Point highP2 = 2 * seg.B(2) - seg.End;
+            Point highP2 = (2 * seg.B(2)) - seg.End;
             PullControlPointToTheCircle(seg.Start, ref highP1, center, radius);
             int r = NicelyAligned(seg, del0, del1, midPointOfShorter, minDelLength, maxDel);
             do {
@@ -584,12 +584,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         void PullControlPointToTheCircle(Point start, ref Point highP, Point center, double radius) {
             Point closestPointOnLine = Point.ProjectionToLine(start, highP, center);
             //the max offset from closestPointOnLine
-            double maxOffset = Math.Sqrt(radius * radius - (closestPointOnLine - center).LengthSquared);
+            double maxOffset = Math.Sqrt((radius * radius) - (closestPointOnLine - center).LengthSquared);
             Point offsetNow = highP - closestPointOnLine;
             double offsetLen = offsetNow.Length;
             if (offsetLen > maxOffset)
             {
-                highP = closestPointOnLine + maxOffset * offsetNow / offsetLen;
+                highP = closestPointOnLine + (maxOffset * offsetNow / offsetLen);
             }
         }
 

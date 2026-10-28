@@ -9,7 +9,7 @@ namespace MermaidRecognition.Kinds.Architecture;
 /// </summary>
 public sealed class ArchitectureParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "architecture-beta", "architecture" };
+    private static readonly string[] Headers = ["architecture-beta", "architecture"];
 
     private static readonly Regex GroupRegex = new Regex(
         @"^group\s+(?<id>[A-Za-z_][\w-]*)(?:\((?<label>[^)]*)\))?",

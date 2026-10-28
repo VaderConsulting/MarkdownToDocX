@@ -166,6 +166,14 @@ internal sealed class DiagramMetadata
     }
 
     /// <summary>
+    /// Builds metadata from an enterprise analysis that already parsed the source.
+    /// </summary>
+    public static DiagramMetadata BuildFromAnalysis(EnterpriseAnalysisResult Analysis, int Generation)
+    {
+        return BuildEnterpriseDocument(Analysis.Document, Analysis.Diagnostics, Generation);
+    }
+
+    /// <summary>
     /// Builds the metadata from one parse of the source. Safe to call off the UI thread.
     /// </summary>
     /// <param name="Source">Editor text.</param>
@@ -208,7 +216,14 @@ internal sealed class DiagramMetadata
     private static DiagramMetadata BuildEnterprise(string Source, int Generation)
     {
         EnterpriseParseResult Parsed = EnterpriseParser.ParseDocument(Source);
-        EnterpriseDocument Document = Parsed.Document;
+        return BuildEnterpriseDocument(Parsed.Document, Parsed.Diagnostics, Generation);
+    }
+
+    private static DiagramMetadata BuildEnterpriseDocument(
+        EnterpriseDocument Document,
+        IReadOnlyList<EnterpriseDiagnostic> Diagnostics,
+        int Generation)
+    {
         DiagramMetadata Metadata = new DiagramMetadata(Generation, "enterprise")
         {
             Version = Document.Version,
@@ -216,7 +231,7 @@ internal sealed class DiagramMetadata
             Direction = Document.Direction.ToString().ToUpperInvariant()
         };
 
-        List<DiagramNodeInfo> Nodes = new List<DiagramNodeInfo>();
+        List<DiagramNodeInfo> Nodes = [];
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
             Nodes.Add(new DiagramNodeInfo(DiagramNodeKind.Element, Element.Id, EnterpriseElementCatalog.GetKebabName(Element.ElementType), Element.Label, Element.ParentId, Element.LineNumber));
@@ -235,14 +250,14 @@ internal sealed class DiagramMetadata
         Nodes.Sort(CompareBySourceLine);
         Metadata.Nodes = Nodes;
 
-        List<DiagramRelationshipInfo> Relationships = new List<DiagramRelationshipInfo>();
+        List<DiagramRelationshipInfo> Relationships = [];
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
             Relationships.Add(new DiagramRelationshipInfo(Relationship.SourceId, Relationship.TargetId, EnterpriseElementCatalog.GetRelationshipName(Relationship.Kind), Relationship.Label, Relationship.LineNumber));
         }
 
         Metadata.Relationships = Relationships;
-        foreach (EnterpriseDiagnostic Diagnostic in Parsed.Diagnostics)
+        foreach (EnterpriseDiagnostic Diagnostic in Diagnostics)
         {
             if (Diagnostic.Severity == MermaidDiagnosticSeverity.Error)
             {

@@ -17,12 +17,12 @@ internal static class FlowchartLayoutGeometryHash
         XxHash64 Hasher = new XxHash64();
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.OrderBy(Box => Box.NodeId, StringComparer.Ordinal))
         {
-            AppendLayoutBounds(Hasher, new[] { Box });
+            AppendLayoutBounds(Hasher, [Box]);
         }
 
         foreach (FlowchartLayoutNodeBounds Box in Layout.ClusterBounds.OrderBy(Box => Box.NodeId, StringComparer.Ordinal))
         {
-            AppendLayoutBounds(Hasher, new[] { Box });
+            AppendLayoutBounds(Hasher, [Box]);
         }
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.OrderBy(Route => Route.EdgeId, StringComparer.Ordinal))

@@ -40,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         static Dictionary<int, Point> BuildInitialNodePositions(ProperLayeredGraph properLayeredGraph,
                                                                 LayerArrays layerArrays) {
-            Dictionary<int, Point> result = new Dictionary<int, Point>();
+            Dictionary<int, Point> result = [];
             for (int i = 0; i < layerArrays.Layers.Length; i++) {
                 int prev = 0, curr = 0;
                 while (curr < layerArrays.Layers[i].Length) {
@@ -86,7 +86,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         }
 
         Dictionary<Point, List<int>> CreateInitialOrdering() {
-            Dictionary<Point, List<int>> initialOrdering = new Dictionary<Point, List<int>>();
+            Dictionary<Point, List<int>> initialOrdering = [];
             for (int i = 0; i < layerArrays.Layers.Length; i++)
             {
                 for (int j = 0; j < layerArrays.Layers[i].Length; j++) {
@@ -106,8 +106,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         Dictionary<Point, List<int>> BuildOrdering(Dictionary<Point, List<int>> initialOrdering) {
             //run through nodes points and build order
-            Dictionary<Point, List<int>> result = new Dictionary<Point, List<int>>();
-            Dictionary<int, int> reverseOrder = new Dictionary<int, int>();
+            Dictionary<Point, List<int>> result = [];
+            Dictionary<int, int> reverseOrder = [];
             for (int i = 0; i < layerArrays.Layers.Length; i++)
             {
                 for (int j = 0; j < layerArrays.Layers[i].Length; j++) {

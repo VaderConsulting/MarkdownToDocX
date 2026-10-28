@@ -10,7 +10,7 @@ namespace MermaidRecognition.Kinds.Block;
 /// </summary>
 public sealed class BlockDiagramParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "block-beta", "block" };
+    private static readonly string[] Headers = ["block-beta", "block"];
 
     private static readonly Regex BlockRegex = new Regex(
         @"^(?<id>[A-Za-z_][\w-]*)(?<shape>\[\[[^\]]*\]\]|\(\[[^\]]*\]\)|\(\([^\)]*\)\)|\([^\)]*\)|\[[^\]]*\]|\{[^\}]*\})?",

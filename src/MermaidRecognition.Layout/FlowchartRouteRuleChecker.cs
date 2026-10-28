@@ -30,9 +30,8 @@ public static class FlowchartRouteRuleChecker
             .Concat(layout.ClusterBounds).GroupBy(box => box.NodeId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         Dictionary<string, NodeContract> nodes = contract.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
-        List<EdgeContract> edges = contract.Edges
-            .Where(edge => !string.Equals(edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        var backEdges = FlowchartBackEdgeHelper.FindBackEdges(contract);
+        List<EdgeContract> edges = [.. contract.Edges.Where(edge => !string.Equals(edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        IReadOnlySet<EdgeContract> backEdges = FlowchartBackEdgeHelper.FindBackEdges(contract);
 
         List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> matched = [];
         HashSet<FlowchartLayoutEdgeRoute> used = [];
@@ -55,30 +54,43 @@ public static class FlowchartRouteRuleChecker
             CheckTerminal(edge, route, false, boxes, nodes, findings);
             CheckOrthogonal(edge, route, nodes, boxes, findings);
             CheckAlignedStraight(edge, route, boxes, findings);
-            if (!backEdges.Contains(edge)) CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
+            if (!backEdges.Contains(edge))
+            {
+                CheckSideChoice(edge, route, contract, boxes, findings, layout.EdgeRoutes, nestedFanSides,
                 hasCellAuthority);
+            }
+
             CheckFrameRun(edge, route, contract, boxes, findings);
             CheckObstacles(edge, route, contract, layout, boxes, nodes, findings);
         }
 
-        foreach (var Route in layout.EdgeRoutes.Where(Route => !used.Contains(Route)))
+        foreach (FlowchartLayoutEdgeRoute? Route in layout.EdgeRoutes.Where(Route => !used.Contains(Route)))
+        {
             if (!contract.Edges.Any(Edge => string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                     && Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId
                     && (string.IsNullOrEmpty(Edge.Id) || Edge.Id == Route.EdgeId)))
+            {
                 findings.Add(new("10", Route.EdgeId, "stored path has no unmatched declared visible link"));
+            }
+        }
 
         CheckPortUniqueness(matched, findings);
         CheckPortSpacing(matched, boxes, nodes, findings);
         CheckCrossings(matched, findings);
-        var paths = matched.Select(item => item.Route.Points.Select(point => (point.X, point.Y)).ToArray()).ToArray();
+        (double X, double Y)[][] paths = [.. matched.Select(item => item.Route.Points.Select(point => (point.X, point.Y)).ToArray())];
         for (int Left = 0; Left < matched.Count; Left++)
-        for (int Right = Left + 1; Right < matched.Count; Right++)
         {
-            var A = matched[Left]; var B = matched[Right];
+            for (int Right = Left + 1; Right < matched.Count; Right++)
+        {
+                (EdgeContract Edge, FlowchartLayoutEdgeRoute Route) A = matched[Left]; (EdgeContract Edge, FlowchartLayoutEdgeRoute Route) B = matched[Right];
             if (FlowchartBranchRouteOrder.Intersections(
                     paths[Left], paths[Right]).Overlap > 0.001)
-                findings.Add(new("5.1", EdgeName(A.Edge) + " x " + EdgeName(B.Edge), "routes share a positive-length track"));
+                {
+                    findings.Add(new("5.1", EdgeName(A.Edge) + " x " + EdgeName(B.Edge), "routes share a positive-length track"));
+                }
+            }
         }
+
         layout.StoreMemoizedCheck(GeometrySignature, findings);
         return findings;
     }
@@ -89,19 +101,23 @@ public static class FlowchartRouteRuleChecker
     /// <returns>The same rule 3.2/4.7 spacing findings returned by the full checker.</returns>
     internal static IReadOnlyList<Finding> CheckPortAllocation(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
-        var Boxes = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId, StringComparer.Ordinal)
+        Dictionary<string, FlowchartLayoutNodeBounds> Boxes = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
-        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Matched = new List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)>();
-        var Used = new HashSet<FlowchartLayoutEdgeRoute>();
-        foreach (var Edge in Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> Matched = [];
+        HashSet<FlowchartLayoutEdgeRoute> Used = [];
+        foreach (EdgeContract? Edge in Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
         {
-            var Route = FindRoute(Edge, Layout.EdgeRoutes, Used);
-            if (Route == null || Route.Points.Count < 2) continue;
+            FlowchartLayoutEdgeRoute? Route = FindRoute(Edge, Layout.EdgeRoutes, Used);
+            if (Route == null || Route.Points.Count < 2)
+            {
+                continue;
+            }
+
             Used.Add(Route);
             Matched.Add((Edge, Route));
         }
-        var Findings = new List<Finding>();
+        List<Finding> Findings = [];
         CheckPortSpacing(Matched, Boxes, Nodes, Findings);
         return Findings;
     }
@@ -119,13 +135,13 @@ public static class FlowchartRouteRuleChecker
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Boxes,
         IReadOnlyDictionary<string, NodeContract> Nodes, List<Finding> Findings)
     {
-        foreach (var Box in Layout.NodeBounds)
+        foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds)
         {
-            Nodes.TryGetValue(Box.NodeId, out var Node);
+            Nodes.TryGetValue(Box.NodeId, out NodeContract? Node);
             bool Blocked = false;
             for (int Index = 1; Index < Route.Points.Count && !Blocked; Index++)
             {
-                var A = Route.Points[Index - 1]; var B = Route.Points[Index];
+                FlowchartLayoutPoint A = Route.Points[Index - 1]; FlowchartLayoutPoint B = Route.Points[Index];
                 if (Node?.GeometryProvider is { } Provider)
                 {
                     Blocked = Provider.Create(Box.Width, Box.Height).ObstacleGeometry.IntersectsSegmentInterior(
@@ -139,7 +155,7 @@ public static class FlowchartRouteRuleChecker
                     // The intersection primitive includes its boundary. Inset
                     // by the same attachment tolerance as rectangular bodies so
                     // a terminal on the outline is not an interior collision.
-                    double Half = Math.Max(0.001, Box.Width / 2 - 2 * Math.Max(1, Ratio));
+                    double Half = Math.Max(0.001, (Box.Width / 2) - (2 * Math.Max(1, Ratio)));
                     Blocked = FlowchartRouteObstacleHelper.SegmentIntersectsRectangleInterior(
                         Ax + Ay, Ax - Ay, Bx + By, Bx - By,
                         -Half, Half, Half, -Half);
@@ -150,18 +166,26 @@ public static class FlowchartRouteRuleChecker
                     double Ry = Node.Shape == "ellipse" ? Box.Height / 2 : Rx;
                     double Ax = (A.X - Box.CenterX) / Rx, Ay = (A.Y - Box.CenterY) / Ry;
                     double Dx = (B.X - A.X) / Rx, Dy = (B.Y - A.Y) / Ry;
-                    double Denominator = Dx * Dx + Dy * Dy;
-                    double T = Denominator == 0 ? 0 : Math.Clamp(-(Ax * Dx + Ay * Dy) / Denominator, 0, 1);
-                    Blocked = Math.Pow(Ax + T * Dx, 2) + Math.Pow(Ay + T * Dy, 2) < 1 - 0.000001;
+                    double Denominator = (Dx * Dx) + (Dy * Dy);
+                    double T = Denominator == 0 ? 0 : Math.Clamp(-((Ax * Dx) + (Ay * Dy)) / Denominator, 0, 1);
+                    Blocked = Math.Pow(Ax + (T * Dx), 2) + Math.Pow(Ay + (T * Dy), 2) < 1 - 0.000001;
                 }
-                else Blocked = FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Box);
+                else
+                {
+                    Blocked = FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Box);
+                }
             }
-            if (Blocked) Findings.Add(new("10", EdgeName(Edge), $"route passes through node '{Box.NodeId}'"));
+            if (Blocked)
+            {
+                Findings.Add(new("10", EdgeName(Edge), $"route passes through node '{Box.NodeId}'"));
+            }
         }
         if (FlowchartFrameTitleBandHelper.RouteEntersAny(
                 Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                 FlowchartFrameTitleBandHelper.Get(Contract, Boxes), Route.SourceId, Route.TargetId, Contract))
+        {
             Findings.Add(new("10", EdgeName(Edge), "route passes through a group title band"));
+        }
     }
 
     private static FlowchartLayoutEdgeRoute? FindRoute(EdgeContract edge,
@@ -172,7 +196,10 @@ public static class FlowchartRouteRuleChecker
             FlowchartLayoutEdgeRoute? byId = routes.FirstOrDefault(route => !used.Contains(route)
                 && string.Equals(route.EdgeId, edge.Id, StringComparison.Ordinal)
                 && route.SourceId == edge.SourceId && route.TargetId == edge.TargetId);
-            if (byId != null) return byId;
+            if (byId != null)
+            {
+                return byId;
+            }
         }
         return routes.FirstOrDefault(route => !used.Contains(route)
             && string.Equals(route.SourceId, edge.SourceId, StringComparison.Ordinal)
@@ -197,7 +224,10 @@ public static class FlowchartRouteRuleChecker
                 point.X - box.CenterX, box.CenterY - point.Y, Tolerance)
             : IsOnOutline(point, box, node?.Shape, side);
         if (!onOutline)
+        {
             findings.Add(new Finding("3.1", EdgeName(edge), $"{(source ? "source" : "target")} port does not end on the {side} outline of '{id}'"));
+        }
+
         if (route.Points.Count > 1)
         {
             FlowchartLayoutPoint neighbor = source ? route.Points[1] : route.Points[^2];
@@ -216,20 +246,26 @@ public static class FlowchartRouteRuleChecker
                     _ => false
                 };
             if (!perpendicular)
+            {
                 findings.Add(new Finding("3.1", EdgeName(edge), $"terminal segment does not leave '{id}' square-on from its {side} port"));
+            }
         }
     }
 
     private static bool IsOnOutline(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box, string? shape, string side)
     {
-        double left = box.CenterX - box.Width / 2, right = box.CenterX + box.Width / 2;
-        double bottom = box.CenterY - box.Height / 2, top = box.CenterY + box.Height / 2;
+        double left = box.CenterX - (box.Width / 2), right = box.CenterX + (box.Width / 2);
+        double bottom = box.CenterY - (box.Height / 2), top = box.CenterY + (box.Height / 2);
         if (FlowchartDagrePresentation.IsDiamondShape(shape))
         {
             double halfWidth = box.Width / 2.0, halfHeight = box.Height / 2.0;
-            if (halfWidth <= 0 || halfHeight <= 0) return false;
-            double equation = Math.Abs(point.X - box.CenterX) / halfWidth
-                + Math.Abs(point.Y - box.CenterY) / halfHeight;
+            if (halfWidth <= 0 || halfHeight <= 0)
+            {
+                return false;
+            }
+
+            double equation = (Math.Abs(point.X - box.CenterX) / halfWidth)
+                + (Math.Abs(point.Y - box.CenterY) / halfHeight);
             return Math.Abs(equation - 1.0) <= Tolerance / Math.Max(1.0, Math.Min(halfWidth, halfHeight));
         }
         if (IsCircleShape(shape))
@@ -266,7 +302,10 @@ public static class FlowchartRouteRuleChecker
                     && IsAlongDiamondNormal(a.X - b.X, a.Y - b.Y,
                         StoredNormal(route, false, targetBox, b).NormalX, StoredNormal(route, false, targetBox, b).NormalY);
                 if ((sourceCurved || targetCurved) && (!sourceCurved || validSource) && (!targetCurved || validTarget))
+                {
                     continue;
+                }
+
                 findings.Add(new Finding("4.1", EdgeName(edge), "route contains a diagonal segment"));
                 return;
             }
@@ -281,15 +320,23 @@ public static class FlowchartRouteRuleChecker
     {
         double nx = source ? route.ExitNormalX : route.EntryNormalX;
         double ny = source ? route.ExitNormalY : route.EntryNormalY;
-        if (Math.Sqrt(nx * nx + ny * ny) > 1e-6) return (nx, ny);
+        if (Math.Sqrt((nx * nx) + (ny * ny)) > 1e-6)
+        {
+            return (nx, ny);
+        }
+
         return FlowchartDiamondAttachHelper.TryResolveOutwardNormal(box, point.X, point.Y, out nx, out ny)
             ? (nx, ny) : (0, 0);
     }
 
     private static bool IsAlongDiamondNormal(double dx, double dy, double nx, double ny)
     {
-        double length = Math.Sqrt(dx * dx + dy * dy), normalLength = Math.Sqrt(nx * nx + ny * ny);
-        if (length <= Tolerance || normalLength <= 1e-6) return false;
+        double length = Math.Sqrt((dx * dx) + (dy * dy)), normalLength = Math.Sqrt((nx * nx) + (ny * ny));
+        if (length <= Tolerance || normalLength <= 1e-6)
+        {
+            return false;
+        }
+
         return ((dx * nx) + (dy * ny)) / (length * normalLength) >= 0.999;
     }
 
@@ -307,24 +354,29 @@ public static class FlowchartRouteRuleChecker
             // A bend is required when the straight chord would cross an unrelated box.
             if (FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                     a.X, a.Y, b.X, b.Y, boxes, edge.SourceId, edge.TargetId))
+            {
                 return;
+            }
+
             findings.Add(new Finding("4.2", EdgeName(edge), "aligned ports are not connected by one straight run"));
         }
     }
 
     private static void CheckPortUniqueness(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes, List<Finding> findings)
     {
-        var ports = routes.SelectMany(pair => new[]
+        IEnumerable<(string Node, string Side, FlowchartLayoutPoint Point, EdgeContract Edge)> ports = routes.SelectMany(pair => new[]
         {
             (Node: pair.Edge.SourceId, Side: pair.Route.ExitSide, Point: pair.Route.Points[0], Edge: pair.Edge),
             (Node: pair.Edge.TargetId, Side: pair.Route.EntrySide, Point: pair.Route.Points[^1], Edge: pair.Edge)
         });
-        foreach (var group in ports.GroupBy(port => (port.Node, port.Side)))
+        foreach (IGrouping<(string Node, string Side), (string Node, string Side, FlowchartLayoutPoint Point, EdgeContract Edge)> group in ports.GroupBy(port => (port.Node, port.Side)))
         {
-            var duplicate = group.GroupBy(port => (X: Math.Round(port.Point.X, 1), Y: Math.Round(port.Point.Y, 1)))
+            IGrouping<(double X, double Y), (string Node, string Side, FlowchartLayoutPoint Point, EdgeContract Edge)>? duplicate = group.GroupBy(port => (X: Math.Round(port.Point.X, 1), Y: Math.Round(port.Point.Y, 1)))
                 .FirstOrDefault(same => same.Count() > 1);
             if (duplicate != null)
+            {
                 findings.Add(new Finding("3.1", group.Key.Node, $"{duplicate.Count()} lines share the {group.Key.Side} port"));
+            }
         }
     }
 
@@ -333,21 +385,25 @@ public static class FlowchartRouteRuleChecker
         IReadOnlyDictionary<string, NodeContract> nodes, List<Finding> findings)
     {
         double minimumSpacing = FlowchartLayoutRules.LineSpacing;
-        var ports = routes.SelectMany(pair => new[]
+        IEnumerable<(string Node, string Side, FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool Source)> ports = routes.SelectMany(pair => new[]
         {
             (Node: pair.Edge.SourceId, Side: pair.Route.ExitSide, Point: pair.Route.Points[0], Route: pair.Route, Source: true),
             (Node: pair.Edge.TargetId, Side: pair.Route.EntrySide, Point: pair.Route.Points[^1], Route: pair.Route, Source: false)
         });
-        foreach (var group in ports.GroupBy(port => (port.Node, PortGroup: PortGroupKey(port.Node, port.Side, port.Route, port.Source, nodes))))
+        foreach (IGrouping<(string Node, string PortGroup), (string Node, string Side, FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool Source)> group in ports.GroupBy(port => (port.Node, PortGroup: PortGroupKey(port.Node, port.Side, port.Route, port.Source, nodes))))
         {
-            if (group.Count() < 2 || !boxes.TryGetValue(group.Key.Node, out FlowchartLayoutNodeBounds? box)) continue;
+            if (group.Count() < 2 || !boxes.TryGetValue(group.Key.Node, out FlowchartLayoutNodeBounds? box))
+            {
+                continue;
+            }
+
             bool diamond = nodes.TryGetValue(group.Key.Node, out NodeContract? node)
                 && FlowchartDiamondAttachHelper.IsDiamondShape(node.Shape);
             bool circle = nodes.TryGetValue(group.Key.Node, out node) && IsCircleShape(node.Shape);
-            var ordered = group.OrderBy(port => diamond
+            (string Node, string Side, FlowchartLayoutPoint Point, FlowchartLayoutEdgeRoute Route, bool Source)[] ordered = [.. group.OrderBy(port => diamond
                 ? DiamondPortPosition(port.Point, box, port.Route, port.Source)
                 : circle ? CirclePortPosition(port.Point, box, port.Side)
-                    : PortPosition(port.Point, box, port.Side)).ToArray();
+                    : PortPosition(port.Point, box, port.Side))];
             for (int i = 1; i < ordered.Length; i++)
             {
                 double separation = PortSeparationPixels(ordered[i - 1], ordered[i], box, group.Key.PortGroup, diamond, circle, nodes);
@@ -402,10 +458,17 @@ public static class FlowchartRouteRuleChecker
         IReadOnlyDictionary<string, NodeContract> nodes)
     {
         if (!nodes.TryGetValue(nodeId, out NodeContract? node) || !FlowchartDiamondAttachHelper.IsDiamondShape(node.Shape))
+        {
             return side;
+        }
+
         double nx = source ? route.ExitNormalX : route.EntryNormalX;
         double ny = source ? route.ExitNormalY : route.EntryNormalY;
-        if (Math.Abs(nx) < 0.001 || Math.Abs(ny) < 0.001) return "diamond-tip-" + side;
+        if (Math.Abs(nx) < 0.001 || Math.Abs(ny) < 0.001)
+        {
+            return "diamond-tip-" + side;
+        }
+
         return "diamond-" + (nx >= 0 ? "+" : "-") + (ny >= 0 ? "+" : "-");
     }
 
@@ -417,12 +480,16 @@ public static class FlowchartRouteRuleChecker
         bool rightHalf = nx >= 0;
         bool topHalf = ny >= 0;
         double sx = rightHalf ? box.CenterX : box.CenterX;
-        double sy = topHalf ? box.CenterY + box.Height / 2 : box.CenterY - box.Height / 2;
-        double ex = rightHalf ? box.CenterX + box.Width / 2 : box.CenterX - box.Width / 2;
+        double sy = topHalf ? box.CenterY + (box.Height / 2) : box.CenterY - (box.Height / 2);
+        double ex = rightHalf ? box.CenterX + (box.Width / 2) : box.CenterX - (box.Width / 2);
         double ey = topHalf ? box.CenterY : box.CenterY;
         double vx = ex - sx, vy = ey - sy;
         double lengthSquared = (vx * vx) + (vy * vy);
-        if (lengthSquared <= 1e-9) return 0.5;
+        if (lengthSquared <= 1e-9)
+        {
+            return 0.5;
+        }
+
         return Math.Clamp((((point.X - sx) * vx) + ((point.Y - sy) * vy)) / lengthSquared, 0.0, 1.0);
     }
 
@@ -440,8 +507,8 @@ public static class FlowchartRouteRuleChecker
 
     private static double PortPosition(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box, string side) => side switch
     {
-        "left" or "right" => (point.Y - (box.CenterY - box.Height / 2)) / box.Height,
-        "top" or "bottom" => (point.X - (box.CenterX - box.Width / 2)) / box.Width,
+        "left" or "right" => (point.Y - (box.CenterY - (box.Height / 2))) / box.Height,
+        "top" or "bottom" => (point.X - (box.CenterX - (box.Width / 2))) / box.Width,
         _ => 0.5
     };
 
@@ -463,7 +530,11 @@ public static class FlowchartRouteRuleChecker
         double horizontal = Math.Abs(peer.CenterX - diamond.CenterX) / Math.Max(1.0, diamond.Width / 2.0);
         double vertical = Math.Abs(peer.CenterY - diamond.CenterY) / Math.Max(1.0, diamond.Height / 2.0);
         double total = horizontal + vertical;
-        if (total <= 1e-9) return 0.5;
+        if (total <= 1e-9)
+        {
+            return 0.5;
+        }
+
         return portGroup is "diamond-++" or "diamond---" ? horizontal / total : vertical / total;
     }
 
@@ -481,22 +552,34 @@ public static class FlowchartRouteRuleChecker
         IReadOnlyList<FlowchartLayoutEdgeRoute> routes, Dictionary<(string Hub, bool Outgoing), bool> nestedFanSides,
         bool hasCellAuthority)
     {
-        if (edge.RoutingHint != null) return;
+        if (edge.RoutingHint != null)
+        {
+            return;
+        }
+
         if (!boxes.TryGetValue(edge.SourceId, out FlowchartLayoutNodeBounds? source)
-            || !boxes.TryGetValue(edge.TargetId, out FlowchartLayoutNodeBounds? target)) return;
+            || !boxes.TryGetValue(edge.TargetId, out FlowchartLayoutNodeBounds? target))
+        {
+            return;
+        }
+
         int fanOut = contract.Edges.Count(item => item.SourceId == edge.SourceId && item.Stroke != "invisible");
         int fanIn = contract.Edges.Count(item => item.TargetId == edge.TargetId && item.Stroke != "invisible");
         if (fanOut > 1)
         {
             string expected = FacingSide(source, target);
             if (route.ExitSide != expected && !(hasCellAuthority && PermittedFanSide(source, target, route.ExitSide, true, contract, routes, nestedFanSides)))
+            {
                 findings.Add(new Finding("5.8", EdgeName(edge), $"fan line leaves {route.ExitSide}, not the facing {expected} side"));
+            }
         }
         if (fanIn > 1)
         {
             string expected = FacingSide(target, source);
             if (route.EntrySide != expected && !(hasCellAuthority && PermittedFanSide(target, source, route.EntrySide, false, contract, routes, nestedFanSides)))
+            {
                 findings.Add(new Finding("4.11", EdgeName(edge), $"converging line enters {route.EntrySide}, not the facing {expected} side"));
+            }
         }
         if (contract.Groups.Any(group => group.Id == edge.SourceId || group.Id == edge.TargetId))
         {
@@ -504,9 +587,11 @@ public static class FlowchartRouteRuleChecker
             {
                 FlowchartLayoutPoint first = route.Points[0], next = route.Points[1];
                 FlowchartLayoutPoint last = route.Points[^1], before = route.Points[^2];
-                if (edge.SourceId != edge.TargetId && (Math.Abs(first.X - next.X) <= Tolerance && Math.Abs(first.Y - next.Y) <= Tolerance
-                    || Math.Abs(last.X - before.X) <= Tolerance && Math.Abs(last.Y - before.Y) <= Tolerance))
+                if (edge.SourceId != edge.TargetId && ((Math.Abs(first.X - next.X) <= Tolerance && Math.Abs(first.Y - next.Y) <= Tolerance)
+                    || (Math.Abs(last.X - before.X) <= Tolerance && Math.Abs(last.Y - before.Y) <= Tolerance)))
+                {
                     findings.Add(new Finding("4.9", EdgeName(edge), "frame connection has a zero-length or non-square terminal run"));
+                }
             }
         }
 
@@ -528,34 +613,41 @@ public static class FlowchartRouteRuleChecker
         DiagramContract contract, IReadOnlyList<FlowchartLayoutEdgeRoute> routes,
         Dictionary<(string Hub, bool Outgoing), bool> nestedFanSides)
     {
-        bool beyond = side == "top" && leaf.CenterY - leaf.Height / 2 >= hub.CenterY + hub.Height / 2 - Tolerance
-            || side == "bottom" && leaf.CenterY + leaf.Height / 2 <= hub.CenterY - hub.Height / 2 + Tolerance;
-        if (!beyond) return false;
-        var key = (hub.NodeId, outgoing);
+        bool beyond = (side == "top" && leaf.CenterY - (leaf.Height / 2) >= hub.CenterY + (hub.Height / 2) - Tolerance)
+            || (side == "bottom" && leaf.CenterY + (leaf.Height / 2) <= hub.CenterY - (hub.Height / 2) + Tolerance);
+        if (!beyond)
+        {
+            return false;
+        }
+
+        (string NodeId, bool outgoing) key = (hub.NodeId, outgoing);
         if (!nestedFanSides.TryGetValue(key, out bool nested))
         {
-            var links = contract.Edges.Where(item => item.Stroke != "invisible"
-                && (outgoing ? item.SourceId : item.TargetId) == hub.NodeId).ToArray();
-            var fan = new List<FlowchartLayoutEdgeRoute>();
-            var matched = new HashSet<FlowchartLayoutEdgeRoute>();
+            EdgeContract[] links = [.. contract.Edges.Where(item => item.Stroke != "invisible"
+                && (outgoing ? item.SourceId : item.TargetId) == hub.NodeId)];
+            List<FlowchartLayoutEdgeRoute> fan = [];
+            HashSet<FlowchartLayoutEdgeRoute> matched = [];
             // Parallel links to one peer are a convergence/bundle, not
             // distinct leaves of the star governed by this exception.
             nested = links.Length >= 3 && links.Select(link => outgoing ? link.TargetId : link.SourceId)
                 .Distinct(StringComparer.Ordinal).Count() == links.Length;
-            foreach (var link in links)
+            foreach (EdgeContract? link in links)
             {
-                var path = FindRoute(link, routes, matched);
+                FlowchartLayoutEdgeRoute? path = FindRoute(link, routes, matched);
                 if (path == null || path.Points.Count < 2) { nested = false; break; }
                 matched.Add(path); fan.Add(path);
             }
             for (int a = 0; nested && a < fan.Count; a++)
-            for (int b = a + 1; nested && b < fan.Count; b++)
             {
-                var pair = FlowchartBranchRouteOrder.Intersections(
+                for (int b = a + 1; nested && b < fan.Count; b++)
+            {
+                    (int Crossings, double Overlap) pair = FlowchartBranchRouteOrder.Intersections(
                     fan[a].Points.Select(point => (point.X, point.Y)).ToArray(),
                     fan[b].Points.Select(point => (point.X, point.Y)).ToArray());
                 nested = pair.Crossings == 0 && pair.Overlap == 0;
             }
+            }
+
             nestedFanSides[key] = nested;
         }
         return nested;
@@ -571,9 +663,13 @@ public static class FlowchartRouteRuleChecker
     {
         foreach (string frameId in new[] { edge.SourceId, edge.TargetId }.Where(id => contract.Groups.Any(group => group.Id == id)))
         {
-            if (!boxes.TryGetValue(frameId, out FlowchartLayoutNodeBounds? frame)) continue;
-            double left = frame.CenterX - frame.Width / 2, right = frame.CenterX + frame.Width / 2;
-            double bottom = frame.CenterY - frame.Height / 2, top = frame.CenterY + frame.Height / 2;
+            if (!boxes.TryGetValue(frameId, out FlowchartLayoutNodeBounds? frame))
+            {
+                continue;
+            }
+
+            double left = frame.CenterX - (frame.Width / 2), right = frame.CenterX + (frame.Width / 2);
+            double bottom = frame.CenterY - (frame.Height / 2), top = frame.CenterY + (frame.Height / 2);
             for (int i = 1; i < route.Points.Count; i++)
             {
                 FlowchartLayoutPoint a = route.Points[i - 1], b = route.Points[i];
@@ -594,19 +690,30 @@ public static class FlowchartRouteRuleChecker
 
     private static void CheckCrossings(List<(EdgeContract Edge, FlowchartLayoutEdgeRoute Route)> routes, List<Finding> findings)
     {
-        var bounds = routes.Select(item => (
+        (double Left, double Right, double Bottom, double Top)[] bounds = [.. routes.Select(item => (
             Left: item.Route.Points.Min(point => point.X), Right: item.Route.Points.Max(point => point.X),
-            Bottom: item.Route.Points.Min(point => point.Y), Top: item.Route.Points.Max(point => point.Y))).ToArray();
+            Bottom: item.Route.Points.Min(point => point.Y), Top: item.Route.Points.Max(point => point.Y)))];
         for (int i = 0; i < routes.Count; i++)
-        for (int j = i + 1; j < routes.Count; j++)
         {
-            if (routes[i].Edge.SourceId == routes[j].Edge.SourceId && routes[i].Edge.TargetId == routes[j].Edge.TargetId) continue;
-            // Proper crossings require strict interior overlap on both axes.
-            // Skip separated route bounds before testing every segment pair.
-            if (bounds[i].Right <= bounds[j].Left || bounds[j].Right <= bounds[i].Left
-                || bounds[i].Top <= bounds[j].Bottom || bounds[j].Top <= bounds[i].Bottom) continue;
-            if (HasProperCrossing(routes[i].Route, routes[j].Route))
-                findings.Add(new Finding("5.9", EdgeName(routes[i].Edge) + " x " + EdgeName(routes[j].Edge), "routes cross away from a shared endpoint"));
+            for (int j = i + 1; j < routes.Count; j++)
+        {
+            if (routes[i].Edge.SourceId == routes[j].Edge.SourceId && routes[i].Edge.TargetId == routes[j].Edge.TargetId)
+                {
+                    continue;
+                }
+                // Proper crossings require strict interior overlap on both axes.
+                // Skip separated route bounds before testing every segment pair.
+                if (bounds[i].Right <= bounds[j].Left || bounds[j].Right <= bounds[i].Left
+                || bounds[i].Top <= bounds[j].Bottom || bounds[j].Top <= bounds[i].Bottom)
+                {
+                    continue;
+                }
+
+                if (HasProperCrossing(routes[i].Route, routes[j].Route))
+                {
+                    findings.Add(new Finding("5.9", EdgeName(routes[i].Edge) + " x " + EdgeName(routes[j].Edge), "routes cross away from a shared endpoint"));
+                }
+            }
         }
     }
 
@@ -616,16 +723,27 @@ public static class FlowchartRouteRuleChecker
     /// <returns>True when two runs cross strictly inside both segments at the audit tolerance.</returns>
     internal static bool HasProperCrossing(FlowchartLayoutEdgeRoute a, FlowchartLayoutEdgeRoute b)
     {
-        for (int i = 1; i < a.Points.Count; i++) for (int j = 1; j < b.Points.Count; j++)
+        for (int i = 1; i < a.Points.Count; i++)
+        {
+            for (int j = 1; j < b.Points.Count; j++)
         {
             FlowchartLayoutPoint a1 = a.Points[i - 1], a2 = a.Points[i], b1 = b.Points[j - 1], b2 = b.Points[j];
             bool av = Math.Abs(a1.X - a2.X) <= Tolerance, bv = Math.Abs(b1.X - b2.X) <= Tolerance;
-            if (av == bv) continue;
-            FlowchartLayoutPoint v1 = av ? a1 : b1, v2 = av ? a2 : b2, h1 = av ? b1 : a1, h2 = av ? b2 : a2;
+            if (av == bv)
+                {
+                    continue;
+                }
+
+                FlowchartLayoutPoint v1 = av ? a1 : b1, v2 = av ? a2 : b2, h1 = av ? b1 : a1, h2 = av ? b2 : a2;
             double x = v1.X, y = h1.Y;
             if (x > Math.Min(h1.X, h2.X) + Tolerance && x < Math.Max(h1.X, h2.X) - Tolerance
-                && y > Math.Min(v1.Y, v2.Y) + Tolerance && y < Math.Max(v1.Y, v2.Y) - Tolerance) return true;
+                && y > Math.Min(v1.Y, v2.Y) + Tolerance && y < Math.Max(v1.Y, v2.Y) - Tolerance)
+                {
+                    return true;
+                }
+            }
         }
+
         return false;
     }
 

@@ -74,10 +74,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             foreach (Anchor a in dataBase.Anchors) {
                 a.BottomAnchor *= scaleFactor;
                 a.TopAnchor *= scaleFactor;
-                a.Y = center + scaleFactor * (a.Y - center);
+                a.Y = center + (scaleFactor * (a.Y - center));
             }
             double h = tree.Height * scaleFactor;
-            tree.BoundingBox = new Rectangle(tree.BoundingBox.Left, center + h / 2, tree.BoundingBox.Right, center - h / 2);
+            tree.BoundingBox = new Rectangle(tree.BoundingBox.Left, center + (h / 2), tree.BoundingBox.Right, center - (h / 2));
 
         }
        
@@ -86,12 +86,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             foreach (Anchor a in dataBase.Anchors) {
                 a.LeftAnchor *= scaleFactor;
                 a.RightAnchor *= scaleFactor;
-                a.X = center + scaleFactor * (a.X - center);
+                a.X = center + (scaleFactor * (a.X - center));
             }
             double w = tree.Width * scaleFactor;
             tree.BoundingBox =
-                new Rectangle(center - w / 2, tree.BoundingBox.Top,
-                center + w / 2, tree.BoundingBox.Bottom);
+                new Rectangle(center - (w / 2), tree.BoundingBox.Top,
+                center + (w / 2), tree.BoundingBox.Bottom);
         }
 
         private void DefineCellSize() {
@@ -119,7 +119,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             }
         }
 
-        private int GetGridLayerIndex(double len) => (int)(len / cellSize + 0.5);
+        private int GetGridLayerIndex(double len) => (int)((len / cellSize) + 0.5);
 
         private void InitNodesToIndices() {
             for (int i = 0; i < intGraph.Nodes.Count; i++)
@@ -242,7 +242,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
             dataBase.Anchors[node].Y = -y;
             foreach (IntEdge e in intGraph.OutEdges(node))
             {
-                CalculateAnchorsY(e.Target, m, y + e.Edge.Length * m);
+                CalculateAnchorsY(e.Target, m, y + (e.Edge.Length * m));
             }
         }
 
@@ -436,7 +436,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Phylo
 
             i = 0;
             foreach (List<int> layer in layers) {
-                ll[i++] = layer.ToArray();
+                ll[i++] = [.. layer];
             }
 
             properLayeredGraph = new ProperLayeredGraph(intGraph);

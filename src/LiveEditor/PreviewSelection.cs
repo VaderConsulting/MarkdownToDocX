@@ -26,7 +26,7 @@ internal enum PreviewObjectKind
 /// </summary>
 internal sealed class PreviewObject
 {
-    private readonly List<PreviewOutline> _Outlines = new List<PreviewOutline>();
+    private readonly List<PreviewOutline> _Outlines = [];
 
     private bool _Selected;
 
@@ -329,7 +329,7 @@ internal sealed class PreviewObject
         double Ratio = 0;
         if (LengthSquared > 0)
         {
-            Ratio = Math.Max(0, Math.Min(1, ((X - X1) * DeltaX + (Y - Y1) * DeltaY) / LengthSquared));
+            Ratio = Math.Max(0, Math.Min(1, (((X - X1) * DeltaX) + ((Y - Y1) * DeltaY)) / LengthSquared));
         }
 
         double OffsetX = X - (X1 + (Ratio * DeltaX));
@@ -349,7 +349,7 @@ internal sealed class PreviewObject
 internal sealed class PreviewOutline
 {
     /// <summary>Gets the points of the stroke in drawing order.</summary>
-    public List<PointF> Points { get; } = new List<PointF>();
+    public List<PointF> Points { get; } = [];
 
     /// <summary>Gets or sets the SVG dash lengths, or null for a solid stroke.</summary>
     public float[]? Dash { get; set; }
@@ -562,7 +562,7 @@ internal static class PreviewSelection
     /// </summary>
     public static List<PointF> ConnectionPoints(PreviewObject Selected)
     {
-        List<PointF> Points = new List<PointF>();
+        List<PointF> Points = [];
         if (Selected.Kind == PreviewObjectKind.Relationship)
         {
             AddLineEnds(Selected, Points);
@@ -596,7 +596,7 @@ internal static class PreviewSelection
     /// <returns>Distances from the start of the side in ascending order; empty when the side is too short for a port.</returns>
     internal static List<double> SideOffsets(double Length)
     {
-        List<double> Offsets = new List<double>();
+        List<double> Offsets = [];
         double Spacing = LineSpacing();
         double Middle = Length / 2.0;
         if (Spacing <= 0 || Middle < Spacing - CORNER_TOLERANCE)

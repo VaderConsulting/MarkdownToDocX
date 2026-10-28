@@ -20,11 +20,13 @@ public static partial class EnterpriseSvgRenderer
 
     private const double LINE_HEIGHT = 15;
 
+    private const int GEOMETRY_CACHE_CAPACITY = 8;
+
     private static readonly object _GeometryCacheGate = new object();
 
-    private static string? _CachedGeometryKey;
+    private static readonly Dictionary<string, string> _GeometryCacheByKey = new Dictionary<string, string>(StringComparer.Ordinal);
 
-    private static string? _CachedUnstyledSvg;
+    private static readonly LinkedList<string> _GeometryCacheOrder = new LinkedList<string>();
 
     /// <summary>
     /// Renders SVG for a document that has already been validated (hidden-by-nesting flags applied).
@@ -45,7 +47,16 @@ public static partial class EnterpriseSvgRenderer
         string? CachedUnstyled;
         lock (_GeometryCacheGate)
         {
-            CachedUnstyled = string.Equals(GeometryKey, _CachedGeometryKey, StringComparison.Ordinal) ? _CachedUnstyledSvg : null;
+            if (_GeometryCacheByKey.TryGetValue(GeometryKey, out string? Hit))
+            {
+                CachedUnstyled = Hit;
+                _GeometryCacheOrder.Remove(GeometryKey);
+                _GeometryCacheOrder.AddLast(GeometryKey);
+            }
+            else
+            {
+                CachedUnstyled = null;
+            }
         }
 
         if (CachedUnstyled != null)
@@ -58,12 +69,12 @@ public static partial class EnterpriseSvgRenderer
         List<EnterpriseRoutedEdge> RoutedEdges = Measure("enterprise-edge-routing", () => RoutingContext == null
             ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
             : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, RoutingContext));
-        var Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
+        Dictionary<string, EnterpriseJunctionCaptionLayout.Caption> Captions = EnterpriseJunctionCaptionLayout.Place(Layout.Nodes, RoutedEdges);
         double TitleHeight = string.IsNullOrEmpty(Document.Title) ? 0 : 30;
         double Width = Math.Ceiling(Math.Max(Layout.Width, 40));
         double Height = Math.Ceiling(Math.Max(Layout.Height, 40) + TitleHeight);
         ExpandForRoutedEdges(RoutedEdges, ref Width, ref Height, TitleHeight);
-        foreach (var Caption in Captions.Values)
+        foreach (EnterpriseJunctionCaptionLayout.Caption Caption in Captions.Values)
         {
             Width = Math.Max(Width, Caption.X + Caption.Width + 20);
             Height = Math.Max(Height, Caption.Y + Caption.Height + TitleHeight + 20);
@@ -98,9 +109,15 @@ public static partial class EnterpriseSvgRenderer
             .Append(EnterpriseSvgFormat.Number(FONT_SIZE))
             .Append("\">");
         if (!string.IsNullOrWhiteSpace(Document.AccessibilityTitle))
+        {
             Builder.Append("<title>").Append(EnterpriseSvgFormat.Escape(Document.AccessibilityTitle)).Append("</title>");
+        }
+
         if (!string.IsNullOrWhiteSpace(Document.AccessibilityDescription))
+        {
             Builder.Append("<desc>").Append(EnterpriseSvgFormat.Escape(Document.AccessibilityDescription)).Append("</desc>");
+        }
+
         Builder.Append("<rect x=\"0\" y=\"0\" width=\"")
             .Append(EnterpriseSvgFormat.Number(Width))
             .Append("\" height=\"")
@@ -135,7 +152,7 @@ public static partial class EnterpriseSvgRenderer
             }
             else
             {
-                Captions.TryGetValue(Node.Id, out var Caption);
+                Captions.TryGetValue(Node.Id, out EnterpriseJunctionCaptionLayout.Caption? Caption);
                 AppendElement(Builder, Node, Caption);
             }
         }
@@ -151,8 +168,23 @@ public static partial class EnterpriseSvgRenderer
         string Unstyled = FlowchartSvgLineJump.Apply(Builder.ToString());
         lock (_GeometryCacheGate)
         {
-            _CachedGeometryKey = GeometryKey;
-            _CachedUnstyledSvg = Unstyled;
+            if (_GeometryCacheByKey.ContainsKey(GeometryKey))
+            {
+                _GeometryCacheByKey[GeometryKey] = Unstyled;
+                _GeometryCacheOrder.Remove(GeometryKey);
+                _GeometryCacheOrder.AddLast(GeometryKey);
+            }
+            else
+            {
+                _GeometryCacheByKey[GeometryKey] = Unstyled;
+                _GeometryCacheOrder.AddLast(GeometryKey);
+                while (_GeometryCacheOrder.Count > GEOMETRY_CACHE_CAPACITY)
+                {
+                    string EvictKey = _GeometryCacheOrder.First!.Value;
+                    _GeometryCacheOrder.RemoveFirst();
+                    _GeometryCacheByKey.Remove(EvictKey);
+                }
+            }
         }
 
         return Finish(Document, Unstyled);
@@ -254,7 +286,11 @@ public static partial class EnterpriseSvgRenderer
     private static T Measure<T>(string Name, Func<T> Operation)
     {
         Action<string, double>? Observer = StageTimingObserver;
-        if (Observer == null) return Operation();
+        if (Observer == null)
+        {
+            return Operation();
+        }
+
         Observer(Name, -1);
         Stopwatch Timer = Stopwatch.StartNew();
         try { return Operation(); }
@@ -267,9 +303,9 @@ public static partial class EnterpriseSvgRenderer
 
     private static void AppendNote(StringBuilder Builder, EnterpriseLayoutNode Node)
     {
-        double CentreX = Node.AbsoluteX + Node.Width / 2.0;
-        double Top = Node.AbsoluteY + Node.Height / 2.0
-            - ((Node.LabelLines.Count - 1) * LINE_HEIGHT) / 2.0 + 4;
+        double CentreX = Node.AbsoluteX + (Node.Width / 2.0);
+        double Top = Node.AbsoluteY + (Node.Height / 2.0)
+            - (((Node.LabelLines.Count - 1) * LINE_HEIGHT) / 2.0) + 4;
         Builder.Append("<g class=\"note\" data-id=\"")
             .Append(EnterpriseSvgFormat.Escape(Node.Id))
             .Append("\">")
@@ -279,7 +315,7 @@ public static partial class EnterpriseSvgRenderer
             Builder.Append("<text x=\"")
                 .Append(EnterpriseSvgFormat.Number(CentreX))
                 .Append("\" y=\"")
-                .Append(EnterpriseSvgFormat.Number(Top + Index * LINE_HEIGHT))
+                .Append(EnterpriseSvgFormat.Number(Top + (Index * LINE_HEIGHT)))
                 .Append("\" text-anchor=\"middle\">")
                 .Append(EnterpriseSvgFormat.Escape(Node.LabelLines[Index]))
                 .Append("</text>");
@@ -305,7 +341,7 @@ public static partial class EnterpriseSvgRenderer
             {
                 double LabelWidth = Routed.LabelWidth;
                 Width = Math.Max(Width, Routed.LabelX + (LabelWidth / 2.0) + 8);
-                Height = Math.Max(Height, Routed.LabelY + Routed.LabelHeight / 2 + TitleHeight + 16);
+                Height = Math.Max(Height, Routed.LabelY + (Routed.LabelHeight / 2) + TitleHeight + 16);
             }
         }
     }
@@ -356,7 +392,7 @@ public static partial class EnterpriseSvgRenderer
                 Builder.Append("<text x=\"")
                     .Append(EnterpriseSvgFormat.Number(Caption.X))
                     .Append("\" y=\"")
-                    .Append(EnterpriseSvgFormat.Number(Caption.Y + EnterpriseJunctionCaptionLayout.FontSize + Index * LINE_HEIGHT))
+                    .Append(EnterpriseSvgFormat.Number(Caption.Y + EnterpriseJunctionCaptionLayout.FontSize + (Index * LINE_HEIGHT)))
                     .Append("\" font-size=\"11\">")
                     .Append(EnterpriseSvgFormat.Escape(Node.LabelLines[Index]))
                     .Append("</text>");

@@ -13,7 +13,7 @@ public sealed class SequenceL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetSequenceFixtureDirectory(),
-            new[] { "simple", "participants", "self-message" },
+            ["simple", "participants", "self-message"],
             Contract => Contract.Nodes.Count > 0 && Contract.Edges.Count > 0);
     }
 
@@ -22,7 +22,7 @@ public sealed class SequenceL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetSequenceFixtureDirectory(),
-            new[] { "alt-else-blocks", "nested-blocks", "box-rgb" },
+            ["alt-else-blocks", "nested-blocks", "box-rgb"],
             Contract => Contract.Groups.Count > 0);
     }
 
@@ -31,7 +31,7 @@ public sealed class SequenceL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetSequenceFixtureDirectory(),
-            new[] { "box-rgb", "rect-block" },
+            ["box-rgb", "rect-block"],
             Contract => Contract.Groups.Any(Group => Group.Id.StartsWith("box-", StringComparison.Ordinal)
                 || Group.Id.StartsWith("rect-", StringComparison.Ordinal)));
     }
@@ -41,7 +41,7 @@ public sealed class SequenceL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetSequenceFixtureDirectory(),
-            new[] { "title", "autonumber", "lifecycle-create" },
+            ["title", "autonumber", "lifecycle-create"],
             Contract =>
                 Contract.Configuration.RawDirectiveValues.Count > 0
                 || Contract.Nodes.Any(Node => Node.Metadata.ContainsKey("sequenceActive")));
@@ -52,7 +52,7 @@ public sealed class SequenceL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetSequenceFixtureDirectory(),
-            new[] { "sequence-accessibility", "accDescr-block" },
+            ["sequence-accessibility", "accDescr-block"],
             Contract =>
                 !string.IsNullOrEmpty(Contract.Accessibility.Title)
                 || !string.IsNullOrEmpty(Contract.Accessibility.Description));

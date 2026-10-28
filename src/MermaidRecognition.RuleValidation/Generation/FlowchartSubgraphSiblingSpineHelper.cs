@@ -39,12 +39,11 @@ public static class FlowchartSubgraphSiblingSpineHelper
 
         Diagram.Layout["SiblingSubgraphCrossBoundarySpineAligned"] = true;
 
-        IReadOnlyDictionary<string, GroupContract> ContractGroupById =
-            FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
+        Dictionary<string, GroupContract> ContractGroupById = new Dictionary<string, GroupContract>(
+            FlowchartSubgraphMembershipHelper.BuildGroupById(Contract),
+            StringComparer.Ordinal);
 
-        List<GroupContract> CrossBoundaryGroups = Contract.Groups
-            .Where(Group => HasMemberExternalEdge(Contract, Group, ContractGroupById))
-            .ToList();
+        List<GroupContract> CrossBoundaryGroups = [.. Contract.Groups.Where(Group => HasMemberExternalEdge(Contract, Group, ContractGroupById))];
 
         if (CrossBoundaryGroups.Count < 2)
         {
@@ -60,7 +59,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
 
         foreach (IGrouping<string, GroupContract> Bucket in SiblingBuckets)
         {
-            List<GroupContract> Siblings = Bucket.ToList();
+            List<GroupContract> Siblings = [.. Bucket];
             if (Siblings.Count < 2)
             {
                 continue;
@@ -159,7 +158,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
     private static bool HasMemberExternalEdge(
         DiagramContract Contract,
         GroupContract Group,
-        Dictionary<string, GroupContract> GroupById)
+        IReadOnlyDictionary<string, GroupContract> GroupById)
     {
         HashSet<string> MemberNodeIds = CollectGroupMemberNodeIds(Group, GroupById, Contract);
 
@@ -185,7 +184,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
     private static bool HasMemberExternalEdge(
         DiagramContract Contract,
         GroupContract Group,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         string NodeId)
     {
         HashSet<string> MemberNodeIds = CollectGroupMemberNodeIds(Group, GroupById, Contract);
@@ -282,7 +281,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
     private static bool TryGetGroupCrossCenter(
         GroupContract Group,
         DiagramContract Contract,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById,
         bool HorizontalFlow,
         bool UseRowSpine,
@@ -338,7 +337,7 @@ public static class FlowchartSubgraphSiblingSpineHelper
 
     private static HashSet<string> CollectGroupMemberNodeIds(
         GroupContract Group,
-        Dictionary<string, GroupContract> GroupById,
+        IReadOnlyDictionary<string, GroupContract> GroupById,
         DiagramContract Contract)
     {
         HashSet<string> MemberNodeIds = new HashSet<string>(StringComparer.Ordinal);

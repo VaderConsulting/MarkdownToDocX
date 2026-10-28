@@ -54,20 +54,23 @@ public sealed class GroupFrameRefitProfileTests
         };
         DiagramGridLayout.LayoutStageTimingObserver = (Stage, Milliseconds) =>
         {
-            if (Milliseconds >= 0) StageEvents.Add($"{Stage}: {Milliseconds:0.0} ms");
+            if (Milliseconds >= 0)
+            {
+                StageEvents.Add($"{Stage}: {Milliseconds:0.0} ms");
+            }
         };
         DiagramGridLayout.RouteRepairPassObserver = (Stage, Routes, GridCalls, GridMs) =>
             RepairEvents.Add($"{Stage}: {string.Join(",", Routes)}; TryGridPath={GridCalls}; grid-search={GridMs:0.0} ms");
         FlowchartCrossGroupRouteSimplifier.RouteTimingObserver = (RouteId, Milliseconds, Changed) =>
         {
-            var Prior = SimplifierRouteTimes.GetValueOrDefault(RouteId);
+            (double Ms, int Attempts, int Changes) Prior = SimplifierRouteTimes.GetValueOrDefault(RouteId);
             SimplifierRouteTimes[RouteId] = (Prior.Ms + Milliseconds, Prior.Attempts + 1,
                 Prior.Changes + (Changed ? 1 : 0));
         };
         FlowchartCrossGroupRouteSimplifier.RouteEvaluationObserver = (RouteId, Candidates, CandidateMs,
             Searches, SearchMs, Rescores, RescoreMs) =>
         {
-            var Prior = SimplifierBreakdown.GetValueOrDefault(RouteId);
+            (int Candidates, double CandidateMs, int Searches, double SearchMs, int Rescores, double RescoreMs, int Evaluations) Prior = SimplifierBreakdown.GetValueOrDefault(RouteId);
             SimplifierBreakdown[RouteId] = (Prior.Candidates + Candidates, Prior.CandidateMs + CandidateMs,
                 Prior.Searches + Searches, Prior.SearchMs + SearchMs, Prior.Rescores + Rescores,
                 Prior.RescoreMs + RescoreMs, Prior.Evaluations + 1);
@@ -82,8 +85,10 @@ public sealed class GroupFrameRefitProfileTests
         DiagramGridLayout.LayoutStageObserver = (Stage, Layout) =>
         {
             foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => WatchRouteIds.Contains(Route.EdgeId)))
+            {
                 File.AppendAllText(StagePath, $"stage-route {Stage} {Route.EdgeId} {Route.ExitSide}/{Route.EntrySide}: "
                     + string.Join(" ", Route.Points.Select(Point => $"({Point.X:0},{Point.Y:0})")) + Environment.NewLine);
+            }
         };
         try
         {
@@ -92,7 +97,7 @@ public sealed class GroupFrameRefitProfileTests
             double GridLayoutMs = Timer.Elapsed.TotalMilliseconds;
             File.AppendAllText(StagePath, $"shared layout path elapsed: {GridLayoutMs:0.0} ms{Environment.NewLine}");
             Timer.Restart();
-            var Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
+            FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
             Timer.Stop();
             double ScoreMs = Timer.Elapsed.TotalMilliseconds;
             IReadOnlyList<FlowchartRouteRuleChecker.Finding> RouteFindings =
@@ -104,7 +109,7 @@ public sealed class GroupFrameRefitProfileTests
                 .Select(Group => $"{Group.Key}={Group.Count()}"));
             if (ScenarioId == "A142" && Layout.EdgeRoutes.Count > 0)
             {
-                var Incremental = new FlowchartLayoutScore.IncrementalContext(
+                FlowchartLayoutScore.CandidateMeasurement Incremental = new FlowchartLayoutScore.IncrementalContext(
                     Contract, Layout, IncludeArrangementCheck: false)
                     .MeasureCandidateSummary(Layout.EdgeRoutes[0], null);
                 Assert.That(Incremental.Score, Is.EqualTo(Score.Score), "A142 incremental score");
@@ -117,15 +122,21 @@ public sealed class GroupFrameRefitProfileTests
             File.AppendAllLines(TracePath, FitPassEvents);
             File.AppendAllLines(StagePath, StageEvents);
             File.AppendAllLines(StagePath, RepairEvents);
-            foreach (var (RouteId, Timing) in SimplifierRouteTimes.OrderByDescending(Item => Item.Value.Ms))
+            foreach ((string? RouteId, (double Ms, int Attempts, int Changes) Timing) in SimplifierRouteTimes.OrderByDescending(Item => Item.Value.Ms))
+            {
                 File.AppendAllText(StagePath, $"cross-group route {RouteId}: {Timing.Ms:0.0} ms total; "
                     + $"{Timing.Attempts} attempts; {Timing.Changes} geometry changes{Environment.NewLine}");
-            foreach (var (RouteId, Timing) in SimplifierBreakdown.OrderByDescending(Item =>
+            }
+
+            foreach ((string? RouteId, (int Candidates, double CandidateMs, int Searches, double SearchMs, int Rescores, double RescoreMs, int Evaluations) Timing) in SimplifierBreakdown.OrderByDescending(Item =>
                          Item.Value.CandidateMs + Item.Value.SearchMs + Item.Value.RescoreMs).Take(10))
+            {
                 File.AppendAllText(StagePath, $"cross-group breakdown {RouteId}: {Timing.Evaluations} evaluations; "
                     + $"{Timing.Candidates} candidates; candidate-generation {Timing.CandidateMs:0.0} ms; "
                     + $"TryGridPath {Timing.Searches} calls / {Timing.SearchMs:0.0} ms; "
                     + $"rescoring {Timing.Rescores} calls / {Timing.RescoreMs:0.0} ms{Environment.NewLine}");
+            }
+
             File.AppendAllLines(StagePath, [$"TryGridPath total: {FlowchartPaddedVisibilityRouter.GridPathCallCount}; "
                 + $"{FlowchartPaddedVisibilityRouter.GridPathElapsedMilliseconds:0.0} ms total; "
                 + $"average {(FlowchartPaddedVisibilityRouter.GridPathCallCount == 0 ? 0 : FlowchartPaddedVisibilityRouter.GridPathElapsedMilliseconds / FlowchartPaddedVisibilityRouter.GridPathCallCount):0.000} ms/call; "
@@ -176,14 +187,23 @@ public sealed class GroupFrameRefitProfileTests
             FlowchartPortSideRouteRepair.RouteCandidateObserver = null;
             DiagramGridLayout.LayoutStageObserver = null;
         }
-        foreach (string Event in RefitEvents) TestContext.Out.WriteLine(Event);
+        foreach (string Event in RefitEvents)
+        {
+            TestContext.Out.WriteLine(Event);
+        }
     }
 
     private static string FindRepositoryRoot()
     {
         for (DirectoryInfo? Cursor = new(AppContext.BaseDirectory); Cursor != null; Cursor = Cursor.Parent)
+        {
             if (File.Exists(Path.Combine(Cursor.FullName, "enterprise.md"))
-                && File.Exists(Path.Combine(Cursor.FullName, "docs", "currentstatus.md"))) return Cursor.FullName;
+                && File.Exists(Path.Combine(Cursor.FullName, "docs", "currentstatus.md")))
+            {
+                return Cursor.FullName;
+            }
+        }
+
         throw new DirectoryNotFoundException("Repository root containing enterprise.md was not found.");
     }
 }

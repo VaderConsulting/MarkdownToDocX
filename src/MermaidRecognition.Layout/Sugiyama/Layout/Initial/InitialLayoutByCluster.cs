@@ -44,7 +44,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <param name="graph">The graph being operated on.</param>
         /// <param name="clusterSettings">Settings to use for each cluster and its descendents (if none provided for that descendent.</param>
         public InitialLayoutByCluster(GeometryGraph graph, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
-            : this(graph, new[] {graph.RootCluster}, clusterSettings) {}
+            : this(graph, [graph.RootCluster], clusterSettings) {}
 
         /// <summary>
         /// Recursively lay out the given clusters using the specified settings for each cluster, or if none is given for a particular
@@ -66,7 +66,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
 #endif
 
             this.graph = graph;
-            this.clusters = clusters.ToList();
+            this.clusters = [.. clusters];
             this.clusterSettings = clusterSettings;
         }
 
@@ -159,8 +159,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         }
 
         internal static void RouteParentEdges(GeometryGraph graph, EdgeRoutingSettings edgeRoutingSettings) {
-            List<Edge> inParentEdges = new List<Edge>();
-            List<Edge> outParentEdges = new List<Edge>();
+            List<Edge> inParentEdges = [];
+            List<Edge> outParentEdges = [];
             RouteSimplHooksAndFillTheLists(graph.RootCluster, inParentEdges, outParentEdges, edgeRoutingSettings);
 
             if (inParentEdges.Count > 0 || outParentEdges.Count > 0)
@@ -409,7 +409,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <returns>GeometryGraphs that are each a connected component</returns>
         static IEnumerable<GeometryGraph> GetComponents(Cluster cluster) {
             Dictionary<Node, Node> originalToCopyNodeMap = ShallowNodeCopyDictionary(cluster);
-            List<Edge> copiedEdges = new List<Edge>();
+            List<Edge> copiedEdges = [];
             foreach (Node target in originalToCopyNodeMap.Keys) {
                 foreach (Edge e in target.InEdges) {
                     Node sourceAncestorUnderRoot = Ancestor(e.Source, cluster);
@@ -466,7 +466,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
         /// <param name="cluster">Cluster whose contents will be copied</param>
         /// <returns>the mapping from original to copy</returns>
         internal static Dictionary<Node, Node> ShallowNodeCopyDictionary(Cluster cluster) {
-            Dictionary<Node, Node> originalNodeToCopy = new Dictionary<Node, Node>();
+            Dictionary<Node, Node> originalNodeToCopy = [];
 
             foreach (Node v in cluster.Nodes)
             {
@@ -573,11 +573,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial {
             // with constraints which is both faster and usually returns a better aspect ratio for largish graphs
             LayoutAlgorithmSettings fallbackLayoutSettings = layeredSettings.FallbackLayoutSettings;
             if (fallbackLayoutSettings != null &&
-                (component.Nodes.Count > 50 && edgeDensity > 2 // too dense
-                 || component.Nodes.Count > 40 && edgeDensity > 3.0 // too dense
-                 || component.Nodes.Count > 30 && edgeDensity > 4.0 // too dense
-                 || component.Nodes.Count > 30 && aspectRatio > layeredSettings.MaxAspectRatioEccentricity // too wide
-                 || component.Nodes.Count > 30 && aspectRatio < 1d/layeredSettings.MaxAspectRatioEccentricity
+                ((component.Nodes.Count > 50 && edgeDensity > 2) // too dense
+                 || (component.Nodes.Count > 40 && edgeDensity > 3.0) // too dense
+                 || (component.Nodes.Count > 30 && edgeDensity > 4.0) // too dense
+                 || (component.Nodes.Count > 30 && aspectRatio > layeredSettings.MaxAspectRatioEccentricity) // too wide
+                 || (component.Nodes.Count > 30 && aspectRatio < 1d/layeredSettings.MaxAspectRatioEccentricity)
                     // too high
                     )) {
                 // for large graphs there's really no point trying to produce nice edge routes

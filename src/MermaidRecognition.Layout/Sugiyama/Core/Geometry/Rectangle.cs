@@ -457,7 +457,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry{
         /// return the length of the diagonal 
         /// </summary>
         /// <returns></returns>
-        public double Diagonal => Math.Sqrt(Width * Width + Height * Height);
+        public double Diagonal => Math.Sqrt((Width * Width) + (Height * Height));
 
         /// <summary>
         /// pad the rectangle horizontally by the given padding

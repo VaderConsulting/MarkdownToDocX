@@ -88,7 +88,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 component = [];
                 RDFS(stack.Last.Value);
                 if (component.Count > 1) {
-                    Set<Node> cyclicComponent = new Set<Node>();
+                    Set<Node> cyclicComponent = [];
                     foreach (TNode v in component) {
                         cyclicComponent.Insert(v.v);
                     }
@@ -116,16 +116,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         private AddConstraint addConstraint;
 
         private void AddSConstraint(Node u, Node v) => verticalSolver.AddStructuralConstraint(
-                new VerticalSeparationConstraint(u, v, (u.Height + v.Height) / 2 + settings.ConstrainedEdgeSeparation));
+                new VerticalSeparationConstraint(u, v, ((u.Height + v.Height) / 2) + settings.ConstrainedEdgeSeparation));
 
         private void AddNConstraint(Node u, Node v) => verticalSolver.AddStructuralConstraint(
-                new VerticalSeparationConstraint(v, u, (u.Height + v.Height) / 2 + settings.ConstrainedEdgeSeparation));
+                new VerticalSeparationConstraint(v, u, ((u.Height + v.Height) / 2) + settings.ConstrainedEdgeSeparation));
 
         private void AddEConstraint(Node u, Node v) => horizontalSolver.AddStructuralConstraint(
-                new HorizontalSeparationConstraint(v, u, (u.Width + v.Width) / 2 + settings.ConstrainedEdgeSeparation));
+                new HorizontalSeparationConstraint(v, u, ((u.Width + v.Width) / 2) + settings.ConstrainedEdgeSeparation));
 
         private void AddWConstraint(Node u, Node v) => horizontalSolver.AddStructuralConstraint(
-                new HorizontalSeparationConstraint(u, v, (u.Width + v.Width) / 2 + settings.ConstrainedEdgeSeparation));
+                new HorizontalSeparationConstraint(u, v, ((u.Width + v.Width) / 2) + settings.ConstrainedEdgeSeparation));
 
         /// <summary>
         /// For each edge not involved in a cycle create a constraint

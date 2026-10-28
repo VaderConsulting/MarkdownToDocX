@@ -11,7 +11,7 @@ public static partial class EnterpriseSvgRenderer
         ArgumentNullException.ThrowIfNull(LayoutOptions);
         // The existing Enterprise layout boundary uses the ambient bridge. Keep
         // its options scoped here; the router passes them explicitly to layout.
-        using var Scope = FlowchartRenderContext.Activate(new() { LayoutOptions = LayoutOptions });
+        using IDisposable Scope = FlowchartRenderContext.Activate(new() { LayoutOptions = LayoutOptions });
         return RenderCore(Document, LayoutOptions);
     }
 }

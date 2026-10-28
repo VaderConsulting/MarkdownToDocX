@@ -155,7 +155,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         Dictionary<VisibilityEdge, VisibilityVertex> GetEdgeSnapAtVertexMap(LgNodeInfo nodeInfo) {
-            Dictionary<VisibilityEdge, VisibilityVertex> ret = new Dictionary<VisibilityEdge, VisibilityVertex>();
+            Dictionary<VisibilityEdge, VisibilityVertex> ret = [];
             Point center = nodeInfo.Center;
             RbTree<VisibilityVertex> nodeBoundaryRbTree =
                 new RbTree<VisibilityVertex>((a, b) => CompareByAngleFromNodeCenter(a, b, center));
@@ -223,11 +223,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             return p;
         }
 
-        internal Point[] GetPortVertices(LgNodeInfo node) => node.BoundaryOnLayer.PolylinePoints.Select(pp => pp.Point).ToArray();
+        internal Point[] GetPortVertices(LgNodeInfo node) => [.. node.BoundaryOnLayer.PolylinePoints.Select(pp => pp.Point)];
 
         internal List<Point> GetPath(VisibilityVertex vs, VisibilityVertex vt,
             bool shrinkDistances) {
-            List<Point> pathPoints = new List<Point>();
+            List<Point> pathPoints = [];
 
             vs.IsShortestPathTerminal = vt.IsShortestPathTerminal = true;
             _visGraph.ClearPrevEdgesTable();
@@ -241,7 +241,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 vs.IsShortestPathTerminal = vt.IsShortestPathTerminal = false; 
                 return pathPoints;
             }
-            List<VisibilityVertex> path = vpath.ToList();
+            List<VisibilityVertex> path = [.. vpath];
             for (int i = 0; i < path.Count(); i++)
             {
                 pathPoints.Add(path[i].Point);
@@ -253,7 +253,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         
         internal List<VisibilityEdge> GetEdgesOfPath(List<Point> pathPoints) {
-            List<VisibilityEdge> edges = new List<VisibilityEdge>();
+            List<VisibilityEdge> edges = [];
             for (int i = 0; i < pathPoints.Count - 1; i++) {
                 VisibilityVertex v0 = GetOrFindVisibilityVertex(pathPoints[i]);
                 if (v0 == null)
@@ -295,7 +295,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             return GetPath(vs, vt, shrinkDistances);
         }
 
-        internal List<VisibilityVertex> GetAllVertices() => (_visGraph.Vertices()).ToList();
+        internal List<VisibilityVertex> GetAllVertices() => [.. (_visGraph.Vertices())];
 
         internal List<Point> GetPointsOfVerticesOverlappingSegment(Point p0, Point p1) {
             VisibilityVertex v0 = VisGraph.FindVertex(p0);
@@ -330,7 +330,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 return GetPath(s, t, true);
             }
 
-            List<Point> path = new List<Point> {trajectory[0]};
+            List<Point> path = [trajectory[0]];
             for (int i = 0; i < trajectory.Count - 1; i++) {
                 Point p0 = trajectory[i];
                 Point p1 = trajectory[i + 1];
@@ -345,21 +345,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         internal bool HasCycles(Point rootPoint) {
-            Set<Point> visited = new Set<Point>();
-            Dictionary<Point, Point> parent = new Dictionary<Point, Point>();
+            Set<Point> visited = [];
+            Dictionary<Point, Point> parent = [];
 
             Point rp = AddVisGraphVertex(rootPoint);
             visited.Insert(rp);
             parent[rp] = rp;
 
-            List<Point> queue = new List<Point> {rp};
+            List<Point> queue = [rp];
 
             while (queue.Any()) {
                 Point p = queue.First();
                 queue.Remove(p);
 
                 VisibilityVertex v = _visGraph.FindVertex(p);
-                Set<Point> neighb = new Set<Point>();
+                Set<Point> neighb = [];
                 neighb.InsertRange(v.OutEdges.Select(e => e.TargetPoint));
                 neighb.InsertRange(v.InEdges.Select(e => e.SourcePoint));
                 neighb.Remove(parent[p]);
@@ -490,7 +490,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         public IEnumerable<SymmetricSegment> EdgesOnOldTrajectories()
         {
-            List<SymmetricSegment> segs = new List<SymmetricSegment>();
+            List<SymmetricSegment> segs = [];
             foreach (VisibilityEdge edge in _edgesOnOldTrajectories)                
             {
                 segs.Add(new SymmetricSegment(edge.SourcePoint, edge.TargetPoint));
@@ -499,7 +499,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         public List<SymmetricSegment> SegmentsNotOnOldTrajectories() {
-            List<SymmetricSegment> segs = new List<SymmetricSegment>();
+            List<SymmetricSegment> segs = [];
             foreach (VisibilityEdge edge in VisGraph.Edges) {
                 if (!_edgesOnOldTrajectories.Contains(edge)) {
                     segs.Add(new SymmetricSegment(edge.SourcePoint, edge.TargetPoint));

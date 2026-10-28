@@ -265,8 +265,8 @@ public static class ActualResultsGenerator
         {
             Node.InDegree = Contract.Edges.Count(Edge => Edge.TargetId == Node.NodeId);
             Node.OutDegree = Contract.Edges.Count(Edge => Edge.SourceId == Node.NodeId);
-            Node.IncomingEdgeIds = Contract.Edges.Where(Edge => Edge.TargetId == Node.NodeId).Select(Edge => BuildEdgeId(Edge)).ToList();
-            Node.OutgoingEdgeIds = Contract.Edges.Where(Edge => Edge.SourceId == Node.NodeId).Select(Edge => BuildEdgeId(Edge)).ToList();
+            Node.IncomingEdgeIds = [.. Contract.Edges.Where(Edge => Edge.TargetId == Node.NodeId).Select(Edge => BuildEdgeId(Edge))];
+            Node.OutgoingEdgeIds = [.. Contract.Edges.Where(Edge => Edge.SourceId == Node.NodeId).Select(Edge => BuildEdgeId(Edge))];
             Node.Facts["RankPresent"] = Node.IsRendered;
             Node.Facts["LanePresent"] = Node.IsRendered;
             Node.Facts["BoundsPresent"] = Node.IsRendered && Node.Bounds.Width > 0 && Node.Bounds.Height > 0;
@@ -293,7 +293,7 @@ public static class ActualResultsGenerator
                 GroupId = Group.Id,
                 ParentGroupId = Group.ParentGroupId,
                 LocalDirection = Group.Direction,
-                MemberNodeIds = Group.ChildNodeIds.ToList()
+                MemberNodeIds = [.. Group.ChildNodeIds]
             };
 
             List<FlowchartLayoutNodeBounds> MemberBounds = [];
@@ -392,9 +392,7 @@ public static class ActualResultsGenerator
                     out List<(double X, double Y)> RoutePoints,
                     out FlowchartEdgeRouteKind _))
             {
-                EdgeResult.Path.Points = RoutePoints
-                    .Select(Point => new PointActualResult { X = Point.X, Y = Point.Y })
-                    .ToList();
+                EdgeResult.Path.Points = [.. RoutePoints.Select(Point => new PointActualResult { X = Point.X, Y = Point.Y })];
             }
 
             Diagram.Edges.Add(EdgeResult);

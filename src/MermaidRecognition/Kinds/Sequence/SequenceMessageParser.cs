@@ -54,7 +54,7 @@ public sealed class SequenceMessageParseResult
 public static class SequenceMessageParser
 {
     private static readonly string[] ArrowTokens =
-    {
+    [
         "<<-->>",
         "<<->>",
         "-->>",
@@ -73,7 +73,7 @@ public static class SequenceMessageParser
         "-/",
         "\\\\-",
         "//-"
-    };
+    ];
 
     /// <summary>
     /// Attempts to parse a sequence message line.

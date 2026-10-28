@@ -47,5 +47,5 @@ public sealed class FlowchartLayoutEdgeRoute
     /// <summary>
     /// Polyline vertices, including the points on the source and target outlines.
     /// </summary>
-    public List<FlowchartLayoutPoint> Points { get; } = new List<FlowchartLayoutPoint>();
+    public List<FlowchartLayoutPoint> Points { get; } = [];
 }

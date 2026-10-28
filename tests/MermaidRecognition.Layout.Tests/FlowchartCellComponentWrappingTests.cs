@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 using NUnit.Framework;
@@ -13,7 +15,7 @@ public sealed class FlowchartCellComponentWrappingTests
     public void F153_Layout_StaysWithinWordUsableWidth()
     {
         string source = ReadScenario("F153");
-        var contract = MermaidRecognizer.Parse(source);
+        DiagramContract contract = MermaidRecognizer.Parse(source);
         Assert.That(
             FlowchartSugiyamaLayoutEngine.TryLayout(
                 contract,
@@ -39,12 +41,14 @@ public sealed class FlowchartCellComponentWrappingTests
 
     private static double FanSpan(FlowchartLayoutResult layout, int from, int to)
     {
-        var boxes = layout.NodeBounds
-            .Where(box => int.TryParse(box.NodeId.AsSpan(1), out int id) && id >= from && id <= to)
-            .ToArray();
-        if (boxes.Length == 0) return 0;
-        double left = boxes.Min(box => box.CenterX - box.Width / 2.0);
-        double right = boxes.Max(box => box.CenterX + box.Width / 2.0);
+        FlowchartLayoutNodeBounds[] boxes = [.. layout.NodeBounds.Where(box => int.TryParse(box.NodeId.AsSpan(1), out int id) && id >= from && id <= to)];
+        if (boxes.Length == 0)
+        {
+            return 0;
+        }
+
+        double left = boxes.Min(box => box.CenterX - (box.Width / 2.0));
+        double right = boxes.Max(box => box.CenterX + (box.Width / 2.0));
         return right - left;
     }
 

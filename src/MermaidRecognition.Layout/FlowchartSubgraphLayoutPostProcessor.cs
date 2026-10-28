@@ -66,7 +66,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         CompactSubgraphMembersAroundNonMembers(Contract, MutableById, GroupById, Options);
         EvictNonMembersFromSubgraphBoxes(Contract, MutableById, GroupById, Options);
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static void ApplyExplicitSubgraphDirectionLayout(
@@ -79,9 +79,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         bool DiagramHorizontal = DiagramDirection == FlowchartDirection.LeftToRight
             || DiagramDirection == FlowchartDirection.RightToLeft;
 
-        List<GroupContract> OrderedGroups = Contract.Groups
-            .OrderByDescending(Group => GetGroupDepth(Group, GroupById))
-            .ToList();
+        List<GroupContract> OrderedGroups = [.. Contract.Groups.OrderByDescending(Group => GetGroupDepth(Group, GroupById))];
 
         foreach (GroupContract Group in OrderedGroups)
         {
@@ -217,9 +215,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         FlowchartRenderOptions Options)
     {
         double MinimumGap = Math.Max(SUBGRAPH_EXTERNAL_GAP_PX, Options.RankSpacingPx);
-        List<GroupContract> OrderedGroups = Contract.Groups
-            .OrderBy(Group => GetGroupDepth(Group, GroupById))
-            .ToList();
+        List<GroupContract> OrderedGroups = [.. Contract.Groups.OrderBy(Group => GetGroupDepth(Group, GroupById))];
 
         foreach (GroupContract Group in OrderedGroups)
         {
@@ -242,13 +238,12 @@ public static class FlowchartSubgraphLayoutPostProcessor
 
             List<string> FlowOrderedMemberNodeIds = OrderNodesByInternalFlow(
                 Contract,
-                NestedDescendantNodeIds.Union(DirectMemberNodeIds).ToList());
+                [.. NestedDescendantNodeIds.Union(DirectMemberNodeIds)]);
             if (FlowOrderedMemberNodeIds.Count == 0)
             {
-                FlowOrderedMemberNodeIds = DirectMemberNodeIds
+                FlowOrderedMemberNodeIds = [.. DirectMemberNodeIds
                     .Concat(NestedDescendantNodeIds)
-                    .Distinct(StringComparer.Ordinal)
-                    .ToList();
+                    .Distinct(StringComparer.Ordinal)];
             }
 
             int FirstNestedFlowIndex = int.MaxValue;
@@ -533,9 +528,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         List<string> OrderedNodeIds = OrderNodesByInternalFlow(Contract, MemberNodeIds);
         if (OrderedNodeIds.Count < 2)
         {
-            OrderedNodeIds = MemberNodeIds
-                .OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId))
-                .ToList();
+            OrderedNodeIds = [.. MemberNodeIds.OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId))];
         }
 
         double SharedFlowY = 0.0;
@@ -613,9 +606,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         List<string> OrderedNodeIds = OrderNodesByInternalFlow(Contract, MemberNodeIds);
         if (OrderedNodeIds.Count < 2)
         {
-            OrderedNodeIds = MemberNodeIds
-                .OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId))
-                .ToList();
+            OrderedNodeIds = [.. MemberNodeIds.OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId))];
         }
 
         double SharedCenterX = 0.0;
@@ -698,15 +689,14 @@ public static class FlowchartSubgraphLayoutPostProcessor
             return false;
         }
 
-        List<EdgeContract> InternalEdges = Contract.Edges
+        List<EdgeContract> InternalEdges = [.. Contract.Edges
             .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             .Where(Edge => MemberSet.Contains(Edge.SourceId) && MemberSet.Contains(Edge.TargetId))
             .Where(Edge => !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal))
-            .OrderBy(Edge => Edge.CreationIndex)
-            .ToList();
+            .OrderBy(Edge => Edge.CreationIndex)];
 
         HashSet<EdgeContract> BackEdges = FindBackEdges(Contract, MemberSet, InternalEdges);
-        List<EdgeContract> ForwardEdges = InternalEdges.Where(Edge => !BackEdges.Contains(Edge)).ToList();
+        List<EdgeContract> ForwardEdges = [.. InternalEdges.Where(Edge => !BackEdges.Contains(Edge))];
 
         Dictionary<string, int> RankById = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (string NodeId in MemberSet)
@@ -740,11 +730,10 @@ public static class FlowchartSubgraphLayoutPostProcessor
             ArrivalIndexById[NodeId] = FirstForwardIn is null ? GetEarliestEdgeCreationIndex(Contract, NodeId) : FirstForwardIn.CreationIndex;
         }
 
-        List<List<string>> Rows = MemberSet
+        List<List<string>> Rows = [.. MemberSet
             .GroupBy(NodeId => RankById[NodeId])
             .OrderBy(Group => Group.Key)
-            .Select(Group => Group.OrderBy(NodeId => ArrivalIndexById[NodeId]).ToList())
-            .ToList();
+            .Select(Group => Group.OrderBy(NodeId => ArrivalIndexById[NodeId]).ToList())];
 
         double SharedCenterX = 0.0;
         double PackCenterY = 0.0;
@@ -801,9 +790,9 @@ public static class FlowchartSubgraphLayoutPostProcessor
     /// </summary>
     private static HashSet<EdgeContract> FindBackEdges(DiagramContract Contract, HashSet<string> MemberSet, List<EdgeContract> InternalEdges)
     {
-        HashSet<EdgeContract> BackEdges = new HashSet<EdgeContract>();
+        HashSet<EdgeContract> BackEdges = [];
         Dictionary<string, int> StateById = new Dictionary<string, int>(StringComparer.Ordinal);
-        List<string> StartOrder = MemberSet.OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId)).ToList();
+        List<string> StartOrder = [.. MemberSet.OrderBy(NodeId => GetEarliestEdgeCreationIndex(Contract, NodeId))];
 
         foreach (string StartId in StartOrder)
         {
@@ -973,9 +962,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         Dictionary<string, GroupContract> GroupById,
         bool HorizontalFlow)
     {
-        List<GroupContract> CrossBoundaryGroups = Contract.Groups
-            .Where(Group => SubgraphHasMemberExternalEdge(Contract, Group, GroupById))
-            .ToList();
+        List<GroupContract> CrossBoundaryGroups = [.. Contract.Groups.Where(Group => SubgraphHasMemberExternalEdge(Contract, Group, GroupById))];
 
         if (CrossBoundaryGroups.Count < 2)
         {
@@ -989,7 +976,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
 
         foreach (IGrouping<string, GroupContract> Bucket in SiblingBuckets)
         {
-            List<GroupContract> Siblings = Bucket.ToList();
+            List<GroupContract> Siblings = [.. Bucket];
             if (Siblings.Count < 2)
             {
                 continue;
@@ -1063,10 +1050,9 @@ public static class FlowchartSubgraphLayoutPostProcessor
         List<GroupContract> Siblings,
         bool HorizontalFlow)
     {
-        List<FlowchartSubgraphLayoutRect> Rects = FlowchartSubgraphBoundsBuilder
+        List<FlowchartSubgraphLayoutRect> Rects = [.. FlowchartSubgraphBoundsBuilder
             .BuildOrderedRects(Contract, MutableById)
-            .Where(Rect => Siblings.Any(Group => string.Equals(Group.Id, Rect.GroupId, StringComparison.Ordinal)))
-            .ToList();
+            .Where(Rect => Siblings.Any(Group => string.Equals(Group.Id, Rect.GroupId, StringComparison.Ordinal)))];
 
         if (Rects.Count < 2)
         {
@@ -1150,14 +1136,12 @@ public static class FlowchartSubgraphLayoutPostProcessor
         FlowchartRenderOptions Options)
     {
         double PackGap = Math.Max(Options.NodeSpacingPx, SUBGRAPH_EXTERNAL_GAP_PX);
-        List<GroupContract> OrderedGroups = Contract.Groups
-            .OrderByDescending(Group => GetGroupDepth(Group, GroupById))
-            .ToList();
+        List<GroupContract> OrderedGroups = [.. Contract.Groups.OrderByDescending(Group => GetGroupDepth(Group, GroupById))];
         foreach (GroupContract Group in OrderedGroups)
         {
             HashSet<string> MemberIds = new HashSet<string>(StringComparer.Ordinal);
             CollectAllMemberNodeIds(Group, Contract, GroupById, MemberIds);
-            List<FlowchartLayoutNodeBounds> Members = new List<FlowchartLayoutNodeBounds>();
+            List<FlowchartLayoutNodeBounds> Members = [];
             foreach (string MemberId in MemberIds)
             {
                 if (MutableById.TryGetValue(MemberId, out FlowchartLayoutNodeBounds Bounds))
@@ -1269,9 +1253,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
     {
         double Gap = Math.Max(SUBGRAPH_EXTERNAL_GAP_PX, Options.NodeSpacingPx);
         FlowchartSubgraphBoundsRequest Request = FlowchartSubgraphBoundsRequest.FromContract(Contract, Options);
-        List<GroupContract> OrderedGroups = Contract.Groups
-            .OrderBy(Group => GetGroupDepth(Group, GroupById))
-            .ToList();
+        List<GroupContract> OrderedGroups = [.. Contract.Groups.OrderBy(Group => GetGroupDepth(Group, GroupById))];
         foreach (GroupContract Group in OrderedGroups)
         {
             List<FlowchartSubgraphLayoutRect> Rects =
@@ -1593,9 +1575,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
         Dictionary<string, GroupContract> GroupById,
         FlowchartRenderOptions Options)
     {
-        List<GroupContract> OrderedGroups = Contract.Groups
-            .OrderByDescending(Group => GetGroupDepth(Group, GroupById))
-            .ToList();
+        List<GroupContract> OrderedGroups = [.. Contract.Groups.OrderByDescending(Group => GetGroupDepth(Group, GroupById))];
 
         foreach (GroupContract Group in OrderedGroups)
         {
@@ -1769,9 +1749,7 @@ public static class FlowchartSubgraphLayoutPostProcessor
                 continue;
             }
 
-            List<GroupContract> OrderedGroups = Entry.Value
-                .OrderBy(Group => GetGroupFlowLeadingEdge(Group, GroupById, Contract, MutableById, HorizontalFlow))
-                .ToList();
+            List<GroupContract> OrderedGroups = [.. Entry.Value.OrderBy(Group => GetGroupFlowLeadingEdge(Group, GroupById, Contract, MutableById, HorizontalFlow))];
 
             double PreviousTrailingEdge = double.NaN;
             foreach (GroupContract Group in OrderedGroups)

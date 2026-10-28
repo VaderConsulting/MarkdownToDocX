@@ -144,7 +144,10 @@ public static class DiagramGridQuality
     private static void CheckLineShapeRoute(FlowchartLayoutResult Layout,
         FlowchartLayoutEdgeRoute Route, List<FlowchartLayoutQualityFailure> Violations)
     {
-        if (Route.Points.Count < 2) return;
+        if (Route.Points.Count < 2)
+        {
+            return;
+        }
 
         FlowchartLayoutPoint Start = Route.Points[0];
         FlowchartLayoutPoint End = Route.Points[^1];
@@ -163,13 +166,19 @@ public static class DiagramGridQuality
         {
             if (Route.ExitSide == Route.EntrySide && IsOrthogonalPolyline(Route.Points)
                 && CountOrthogonalCorners(Route.Points) <= 2)
+            {
                 return;
+            }
+
             bool DirectBlocked = Layout.NodeBounds.Any(Bounds =>
                 Bounds.NodeId != Route.SourceId && Bounds.NodeId != Route.TargetId
                 && SegmentTouchesBox(Start, End, Bounds));
             if (DirectBlocked && IsOrthogonalPolyline(Route.Points)
                 && CountOrthogonalCorners(Route.Points) <= 2)
+            {
                 return;
+            }
+
             Violations.Add(Failure(
                 "LineShape",
                 Route.SourceId + "->" + Route.TargetId + " lines up but is not a single straight segment",
@@ -243,16 +252,22 @@ public static class DiagramGridQuality
         FlowchartLayoutPoint End,
         FlowchartLayoutNodeBounds Bounds)
     {
-        double Left = Bounds.CenterX - Bounds.Width / 2.0;
-        double Right = Bounds.CenterX + Bounds.Width / 2.0;
-        double Bottom = Bounds.CenterY - Bounds.Height / 2.0;
-        double Top = Bounds.CenterY + Bounds.Height / 2.0;
+        double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+        double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+        double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+        double Top = Bounds.CenterY + (Bounds.Height / 2.0);
         if (Math.Abs(Start.Y - End.Y) <= 0.5)
+        {
             return Start.Y >= Bottom - 0.5 && Start.Y <= Top + 0.5
                 && Math.Max(Math.Min(Start.X, End.X), Left) <= Math.Min(Math.Max(Start.X, End.X), Right) + 0.5;
+        }
+
         if (Math.Abs(Start.X - End.X) <= 0.5)
+        {
             return Start.X >= Left - 0.5 && Start.X <= Right + 0.5
                 && Math.Max(Math.Min(Start.Y, End.Y), Bottom) <= Math.Min(Math.Max(Start.Y, End.Y), Top) + 0.5;
+        }
+
         return false;
     }
 
@@ -488,8 +503,8 @@ public static class DiagramGridQuality
             return LeftCross.CompareTo(RightCross);
         });
 
-        List<List<string>> Ranks = new List<List<string>>();
-        List<string> Current = new List<string>();
+        List<List<string>> Ranks = [];
+        List<string> Current = [];
         foreach (string Id in Ids)
         {
             if (Current.Count == 0)
@@ -507,7 +522,7 @@ public static class DiagramGridQuality
             else
             {
                 Ranks.Add(SortedCopy(Current, Centres, Horizontal));
-                Current = new List<string> { Id };
+                Current = [Id];
             }
         }
 

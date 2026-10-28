@@ -24,9 +24,7 @@ public sealed class TruthfulnessChecklistTests
     public void Checklist_MermaidRecognizer_MultiKind_Entry_Exists()
     {
         Type RecognizerType = typeof(MermaidRecognizer);
-        MethodInfo[] ParseMethods = RecognizerType.GetMethods()
-            .Where(Method => Method.Name == "Parse")
-            .ToArray();
+        MethodInfo[] ParseMethods = [.. RecognizerType.GetMethods().Where(Method => Method.Name == "Parse")];
         Assert.That(ParseMethods.Length, Is.GreaterThan(0));
     }
 
@@ -34,9 +32,9 @@ public sealed class TruthfulnessChecklistTests
     public void Checklist_Started_Kinds_Manifests_Are_L4()
     {
         string[] ExpectedKinds =
-        {
+        [
             "flowchart", "sequence", "class", "state", "er", "pie", "gantt", "mindmap", "gitGraph"
-        };
+        ];
 
         string ManifestDir = RecognitionFixturePaths.GetManifestsDirectory();
 

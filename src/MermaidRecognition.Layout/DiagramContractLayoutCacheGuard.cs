@@ -17,7 +17,7 @@ internal static class DiagramContractLayoutCacheGuard
         public int EdgeCount { get; init; }
     }
 
-    private static readonly ConditionalWeakTable<DiagramContract, Signature> Signatures = new();
+    private static readonly ConditionalWeakTable<DiagramContract, Signature> Signatures = [];
 
     internal static void AssertUnchanged(DiagramContract Contract, object CacheEntry)
     {

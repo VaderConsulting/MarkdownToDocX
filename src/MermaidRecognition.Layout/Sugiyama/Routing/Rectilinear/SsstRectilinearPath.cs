@@ -33,7 +33,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// The cost of the path calculation
         /// </summary>
-        private double CombinedCost(double length, double numberOfBends) => LengthImportance * length + BendsImportance * numberOfBends;
+        private double CombinedCost(double length, double numberOfBends) => (LengthImportance * length) + (BendsImportance * numberOfBends);
 
         private double TotalCostFromSourceToVertex(double length, double numberOfBends) => CombinedCost(length, numberOfBends) + sourceCostAdjustment;
 
@@ -71,7 +71,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// The next neighbors to extend the path to from the current vertex.
         /// </summary>
-        private readonly NextNeighbor[] nextNeighbors = new[] {new NextNeighbor(), new NextNeighbor(), new NextNeighbor() };
+        private readonly NextNeighbor[] nextNeighbors = [new NextNeighbor(), new NextNeighbor(), new NextNeighbor()];
 
         public SsstRectilinearPath() {
             LengthImportance = 1.0;
@@ -174,7 +174,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return (a | b) == dirToTarget ? 1 : 2;
         }
 
-        private static readonly Directions[] AddOneTurn=new[] {
+        private static readonly Directions[] AddOneTurn=[
             Directions.None,  //Directions. None-> None
             Directions.North|Directions.East|Directions.West, // 1=N -> N,E,W
             Directions.North|Directions.East|Directions.South, // 2 =E->E|N|S
@@ -191,7 +191,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             (Directions)15,  //13
             (Directions)15,  //14
             (Directions)15,  //15
-        };
+        ];
 
         private static Directions Left(Directions direction) {
             switch (direction) {
@@ -233,7 +233,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             if (entry == null) {
                 return null;
             }
-            List<Point> list = new List<Point>();
+            List<Point> list = [];
             bool skippedCollinearEntry = false;
             Directions lastEntryDir = Directions. None;
             while (true) {
@@ -267,14 +267,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             IEnumerable<DebugCurve> edges = GetAllEdgesTest(source).Select(e => (ICurve) (new LineSegment(e.SourcePoint, e.TargetPoint))).
                         Select(c => new DebugCurve(c));
             IEnumerable<DebugCurve> q = queue.Select(ent => CurveFactory.CreateDiamond(2, 2, ent.Vertex.Point)).Select(c => new DebugCurve(c));
-            DebugCurve[] so = new[] {
+            DebugCurve[] so = [
                               new DebugCurve(1, "brown", new Ellipse(3, 3, source.Point)),
                               new DebugCurve(1, "purple", CurveFactory.CreateDiamond(4, 4, Target.Point)),
                               new DebugCurve(1, "red", CurveFactory.CreateDiamond(6, 6, mostRecentlyExtendedPath.Vertex.Point))
-                          };
+                          ];
 
-            List<DebugCurve> pathEdges = new List<DebugCurve>();
-            List<VertexEntry> newEntries = new List<VertexEntry>();
+            List<DebugCurve> pathEdges = [];
+            List<VertexEntry> newEntries = [];
             int count = visitedVertices.Count;
             for (int ii = 0; ii < count; ++ii) {
                 VisibilityVertexRectilinear vertex = visitedVertices[ii];
@@ -315,10 +315,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // ReSharper restore UnusedMember.Local
             IEnumerable<DebugCurve> edges = GetAllEdgesTest(source).Select(e => (ICurve) (new LineSegment(e.SourcePoint, e.TargetPoint))).
                         Select(c => new DebugCurve(c));
-            DebugCurve[] so = new[] {
+            DebugCurve[] so = [
                               new DebugCurve(1, "brown", new Ellipse(3, 3, source.Point)),
                               new DebugCurve(1, "purple", CurveFactory.CreateDiamond(4, 4, Target.Point)),
-                          };
+                          ];
 
             List<DebugCurve> pathEdges = GetPathEdgeDebugCurves(pathPoints, "green");
             Console.WriteLine("path {0} -> {1} cost = {2} len = {3} nbend = {4} iters = {5}/{6}",
@@ -327,7 +327,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal static List<DebugCurve> GetPathEdgeDebugCurves(IEnumerable<Point> pathPoints, string color) {
-            List<DebugCurve> pathEdges = new List<DebugCurve>();
+            List<DebugCurve> pathEdges = [];
             if (pathPoints != null) {
                 bool first = true;
                 Point prevPoint = new Point();
@@ -345,7 +345,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private IEnumerable<VisibilityEdge> GetAllEdgesTest(VisibilityVertex vertex) {
-            Set<VisibilityVertex> processedVertices = new Set<VisibilityVertex>();
+            Set<VisibilityVertex> processedVertices = [];
             Queue<VisibilityVertex> q = new Queue<VisibilityVertex>();
             q.Enqueue(vertex);
 
@@ -423,7 +423,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private static Directions GetLengthAndNumberOfBendsToNeighborVertex(VertexEntry prevEntry, 
                     VisibilityVertex vertex, double weight, out int numberOfBends, out double length) {
-            length = prevEntry.Length + ManhattanDistance(prevEntry.Vertex.Point, vertex.Point)*weight;
+            length = prevEntry.Length + (ManhattanDistance(prevEntry.Vertex.Point, vertex.Point)*weight);
             Directions directionToVertex = CompassVector.PureDirectionFromPointToPoint(prevEntry.Vertex.Point, vertex.Point);
             numberOfBends = prevEntry.NumberOfBends;
             if (prevEntry.Direction != Directions. None && directionToVertex != prevEntry.Direction) {
@@ -573,7 +573,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         private void ExtendPathToNeighborVertex(VertexEntry bestEntry, VisibilityVertexRectilinear neigVer, double weight) {
             Directions dirToNeighbor = CompassVector.PureDirectionFromPointToPoint(bestEntry.Vertex.Point, neigVer.Point);
 
-            VertexEntry? neigEntry = (neigVer.VertexEntries != null) ? neigVer.VertexEntries[CompassVector.ToIndex(dirToNeighbor)] : null;
+            VertexEntry? neigEntry = neigVer.VertexEntries?[CompassVector.ToIndex(dirToNeighbor)];
             if (neigEntry == null) {
                 if (!CreateAndEnqueueReversedEntryToNeighborVertex(bestEntry, neigVer, weight)) {
                     CreateAndEnqueueEntryToNeighborVertex(bestEntry, neigVer, weight);

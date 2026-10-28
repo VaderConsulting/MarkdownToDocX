@@ -265,7 +265,7 @@ public static class ClassContractMapper
         {
             string ClassId = ApplyMatch.Groups[1].Value;
             string StyleClassId = ApplyMatch.Groups[2].Value;
-            Database.ApplyClassToTargets(new[] { ClassId }, StyleClassId);
+            Database.ApplyClassToTargets([ClassId], StyleClassId);
             PendingClassId = null;
             CurrentClassId = null;
             return;

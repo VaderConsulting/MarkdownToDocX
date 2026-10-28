@@ -37,7 +37,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             //find out first that the minimum is inside of the domain
             int a = 0;
             int b = Length - 1;
-            int m = a + (b - a) / 2;
+            int m = a + ((b - a) / 2);
             double valAtM = Sequence(m);
             if (valAtM >= Sequence(0) && valAtM >= Sequence(Length - 1))
             {
@@ -45,7 +45,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             }
 
             while (b - a > 1) {
-                m = a + (b - a) / 2;
+                m = a + ((b - a) / 2);
                 switch (BehaviourAtIndex(m)) {
                     case Behavior.Decreasing:
                         a = m;
@@ -100,7 +100,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             //find out first that the maximum is inside of the domain
             int a = 0;
             int b = Length - 1;
-            int m = a + (b - a) / 2;
+            int m = a + ((b - a) / 2);
             double valAtM = Sequence(m);
             if (valAtM <= Sequence(0) && valAtM <= Sequence(Length - 1))
             {
@@ -108,7 +108,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             }
 
             while (b - a > 1) {
-                m = a + (b - a) / 2;
+                m = a + ((b - a) / 2);
                 switch (BehaviourAtIndex(m)) {
                     case Behavior.Decreasing:
                         b = m;

@@ -14,8 +14,15 @@ internal static partial class FlowchartPlacementHints
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         IReadOnlyList<DiagramGridLayout.GridFrame>? CurrentFrames = null)
     {
-        if (Nodes.Count == 0) return false;
-        if (Nodes.Any(Node => Node.CellNode != null)) return ApplyCells(Contract, Nodes);
+        if (Nodes.Count == 0)
+        {
+            return false;
+        }
+
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            return ApplyCells(Contract, Nodes);
+        }
 
         Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
@@ -26,17 +33,21 @@ internal static partial class FlowchartPlacementHints
         {
             List<DiagramGridLayout.GridNode> Members = UnitNodes(Group.Id, true, Nodes, ById, Groups);
             if (Members.Count > 0 && FrameById.TryGetValue(Group.Id, out DiagramGridLayout.GridFrame? Frame))
+            {
                 InitialGroupGeometry[Group.Id] = (Measure(Members), FromFrame(Frame));
+            }
         }
-        List<HintItem> Hints = Contract.Nodes
+        List<HintItem> Hints = [.. Contract.Nodes
             .Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
             .Select(Node => new HintItem(Node.Id, Node.ParentGroupId, Node.PlacementHint!, false))
             .Concat(Contract.Groups
                 .Where(Group => Group.PlacementHint?.IsActive == true)
                 .Select(Group => new HintItem(Group.Id, Group.ParentGroupId, Group.PlacementHint!, true)))
-            .OrderBy(Item => Item.Hint.SourceLine)
-            .ToList();
-        if (Hints.Count == 0) return false;
+            .OrderBy(Item => Item.Hint.SourceLine)];
+        if (Hints.Count == 0)
+        {
+            return false;
+        }
 
         Dictionary<string, List<string>> Attached = new(StringComparer.Ordinal);
         bool Changed = false;
@@ -59,7 +70,7 @@ internal static partial class FlowchartPlacementHints
 
             List<DiagramGridLayout.GridNode> Moving = AttachedUnitNodes(Item.Id, Item.IsGroup, Attached, Nodes, ById, Groups);
             Bounds OwnerBounds = Measure(Moving);
-            if (Item.IsGroup && InitialGroupGeometry.TryGetValue(Item.Id, out var OwnerGeometry))
+            if (Item.IsGroup && InitialGroupGeometry.TryGetValue(Item.Id, out (Bounds Members, Bounds Frame) OwnerGeometry))
             {
                 Bounds CurrentFrame = FollowMembers(OwnerGeometry.Members, OwnerGeometry.Frame,
                     Measure(Owner));
@@ -82,11 +93,11 @@ internal static partial class FlowchartPlacementHints
 
             if (!Attached.TryGetValue(PeerId, out List<string>? Dependents))
             {
-                Dependents = new List<string>();
+                Dependents = [];
                 Attached[PeerId] = Dependents;
             }
             Dependents.Add(Item.Id);
-            Bounds? PeerBounds = InitialGroupGeometry.TryGetValue(PeerId, out var PeerGeometry)
+            Bounds? PeerBounds = InitialGroupGeometry.TryGetValue(PeerId, out (Bounds Members, Bounds Frame) PeerGeometry)
                 ? FollowMembers(PeerGeometry.Members, PeerGeometry.Frame, Measure(Peer))
                 : FrameById.TryGetValue(PeerId, out DiagramGridLayout.GridFrame? PeerFrame)
                     ? FromFrame(PeerFrame) : Peer.Count > 0 ? Measure(Peer) : null;
@@ -109,13 +120,19 @@ internal static partial class FlowchartPlacementHints
         List<DiagramGridLayout.GridNode> All,
         int MinimumGap)
     {
-        if (Node.CellNode != null) return ApplyCells(Contract, All);
+        if (Node.CellNode != null)
+        {
+            return ApplyCells(Contract, All);
+        }
+
         NodeContract? ContractNode = Contract.Nodes.FirstOrDefault(Item => Item.Id == Node.Id);
         PlacementHintContract? Hint = ContractNode?.PlacementHint;
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
         if (Hint?.IsActive != true || !string.Equals(Hint.PeerId, Frame.Id, StringComparison.Ordinal)
             || Hint.Kind == PlacementHintKind.Push || DiagramGridLayout.IsInsideGroup(Contract, Node.Id, Frame.Id))
+        {
             return false;
+        }
 
         bool WasLocked = Node.PlacementHintLocked;
         Node.PlacementHintLocked = false;
@@ -137,11 +154,17 @@ internal static partial class FlowchartPlacementHints
         IReadOnlyList<DiagramGridLayout.GridFrame> Frames,
         int MinimumGap)
     {
-        if (Node.CellNode != null) return ApplyCells(Contract, All);
+        if (Node.CellNode != null)
+        {
+            return ApplyCells(Contract, All);
+        }
+
         NodeContract? ContractNode = Contract.Nodes.FirstOrDefault(Item => Item.Id == Node.Id);
         PlacementHintContract? Hint = ContractNode?.PlacementHint;
         if (Hint?.IsActive != true || Hint.Kind == PlacementHintKind.Push || string.IsNullOrEmpty(Hint.PeerId))
+        {
             return false;
+        }
 
         Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
         Dictionary<string, DiagramGridLayout.GridNode> ById = All.ToDictionary(Item => Item.Id, StringComparer.Ordinal);
@@ -149,11 +172,20 @@ internal static partial class FlowchartPlacementHints
         if (Groups.ContainsKey(Hint.PeerId))
         {
             DiagramGridLayout.GridFrame? PeerFrame = Frames.FirstOrDefault(Frame => Frame.Id == Hint.PeerId);
-            if (PeerFrame != null) PeerBounds = FromFrame(PeerFrame);
+            if (PeerFrame != null)
+            {
+                PeerBounds = FromFrame(PeerFrame);
+            }
         }
         else if (ById.TryGetValue(Hint.PeerId, out DiagramGridLayout.GridNode? PeerNode))
+        {
             PeerBounds = Measure([PeerNode]);
-        if (PeerBounds == null) return false;
+        }
+
+        if (PeerBounds == null)
+        {
+            return false;
+        }
 
         // Preserve the hint's directional relation while allowing its other
         // coordinate to move around a fitted frame, just as initial placement
@@ -182,22 +214,22 @@ internal static partial class FlowchartPlacementHints
         switch (Hint.Kind)
         {
             case PlacementHintKind.Above:
-                TargetY = Anchor.Top - Gap - Extra - Owner.Height / 2.0;
+                TargetY = Anchor.Top - Gap - Extra - (Owner.Height / 2.0);
                 TargetX = Anchor.CenterX;
                 YSign = -1;
                 break;
             case PlacementHintKind.Below:
-                TargetY = Anchor.Bottom + Gap + Extra + Owner.Height / 2.0;
+                TargetY = Anchor.Bottom + Gap + Extra + (Owner.Height / 2.0);
                 TargetX = Anchor.CenterX;
                 YSign = 1;
                 break;
             case PlacementHintKind.LeftOf:
-                TargetX = Anchor.Left - Gap - Extra - Owner.Width / 2.0;
+                TargetX = Anchor.Left - Gap - Extra - (Owner.Width / 2.0);
                 TargetY = Anchor.CenterY;
                 XSign = -1;
                 break;
             case PlacementHintKind.RightOf:
-                TargetX = Anchor.Right + Gap + Extra + Owner.Width / 2.0;
+                TargetX = Anchor.Right + Gap + Extra + (Owner.Width / 2.0);
                 TargetY = Anchor.CenterY;
                 XSign = 1;
                 break;
@@ -209,10 +241,12 @@ internal static partial class FlowchartPlacementHints
         double Unit = DiagramGridMetrics.GRID_UNIT_PX;
         for (int Steps = 0; ; Steps++)
         {
-            double CandidateX = Dx + XSign * Steps * Unit;
-            double CandidateY = Dy + YSign * Steps * Unit;
+            double CandidateX = Dx + (XSign * Steps * Unit);
+            double CandidateY = Dy + (YSign * Steps * Unit);
             if (!OverlapsAfterMove(Moving, All, MovingIds, CandidateX, CandidateY, Frames, Groups, Gap))
+            {
                 return Translate(Moving, CandidateX, CandidateY);
+            }
         }
     }
 
@@ -223,9 +257,12 @@ internal static partial class FlowchartPlacementHints
         IReadOnlyDictionary<string, GroupContract> Groups)
     {
         HashSet<string> MovingIds = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-        List<DiagramGridLayout.GridNode> Siblings = All.Where(Node => !MovingIds.Contains(Node.Id)
-            && string.Equals(ImmediateParent(Node, Groups), Item.ParentId, StringComparison.Ordinal)).ToList();
-        if (Siblings.Count == 0) return false;
+        List<DiagramGridLayout.GridNode> Siblings = [.. All.Where(Node => !MovingIds.Contains(Node.Id)
+            && string.Equals(ImmediateParent(Node, Groups), Item.ParentId, StringComparison.Ordinal))];
+        if (Siblings.Count == 0)
+        {
+            return false;
+        }
 
         Bounds Owner = Measure(Moving);
         Bounds Other = Measure(Siblings);
@@ -256,23 +293,37 @@ internal static partial class FlowchartPlacementHints
         IReadOnlyDictionary<string, DiagramGridLayout.GridNode> ById,
         IReadOnlyDictionary<string, GroupContract> Groups)
     {
-        var Ids = new HashSet<string>(StringComparer.Ordinal);
-        var Pending = new Stack<string>();
+        HashSet<string> Ids = new HashSet<string>(StringComparer.Ordinal);
+        Stack<string> Pending = new Stack<string>();
         Pending.Push(Id);
         while (Pending.Count > 0)
         {
             string Current = Pending.Pop();
-            if (!Ids.Add(Current)) continue;
+            if (!Ids.Add(Current))
+            {
+                continue;
+            }
+
             if (Attached.TryGetValue(Current, out List<string>? Children))
-                foreach (string Child in Children) Pending.Push(Child);
+            {
+                foreach (string Child in Children)
+                {
+                    Pending.Push(Child);
+                }
+            }
         }
 
-        var Result = new List<DiagramGridLayout.GridNode>();
+        List<DiagramGridLayout.GridNode> Result = [];
         foreach (string UnitId in Ids)
         {
             bool UnitIsGroup = Groups.ContainsKey(UnitId) || (UnitId == Id && IsGroup);
             foreach (DiagramGridLayout.GridNode Node in UnitNodes(UnitId, UnitIsGroup, All, ById, Groups))
-                if (!Result.Contains(Node)) Result.Add(Node);
+            {
+                if (!Result.Contains(Node))
+                {
+                    Result.Add(Node);
+                }
+            }
         }
         return Result;
     }
@@ -285,8 +336,10 @@ internal static partial class FlowchartPlacementHints
         IReadOnlyDictionary<string, GroupContract> Groups)
     {
         if (!IsGroup)
+        {
             return ById.TryGetValue(Id, out DiagramGridLayout.GridNode? Node)
-                ? new List<DiagramGridLayout.GridNode> { Node } : new List<DiagramGridLayout.GridNode>();
+                ? [Node] : [];
+        }
 
         HashSet<string> DeclaredMembers = new(StringComparer.Ordinal);
         HashSet<string> VisitedGroups = new(StringComparer.Ordinal);
@@ -295,15 +348,29 @@ internal static partial class FlowchartPlacementHints
         while (PendingGroups.Count > 0)
         {
             string Current = PendingGroups.Pop();
-            if (!VisitedGroups.Add(Current) || !Groups.TryGetValue(Current, out GroupContract? Group)) continue;
-            foreach (string ChildId in Group.ChildNodeIds) DeclaredMembers.Add(ChildId);
+            if (!VisitedGroups.Add(Current) || !Groups.TryGetValue(Current, out GroupContract? Group))
+            {
+                continue;
+            }
+
+            foreach (string ChildId in Group.ChildNodeIds)
+            {
+                DeclaredMembers.Add(ChildId);
+            }
+
             foreach (GroupContract Child in Groups.Values.Where(Child =>
                 string.Equals(Child.ParentGroupId, Current, StringComparison.Ordinal)))
+            {
                 PendingGroups.Push(Child.Id);
-            foreach (string ChildGroupId in Group.ChildGroupIds) PendingGroups.Push(ChildGroupId);
+            }
+
+            foreach (string ChildGroupId in Group.ChildGroupIds)
+            {
+                PendingGroups.Push(ChildGroupId);
+            }
         }
 
-        return All.Where(Node => DeclaredMembers.Contains(Node.Id) || IsInGroup(Node, Id, Groups)).ToList();
+        return [.. All.Where(Node => DeclaredMembers.Contains(Node.Id) || IsInGroup(Node, Id, Groups))];
     }
 
     private static bool IsInGroup(
@@ -314,7 +381,11 @@ internal static partial class FlowchartPlacementHints
         string? Current = Node.GroupId;
         while (Current != null)
         {
-            if (string.Equals(Current, GroupId, StringComparison.Ordinal)) return true;
+            if (string.Equals(Current, GroupId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
             Current = Groups.TryGetValue(Current, out GroupContract? Group) ? Group.ParentGroupId : null;
         }
         return false;
@@ -331,28 +402,52 @@ internal static partial class FlowchartPlacementHints
         int FrameClearance)
     {
         foreach (DiagramGridLayout.GridNode A in Moving)
-        foreach (DiagramGridLayout.GridNode B in All)
         {
-            if (MovingIds.Contains(B.Id)) continue;
-            if (Math.Abs((A.X + Dx) - B.X) < (A.Width + B.Width) / 2.0 + DiagramGridMetrics.NODE_GAP_PX
-                && Math.Abs((A.Y + Dy) - B.Y) < (A.Height + B.Height) / 2.0 + DiagramGridMetrics.NODE_GAP_PX)
-                return true;
-        }
-        if (Frames != null)
-        foreach (DiagramGridLayout.GridFrame Frame in Frames)
+            foreach (DiagramGridLayout.GridNode B in All)
         {
-            if (Groups != null && Moving.All(Node => IsInGroup(Node, Frame.Id, Groups))) continue;
-            foreach (DiagramGridLayout.GridNode Node in Moving)
-                if (Math.Abs((Node.X + Dx) - Frame.CenterX()) < Node.Width / 2.0 + (Frame.Right - Frame.Left) / 2.0 + FrameClearance
-                    && Math.Abs((Node.Y + Dy) - Frame.CenterY()) < Node.Height / 2.0 + (Frame.Top - Frame.Bottom) / 2.0 + FrameClearance)
+            if (MovingIds.Contains(B.Id))
+                {
+                    continue;
+                }
+
+                if (Math.Abs((A.X + Dx) - B.X) < ((A.Width + B.Width) / 2.0) + DiagramGridMetrics.NODE_GAP_PX
+                && Math.Abs((A.Y + Dy) - B.Y) < ((A.Height + B.Height) / 2.0) + DiagramGridMetrics.NODE_GAP_PX)
+                {
                     return true;
+                }
+            }
         }
+
+        if (Frames != null)
+        {
+            foreach (DiagramGridLayout.GridFrame Frame in Frames)
+        {
+            if (Groups != null && Moving.All(Node => IsInGroup(Node, Frame.Id, Groups)))
+                {
+                    continue;
+                }
+
+                foreach (DiagramGridLayout.GridNode Node in Moving)
+                {
+                    if (Math.Abs((Node.X + Dx) - Frame.CenterX()) < (Node.Width / 2.0) + ((Frame.Right - Frame.Left) / 2.0) + FrameClearance
+                    && Math.Abs((Node.Y + Dy) - Frame.CenterY()) < (Node.Height / 2.0) + ((Frame.Top - Frame.Bottom) / 2.0) + FrameClearance)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
         return false;
     }
 
     private static bool Translate(IEnumerable<DiagramGridLayout.GridNode> Nodes, double Dx, double Dy)
     {
-        if (Math.Abs(Dx) < 0.1 && Math.Abs(Dy) < 0.1) return false;
+        if (Math.Abs(Dx) < 0.1 && Math.Abs(Dy) < 0.1)
+        {
+            return false;
+        }
+
         foreach (DiagramGridLayout.GridNode Node in Nodes)
         {
             Node.X += Dx;
@@ -380,12 +475,12 @@ internal static partial class FlowchartPlacementHints
 
     private static Bounds Measure(IEnumerable<DiagramGridLayout.GridNode> Nodes)
     {
-        DiagramGridLayout.GridNode[] Items = Nodes.ToArray();
+        DiagramGridLayout.GridNode[] Items = [.. Nodes];
         return new Bounds(
-            Items.Min(Node => Node.X - Node.Width / 2.0),
-            Items.Min(Node => Node.Y - Node.Height / 2.0),
-            Items.Max(Node => Node.X + Node.Width / 2.0),
-            Items.Max(Node => Node.Y + Node.Height / 2.0));
+            Items.Min(Node => Node.X - (Node.Width / 2.0)),
+            Items.Min(Node => Node.Y - (Node.Height / 2.0)),
+            Items.Max(Node => Node.X + (Node.Width / 2.0)),
+            Items.Max(Node => Node.Y + (Node.Height / 2.0)));
     }
 
     private static Bounds FromFrame(DiagramGridLayout.GridFrame Frame) =>

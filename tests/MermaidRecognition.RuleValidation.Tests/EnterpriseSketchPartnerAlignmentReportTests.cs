@@ -17,10 +17,10 @@ public sealed class EnterpriseSketchPartnerAlignmentReportTests
     [TestCase("A40")]
     public void ReportPartnerAlignmentLog(string id)
     {
-        var scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == id);
-        var context = new FlowchartRenderContext { UseCellRegions = true };
-        var contract = EnterpriseFlowchartContractMapper.Build(
+        FlowchartRenderContext context = new FlowchartRenderContext { UseCellRegions = true };
+        DiagramContract contract = EnterpriseFlowchartContractMapper.Build(
             EnterpriseValidator.Analyze(scenario.Source).Document!);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(contract, context, out _), Is.True);
         foreach (string Line in context.BandSpaceDiagnostics.Where(Item => Item.StartsWith("PARTNER_ALIGN|", StringComparison.Ordinal)))

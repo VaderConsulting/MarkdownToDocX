@@ -12,8 +12,8 @@ public sealed class FlowchartCellDecisionAlignmentTests
     [TestCase(true)]
     public void BypassesForcedInputChainAlignment(bool Horizontal)
     {
-        var (Contract, Nodes, Grid) = Fixture(Horizontal);
-        var Before = Grid.Capture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         DiagramGridLayout.AlignUnbranchedDecisionInputs(Contract, Nodes, Horizontal);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -22,10 +22,10 @@ public sealed class FlowchartCellDecisionAlignmentTests
     [Test]
     public void OccupiedChainTargetRejectsEveryMove()
     {
-        var (Contract, Nodes, Grid) = Fixture(false);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(false);
         Grid.TryPlace("obstacle", new(0, 2, 1, 1));
-        var Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         DiagramGridLayout.AlignUnbranchedDecisionInputs(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -35,15 +35,15 @@ public sealed class FlowchartCellDecisionAlignmentTests
     /// <returns>Graph, nodes and shared cell ownership.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool Horizontal)
     {
-        var Contract = new DiagramContract();
+        DiagramContract Contract = new DiagramContract();
         Contract.EdgesMutable.AddRange([new() { SourceId = "A", TargetId = "B" }, new() { SourceId = "B", TargetId = "D" }]);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
         int Index = 0;
         foreach (string Id in new[] { "A", "B", "D" })
         {
             Grid.TryPlace(Id, new(Horizontal ? Index : Index * 2, Horizontal ? Index * 2 : Index, Id == "D" ? 2 : 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, IsDiamond = Id == "D" }; Node.BindCells(Grid); Nodes.Add(Node); Index++;
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, IsDiamond = Id == "D" }; Node.BindCells(Grid); Nodes.Add(Node); Index++;
         }
         return (Contract, Nodes, Grid);
     }

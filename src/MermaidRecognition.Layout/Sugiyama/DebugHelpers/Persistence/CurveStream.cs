@@ -16,8 +16,8 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence
 
         void Init() {
             data=data.Trim();
-            string[] blocks = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            curveStreamElements = RefineBlocks(blocks).ToArray();
+            string[] blocks = data.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+            curveStreamElements = [.. RefineBlocks(blocks)];
 
         }
 

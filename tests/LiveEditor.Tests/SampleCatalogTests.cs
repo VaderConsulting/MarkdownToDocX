@@ -15,8 +15,8 @@ public sealed class SampleCatalogTests
     [Test]
     public void EveryDiagramTypeHasASimpleSampleAndAFullSample()
     {
-        string[] Expected = new string[]
-        {
+        string[] Expected =
+        [
             "enterprise",
             "flowchart",
             "sequence",
@@ -37,7 +37,7 @@ public sealed class SampleCatalogTests
             "radar",
             "treemap",
             "c4"
-        };
+        ];
         Assert.That(SampleCatalog.Groups.Count, Is.EqualTo(Expected.Length));
         for (int Index = 0; Index < Expected.Length; Index++)
         {
@@ -68,7 +68,7 @@ public sealed class SampleCatalogTests
 
         Assert.That(Enterprise, Is.Not.Null);
         EnterpriseParseResult Result = EnterpriseParser.ParseDocument(Enterprise!.FullSource);
-        List<string> Errors = new List<string>();
+        List<string> Errors = [];
         for (int Index = 0; Index < Result.Diagnostics.Count; Index++)
         {
             EnterpriseDiagnostic Diagnostic = Result.Diagnostics[Index];

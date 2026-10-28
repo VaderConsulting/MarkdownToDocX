@@ -38,7 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
             this.graph = graph;
             nodeSeparation = layoutSettings.NodeSeparation;
             this.layoutSettings = layoutSettings;
-            pushingNodesArray = pushingNodes as GeomNode[] ?? pushingNodes.ToArray();
+            pushingNodesArray = pushingNodes as GeomNode[] ?? [.. pushingNodes];
             Debug.Assert(pushingNodesArray.All(n => DefaultClusterParent(n) == null) ||
                           (new Set<GeomNode>(pushingNodesArray.Select(n => n.ClusterParents.First()))).Count == 1,
                                     "dragged nodes have to belong to the same cluster");
@@ -68,7 +68,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
                     }
 
                     listOfPushers.Add(new BumperPusher(cluster.Nodes.Concat(cluster.Clusters), nodeSeparation,
-                                                       new[] {pushingCluster}));
+                                                       [pushingCluster]));
 
                 } while (true);
             }
@@ -211,7 +211,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         List<Edge> GetChangedEdges(Set<Node> changedNodes) {
-            List<Edge> list = new List<Edge>();
+            List<Edge> list = [];
             Rectangle box = Rectangle.CreateAnEmptyBox();
             foreach(GeomNode node in changedNodes)
             {

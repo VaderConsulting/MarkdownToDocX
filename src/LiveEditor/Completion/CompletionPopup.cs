@@ -132,7 +132,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
     {
         get
         {
-            List<string> Labels = new List<string>();
+            List<string> Labels = [];
             foreach (object Entry in _List.Items)
             {
                 Labels.Add(Entry == null ? string.Empty : Entry.ToString() ?? string.Empty);
@@ -756,7 +756,7 @@ internal sealed class CompletionPopup : IDisposable, IMessageFilter
     /// <summary>Visual Studio's layout under the signature: what the statement does, then "name: description" for the active parameter.</summary>
     private static string ParameterText(ParameterHelp Help)
     {
-        List<string> Parts = new List<string>();
+        List<string> Parts = [];
         if (Help.Summary.Length > 0)
         {
             Parts.Add(Help.Summary);

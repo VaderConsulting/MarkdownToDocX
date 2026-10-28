@@ -199,7 +199,7 @@ public static class FlowchartDiamondPorts
             return false;
         }
 
-        List<(int X, int Y)> Built = new List<(int X, int Y)>();
+        List<(int X, int Y)> Built = [];
         for (int Index = 1; Index <= PortCount; Index++)
         {
             double Fraction = Index / (double)(PortCount + 1);
@@ -239,13 +239,13 @@ public static class FlowchartDiamondPorts
         List<int>[] EdgeLines = new List<int>[4];
         for (int EdgeIndex = 0; EdgeIndex < EdgeLines.Length; EdgeIndex++)
         {
-            EdgeLines[EdgeIndex] = new List<int>();
+            EdgeLines[EdgeIndex] = [];
         }
 
         FlowchartDiamondPort[] Assigned = new FlowchartDiamondPort[Destinations.Count];
         for (int Index = 0; Index < Destinations.Count; Index++)
         {
-            var Destination = Destinations[Index];
+            (double X, double Y) Destination = Destinations[Index];
             // A lone axis-facing connection owns the tip, just as a lone box
             // connection owns its side centre. Other ends on that nominal side
             // participate in symmetric sloped-edge allocation instead.
@@ -342,7 +342,10 @@ public static class FlowchartDiamondPorts
         bool[,] Took = new bool[LineCount + 1, PortCount + 1];
         for (int Line = 1; Line <= LineCount; Line++)
         {
-            for (int Port = 0; Port <= PortCount; Port++) Cost[Line, Port] = double.PositiveInfinity;
+            for (int Port = 0; Port <= PortCount; Port++)
+            {
+                Cost[Line, Port] = double.PositiveInfinity;
+            }
         }
 
         for (int Port = 1; Port <= PortCount; Port++)
@@ -579,7 +582,11 @@ public static class FlowchartDiamondPorts
         double Horizontal = Math.Abs(NormalX);
         double Vertical = Math.Abs(NormalY);
         double Total = Horizontal + Vertical;
-        if (Total <= 0.0) return 0.5;
+        if (Total <= 0.0)
+        {
+            return 0.5;
+        }
+
         double Parameter = Edge == FlowchartDiamondEdge.TopRight
             || Edge == FlowchartDiamondEdge.BottomLeft
             ? Horizontal / Total

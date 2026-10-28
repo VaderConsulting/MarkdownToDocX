@@ -15,11 +15,19 @@ internal static class FlowchartLegendRenderer
 
     internal static string Apply(DiagramContract Contract, string Svg)
     {
-        if (!Contract.Configuration.RawDirectiveValues.TryGetValue("legend", out string? Raw)) return Svg;
+        if (!Contract.Configuration.RawDirectiveValues.TryGetValue("legend", out string? Raw))
+        {
+            return Svg;
+        }
+
         string Setting = Normalize(Raw);
-        if (Setting is "off" or "table") return Svg;
+        if (Setting is "off" or "table")
+        {
+            return Svg;
+        }
+
         IReadOnlyList<string> Entries = EntryNames(Contract);
-        double Height = 52 + Entries.Count * 36;
+        double Height = 52 + (Entries.Count * 36);
         XDocument Xml = XDocument.Parse(Svg, LoadOptions.PreserveWhitespace);
         XElement Root = Xml.Root!;
         double MainWidth = Number(Root.Attribute("width")?.Value), MainHeight = Number(Root.Attribute("height")?.Value);
@@ -49,7 +57,7 @@ internal static class FlowchartLegendRenderer
             .Append("<text x=\"180\" y=\"24\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"bold\">Legend</text>");
         for (int Index = 0; Index < Entries.Count; Index++)
         {
-            double RowY = 38 + Index * 36;
+            double RowY = 38 + (Index * 36);
             Body.Append("<rect x=\"18\" y=\"").Append(RowY).Append("\" width=\"74\" height=\"24\" rx=\"4\" fill=\"#eee\" stroke=\"#333\"/>")
                 .Append("<line x1=\"108\" y1=\"").Append(RowY + 12).Append("\" x2=\"158\" y2=\"").Append(RowY + 12).Append("\" stroke=\"#333\"/>")
                 .Append("<text x=\"174\" y=\"").Append(RowY + 16).Append("\" font-size=\"11\">")
@@ -64,9 +72,9 @@ internal static class FlowchartLegendRenderer
 
     internal static IReadOnlyList<string> EntryNames(DiagramContract Contract)
     {
-        var Result = Contract.Groups.Select(Group => "Group")
+        List<string> Result = [.. Contract.Groups.Select(Group => "Group")
             .Concat(Contract.Nodes.Select(Node => Readable(Node.Shape ?? Node.ShapeSource ?? "rectangle")))
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
         Result.AddRange(Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             .Select(Edge => Edge.MarkerStart == EdgeEndpointMarker.None && Edge.MarkerEnd == EdgeEndpointMarker.None
                 ? "Plain connection" : (string.Equals(Edge.Stroke, "dotted", StringComparison.OrdinalIgnoreCase) ? "Dotted " : "") + "Relationship")
@@ -77,7 +85,11 @@ internal static class FlowchartLegendRenderer
     private static string Normalize(string? Value)
     {
         string Setting = (Value ?? "off").Trim().ToLowerInvariant();
-        if (Setting is "on" or "true") return "bottom-right";
+        if (Setting is "on" or "true")
+        {
+            return "bottom-right";
+        }
+
         string First = Setting.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "off";
         return First is "off" or "table" or "bottom-right" or "bottom-left" or "top-right" or "top-left" or "below" or "right"
             || First.EndsWith("-of", StringComparison.Ordinal) ? First : "off";
@@ -85,8 +97,16 @@ internal static class FlowchartLegendRenderer
 
     private static string Readable(string Value)
     {
-        if (Value is "rect" or "rectangle") return "Rectangle";
-        if (Value is "round" or "rounded") return "Rounded rectangle";
+        if (Value is "rect" or "rectangle")
+        {
+            return "Rectangle";
+        }
+
+        if (Value is "round" or "rounded")
+        {
+            return "Rounded rectangle";
+        }
+
         string Text = Value.Replace('-', ' ').Replace('_', ' ');
         return Text.Length == 0 ? "Rectangle" : char.ToUpperInvariant(Text[0]) + Text[1..];
     }

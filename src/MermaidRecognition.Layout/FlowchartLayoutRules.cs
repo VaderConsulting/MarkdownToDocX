@@ -58,8 +58,15 @@ internal static class FlowchartLayoutRules
     internal static int RepairChainLinesFanHub(int FanLineCount)
     {
         if (!_expressions.TryGetValue("repair_chain_lines_fan_hub", out string? Expression) || Expression != "fan_line_count")
+        {
             throw new InvalidDataException("rules.yaml must define repair_chain_lines_fan_hub as fan_line_count.");
-        if (FanLineCount < 3) throw new ArgumentOutOfRangeException(nameof(FanLineCount));
+        }
+
+        if (FanLineCount < 3)
+        {
+            throw new ArgumentOutOfRangeException(nameof(FanLineCount));
+        }
+
         return FanLineCount;
     }
     internal static double RepairLengthWeight => Get("score_repair_length_per_grid_step");
@@ -76,8 +83,8 @@ internal static class FlowchartLayoutRules
         Assembly Assembly = typeof(FlowchartLayoutRules).Assembly;
         using Stream Stream = Assembly.GetManifestResourceStream("MermaidRecognition.Layout.rules.yaml")
             ?? throw new InvalidOperationException("The canonical docs/Instructions/rules.yaml resource is missing.");
-        using var Reader = new StreamReader(Stream);
-        var Values = new Dictionary<string, double>(StringComparer.Ordinal);
+        using StreamReader Reader = new StreamReader(Stream);
+        Dictionary<string, double> Values = new Dictionary<string, double>(StringComparer.Ordinal);
         string? CurrentId = null;
         while (Reader.ReadLine() is { } Line)
         {
@@ -88,19 +95,32 @@ internal static class FlowchartLayoutRules
                 CurrentId = Trimmed[7..^1];
                 continue;
             }
-            if (CurrentId == null || !Trimmed.StartsWith("value:", StringComparison.Ordinal)) continue;
+            if (CurrentId == null || !Trimmed.StartsWith("value:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             string Text = Trimmed[6..].Trim();
             if (CurrentId == "repair_chain_lines_fan_hub" && Text == "\"fan_line_count\"")
             {
                 if (!_expressions.TryAdd(CurrentId, "fan_line_count"))
+                {
                     throw new InvalidDataException("rules.yaml contains duplicate parameter '" + CurrentId + "'.");
+                }
+
                 CurrentId = null;
                 continue;
             }
             if (!double.TryParse(Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double Value))
+            {
                 throw new InvalidDataException("Invalid numeric value for rules.yaml parameter '" + CurrentId + "'.");
+            }
+
             if (!Values.TryAdd(CurrentId, Value))
+            {
                 throw new InvalidDataException("rules.yaml contains duplicate parameter '" + CurrentId + "'.");
+            }
+
             CurrentId = null;
         }
         return Values;

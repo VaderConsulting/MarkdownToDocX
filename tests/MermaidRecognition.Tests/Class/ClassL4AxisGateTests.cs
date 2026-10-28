@@ -49,8 +49,8 @@ public sealed class ClassL4AxisGateTests
     [Test]
     public void G12_Relation_Fixtures_Produce_Edges_With_Expected_Tokens()
     {
-        (string FixtureName, string ExpectedToken)[] RelationCases = new (string FixtureName, string ExpectedToken)[]
-        {
+        (string FixtureName, string ExpectedToken)[] RelationCases =
+        [
             ("inheritance", "<|--"),
             ("relation-composition", "*--"),
             ("relation-aggregation", "o--"),
@@ -60,10 +60,10 @@ public sealed class ClassL4AxisGateTests
             ("relation-reverse-association", "<--"),
             ("relation-solid-link", "--"),
             ("relation-dotted-link", "..")
-        };
+        ];
 
         string FixtureRoot = RecognitionFixturePaths.GetClassFixtureDirectory();
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
 
         foreach ((string FixtureName, string ExpectedToken) in RelationCases)
         {
@@ -98,9 +98,7 @@ public sealed class ClassL4AxisGateTests
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
         NodeContract Animal = Contract.Nodes.Single(Node => Node.Id == "Animal");
-        List<MermaidDeclaration> Members = Animal.Declarations
-            .Where(Declaration => Declaration.Kind == "member")
-            .ToList();
+        List<MermaidDeclaration> Members = [.. Animal.Declarations.Where(Declaration => Declaration.Kind == "member")];
 
         Assert.That(Members, Has.Count.EqualTo(2));
         Assert.That(Members[0].RawText, Is.EqualTo("+String name"));
@@ -118,7 +116,7 @@ public sealed class ClassL4AxisGateTests
 
         GroupContract Animals = Contract.Groups[0];
         Assert.That(Animals.Id, Is.EqualTo("animals"));
-        Assert.That(Animals.ChildNodeIds, Is.EquivalentTo(new[] { "Animal", "Dog" }));
+        Assert.That(Animals.ChildNodeIds, Is.EquivalentTo(["Animal", "Dog"]));
 
         NodeContract Animal = Contract.Nodes.Single(Node => Node.Id == "Animal");
         NodeContract Dog = Contract.Nodes.Single(Node => Node.Id == "Dog");

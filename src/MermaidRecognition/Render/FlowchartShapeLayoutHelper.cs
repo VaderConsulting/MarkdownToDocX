@@ -104,8 +104,8 @@ public static class FlowchartShapeLayoutHelper
         if (string.Equals(Normalised, "ellipse", StringComparison.Ordinal))
         {
             double Rx = Math.Max(0.001, Width / 2.0), Ry = Math.Max(0.001, Height / 2.0);
-            double Scale = 1.0 / Math.Sqrt(DirX * DirX / (Rx * Rx) + DirY * DirY / (Ry * Ry));
-            return (CenterX + DirX * Scale, CenterY + DirY * Scale);
+            double Scale = 1.0 / Math.Sqrt((DirX * DirX / (Rx * Rx)) + (DirY * DirY / (Ry * Ry)));
+            return (CenterX + (DirX * Scale), CenterY + (DirY * Scale));
         }
 
         if (string.Equals(Normalised, "diamond", StringComparison.Ordinal)
@@ -542,8 +542,8 @@ public static class FlowchartShapeLayoutHelper
             return;
         }
 
-        double RayT = ((SegmentStartX - OriginX) * SegmentY - (SegmentStartY - OriginY) * SegmentX) / Denominator;
-        double SegmentU = ((SegmentStartX - OriginX) * DirY - (SegmentStartY - OriginY) * DirX) / Denominator;
+        double RayT = (((SegmentStartX - OriginX) * SegmentY) - ((SegmentStartY - OriginY) * SegmentX)) / Denominator;
+        double SegmentU = (((SegmentStartX - OriginX) * DirY) - ((SegmentStartY - OriginY) * DirX)) / Denominator;
         if (RayT <= 1e-9 || SegmentU < 0.0 || SegmentU > 1.0)
         {
             return;

@@ -29,7 +29,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         void ProcessPath(Path path) {
-            Dictionary<Path, LinkedPoint> departedPaths = new Dictionary<Path, LinkedPoint>();
+            Dictionary<Path, LinkedPoint> departedPaths = [];
             Dictionary<Path, LinkedPoint> prevLocationPathOffsets = null;
             for (LinkedPoint linkedPoint = (LinkedPoint) path.PathPoints; linkedPoint != null; linkedPoint = linkedPoint.Next) {
                 Dictionary<Path, LinkedPoint> pathOffsets = verticesToPathOffsets[linkedPoint.Point];

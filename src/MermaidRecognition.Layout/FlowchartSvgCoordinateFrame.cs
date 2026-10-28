@@ -140,7 +140,7 @@ public static class FlowchartSvgCoordinateFrameResolver
             NodeById,
             Direction));
         Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
-            new Dictionary<EdgeContract, FlowchartResolvedGuide>();
+            [];
         foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
         {
             GuideByEdge[Guide.Edge] = Guide;
@@ -219,7 +219,11 @@ public static class FlowchartSvgCoordinateFrameResolver
     private static T Measure<T>(string Name, Func<T> Operation)
     {
         Action<string, double>? Observer = StageTimingObserver;
-        if (Observer == null) return Operation();
+        if (Observer == null)
+        {
+            return Operation();
+        }
+
         Observer(Name, -1);
         Stopwatch Timer = Stopwatch.StartNew();
         try { return Operation(); }

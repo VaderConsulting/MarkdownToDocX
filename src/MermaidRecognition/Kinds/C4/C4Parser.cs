@@ -9,14 +9,14 @@ namespace MermaidRecognition.Kinds.C4;
 /// </summary>
 public sealed class C4Parser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[]
-    {
+    private static readonly string[] Headers =
+    [
         "C4Context",
         "C4Container",
         "C4Component",
         "C4Dynamic",
         "C4Deployment"
-    };
+    ];
 
     private static readonly Regex ElementRegex = new Regex(
         @"^(?<type>Person|Person_Ext|System|System_Ext|SystemDb|SystemDb_Ext|SystemQueue|SystemQueue_Ext|Container|Container_Ext|ContainerDb|ContainerDb_Ext|ContainerQueue|ContainerQueue_Ext|Component|Component_Ext|ComponentDb|ComponentDb_Ext|ComponentQueue|ComponentQueue_Ext|Node|Node_L|Deployment_Node|Enterprise_Boundary|System_Boundary|Container_Boundary|Boundary)\s*\(\s*(?<id>[A-Za-z_][\w-]*)\s*(?:,\s*""(?<label>[^""]*)"")?",

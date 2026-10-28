@@ -33,7 +33,7 @@ internal sealed partial class CodeEditor : UserControl
 
     private Font? _OwnedEditorFont;
 
-    private readonly List<int> _MarkedStarts = new List<int>();
+    private readonly List<int> _MarkedStarts = [];
 
     /// <summary>
     /// Creates the editor and the line-number column beside it.
@@ -71,9 +71,9 @@ internal sealed partial class CodeEditor : UserControl
 
     private bool _DuplicateChord;
 
-    private readonly List<int> _DiagnosticLines = new List<int>();
+    private readonly List<int> _DiagnosticLines = [];
 
-    private readonly List<int> _FindLines = new List<int>();
+    private readonly List<int> _FindLines = [];
 
     private readonly EditorMouseWheel _EditorWheel;
 
@@ -529,7 +529,7 @@ internal sealed partial class CodeEditor : UserControl
     private void SourceEditor_MouseDoubleClick(object? Sender, MouseEventArgs E)
     {
         string Selected = SourceEditor.SelectedText;
-        if (Selected.Length == 0 || Selected.IndexOfAny(new char[] { '\r', '\n', ' ', '\t' }) >= 0)
+        if (Selected.Length == 0 || Selected.IndexOfAny(['\r', '\n', ' ', '\t']) >= 0)
         {
             return;
         }
@@ -733,14 +733,14 @@ internal sealed partial class CodeEditor : UserControl
 
         int First = Direction < 0 ? StartLine - 1 : StartLine;
         int Last = Direction < 0 ? EndLine : EndLine + 1;
-        List<string> Contents = new List<string>();
+        List<string> Contents = [];
         for (int Line = First; Line <= Last; Line++)
         {
             Contents.Add(LineContent(Text, LineStarts, Line));
         }
 
         string Neighbour = Direction < 0 ? Contents[0] : Contents[Contents.Count - 1];
-        List<string> Block = new List<string>();
+        List<string> Block = [];
         if (Direction < 0)
         {
             for (int Index = 1; Index < Contents.Count; Index++)
@@ -756,7 +756,7 @@ internal sealed partial class CodeEditor : UserControl
             }
         }
 
-        List<string> Reordered = new List<string>();
+        List<string> Reordered = [];
         if (Direction < 0)
         {
             Reordered.AddRange(Block);
@@ -813,8 +813,7 @@ internal sealed partial class CodeEditor : UserControl
 
     private static List<int> LineStartsOf(string Text)
     {
-        List<int> LineStarts = new List<int>();
-        LineStarts.Add(0);
+        List<int> LineStarts = [0];
         for (int Index = 0; Index < Text.Length; Index++)
         {
             if (Text[Index] == '\n')

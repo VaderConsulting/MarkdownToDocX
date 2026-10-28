@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using MermaidRecognition.Contract;
 
@@ -37,33 +38,42 @@ public static partial class DiagramGridLayout
         internal static void ApplyFinalCompleteRepair(GridLayoutState State)
         {
             if (State.SkipRootGroupRepacking || !State.Placed.Any(Node => Node.CellNode != null)
-                || State.Copy.RenderContext.IsEvaluatingCellRouteCandidate) return;
-            using var Timing = FlowchartCellCostTiming.Begin("final-complete-repair");
-            var Layout = State.Copy;
-            var Bounds = BuildPlacedBounds(State.Placed, State.Frames);
-            var Original = new CellGeometrySnapshot(State);
-            var Before = FlowchartLayoutScore.Measure(State.Contract, Layout, false);
-            var Findings = FlowchartRouteRuleChecker.Check(State.Contract, Layout);
-            var BeforeCounts = FinalCounts(State);
+                || State.Copy.RenderContext.IsEvaluatingCellRouteCandidate)
+            {
+                return;
+            }
+
+            using IDisposable? Timing = FlowchartCellCostTiming.Begin("final-complete-repair");
+            FlowchartLayoutResult Layout = State.Copy;
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds = BuildPlacedBounds(State.Placed, State.Frames);
+            CellGeometrySnapshot Original = new CellGeometrySnapshot(State);
+            FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(State.Contract, Layout, false);
+            IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(State.Contract, Layout);
+            (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) BeforeCounts = FinalCounts(State);
             var DeclaredRoutes = Layout.EdgeRoutes.Select(Route => Route.EdgeId).OrderBy(Id => Id, StringComparer.Ordinal).ToArray();
             double BeforeLength = RouteLength(Layout);
             int Examined = 0, Accepted = 0;
-            var BaseCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
-            var CandidateCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
-            var Queues = new[] { PairOptions().GetEnumerator(), RegionOptions().GetEnumerator() }.ToList();
+            Dictionary<string, CellGeometrySnapshot> BaseCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
+            Dictionary<string, CellGeometrySnapshot> CandidateCompletions = new Dictionary<string, CellGeometrySnapshot>(StringComparer.Ordinal);
+            List<IEnumerator<FinalOption>> Queues = [PairOptions().GetEnumerator(), RegionOptions().GetEnumerator()];
             try
             {
                 while (Queues.Count > 0 && Examined < FlowchartLayoutRules.RepairCandidateMoves && Accepted < FlowchartLayoutRules.RepairChainDepth)
-                for (int Index = 0; Index < Queues.Count && Examined < FlowchartLayoutRules.RepairCandidateMoves && Accepted < FlowchartLayoutRules.RepairChainDepth; Index++)
                 {
-                    var CandidateGrid = State.Placed[0].CellNode!.Grid;
+                    for (int Index = 0; Index < Queues.Count && Examined < FlowchartLayoutRules.RepairCandidateMoves && Accepted < FlowchartLayoutRules.RepairChainDepth; Index++)
+                {
+                        FlowchartLogicalGrid CandidateGrid = State.Placed[0].CellNode!.Grid;
                     int RejectionsBefore = CandidateGrid.RegionConventionRejections;
                     bool HasOption = Queues[Index].MoveNext();
                     Examined += SpendBandPreflightSlots(State, "final-complete-repair", CandidateGrid.RegionConventionRejections - RejectionsBefore,
                         FlowchartLayoutRules.RepairCandidateMoves - Examined);
-                    if (Examined >= FlowchartLayoutRules.RepairCandidateMoves) break;
-                    if (!HasOption) { Queues[Index].Dispose(); Queues.RemoveAt(Index--); continue; }
-                    var Option = Queues[Index].Current;
+                    if (Examined >= FlowchartLayoutRules.RepairCandidateMoves)
+                        {
+                            break;
+                        }
+
+                        if (!HasOption) { Queues[Index].Dispose(); Queues.RemoveAt(Index--); continue; }
+                        FinalOption Option = Queues[Index].Current;
                     bool Keep = false;
                     double ExtraLength = 0;
                     string Reason = "assignment";
@@ -77,8 +87,12 @@ public static partial class DiagramGridLayout
                         {
                             Examined += SpendBandPreflightSlots(State, "final-complete-repair", CandidateGrid.RegionConventionRejections - RejectionsBefore,
                                 FlowchartLayoutRules.RepairCandidateMoves - Examined);
-                            if (CandidateGrid.RegionConventionRejections > RejectionsBefore) Reason = "band-convention";
-                            continue;
+                            if (CandidateGrid.RegionConventionRejections > RejectionsBefore)
+                                {
+                                    Reason = "band-convention";
+                                }
+
+                                continue;
                         }
                         Examined++;
                         if (BandCandidateIsIllegal(State))
@@ -96,21 +110,34 @@ public static partial class DiagramGridLayout
                         bool CacheCandidate = !Option.ReplayAfterRouting && !FinalRepairDisableReferenceReuseForTests;
                         string? GeometryKey = FinalRepairConfirmationObserver == null && !CacheBase ? null : FinalReferenceIdentity(State, false);
                         string? InputKey = FinalRepairConfirmationObserver == null && !CacheCandidate ? null : FinalReferenceIdentity(State, true);
-                        var ConfirmationClock = FinalRepairConfirmationObserver == null ? null : System.Diagnostics.Stopwatch.StartNew();
+                            Stopwatch? ConfirmationClock = FinalRepairConfirmationObserver == null ? null : System.Diagnostics.Stopwatch.StartNew();
                         CellGeometrySnapshot? Completed = null;
-                        var Completions = CacheBase ? BaseCompletions : CandidateCompletions;
+                            Dictionary<string, CellGeometrySnapshot> Completions = CacheBase ? BaseCompletions : CandidateCompletions;
                         string? CompletionKey = CacheBase ? GeometryKey : InputKey;
                         bool Reused = (CacheBase || CacheCandidate) && Completions.TryGetValue(CompletionKey!, out Completed);
-                        if (Reused) Completed!.Restore(State);
-                        else
+                        if (Reused)
+                            {
+                                Completed!.Restore(State);
+                            }
+                            else
                         {
                             using (FlowchartCellCostTiming.ForRoutingPhase("final-confirmation"))
-                                CompleteReferenceCellCandidate(State);
-                            if (CacheBase || CacheCandidate) Completions[CompletionKey!] = new CellGeometrySnapshot(State);
-                        }
-                        if (ConfirmationClock != null) FinalRepairConfirmationObserver?.Invoke(Option.Key, GeometryKey!, InputKey!,
+                                {
+                                    CompleteReferenceCellCandidate(State);
+                                }
+
+                                if (CacheBase || CacheCandidate)
+                                {
+                                    Completions[CompletionKey!] = new CellGeometrySnapshot(State);
+                                }
+                            }
+                        if (ConfirmationClock != null)
+                            {
+                                FinalRepairConfirmationObserver?.Invoke(Option.Key, GeometryKey!, InputKey!,
                             Option.ReplayAfterRouting, Reused, ConfirmationClock.Elapsed.TotalMilliseconds);
-                        Bounds = BuildPlacedBounds(State.Placed, State.Frames);
+                            }
+
+                            Bounds = BuildPlacedBounds(State.Placed, State.Frames);
                         if (Option.ReplayAfterRouting && !Option.Build()) { Reason = "replay"; continue; }
                         FinalRepairMeasurementObserver?.Invoke(Option.Key, Layout);
                         if (!Layout.EdgeRoutes.Select(Route => Route.EdgeId).OrderBy(Id => Id, StringComparer.Ordinal).SequenceEqual(DeclaredRoutes))
@@ -121,37 +148,37 @@ public static partial class DiagramGridLayout
                         // finished projection, not just the pre-routing frames.
                         if (Layout.ClusterBounds.Any(Box => !double.IsFinite(Box.Width) || !double.IsFinite(Box.Height)
                             || Box.Width <= 0 || Box.Height <= 0)) { Reason = "invalid-frame"; continue; }
-                        var PublishedFrames = Layout.ClusterBounds.Select(Box => new GridFrame {
-                            Id = Box.NodeId, Left = (int)Math.Round(Box.CenterX - Box.Width / 2),
-                            Right = (int)Math.Round(Box.CenterX + Box.Width / 2),
-                            Bottom = (int)Math.Round(Box.CenterY - Box.Height / 2), Top = (int)Math.Round(Box.CenterY + Box.Height / 2)
-                        }).ToArray();
+                            GridFrame[] PublishedFrames = [.. Layout.ClusterBounds.Select(Box => new GridFrame {
+                            Id = Box.NodeId, Left = (int)Math.Round(Box.CenterX - (Box.Width / 2)),
+                            Right = (int)Math.Round(Box.CenterX + (Box.Width / 2)),
+                            Bottom = (int)Math.Round(Box.CenterY - (Box.Height / 2)), Top = (int)Math.Round(Box.CenterY + (Box.Height / 2))
+                        })];
                         if (CountUnrelatedFrameOverlaps(State.Contract, PublishedFrames) != 0) { Reason = "frame-overlap"; continue; }
                         int Changed = Original.ChangedLines();
                         if (Changed > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit:" + Changed; continue; }
                         ExtraLength = RouteLength(Layout) - BeforeLength;
                         double? Cap = FinalRepairLengthCapForTests;
                         if (Cap.HasValue && ExtraLength > Cap.Value) { Reason = $"measurement-length:{ExtraLength:R}>{Cap.Value:R}"; continue; }
-                        var AfterCounts = FinalCounts(State);
+                            (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) AfterCounts = FinalCounts(State);
                         if (AfterCounts.Shared > BeforeCounts.Shared) { Reason = "shared-tracks"; continue; }
                         if (AfterCounts.FanCrossings > BeforeCounts.FanCrossings) { Reason = "same-fan-count"; continue; }
                         if (AfterCounts.FanPairs.Except(BeforeCounts.FanPairs).Any()) { Reason = "same-fan-crossing"; continue; }
                         if (!Original.HintsUnchanged() || !FlowchartPlacementHints.CellHintsMatch(State.Contract, State.Placed,
                             FlowchartCellRepair.Capture(State.Placed).Regions)) { Reason = "original-hints"; continue; }
-                        var AfterFindings = FlowchartRouteRuleChecker.Check(State.Contract, Layout);
+                            IReadOnlyList<FlowchartRouteRuleChecker.Finding> AfterFindings = FlowchartRouteRuleChecker.Check(State.Contract, Layout);
                         if (AfterFindings.Count > Findings.Count) { Reason = "total-findings"; continue; }
                         if (AfterFindings.Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7"))
                         { Reason = "hard-gate"; continue; }
-                        var Prepared = FlowchartAllocatedPortFallback.Prepare(State.Contract, Bounds);
+                            FlowchartAllocatedPortFallback.PreparedGeometry Prepared = FlowchartAllocatedPortFallback.Prepare(State.Contract, Bounds);
                         if (Layout.EdgeRoutes.Any(Route => !FlowchartAllocatedPortFallback.IsLegal(State.Contract, Bounds, Route,
                             Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Prepared)))
                         { Reason = "whole-layout-legality"; continue; }
                         if (Layout.EdgeRoutes.Any(Route => !FlowchartPortSideRouteRepair.HasLabelRoom(Route.Points,
                             FindContractEdge(State.Contract, Route), State.Contract, OrthogonalRunsOnly: true)))
                         { Reason = "whole-layout-label-clearance"; continue; }
-                        var After = FlowchartLayoutScore.Measure(State.Contract, Layout, false);
-                        var Cost = After.Cost + ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
-                            + Changed * FlowchartLayoutRules.RepairMovedLineWeight;
+                            FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(State.Contract, Layout, false);
+                            FlowchartLayoutScore.ComparisonCost Cost = After.Cost + (ExtraLength / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight)
+                            + (Changed * FlowchartLayoutRules.RepairMovedLineWeight);
                         if (!FlowchartFinalRepairPolicy.Allows(Findings, AfterFindings,
                             FlowchartFinalRepairPolicy.Measure(Before, () => BeforeCounts.Crossings),
                             FlowchartFinalRepairPolicy.Measure(After, () => AfterCounts.Crossings, Cost)))
@@ -173,13 +200,22 @@ public static partial class DiagramGridLayout
                     }
                     finally
                     {
-                        if (!Keep) Original.Restore(State);
-                        FinalRepairObserver?.Invoke(Option.Key, Reason, ExtraLength);
+                        if (!Keep)
+                            {
+                                Original.Restore(State);
+                            }
+
+                            FinalRepairObserver?.Invoke(Option.Key, Reason, ExtraLength);
                         FinalRepairStateObserver?.Invoke(Keep ? "accepted" : "rejected", Layout, State.Placed);
                     }
                 }
+                }
             }
-            finally { foreach (var Queue in Queues) Queue.Dispose(); }
+            finally { foreach (IEnumerator<FinalOption>? Queue in Queues)
+                {
+                    Queue.Dispose();
+                }
+            }
             FlowchartRenderContext.ReportOperationCount("final-repair/accepted", Accepted);
             FlowchartRenderContext.ReportOperationCount("final-repair/candidates", Examined);
 
@@ -188,15 +224,29 @@ public static partial class DiagramGridLayout
             // any of the earlier passes.
             IEnumerable<FinalOption> PairOptions()
             {
-                if (FinalRepairRegionForTests != null) yield break;
-                var ById = Layout.EdgeRoutes.ToDictionary(Route => Route.EdgeId, StringComparer.Ordinal);
-                foreach (var Finding in Findings.Where(Finding => Finding.Rule == "5.9").ToArray())
+                if (FinalRepairRegionForTests != null)
                 {
-                    if (CrossingPairDiagnosticFilter?.Invoke(Finding.Subject) == false) continue;
+                    yield break;
+                }
+
+                Dictionary<string, FlowchartLayoutEdgeRoute> ById = Layout.EdgeRoutes.ToDictionary(Route => Route.EdgeId, StringComparer.Ordinal);
+                foreach (FlowchartRouteRuleChecker.Finding? Finding in Findings.Where(Finding => Finding.Rule == "5.9").ToArray())
+                {
+                    if (CrossingPairDiagnosticFilter?.Invoke(Finding.Subject) == false)
+                    {
+                        continue;
+                    }
+
                     var Ids = Finding.Subject.Split(" x ", StringSplitOptions.TrimEntries);
-                    if (Ids.Length != 2 || !ById.TryGetValue(Ids[0], out var First) || !ById.TryGetValue(Ids[1], out var Second)) continue;
-                    foreach (var Option in CrossingPairOptions(State, Bounds, () => Original, First, Second))
+                    if (Ids.Length != 2 || !ById.TryGetValue(Ids[0], out FlowchartLayoutEdgeRoute? First) || !ById.TryGetValue(Ids[1], out FlowchartLayoutEdgeRoute? Second))
+                    {
+                        continue;
+                    }
+
+                    foreach ((string Kind, Func<bool> Build) Option in CrossingPairOptions(State, Bounds, () => Original, First, Second))
+                    {
                         yield return new(Finding.Subject + "|" + Option.Kind, Option.Build, true);
+                    }
                 }
             }
 
@@ -207,26 +257,48 @@ public static partial class DiagramGridLayout
             {
                 if (FinalRepairRegionForTests != null)
                 {
-                    var Plan = FlowchartCellRepair.PlanAssignment(State.Placed, FinalRepairRegionForTests(State.Placed));
-                    if (Plan != null) yield return new("diagnostic-region", () =>
+                    FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(State.Placed, FinalRepairRegionForTests(State.Placed));
+                    if (Plan != null)
                     {
-                        if (!Plan.TryApply()) return false;
+                        yield return new("diagnostic-region", () =>
+                    {
+                        if (!Plan.TryApply())
+                        {
+                            return false;
+                        }
+
                         State.Frames.Clear(); BuildFramesYUp(State.Contract, State.Placed, State.Frames);
                         WriteBack(Layout, State.Placed, State.Frames); return true;
                     }, false);
+                    }
+
                     yield break;
                 }
-                foreach (var Option in MoveCellOptions(State).Concat(GapCellOptions(State)))
+                foreach (CellRepairOption? Option in MoveCellOptions(State).Concat(GapCellOptions(State)))
+                {
                     yield return new(Option.Key, () =>
                     {
                         if (Option.Assignment.Nodes.Any(Node => Node.PlacementHintLocked
-                            || HasHintedContainingGroup(State.Contract, Node.Id))) return false;
-                        if (HasExternalCellHintDependent(State.Contract, Option.Subject, Option.Assignment.Nodes.ToArray())) return false;
-                        if (!Option.Assignment.TryApply()) return false;
+                            || HasHintedContainingGroup(State.Contract, Node.Id)))
+                        {
+                            return false;
+                        }
+
+                        if (HasExternalCellHintDependent(State.Contract, Option.Subject, [.. Option.Assignment.Nodes]))
+                        {
+                            return false;
+                        }
+
+                        if (!Option.Assignment.TryApply())
+                        {
+                            return false;
+                        }
+
                         State.Frames.Clear(); BuildFramesYUp(State.Contract, State.Placed, State.Frames);
                         WriteBack(Layout, State.Placed, State.Frames);
                         return true;
                     }, false);
+                }
             }
         }
 
@@ -235,20 +307,31 @@ public static partial class DiagramGridLayout
         /// <returns>True only for an existing overlap between complete, positive, exactly projected cell-bound frames.</returns>
         private static bool HasFixedFinalFrameOverlap(GridLayoutState State)
         {
-            var Published = State.Copy.ClusterBounds;
+            IReadOnlyList<FlowchartLayoutNodeBounds> Published = State.Copy.ClusterBounds;
             if (Published.Count < 2 || State.Placed.Any(Node => Node.CellNode == null)
                 || Published.Count != State.Frames.Count
                 || Published.Select(Box => Box.NodeId).Distinct(StringComparer.Ordinal).Count() != Published.Count
-                || State.Contract.Groups.Any(Group => !Published.Any(Box => Box.NodeId == Group.Id))) return false;
-            foreach (var Box in Published)
+                || State.Contract.Groups.Any(Group => !Published.Any(Box => Box.NodeId == Group.Id)))
+            {
+                return false;
+            }
+
+            foreach (FlowchartLayoutNodeBounds Box in Published)
             {
                 if (!double.IsFinite(Box.CenterX) || !double.IsFinite(Box.CenterY)
                     || !double.IsFinite(Box.Width) || !double.IsFinite(Box.Height)
-                    || Box.Width <= 0 || Box.Height <= 0) return false;
-                var Frame = State.Frames.FirstOrDefault(Frame => Frame.Id == Box.NodeId);
-                if (Frame == null || Frame.Left != Box.CenterX - Box.Width / 2
-                    || Frame.Right != Box.CenterX + Box.Width / 2 || Frame.Bottom != Box.CenterY - Box.Height / 2
-                    || Frame.Top != Box.CenterY + Box.Height / 2) return false;
+                    || Box.Width <= 0 || Box.Height <= 0)
+                {
+                    return false;
+                }
+
+                GridFrame? Frame = State.Frames.FirstOrDefault(Frame => Frame.Id == Box.NodeId);
+                if (Frame == null || Frame.Left != Box.CenterX - (Box.Width / 2)
+                    || Frame.Right != Box.CenterX + (Box.Width / 2) || Frame.Bottom != Box.CenterY - (Box.Height / 2)
+                    || Frame.Top != Box.CenterY + (Box.Height / 2))
+                {
+                    return false;
+                }
             }
             // CompleteReferenceCellCandidate sets IsEvaluatingCellRouteCandidate:
             // SearchCellAssignmentsCore then refuses all placement/frame moves.
@@ -264,7 +347,7 @@ public static partial class DiagramGridLayout
         /// <returns>A deterministic digest scoped to this diagram and final pass.</returns>
         private static string FinalReferenceIdentity(GridLayoutState State, bool IncludeRoutes)
         {
-            var Cells = FlowchartCellRepair.Capture(State.Placed);
+            FlowchartLogicalGrid.Snapshot Cells = FlowchartCellRepair.Capture(State.Placed);
             string Value = System.Text.Json.JsonSerializer.Serialize(new
             {
                 Regions = Cells.Regions.Select(Pair => new { Pair.Key, Pair.Value.StartRow, Pair.Value.StartColumn,
@@ -314,18 +397,26 @@ public static partial class DiagramGridLayout
         internal static (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) FinalCounts(FlowchartLayoutResult Layout)
         {
             int Crossings = 0, Shared = 0, FanCrossings = 0;
-            var FanPairs = new HashSet<string>(StringComparer.Ordinal);
-            var Routes = Layout.EdgeRoutes;
-            for (int A = 0; A < Routes.Count; A++) for (int B = A + 1; B < Routes.Count; B++)
+            HashSet<string> FanPairs = new HashSet<string>(StringComparer.Ordinal);
+            IReadOnlyList<FlowchartLayoutEdgeRoute> Routes = Layout.EdgeRoutes;
+            for (int A = 0; A < Routes.Count; A++)
             {
-                var First = Routes[A]; var Second = Routes[B];
-                var Hits = FlowchartBranchRouteOrder.Intersections(First.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                for (int B = A + 1; B < Routes.Count; B++)
+            {
+                FlowchartLayoutEdgeRoute First = Routes[A]; FlowchartLayoutEdgeRoute Second = Routes[B];
+                (int Crossings, double Overlap) Hits = FlowchartBranchRouteOrder.Intersections(First.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                     Second.Points.Select(Point => (Point.X, Point.Y)).ToArray());
-                Crossings += Hits.Crossings; if (Hits.Overlap > 0) Shared++;
-                if (Hits.Crossings > 0 && (First.SourceId == Second.SourceId
+                Crossings += Hits.Crossings; if (Hits.Overlap > 0)
+                    {
+                        Shared++;
+                    }
+
+                    if (Hits.Crossings > 0 && (First.SourceId == Second.SourceId
                     || First.TargetId == Second.TargetId))
                 { FanPairs.Add(First.EdgeId + " x " + Second.EdgeId); FanCrossings += Hits.Crossings; }
             }
+            }
+
             return (RouteBends(Layout), Crossings, Shared, FanCrossings, FanPairs);
         }
 
@@ -341,11 +432,10 @@ public static partial class DiagramGridLayout
         /// <param name="Layout">Accepted, already validated complete geometry.</param>
         internal static void PublishFinal(DiagramContract Contract, FlowchartLayoutResult Layout)
         {
-            Layout.ResolvedEdgeGuides = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).Select(Edge =>
+            Layout.ResolvedEdgeGuides = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).Select(Edge =>
             {
-                if (!Layout.TryCopyDrawnRoutePoints(Edge, out var Points)) return null;
-                return new FlowchartResolvedGuide(Edge, Points, Points.Count == 2 ? FlowchartEdgeRouteKind.Straight : FlowchartEdgeRouteKind.Grid);
-            }).OfType<FlowchartResolvedGuide>().ToList();
+                if (!Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)>? Points)) { return null; } return new FlowchartResolvedGuide(Edge, Points, Points.Count == 2 ? FlowchartEdgeRouteKind.Straight : FlowchartEdgeRouteKind.Grid);
+            }).OfType<FlowchartResolvedGuide>()];
             Layout.RenderContext.CachedRouteContract = null;
             Layout.RenderContext.CachedRouteGeometry = null;
             Layout.RenderContext.CachedRouteGuides = null;

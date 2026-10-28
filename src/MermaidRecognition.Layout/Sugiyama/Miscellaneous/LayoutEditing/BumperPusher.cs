@@ -50,7 +50,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
             fixedNodes.InsertRange(pushingNodes);
 
             Queue<Node> q = new Queue<Node>(pushingNodes);
-            List<Node> ret = new List<Node>();
+            List<Node> ret = [];
             while (q.Count > 0) {
                 Node n = q.Dequeue();
                 foreach (Node node in PushByNodeAndReportPushedAsFixed(n)) {
@@ -63,7 +63,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
         }
 
         IEnumerable<Node> PushByNodeAndReportPushedAsFixed(Node pushingNode) {
-            List<Node> ret = new List<Node>();
+            List<Node> ret = [];
             Rectangle pushingNodeBox = GetPaddedBoxOfNode(pushingNode);
             foreach (RectangleNode<Node> rectNode in rtree.GetAllLeavesIntersectingRectangle(pushingNodeBox)) {
                 if (fixedNodes.Contains(rectNode.UserData))
@@ -81,8 +81,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing {
 
         bool PushNodeAndUpdateRTree(Node pushingNode, RectangleNode<Node> pushed) {
             Point del = pushed.UserData.Center - pushingNode.Center;
-            double w = pushingNode.Width / 2 + pushed.UserData.Width / 2;
-            double h = pushingNode.Height / 2 + pushed.UserData.Height / 2;
+            double w = (pushingNode.Width / 2) + (pushed.UserData.Width / 2);
+            double h = (pushingNode.Height / 2) + (pushed.UserData.Height / 2);
             double absDelXBetweenCenters = Math.Abs(del.X);
             double absDelYBetweenCenters = Math.Abs(del.Y);
 

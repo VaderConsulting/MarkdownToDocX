@@ -37,7 +37,7 @@ public sealed class FlowchartManyToManyRoutesTests
                 EdgeId = $"e{Index}", SourceId = SourceId, TargetId = TargetId,
                 ExitSide = "top", EntrySide = "bottom"
             };
-            double Track = 70 - Index * 20;
+            double Track = 70 - (Index * 20);
             Route.Points.Add(new() { X = SourceXs[Index], Y = 10 });
             Route.Points.Add(new() { X = SourceXs[Index], Y = Track });
             Route.Points.Add(new() { X = TargetXs[Index], Y = Track });
@@ -49,10 +49,14 @@ public sealed class FlowchartManyToManyRoutesTests
 
         int Crossings = 0;
         for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
-        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
-            Crossings += FlowchartBranchRouteOrder.Intersections(
+        {
+            for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+            {
+                Crossings += FlowchartBranchRouteOrder.Intersections(
                 Layout.EdgeRoutes[First].Points.Select(Point => (Point.X, Point.Y)).ToList(),
                 Layout.EdgeRoutes[Second].Points.Select(Point => (Point.X, Point.Y)).ToList()).Crossings;
+            }
+        }
 
         Assert.Multiple(() =>
         {

@@ -22,12 +22,11 @@ public sealed class EnterpriseTitleBoundsTests
         Assert.That(Text.Value, Is.EqualTo(Title), "The title is literal text, including special characters.");
         Assert.That(Number(Text, "x"), Is.EqualTo(Width / 2).Within(0.01));
         XElement Content = Titled.Root.Elements().Single(Element => Element.Name.LocalName == "g");
-        double[] Translation = Regex.Matches((string)Content.Attribute("transform")!, @"-?\d+(?:\.\d+)?")
-            .Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture)).ToArray();
+        double[] Translation = [.. Regex.Matches((string)Content.Attribute("transform")!, @"-?\d+(?:\.\d+)?").Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))];
         Assert.That(Translation[0], Is.EqualTo((Width - PlainWidth) / 2).Within(0.01));
         Assert.That(Translation[1], Is.GreaterThan(Number(Text, "y")));
-        var PlainElements = Plain.Descendants().Where(Element => Element.Attribute("data-id") != null).Select(Element => Element.ToString());
-        var TitledElements = Titled.Descendants().Where(Element => Element.Attribute("data-id") != null).Select(Element => Element.ToString());
+        IEnumerable<string> PlainElements = Plain.Descendants().Where(Element => Element.Attribute("data-id") != null).Select(Element => Element.ToString());
+        IEnumerable<string> TitledElements = Titled.Descendants().Where(Element => Element.Attribute("data-id") != null).Select(Element => Element.ToString());
         Assert.That(TitledElements, Is.EqualTo(PlainElements), "Title space must not distort node geometry.");
     }
 

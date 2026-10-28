@@ -45,7 +45,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return 0;
             }
 
-            double res = bundlingSettings.HubRepulsionImportance * (1.0 - nowR / idealR) * (idealR - nowR);
+            double res = bundlingSettings.HubRepulsionImportance * (1.0 - (nowR / idealR)) * (idealR - nowR);
             return res;
         }
 
@@ -58,7 +58,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return 0;
             }
 
-            double res = bundlingSettings.BundleRepulsionImportance * (1.0 - nowWidth / idealWidth) * (idealWidth - nowWidth);
+            double res = bundlingSettings.BundleRepulsionImportance * (1.0 - (nowWidth / idealWidth)) * (idealWidth - nowWidth);
             return res;
         }
 

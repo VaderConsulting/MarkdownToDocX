@@ -50,6 +50,5 @@ public sealed class EnterpriseOutlineAndLabelTests
     }
 
     private static double Number(XElement Element, string Name) => double.Parse((string)Element.Attribute(Name)!, CultureInfo.InvariantCulture);
-    private static double[] Coordinates(string Path) => Regex.Matches(Path, @"-?\d+(?:\.\d+)?")
-        .Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture)).ToArray();
+    private static double[] Coordinates(string Path) => [.. Regex.Matches(Path, @"-?\d+(?:\.\d+)?").Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))];
 }

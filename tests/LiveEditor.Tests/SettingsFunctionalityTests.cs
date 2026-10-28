@@ -106,7 +106,7 @@ public sealed class SettingsFunctionalityTests
         Assert.That(Loaded.LastFilePath, Is.EqualTo("C:\\notes\\shop.md"));
         Assert.That(Loaded.LastCoArchiFolder, Is.EqualTo("C:\\models\\shop"));
         Assert.That(Loaded.CaretIndex, Is.EqualTo(42));
-        Assert.That(Loaded.RecentFiles, Is.EqualTo(new string[] { "C:\\notes\\shop.md", "C:\\notes\\older.md" }));
+        Assert.That(Loaded.RecentFiles, Is.EqualTo(["C:\\notes\\shop.md", "C:\\notes\\older.md"]));
 
         SessionSettings Blank = SessionSettings.FromJson("{}");
         Assert.That(Blank.AutoIndent, Is.True);
@@ -214,7 +214,7 @@ public sealed class SettingsFunctionalityTests
         Assert.That(Settings.DarkTheme, Is.True);
         Assert.That(Settings.LastFilePath, Is.EqualTo("kept.md"));
         Assert.That(Settings.PreviewZoom, Is.EqualTo(3));
-        Assert.That(Settings.RecentFiles, Is.EqualTo(new string[] { "kept.md" }));
+        Assert.That(Settings.RecentFiles, Is.EqualTo(["kept.md"]));
     }
 
     [Test]

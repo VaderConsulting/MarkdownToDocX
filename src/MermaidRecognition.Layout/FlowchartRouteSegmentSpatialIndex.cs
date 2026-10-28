@@ -10,7 +10,7 @@ internal sealed class FlowchartRouteSegmentSpatialIndex
 
     private readonly record struct Cell(int X, int Y);
 
-    private readonly Dictionary<Cell, List<int>> _Cells = new Dictionary<Cell, List<int>>();
+    private readonly Dictionary<Cell, List<int>> _Cells = [];
 
     private readonly (double X, double Y)[][] _Paths;
 
@@ -34,8 +34,8 @@ internal sealed class FlowchartRouteSegmentSpatialIndex
             (double X, double Y)[] Path = _Paths[PathIndex];
             for (int Segment = 0; Segment < Path.Length - 1; Segment++)
             {
-                if (FlowchartBranchRouteOrder.Intersections(new[] { (X1, Y1), (X2, Y2) },
-                        new[] { Path[Segment], Path[Segment + 1] }).Overlap > 0.001)
+                if (FlowchartBranchRouteOrder.Intersections([(X1, Y1), (X2, Y2)],
+                        [Path[Segment], Path[Segment + 1]]).Overlap > 0.001)
                 {
                     return true;
                 }
@@ -47,7 +47,7 @@ internal sealed class FlowchartRouteSegmentSpatialIndex
 
     internal IEnumerable<int> PathsOverlapping((double X, double Y)[] Path)
     {
-        HashSet<int> Seen = new HashSet<int>();
+        HashSet<int> Seen = [];
         for (int Segment = 0; Segment < Path.Length - 1; Segment++)
         {
             (double X, double Y) A = Path[Segment];
@@ -68,7 +68,7 @@ internal sealed class FlowchartRouteSegmentSpatialIndex
         {
             if (!_Cells.TryGetValue(Key, out List<int>? Items))
             {
-                _Cells[Key] = Items = new List<int>();
+                _Cells[Key] = Items = [];
             }
 
             Items.Add(PathIndex);
@@ -77,7 +77,7 @@ internal sealed class FlowchartRouteSegmentSpatialIndex
 
     private IEnumerable<int> QueryCells(double X1, double Y1, double X2, double Y2)
     {
-        HashSet<int> Seen = new HashSet<int>();
+        HashSet<int> Seen = [];
         foreach (Cell Key in CellKeys(X1, Y1, X2, Y2))
         {
             if (!_Cells.TryGetValue(Key, out List<int>? Items))

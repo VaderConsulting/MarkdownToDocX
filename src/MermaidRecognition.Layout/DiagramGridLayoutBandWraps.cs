@@ -17,54 +17,69 @@ public static partial class DiagramGridLayout
     /// <returns>The fully routed lowest-cost legal candidate; unrelated diagrams retain their existing path.</returns>
     private static FlowchartLayoutResult ApplyWithRoutedBands(DiagramContract Contract, FlowchartLayoutResult LaidOut, FlowchartRenderContext? RenderContext)
     {
-        var Context = RenderContext ?? LaidOut.RenderContext;
+        FlowchartRenderContext Context = RenderContext ?? LaidOut.RenderContext;
         bool WidthConstrained = Context.LayoutOptions.EnableWidthConstrainedLayout;
         int LayerCount = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
             .Select(Node => EnterpriseElementCatalog.Elements[Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)].Layer)
             .Distinct().Count();
         if (!Context.UseCellRegions || Contract.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open
-            || LayerCount == 0 || LayerCount <= 1 && !WidthConstrained)
+            || LayerCount == 0 || (LayerCount <= 1 && !WidthConstrained))
+        {
             return ApplyCore(Contract, LaidOut, RenderContext, false);
-        var OriginalHints = new BandHintState(Contract);
+        }
+
+        BandHintState OriginalHints = new BandHintState(Contract);
         Context.EnterpriseBandWrapWidth = int.MaxValue;
         FlowchartLayoutResult Best;
         Context.InitialBandCapacityNeeded = false;
         Context.DeferInitialBandCapacity = true;
-        try { using (FlowchartRenderContext.Activate(Context)) Best = ApplyCore(Contract, LaidOut, Context, false); }
+        try { using (FlowchartRenderContext.Activate(Context))
+            {
+                Best = ApplyCore(Contract, LaidOut, Context, false);
+            }
+        }
         finally { Context.DeferInitialBandCapacity = false; }
-        var BestHints = new BandHintState(Contract);
-        var SelectedPlacement = Best;
+        BandHintState BestHints = new BandHintState(Contract);
+        FlowchartLayoutResult SelectedPlacement = Best;
         bool NeedsCapacity = Context.InitialBandCapacityNeeded;
-        var BestScore = FlowchartLayoutScore.Measure(Contract, Best, false);
-        var BestCost = BestScore.Cost;
+        FlowchartLayoutScore.Result BestScore = FlowchartLayoutScore.Measure(Contract, Best, false);
+        FlowchartLayoutScore.ComparisonCost BestCost = BestScore.Cost;
         int RequiredHints = BestScore.HintsHonoured;
         double Padding = MermaidRecognition.Render.FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx;
         bool Legal = BandLayoutIsLegal(Contract, Best);
         BandWrapCandidateObserver?.Invoke(int.MaxValue, Best, BestCost, Legal);
         double BestSpan = FlowchartLayoutScore.PlacementWidth(Best);
         int Width = int.MaxValue;
-        var Records = new List<string>();
+        List<string> Records = [];
         foreach (int CandidateWidth in Context.EnterpriseBandWrapWidths.Where(Value => Value != int.MaxValue))
         {
             OriginalHints.Restore();
-            var CandidateContext = new FlowchartRenderContext { UseCellRegions = true, EnterpriseBandWrapWidth = CandidateWidth,
+            FlowchartRenderContext CandidateContext = new FlowchartRenderContext { UseCellRegions = true, EnterpriseBandWrapWidth = CandidateWidth,
                 LayoutOptions = Context.LayoutOptions,
                 DeferInitialBandCapacity = true,
                 DisableExpandedBendRepairsForTests = Context.DisableExpandedBendRepairsForTests,
                 DisableFinishedBendRepairsForTests = Context.DisableFinishedBendRepairsForTests,
                 UsePreviousEnterpriseBandPaddingForTests = Context.UsePreviousEnterpriseBandPaddingForTests };
             FlowchartLayoutResult Candidate;
-            using (FlowchartRenderContext.Activate(CandidateContext)) Candidate = ApplyCore(Contract, LaidOut, CandidateContext, false);
-            var Score = FlowchartLayoutScore.Measure(Contract, Candidate, false);
+            using (FlowchartRenderContext.Activate(CandidateContext))
+            {
+                Candidate = ApplyCore(Contract, LaidOut, CandidateContext, false);
+            }
+
+            FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Candidate, false);
             bool CandidateLegal = BandLayoutIsLegal(Contract, Candidate);
             BandWrapCandidateObserver?.Invoke(CandidateWidth, Candidate, Score.Cost, CandidateLegal);
             double CandidateSpan = FlowchartLayoutScore.PlacementWidth(Candidate);
-            bool Keep = CandidateLegal && (!WidthConstrained || Score.HintsHonoured >= RequiredHints && BestHints.ActiveHintsRetained()) && (!Legal
+            bool Keep = CandidateLegal && (!WidthConstrained || (Score.HintsHonoured >= RequiredHints && BestHints.ActiveHintsRetained())) && (!Legal
                 || (WidthConstrained
                     ? PreferWidthCandidate(Score, BestScore, Context.LayoutOptions.TargetWidthPx, Padding)
-                    : CandidateSpan < BestSpan - 1e-9 || Math.Abs(CandidateSpan - BestSpan) <= 1e-9 && Score.Cost < BestCost));
+                    : CandidateSpan < BestSpan - 1e-9 || (Math.Abs(CandidateSpan - BestSpan) <= 1e-9 && Score.Cost < BestCost)));
             Records.Add($"BAND_WRAP|width={CandidateWidth}|legal={CandidateLegal}|span={CandidateSpan:R}|score={Score.OptimizationScore:R}|bends={Score.Bends}|crossings={Score.Crossings}|keep={Keep}");
-            if (!Keep) continue;
+            if (!Keep)
+            {
+                continue;
+            }
+
             Width = CandidateWidth; BestCost = Score.Cost; BestSpan = CandidateSpan; Legal = true;
             BestScore = Score;
             SelectedPlacement = Candidate; NeedsCapacity = CandidateContext.InitialBandCapacityNeeded;
@@ -74,7 +89,7 @@ public static partial class DiagramGridLayout
         // Capacity is sized by the winner's initial region producer. Keep the
         // established wrap/order fixed instead of selecting a different layout
         // merely because the new gap widths change its aspect cost.
-        var SelectedCells = SelectedPlacement.CellNodes![0].CellNode!.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot SelectedCells = SelectedPlacement.CellNodes![0].CellNode!.Grid.Capture();
         NeedsCapacity = NeedsCapacity && Enterprise.EnterpriseBandPlacement.PlanInitialRoutingCapacity(
             Contract, SelectedCells.Regions, SelectedCells.Owner, null, SelectedCells).Count > 0;
         if (Width != int.MaxValue || NeedsCapacity)
@@ -83,10 +98,18 @@ public static partial class DiagramGridLayout
             Context.BandSpaceDiagnostics.Clear(); Context.BandPreflightDrops.Clear();
             Context.InitialBandPlacement = NeedsCapacity ? SelectedPlacement.CellNodes![0].CellNode!.Grid.Capture() : null;
             Context.DeferInitialBandCapacity = !NeedsCapacity;
-            try { using (FlowchartRenderContext.Activate(Context)) Best = ApplyCore(Contract, LaidOut, Context, false); }
+            try { using (FlowchartRenderContext.Activate(Context))
+                {
+                    Best = ApplyCore(Contract, LaidOut, Context, false);
+                }
+            }
             finally { Context.InitialBandPlacement = null; Context.DeferInitialBandCapacity = false; }
         }
-        else BestHints.Restore();
+        else
+        {
+            BestHints.Restore();
+        }
+
         Context.BandSpaceDiagnostics.AddRange(Records);
         Context.BandSpaceDiagnostics.Add("BAND_WRAP_SELECTED|width=" + Width + "|score=" + (double)FlowchartLayoutScore.Measure(Contract, Best, false).Cost);
         return NeedsCapacity ? ConfirmReservedCorridorAssignment(Contract, LaidOut, Best, SelectedPlacement,
@@ -101,10 +124,18 @@ public static partial class DiagramGridLayout
     {
         if (Layout.EdgeRoutes.Count != Contract.Edges.Count || Layout.EdgeRoutes.Any(Route => Route.Points.Count < 2)
             || Layout.ClusterBounds.Any(Box => !double.IsFinite(Box.Width) || !double.IsFinite(Box.Height) || Box.Width <= 0 || Box.Height <= 0)
-            || Layout.RenderContext.LayoutStageViolations.Any(Item => Item.Kind is "NoLegalRoute" or "NodeOverlap" or "FrameOverlap")) return false;
-        if (FlowchartRouteRuleChecker.Check(Contract, Layout).Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7")) return false;
-        var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
-        var Prepared = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds);
+            || Layout.RenderContext.LayoutStageViolations.Any(Item => Item.Kind is "NoLegalRoute" or "NodeOverlap" or "FrameOverlap"))
+        {
+            return false;
+        }
+
+        if (FlowchartRouteRuleChecker.Check(Contract, Layout).Any(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7"))
+        {
+            return false;
+        }
+
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+        FlowchartAllocatedPortFallback.PreparedGeometry Prepared = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds);
         return Layout.EdgeRoutes.All(Route => FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route,
             Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Prepared));
     }
@@ -121,16 +152,15 @@ public static partial class DiagramGridLayout
         /// <param name="Contract">Original hint-bearing declarations.</param>
         internal BandHintState(DiagramContract Contract)
         {
-            Placement = Contract.Nodes.Select(Node => Node.PlacementHint).Concat(Contract.Groups.Select(Group => Group.PlacementHint))
-                .OfType<PlacementHintContract>().Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason)).ToArray();
-            Routing = Contract.Edges.Select(Edge => Edge.RoutingHint).OfType<RoutingHintContract>()
-                .Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason)).ToArray();
+            Placement = [.. Contract.Nodes.Select(Node => Node.PlacementHint).Concat(Contract.Groups.Select(Group => Group.PlacementHint))
+                .OfType<PlacementHintContract>().Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason))];
+            Routing = [.. Contract.Edges.Select(Edge => Edge.RoutingHint).OfType<RoutingHintContract>().Select(Hint => (Hint, Hint.IsActive, Hint.UnhonouredReason))];
         }
         /// <summary>Restores exact statuses, leaving regions, routes and caches isolated in their owning contexts.</summary>
         internal void Restore()
         {
-            foreach (var Item in Placement) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
-            foreach (var Item in Routing) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
+            foreach ((PlacementHintContract Hint, bool Active, string? Reason) Item in Placement) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
+            foreach ((RoutingHintContract Hint, bool Active, string? Reason) Item in Routing) { Item.Hint.IsActive = Item.Active; Item.Hint.UnhonouredReason = Item.Reason; }
         }
     }
 }

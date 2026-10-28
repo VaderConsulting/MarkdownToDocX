@@ -129,7 +129,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// Returns a collection of all the labels in the graph.
         /// </summary>
         /// <returns></returns>
-        public ICollection<Label> CollectAllLabels() => Edges.SelectMany(e => e.Labels).ToList();
+        public ICollection<Label> CollectAllLabels() => [.. Edges.SelectMany(e => e.Labels)];
 
         /// <summary>
         /// transforms the graph by the given matrix

@@ -38,7 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 deltaNew = r*r;
                 normRes = Math.Sqrt(deltaNew)/A.NumRow; 
                 double beta = deltaNew/deltaOld;
-                d = r + beta*d;
+                d = r + (beta*d);
             }
 
             return x;
@@ -82,7 +82,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 normRes = Math.Sqrt(r*r) / A.NumRow; 
                 deltaNew = r*s;
                 double beta = deltaNew/deltaOld;
-                d = s + beta*d;
+                d = s + (beta*d);
             }
             return x;
         }
@@ -118,13 +118,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         public static void TestConjugateGradientMethod() {
             //matrix A={{4,1}{1,3}}
 
-            double[] values = new double[4] {4, 1, 1, 3};
-            int[] col_ind = new int[4] {0, 1, 0, 1};
-            int[] row_ptr = new int[3] {0, 2, 4};
+            double[] values = [4, 1, 1, 3];
+            int[] col_ind = [0, 1, 0, 1];
+            int[] row_ptr = [0, 2, 4];
 
-            double[] b = new double[2] {1, 2};
+            double[] b = [1, 2];
 
-            double[] xStart = new double[2] {2, 1};
+            double[] xStart = [2, 1];
             SparseMatrix A = new SparseMatrix(values, col_ind, row_ptr, 2);
 
             double[] res = SolveConjugateGradient(A, b, xStart, 1000, 1E-4);
@@ -136,7 +136,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <summary>
         /// </summary>
         public static void TestConjugateGradientMethod2() {
-            double[] values = new double[28] {
+            double[] values = [
                 4, 1,
                 1, 16, 1,
                 1, 64, 1,
@@ -147,8 +147,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 1, 65536, 1,
                 1, 262144, 1,
                 1, 1048576
-            };
-            int[] colInd = new int[28] {
+            ];
+            int[] colInd = [
                 0, 1,
                 0, 1, 2,
                 1, 2, 3,
@@ -159,12 +159,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 6, 7, 8,
                 7, 8, 9,
                 8, 9
-            };
-            int[] rowPtr = new int[11] {0, 2, 5, 8, 11, 14, 17, 20, 23, 26, 28};
+            ];
+            int[] rowPtr = [0, 2, 5, 8, 11, 14, 17, 20, 23, 26, 28];
 
             SparseMatrix A = new SparseMatrix(values, colInd, rowPtr, rowPtr.Length - 1);
 
-            double[] b = new double[10] {5, 18, 66, 258, 1026, 4098, 16386, 65538, 262146, 1048577};
+            double[] b = [5, 18, 66, 258, 1026, 4098, 16386, 65538, 262146, 1048577];
 
             double[] result1 = SolvePrecondConjugateGradient(A, b, new double[10], 1000, 1E-6);
             string res = result1.Aggregate("", (s, t) => string.Format("{0},\t{1}", s, t));

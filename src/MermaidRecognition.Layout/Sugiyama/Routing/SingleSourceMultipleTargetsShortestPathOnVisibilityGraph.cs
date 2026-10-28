@@ -69,7 +69,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         bool PassableInEdge(VisibilityEdge e) => targets.Contains(e.Source) || e.Target == source || !IsForbidden(e);
 
 
-        internal static bool IsForbidden(VisibilityEdge e) => e.IsPassable != null && !e.IsPassable() || e is TollFreeVisibilityEdge;
+        internal static bool IsForbidden(VisibilityEdge e) => (e.IsPassable != null && !e.IsPassable()) || e is TollFreeVisibilityEdge;
 
         void ProcessNeighbor(GenericBinaryHeapPriorityQueue<VisibilityVertex> pq, VisibilityEdge l,
                              VisibilityVertex v) {
@@ -108,7 +108,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 return null;
             }
 
-            List<VisibilityVertex> ret = new List<VisibilityVertex>();
+            List<VisibilityVertex> ret = [];
             VisibilityVertex v = closestTarget;
             do {
                 ret.Add(v);

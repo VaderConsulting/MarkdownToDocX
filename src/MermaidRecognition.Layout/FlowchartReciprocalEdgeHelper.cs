@@ -33,10 +33,9 @@ public static class FlowchartReciprocalEdgeHelper
             return false;
         }
 
-        List<EdgeContract> VisibleEdges = Contract.Edges
+        List<EdgeContract> VisibleEdges = [.. Contract.Edges
             .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(Edge => Edge.CreationIndex)
-            .ToList();
+            .OrderBy(Edge => Edge.CreationIndex)];
 
         if (VisibleEdges.Count != 2 || Contract.Nodes.Count != 2)
         {
@@ -79,14 +78,14 @@ public static class FlowchartReciprocalEdgeHelper
         if (!MutableById.TryGetValue(FirstEdge.SourceId, out FlowchartLayoutNodeBounds SourceBounds)
             || !MutableById.TryGetValue(FirstEdge.TargetId, out FlowchartLayoutNodeBounds TargetBounds))
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         bool TargetShouldBeAboveSource = Direction == FlowchartDirection.TopToBottom;
         bool TargetIsAboveSource = TargetBounds.CenterY > SourceBounds.CenterY;
         if (TargetShouldBeAboveSource == TargetIsAboveSource)
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         double SourceCenterY = SourceBounds.CenterY;
@@ -107,7 +106,7 @@ public static class FlowchartReciprocalEdgeHelper
             Height = TargetBounds.Height
         };
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -21,16 +23,16 @@ public sealed class ExpandedBendCatalogueMeasurements
         bool Before = Environment.GetEnvironmentVariable("EXPANDED_BEND_PHASE") == "before";
         bool Reference = Environment.GetEnvironmentVariable("EXPANDED_BEND_PHASE") == "overnight-reference";
         string[] Requested = (Environment.GetEnvironmentVariable("EXPANDED_BEND_IDS") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
-        var Stress = CatalogueScenarioPolicy.StressScenarios;
+        IReadOnlySet<string> Stress = CatalogueScenarioPolicy.StressScenarios;
         File.WriteAllText(Output, "");
-        foreach (var Scenario in UnnecessaryBendCatalogueTests.CatalogueScenarios().Select(Case =>
+        foreach (UnnecessaryBendCatalogueTests.CatalogueScenario? Scenario in UnnecessaryBendCatalogueTests.CatalogueScenarios().Select(Case =>
             (UnnecessaryBendCatalogueTests.CatalogueScenario)Case.Arguments[0]!).Where(Case => Requested.Length > 0 ? Requested.Contains(Case.Id) : !Stress.Contains(Case.Id)))
         {
-            var Contract = Scenario.Enterprise ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!) : MermaidRecognizer.Parse(Scenario.Source);
-            var Decisions = new List<string>();
-            var PreviousObserver = FlowchartFinishedLayoutBendRepair.CandidateObserver;
+            DiagramContract Contract = Scenario.Enterprise ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!) : MermaidRecognizer.Parse(Scenario.Source);
+            List<string> Decisions = [];
+            Action<string, bool>? PreviousObserver = FlowchartFinishedLayoutBendRepair.CandidateObserver;
             FlowchartFinishedLayoutBendRepair.CandidateObserver = (Key, Keep) => Decisions.Add((Keep ? "kept|" : "rejected|") + Key);
-            var Timer = Stopwatch.StartNew();
+            Stopwatch Timer = Stopwatch.StartNew();
             FlowchartLayoutResult Layout;
             bool Complete;
             try
@@ -40,11 +42,17 @@ public sealed class ExpandedBendCatalogueMeasurements
             }
             finally { FlowchartFinishedLayoutBendRepair.CandidateObserver = PreviousObserver; }
             double LayoutSeconds = Timer.Elapsed.TotalSeconds;
-            var Findings = Complete ? UnnecessaryBendChecker.Check(Scenario.Id, Contract, Layout) : null;
+            IReadOnlyList<UnnecessaryBendViolation>? Findings = Complete ? UnnecessaryBendChecker.Check(Scenario.Id, Contract, Layout) : null;
             int Crossings = 0;
-            for (int A = 0; A < Layout.EdgeRoutes.Count; A++) for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
-                Crossings += FlowchartBranchRouteOrder.Intersections(Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+            for (int A = 0; A < Layout.EdgeRoutes.Count; A++)
+            {
+                for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+                {
+                    Crossings += FlowchartBranchRouteOrder.Intersections(Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                     Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray()).Crossings;
+                }
+            }
+
             File.AppendAllText(Output, JsonSerializer.Serialize(new { Scenario.Id, Complete, Before, LayoutSeconds,
                 CheckSeconds = Timer.Elapsed.TotalSeconds - LayoutSeconds, Bends = Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)),
                 Crossings, Findings, Decisions,

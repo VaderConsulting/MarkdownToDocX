@@ -43,10 +43,9 @@ public static class FlowchartDisconnectedComponentOrderHelper
 
         Diagram.Layout["HasDisconnectedSingleNodeComponents"] = true;
 
-        List<string> OrderedNodeIds = ComponentNodeIds
+        List<string> OrderedNodeIds = [.. ComponentNodeIds
             .Select(Group => Group[0])
-            .OrderBy(NodeId => GetCreationIndex(Contract, NodeId))
-            .ToList();
+            .OrderBy(NodeId => GetCreationIndex(Contract, NodeId))];
 
         bool HorizontalFlow = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;

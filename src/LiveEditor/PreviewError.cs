@@ -12,9 +12,9 @@ internal sealed class PreviewError
 {
     private string _Description = string.Empty;
 
-    private readonly List<PreviewObject> _Nodes = new List<PreviewObject>();
+    private readonly List<PreviewObject> _Nodes = [];
 
-    private readonly List<PreviewObject> _Relationships = new List<PreviewObject>();
+    private readonly List<PreviewObject> _Relationships = [];
 
     /// <summary>Gets or sets the error description.</summary>
     public string Description
@@ -56,7 +56,7 @@ internal sealed class PreviewError
     /// <returns>The errors. Empty when the script is not enterprise or has none.</returns>
     internal static List<PreviewError> FromScript(IReadOnlyList<PreviewObject> Items, string? Source)
     {
-        List<PreviewError> Errors = new List<PreviewError>();
+        List<PreviewError> Errors = [];
         if (Items == null || string.IsNullOrWhiteSpace(Source) || !EnterpriseParser.IsEnterpriseSource(Source))
         {
             return Errors;
@@ -74,7 +74,7 @@ internal sealed class PreviewError
             {
                 Description = Diagnostic.Message
             };
-            List<PreviewObject> NodeSeeds = new List<PreviewObject>();
+            List<PreviewObject> NodeSeeds = [];
             foreach (PreviewObject Item in Items)
             {
                 bool OnLine = Diagnostic.LineNumber > 0 && Item.LineNumber == Diagnostic.LineNumber;

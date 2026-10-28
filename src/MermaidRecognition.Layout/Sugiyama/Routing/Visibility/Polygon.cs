@@ -228,7 +228,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             Point pointOfP = Pnt(0);
             return delegate(int i) {
                 double d = Point.Angle(pointOfP, point, Pnt(i));
-                return d < Math.PI ? d : d - 2 * Math.PI;
+                return d < Math.PI ? d : d - (2 * Math.PI);
             };
         }
     }

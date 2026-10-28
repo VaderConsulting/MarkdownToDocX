@@ -19,7 +19,7 @@ public sealed class CatalogueLayoutFingerprintTests
         StringBuilder Builder = new StringBuilder();
         foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
             if (!TryLayout(Scenario, out FlowchartLayoutResult? Layout))
             {
                 Builder.AppendLine(Scenario.Id + "\tSKIP\tlayout-failed");

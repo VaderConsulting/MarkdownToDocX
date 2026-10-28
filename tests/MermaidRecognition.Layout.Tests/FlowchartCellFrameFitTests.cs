@@ -25,8 +25,8 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void LateFrameFailureRollsBackPreviouslyAcceptedMoves()
     {
-        var Fixture = Create("TB", false);
-        var Before = Fixture.Grid.Capture();
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string FrameGeometry = FramesOf(Fixture.Frames);
         DiagramGridLayout.GroupFrameRefitObserver = _ => throw new InvalidOperationException("late-frame-rejection");
         try
@@ -45,9 +45,9 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void FrameFitUsesTheExplicitDiagramBudget()
     {
-        var Fixture = Create("TB", false);
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false);
         FlowchartRenderContext.Current.MoveBeforeDetourBudget.CandidateMoves = FlowchartLayoutRules.RepairCandidateMoves;
-        var DiagramContext = new FlowchartRenderContext();
+        FlowchartRenderContext DiagramContext = new FlowchartRenderContext();
         DiagramGridLayout.FitFrames(Fixture.Contract, Fixture.Nodes, Fixture.Frames, false, "explicit-context", DiagramContext);
         Assert.That(DiagramContext.MoveBeforeDetourBudget.CandidateMoves, Is.GreaterThan(0));
         Assert.That(FlowchartRenderContext.Current.MoveBeforeDetourBudget.CandidateMoves,
@@ -60,8 +60,8 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void MixedFrameCoordinateViewsAreRejectedWithoutMutation()
     {
-        var Fixture = Create("TB", false);
-        var Before = Fixture.Grid.Capture();
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string FrameGeometry = FramesOf(Fixture.Frames);
         Fixture.Nodes[0].CellNode!.UseRoutingCoordinates(600);
         Assert.That(() => DiagramGridLayout.FitFrames(Fixture.Contract, Fixture.Nodes, Fixture.Frames, false, "mixed"),
@@ -74,8 +74,8 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void ExhaustedFrameBudgetPreservesTheOriginalGeometry()
     {
-        var Fixture = Create("TB", false);
-        var Before = Fixture.Grid.Capture();
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string FrameGeometry = FramesOf(Fixture.Frames);
         FlowchartRenderContext.Current.MoveBeforeDetourBudget.CandidateMoves = FlowchartLayoutRules.RepairCandidateMoves;
         Assert.That(() => DiagramGridLayout.FitFrames(Fixture.Contract, Fixture.Nodes, Fixture.Frames, false, "budget"),
@@ -89,10 +89,10 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void EmptyFrameDoesNotInventCellOccupancy()
     {
-        var Fixture = Create("TB", false, EmptyGroup: true);
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false, EmptyGroup: true);
         DiagramGridLayout.FitFrames(Fixture.Contract, Fixture.Nodes, Fixture.Frames, false, "empty-frame");
         Assert.That(Fixture.Frames.Any(Frame => Frame.Id == "Empty"), Is.True);
-        Assert.That(Fixture.Grid.Capture().Regions.Keys, Is.EquivalentTo(new[] { "A", "B" }));
+        Assert.That(Fixture.Grid.Capture().Regions.Keys, Is.EquivalentTo(["A", "B"]));
         Assert.That(DiagramGridLayout.CountUnrelatedFrameOverlaps(Fixture.Contract, Fixture.Frames), Is.Zero);
         AssertOccupancy(Fixture.Grid);
     }
@@ -109,18 +109,18 @@ public sealed class FlowchartCellFrameFitTests
     [TestCase("RL", true)]
     public void FrameFitMovesCompleteRegionsInEveryDirection(string Direction, bool Routing)
     {
-        var Fixture = Create(Direction, Routing, Nested: true);
-        var Spans = Fixture.Grid.Capture().Regions;
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create(Direction, Routing, Nested: true);
+        IReadOnlyDictionary<string, FlowchartCellRegion> Spans = Fixture.Grid.Capture().Regions;
         DiagramGridLayout.FitFrames(Fixture.Contract, Fixture.Nodes, Fixture.Frames, Direction is "LR" or "RL", "cell-fixture");
         Assert.That(DiagramGridLayout.CountUnrelatedFrameOverlaps(Fixture.Contract, Fixture.Frames), Is.Zero);
-        foreach (var Node in Fixture.Nodes)
+        foreach (DiagramGridLayout.GridNode Node in Fixture.Nodes)
         {
-            var Region = Fixture.Grid.RegionOf(Node.Id);
+            FlowchartCellRegion Region = Fixture.Grid.RegionOf(Node.Id);
             Assert.That(Region.RowSpan, Is.EqualTo(Spans[Node.Id].RowSpan));
             Assert.That(Region.ColumnSpan, Is.EqualTo(Spans[Node.Id].ColumnSpan));
         }
-        var Parent = Fixture.Frames.Single(Frame => Frame.Id == "Outer");
-        var Child = Fixture.Frames.Single(Frame => Frame.Id == "Left");
+        DiagramGridLayout.GridFrame Parent = Fixture.Frames.Single(Frame => Frame.Id == "Outer");
+        DiagramGridLayout.GridFrame Child = Fixture.Frames.Single(Frame => Frame.Id == "Left");
         Assert.That(Child.Left, Is.GreaterThanOrEqualTo(Parent.Left));
         Assert.That(Child.Right, Is.LessThanOrEqualTo(Parent.Right));
         Assert.That(Math.Min(Child.Top, Child.Bottom), Is.GreaterThanOrEqualTo(Math.Min(Parent.Top, Parent.Bottom)));
@@ -132,10 +132,10 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void DirectEvictionChangesOnlyTheForeignRegion()
     {
-        var Fixture = Create("TB", false, Foreign: true);
-        var Before = Fixture.Grid.Capture();
-        var Foreign = Fixture.Nodes.Single(Node => Node.Id == "B");
-        var Frame = Fixture.Frames.Single();
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false, Foreign: true);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
+        DiagramGridLayout.GridNode Foreign = Fixture.Nodes.Single(Node => Node.Id == "B");
+        DiagramGridLayout.GridFrame Frame = Fixture.Frames.Single();
         Assert.That(DiagramGridLayout.TryEvictNodeFromFrame(Fixture.Contract, Fixture.Nodes, Foreign, Frame), Is.True);
         Assert.That(Fixture.Grid.RegionOf("A"), Is.EqualTo(Before.Regions["A"]));
         Assert.That(Fixture.Grid.RegionOf("B"), Is.Not.EqualTo(Before.Regions["B"]));
@@ -146,10 +146,10 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void LockedOutsiderMovesTheFrameMembersInstead()
     {
-        var Fixture = Create("TB", false, Foreign: true);
-        var Foreign = Fixture.Nodes.Single(Node => Node.Id == "B");
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false, Foreign: true);
+        DiagramGridLayout.GridNode Foreign = Fixture.Nodes.Single(Node => Node.Id == "B");
         Foreign.PlacementHintLocked = true;
-        var Before = Fixture.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         Assert.That(DiagramGridLayout.MoveFrameAwayFromLockedNode(Fixture.Contract, Fixture.Nodes, Foreign,
             Fixture.Frames.Single(), false, DiagramGridMetrics.GRID_UNIT_PX), Is.True);
         Assert.That(Fixture.Grid.RegionOf("B"), Is.EqualTo(Before.Regions["B"]));
@@ -161,13 +161,16 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void ForcedFrameCandidateFailureRollsBackExactly()
     {
-        var Fixture = Create("TB", false);
-        var Before = Fixture.Grid.Capture();
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string FrameGeometry = FramesOf(Fixture.Frames);
-        using var Scope = FlowchartRenderContext.Activate(new());
+        using IDisposable Scope = FlowchartRenderContext.Activate(new());
         DiagramGridLayout.GroupFrameFitPassObserver = Message =>
         {
-            if (Message.StartsWith("cell frame candidate", StringComparison.Ordinal)) throw new InvalidOperationException("forced-frame-rejection");
+            if (Message.StartsWith("cell frame candidate", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("forced-frame-rejection");
+            }
         };
         try
         {
@@ -186,12 +189,12 @@ public sealed class FlowchartCellFrameFitTests
     [Test]
     public void ExternalHintDependentPreventsADirectFrameMove()
     {
-        var Fixture = Create("TB", false, Foreign: true);
+        (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid, List<DiagramGridLayout.GridFrame> Frames) Fixture = Create("TB", false, Foreign: true);
         Fixture.Contract.Nodes.Single(Node => Node.Id == "B").PlacementHint = new()
             { Kind = PlacementHintKind.RightOf, PeerId = "A", IsActive = true };
-        var Foreign = Fixture.Nodes.Single(Node => Node.Id == "B");
+        DiagramGridLayout.GridNode Foreign = Fixture.Nodes.Single(Node => Node.Id == "B");
         Foreign.PlacementHintLocked = true;
-        var Before = Fixture.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         Assert.That(DiagramGridLayout.MoveFrameAwayFromLockedNode(Fixture.Contract, Fixture.Nodes, Foreign,
             Fixture.Frames.Single(), false, DiagramGridMetrics.GRID_UNIT_PX), Is.False);
         Assert.That(Fixture.Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
@@ -209,17 +212,24 @@ public sealed class FlowchartCellFrameFitTests
         string Direction, bool Routing, bool Nested = false, bool Foreign = false, bool EmptyGroup = false)
     {
         string Left = "subgraph Left\nA[Member]\nend";
-        if (Nested) Left = "subgraph Outer\n" + Left + "\nend";
+        if (Nested)
+        {
+            Left = "subgraph Outer\n" + Left + "\nend";
+        }
+
         string Right = Foreign ? "B[Foreign]" : "subgraph Right\nB[Member]\nend";
-        var Contract = MermaidRecognizer.Parse("flowchart " + Direction + "\n" + Left + "\n" + Right
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart " + Direction + "\n" + Left + "\n" + Right
             + (EmptyGroup ? "\nsubgraph Empty\nend" : string.Empty));
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1)); Grid.TryPlace("B", new(0, 1, 1, 1));
-        var Nodes = Contract.Nodes.Select(Node => new DiagramGridLayout.GridNode { Id = Node.Id, GroupId = Node.ParentGroupId }).ToList();
-        foreach (var Node in Nodes)
+        List<DiagramGridLayout.GridNode> Nodes = [.. Contract.Nodes.Select(Node => new DiagramGridLayout.GridNode { Id = Node.Id, GroupId = Node.ParentGroupId })];
+        foreach (DiagramGridLayout.GridNode? Node in Nodes)
         {
             Node.BindCells(Grid);
-            if (Routing) Node.CellNode!.UseRoutingCoordinates(600);
+            if (Routing)
+            {
+                Node.CellNode!.UseRoutingCoordinates(600);
+            }
         }
         List<DiagramGridLayout.GridFrame> Frames = [];
         typeof(DiagramGridLayout).GetMethod(Routing ? "BuildFramesYUp" : "BuildFrames", BindingFlags.NonPublic | BindingFlags.Static)!
@@ -237,16 +247,19 @@ public sealed class FlowchartCellFrameFitTests
     /// <param name="Grid">Authoritative state after a real repair call.</param>
     private static void AssertOccupancy(FlowchartLogicalGrid Grid)
     {
-        var Cells = new HashSet<(int Row, int Column)>();
-        foreach (var Region in Grid.Capture().Regions.Values)
+        HashSet<(int Row, int Column)> Cells = [];
+        foreach (FlowchartCellRegion Region in Grid.Capture().Regions.Values)
         {
             int Count = 0;
             for (int Row = Region.StartRow; Row < Region.EndRow; Row++)
-            for (int Column = Region.StartColumn; Column < Region.EndColumn; Column++)
+            {
+                for (int Column = Region.StartColumn; Column < Region.EndColumn; Column++)
             {
                 Assert.That(Cells.Add((Row, Column)), Is.True);
                 Count++;
             }
+            }
+
             Assert.That(Count, Is.EqualTo(Region.RowSpan * Region.ColumnSpan));
         }
     }

@@ -949,8 +949,7 @@ internal static class FlowchartSharedPictureCleaner
             PortY = Source.CenterY;
         }
 
-        List<(double X, double Y)> Candidate = new List<(double X, double Y)> { (PortX, PortY) };
-        Candidate.AddRange(Guide.Points.Skip(1));
+        List<(double X, double Y)> Candidate = [(PortX, PortY), .. Guide.Points.Skip(1)];
         if (RouteStillBlocked(Contract, BoundsById, Candidate, Guide.Edge.SourceId, Guide.Edge.TargetId)
             || CrossesAnotherGuide(Guides, Guide, Candidate))
         {
@@ -1190,7 +1189,7 @@ internal static class FlowchartSharedPictureCleaner
             return false;
         }
 
-        List<(double X, double Y)> Candidate = new List<(double X, double Y)>();
+        List<(double X, double Y)> Candidate = [];
         for (int PointIndex = 0; PointIndex < Index; PointIndex++)
         {
             Candidate.Add(Guide.Points[PointIndex]);
@@ -2024,7 +2023,7 @@ internal static class FlowchartSharedPictureCleaner
         bool ApproachVertical = Math.Abs(EndX - OtherX) <= Math.Abs(EndY - OtherY);
         double PortX = EndX;
         double PortY = EndY;
-        if (ApproachVertical || AlongSide && VerticalRun)
+        if (ApproachVertical || (AlongSide && VerticalRun))
         {
             PortY = Math.Abs(EndY - Top) <= Math.Abs(EndY - Bottom) ? Top : Bottom;
             if (AlongSide && VerticalRun && Corner > CORNER_INSET_PX)
@@ -2531,9 +2530,11 @@ internal static class FlowchartSharedPictureCleaner
             }
 
             double PortY = Math.Clamp(TipY, Bottom + ARRIVAL_CLEAR_PX, Top - ARRIVAL_CLEAR_PX);
-            List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points);
-            Candidate[Last] = (TipX, PortY);
-            Candidate[Last - 1] = (PrevX, PortY);
+            List<(double X, double Y)> Candidate = new List<(double X, double Y)>(Guide.Points)
+            {
+                [Last] = (TipX, PortY),
+                [Last - 1] = (PrevX, PortY)
+            };
             if (RouteHugsBox(BoundsById, Candidate))
             {
                 return;
@@ -2550,9 +2551,11 @@ internal static class FlowchartSharedPictureCleaner
         }
 
         double PortX = Math.Clamp(TipX, Left + ARRIVAL_CLEAR_PX, Right - ARRIVAL_CLEAR_PX);
-        List<(double X, double Y)> Shifted = new List<(double X, double Y)>(Guide.Points);
-        Shifted[Last] = (PortX, TipY);
-        Shifted[Last - 1] = (PortX, PrevY);
+        List<(double X, double Y)> Shifted = new List<(double X, double Y)>(Guide.Points)
+        {
+            [Last] = (PortX, TipY),
+            [Last - 1] = (PortX, PrevY)
+        };
         if (RouteHugsBox(BoundsById, Shifted))
         {
             return;

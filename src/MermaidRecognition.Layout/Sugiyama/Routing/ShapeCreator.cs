@@ -19,8 +19,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
         /// <returns>the set of obstacles with correct cluster hierarchy and ports</returns>
         public static IEnumerable<Shape> GetShapes(GeometryGraph graph)
         {
-            Dictionary<Node, Shape> nodesToShapes = new Dictionary<Node, Shape>();
-            Node[] interestingNodes = graph.Nodes.Where(n => !n.UnderCollapsedCluster()).ToArray();
+            Dictionary<Node, Shape> nodesToShapes = [];
+            Node[] interestingNodes = [.. graph.Nodes.Where(n => !n.UnderCollapsedCluster())];
             foreach (Node? v in interestingNodes)
             {
                 nodesToShapes[v] = CreateShapeWithCenterPort(v);

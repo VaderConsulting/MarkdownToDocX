@@ -62,8 +62,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 throw new InvalidOperationException();//"wrong params in trimming");
             }
 
-            Point p1 = start <= ParStart ? Start : (1 - start) * a + start * b;
-            Point p2 = end >= ParEnd ? End : (1 - end) * a + end * b;
+            Point p1 = start <= ParStart ? Start : ((1 - start) * a) + (start * b);
+            Point p2 = end >= ParEnd ? End : ((1 - end) * a) + (end * b);
             if (ApproximateComparer.Close(start, end)) {
                 return null;
             }
@@ -122,7 +122,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="t"></param>
         /// <returns></returns>
         public Point this[double t] {
-            get { return a + (b - a) * t; }
+            get { return a + ((b - a) * t); }
         }
 
         /// <summary>

@@ -15,7 +15,7 @@ internal static class FlowchartSelfLoopLabelRouteRepair
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract)
     {
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
-        var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
             .GroupBy(Box => Box.NodeId, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => Route.SourceId == Route.TargetId))
@@ -24,7 +24,11 @@ internal static class FlowchartSelfLoopLabelRouteRepair
                 ?? Contract.Edges.FirstOrDefault(Edge => Edge.SourceId == Route.SourceId
                     && Edge.TargetId == Route.TargetId);
             if (string.IsNullOrWhiteSpace(Edge?.Label) || Edge.RoutingHint?.IsActive == true
-                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Box)) continue;
+                || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Box))
+            {
+                continue;
+            }
+
             FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
                 Edge.Label, Options, Options.EdgeLabelFontSizePx);
             Candidate? Best = Enumerate(Box, Size, Options)
@@ -37,7 +41,11 @@ internal static class FlowchartSelfLoopLabelRouteRepair
                 })
                 .OrderBy(Item => Item.Crossings).ThenBy(Item => Item.Length).ThenBy(Item => Item.Side, StringComparer.Ordinal)
                 .FirstOrDefault();
-            if (Best == null) continue;
+            if (Best == null)
+            {
+                continue;
+            }
+
             Route.Points.Clear(); Route.Points.AddRange(Best.Points.Select(Copy));
             Route.ExitSide = Route.EntrySide = Best.Side;
         }
@@ -49,11 +57,11 @@ internal static class FlowchartSelfLoopLabelRouteRepair
         double OffsetX = Math.Min(DiagramGridMetrics.GRID_UNIT_PX / 2.0, Box.Width / 4.0);
         double OffsetY = Math.Min(DiagramGridMetrics.GRID_UNIT_PX / 2.0, Box.Height / 4.0);
         double Horizontal = RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
-            Size, Options.EdgeLabelFontSizePx, true) + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+            Size, Options.EdgeLabelFontSizePx, true) + (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX));
         double Vertical = RoundGap(FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
-            Size, Options.EdgeLabelFontSizePx, false) + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
-        double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
-        double Bottom = Box.CenterY - Box.Height / 2.0, Top = Box.CenterY + Box.Height / 2.0;
+            Size, Options.EdgeLabelFontSizePx, false) + (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX));
+        double Left = Box.CenterX - (Box.Width / 2.0), Right = Box.CenterX + (Box.Width / 2.0);
+        double Bottom = Box.CenterY - (Box.Height / 2.0), Top = Box.CenterY + (Box.Height / 2.0);
         yield return New("right", [(Right, Box.CenterY + OffsetY), (Right + Horizontal, Box.CenterY + OffsetY),
             (Right + Horizontal, Box.CenterY - OffsetY), (Right, Box.CenterY - OffsetY)]);
         yield return New("left", [(Left, Box.CenterY - OffsetY), (Left - Horizontal, Box.CenterY - OffsetY),
@@ -65,7 +73,7 @@ internal static class FlowchartSelfLoopLabelRouteRepair
     }
 
     private static Candidate New(string Side, IReadOnlyList<(double X, double Y)> Points) => new(
-        Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToList(), Side, 0,
+        [.. Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y })], Side, 0,
         Points.Zip(Points.Skip(1)).Sum(Pair => Math.Abs(Pair.First.X - Pair.Second.X)
             + Math.Abs(Pair.First.Y - Pair.Second.Y)));
 
@@ -74,10 +82,19 @@ internal static class FlowchartSelfLoopLabelRouteRepair
     {
         foreach (FlowchartLayoutNodeBounds Box in Bounds)
         {
-            if (Box.NodeId == NodeId || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, NodeId)) continue;
+            if (Box.NodeId == NodeId || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, NodeId))
+            {
+                continue;
+            }
+
             for (int Index = 1; Index < Points.Count; Index++)
+            {
                 if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
-                    Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Box)) return false;
+                    Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Box))
+                {
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -89,8 +106,8 @@ internal static class FlowchartSelfLoopLabelRouteRepair
         int BeforeCrossings = 0; double BeforeOverlap = 0.0;
         foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes.Where(Other => Other != Route))
         {
-            var Before = FlowchartBranchRouteOrder.Intersections(Tuples(Route.Points), Tuples(Other.Points));
-            var After = FlowchartBranchRouteOrder.Intersections(Tuples(Candidate), Tuples(Other.Points));
+            (int Crossings, double Overlap) Before = FlowchartBranchRouteOrder.Intersections(Tuples(Route.Points), Tuples(Other.Points));
+            (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(Tuples(Candidate), Tuples(Other.Points));
             BeforeCrossings += Before.Crossings; BeforeOverlap += Before.Overlap;
             Crossings += After.Crossings; Overlap += After.Overlap;
         }
@@ -98,7 +115,7 @@ internal static class FlowchartSelfLoopLabelRouteRepair
     }
 
     private static List<(double X, double Y)> Tuples(IEnumerable<FlowchartLayoutPoint> Points) =>
-        Points.Select(Point => (Point.X, Point.Y)).ToList();
+        [.. Points.Select(Point => (Point.X, Point.Y))];
     private static FlowchartLayoutPoint Copy(FlowchartLayoutPoint Point) => new() { X = Point.X, Y = Point.Y };
     private static double RoundGap(double Value) => Math.Ceiling(Value / DiagramGridMetrics.GRID_UNIT_PX)
         * DiagramGridMetrics.GRID_UNIT_PX;

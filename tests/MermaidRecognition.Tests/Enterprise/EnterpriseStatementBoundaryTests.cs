@@ -8,7 +8,7 @@ public sealed class EnterpriseStatementBoundaryTests
     [Test]
     public void Separators_PreserveQuotedPunctuationAndSourceLines()
     {
-        var Result = EnterpriseParser.ParseDocument("enterprise;\napplication-component first \"Text; %% text\"; application-service second;\nfirst -realization-> second; invalid statement here;");
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("enterprise;\napplication-component first \"Text; %% text\"; application-service second;\nfirst -realization-> second; invalid statement here;");
         Assert.That(Result.Document.Elements["first"].Label, Is.EqualTo("Text; %% text"));
         Assert.That(Result.Document.Elements["second"].LineNumber, Is.EqualTo(2));
         Assert.That(Result.Document.Relationships.Single().LineNumber, Is.EqualTo(3));
@@ -18,7 +18,7 @@ public sealed class EnterpriseStatementBoundaryTests
     [Test]
     public void Comment_EndsPhysicalLineAfterSeparatedStatement()
     {
-        var Result = EnterpriseParser.ParseDocument("enterprise; application-component first; %% ignored; invalid\napplication-service second");
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("enterprise; application-component first; %% ignored; invalid\napplication-service second");
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Elements, Has.Count.EqualTo(2));
     }
@@ -26,7 +26,7 @@ public sealed class EnterpriseStatementBoundaryTests
     [Test]
     public void RestOfLineDirectives_KeepSemicolons()
     {
-        var Result = EnterpriseParser.ParseDocument("enterprise\ntitle A; B\naccTitle: C; D\naccDescr: E; F\napplication-component first");
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("enterprise\ntitle A; B\naccTitle: C; D\naccDescr: E; F\napplication-component first");
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Title, Is.EqualTo("A; B"));
         Assert.That(Result.Document.AccessibilityTitle, Is.EqualTo("C; D"));

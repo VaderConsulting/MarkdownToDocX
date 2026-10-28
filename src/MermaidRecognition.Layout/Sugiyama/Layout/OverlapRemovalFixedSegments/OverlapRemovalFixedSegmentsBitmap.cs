@@ -225,7 +225,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
         void DrawLineSegDilated(Point p1, Point p2) {
             PixelPoint a = PointToPixel(p1);
             PixelPoint b = PointToPixel(p2);
-            _bitmap.DrawFatSeg(a, b, (int) (_insertRectSize/(2*_pixelSize)+0.5));
+            _bitmap.DrawFatSeg(a, b, (int) ((_insertRectSize/(2*_pixelSize))+0.5));
         }
 
 
@@ -244,8 +244,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
             double scaleX = _mapWidth/_bbox.Width;
             double scaleY = _mapHeight/_bbox.Height;
-            _worldToMap = new PlaneTransformation(scaleX, 0, mapCenterX - scaleX*worldCenterX,
-                0, scaleY, mapCenterY - scaleY*worldCenterY);
+            _worldToMap = new PlaneTransformation(scaleX, 0, mapCenterX - (scaleX*worldCenterX),
+                0, scaleY, mapCenterY - (scaleY*worldCenterY));
 
             _mapToWorld = _worldToMap.Inverse;
         }

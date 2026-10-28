@@ -238,11 +238,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #if TEST_MSAGL
         internal List<DebugCurve> Test_GetScanLineDebugCurves() {
             // ReSharper restore InconsistentNaming
-            List<DebugCurve> debugCurves = new List<DebugCurve>();
+            List<DebugCurve> debugCurves = [];
 
             // Alternate the colors between green and blue, so that any inconsistency will stand out.
             // Use red to highlight that.
-            string[] colors = { "green", "blue" };
+            string[] colors = ["green", "blue"];
             int index = 0;
             Rectangle bbox = new Rectangle();
             BasicObstacleSide prevSide = null;

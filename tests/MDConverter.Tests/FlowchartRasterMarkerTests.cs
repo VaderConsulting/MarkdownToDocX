@@ -24,7 +24,7 @@ public sealed class FlowchartRasterMarkerTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(Method);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
         StringAssert.Contains(Expanded, "L204.88,28");
         StringAssert.Contains(Expanded, "M204.88,28");
         Assert.IsFalse(Expanded.Contains("marker-end", StringComparison.Ordinal));
@@ -72,7 +72,7 @@ public sealed class FlowchartRasterMarkerTests
         double Radius = double.Parse(EndStadiumMatch.Groups[6].Value, CultureInfo.InvariantCulture);
         double CapCentreY = TopY + Radius;
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
 
         MatchCollection ArrowMatches = Regex.Matches(
             Expanded,
@@ -122,7 +122,7 @@ public sealed class FlowchartRasterMarkerTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(Method);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
         Match StadiumMatch = Regex.Match(
             Expanded,
             @"path d=""(M([\d\.-]+),([\d\.-]+)\s+H([\d\.-]+)\s+A([\d\.-]+),([\d\.-]+)[^""]+)""[^>]*class=""node""[^>]*>\s*<text[^>]*>\s*<tspan[^>]*>End</tspan>",
@@ -169,7 +169,7 @@ public sealed class FlowchartRasterMarkerTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(Method);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
 
         MatchCollection ArrowMatches = Regex.Matches(
             Expanded,
@@ -209,7 +209,7 @@ public sealed class FlowchartRasterMarkerTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(Method);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
         MatchCollection LinkPaths = Regex.Matches(
             Expanded,
             @"<path\b[^>]*\bd=""([^""]+)""[^>]*\bclass=""flowchart-link""",
@@ -242,7 +242,7 @@ public sealed class FlowchartRasterMarkerTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(Method);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
         Assert.IsFalse(Expanded.Contains("marker-end", StringComparison.Ordinal), "Raster expansion should inline arrowheads.");
 
         MatchCollection ArrowMatches = Regex.Matches(
@@ -306,7 +306,7 @@ public sealed class FlowchartRasterMarkerTests
         double LeftX = double.Parse(DiamondMatch.Groups[8].Value, CultureInfo.InvariantCulture);
         double LeftY = double.Parse(DiamondMatch.Groups[9].Value, CultureInfo.InvariantCulture);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
 
         MatchCollection ArrowMatches = Regex.Matches(
             Expanded,
@@ -370,7 +370,7 @@ public sealed class FlowchartRasterMarkerTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(Method);
 
-        string Expanded = (string)Method.Invoke(null, new object[] { Svg })!;
+        string Expanded = (string)Method.Invoke(null, [Svg])!;
 
         MatchCollection PathMatches = Regex.Matches(
             Expanded,

@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -18,18 +19,18 @@ public sealed class CollectorInputPlacementTests
         int Sign = Mirror ? -1 : 1;
         int Half = Count / 2;
         string Source = "flowchart TB\nupstream --> pLast\npLast --> merge\n";
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        List<DiagramGridLayout.GridNode> Nodes = [];
         DiagramGridLayout.GridNode Add(string Id, int Rank, int Cross)
         {
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank,
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank,
                 X = Horizontal ? Rank * 150 : Cross, Y = Horizontal ? Cross : Rank * 150,
                 Width = Horizontal ? 60 : 150, Height = Horizontal ? 150 : 60 };
             Nodes.Add(Node); return Node;
         }
-        var Anchor = Add("pLast", 1, Sign * Half * 210);
+        DiagramGridLayout.GridNode Anchor = Add("pLast", 1, Sign * Half * 210);
         Add("upstream", 0, Sign * Half * 210);
         Add("merge", 2, 0);
-        var Inputs = new List<DiagramGridLayout.GridNode>();
+        List<DiagramGridLayout.GridNode> Inputs = [];
         for (int Index = 0; Index < Count - 1; Index++)
         {
             Source += $"p{Index} --> merge\n";
@@ -52,19 +53,19 @@ public sealed class CollectorInputPlacementTests
     public void IndependentTerminalInput_UsesOuterSideWithoutCrossingMainInput(bool Horizontal, bool Mirror)
     {
         int Sign = Mirror ? -1 : 1;
-        var Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nparent --> tail\nroot --> terminal");
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nparent --> tail\nroot --> terminal");
+        List<DiagramGridLayout.GridNode> Nodes = [];
         DiagramGridLayout.GridNode Add(string Id, int Rank, int Cross)
         {
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank,
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank,
                 X = Horizontal ? Rank * 150 : Cross, Y = Horizontal ? Cross : Rank * 150,
                 Width = Horizontal ? 60 : 150, Height = Horizontal ? 150 : 60 };
             Nodes.Add(Node); return Node;
         }
         Add("upstream", 0, 0); Add("parent", 1, 0);
         Add("tail", 2, 0);
-        var Target = Add("terminal", 2, Sign * 210);
-        var Root = Add("root", 1, -Sign * 210);
+        DiagramGridLayout.GridNode Target = Add("terminal", 2, Sign * 210);
+        DiagramGridLayout.GridNode Root = Add("root", 1, -Sign * 210);
         FlowchartTerminalInputPlacement.Apply(Contract, Nodes, Horizontal, 210);
         Assert.That(Root.Rank, Is.EqualTo(Target.Rank));
         Assert.That(Horizontal ? Root.X : Root.Y, Is.EqualTo(Horizontal ? Target.X : Target.Y));
@@ -75,13 +76,13 @@ public sealed class CollectorInputPlacementTests
     [TestCase(true)]
     public void MainPathTerminal_KeepsItsIndependentInputUpstream(bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nroot --> terminal");
-        var Nodes = new List<DiagramGridLayout.GridNode>
-        {
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> terminal\nroot --> terminal");
+        List<DiagramGridLayout.GridNode> Nodes =
+        [
             new() { Id = "upstream", Rank = 0 }, new() { Id = "parent", Rank = 1 },
             new() { Id = "terminal", Rank = 2, X = 210, Y = 300 },
             new() { Id = "root", Rank = 1, X = -210, Y = -210 }
-        };
+        ];
         FlowchartTerminalInputPlacement.Apply(Contract, Nodes, Horizontal, 210);
         Assert.That(Nodes[^1].Rank, Is.EqualTo(1));
         Assert.That(Nodes[^1].X, Is.EqualTo(-210));
@@ -92,13 +93,13 @@ public sealed class CollectorInputPlacementTests
     [TestCase(true)]
     public void CollectorWithOutgoingPath_KeepsItsIndependentInputUpstream(bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> merge\nroot --> merge\nmerge --> tail");
-        var Nodes = new List<DiagramGridLayout.GridNode>
-        {
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nupstream --> parent\nparent --> merge\nroot --> merge\nmerge --> tail");
+        List<DiagramGridLayout.GridNode> Nodes =
+        [
             new() { Id = "upstream", Rank = 0 }, new() { Id = "parent", Rank = 1 },
             new() { Id = "merge", Rank = 2 }, new() { Id = "tail", Rank = 3 },
             new() { Id = "root", Rank = 1, X = -210, Y = -210 }
-        };
+        ];
         FlowchartTerminalInputPlacement.Apply(Contract, Nodes, Horizontal, 210);
         Assert.That(Nodes[^1].Rank, Is.EqualTo(1));
         Assert.That(Nodes[^1].X, Is.EqualTo(-210));

@@ -14,8 +14,8 @@ public static partial class DiagramGridLayout
     /// <returns>Whether every required extent fit a complete legal reservation plan.</returns>
     internal static bool GrowCellMinimumExtents(List<GridNode> Placed, IReadOnlyDictionary<string, (double Width, double Height)> Minimums)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        return TryPlanCellMinimumExtents(Placed, Minimums, Before.Regions, out var Targets)
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed);
+        return TryPlanCellMinimumExtents(Placed, Minimums, Before.Regions, out Dictionary<string, FlowchartCellRegion>? Targets)
             && FlowchartCellRepair.TryAssign(Placed, Targets);
     }
 
@@ -29,20 +29,31 @@ public static partial class DiagramGridLayout
         IReadOnlyDictionary<string, FlowchartCellRegion> Initial, out Dictionary<string, FlowchartCellRegion> Targets)
     {
         Targets = new Dictionary<string, FlowchartCellRegion>(Initial, StringComparer.Ordinal);
-        foreach (var Node in Placed)
+        foreach (GridNode Node in Placed)
         {
-            if (!Minimums.TryGetValue(Node.Id, out var Minimum)) continue;
+            if (!Minimums.TryGetValue(Node.Id, out (double Width, double Height) Minimum))
+            {
+                continue;
+            }
+
             if (!double.IsFinite(Minimum.Width) || !double.IsFinite(Minimum.Height) || Minimum.Width <= 0 || Minimum.Height <= 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(Minimums), "Measured minimum extents must be finite and positive.");
-            var Region = Targets[Node.Id]; bool Fits = false;
+            }
+
+            FlowchartCellRegion Region = Targets[Node.Id]; bool Fits = false;
             for (int Attempt = 0; Attempt < FlowchartLayoutRules.RepairCandidateMoves; Attempt++)
             {
-                var Bounds = Node.CellNode!.Bounds(Region, Node.GeometryProvider);
+                FlowchartLayoutNodeBounds Bounds = Node.CellNode!.Bounds(Region, Node.GeometryProvider);
                 if (Bounds.Width >= Minimum.Width && Bounds.Height >= Minimum.Height) { Fits = true; break; }
                 Region = new(Region.StartRow, Region.StartColumn, checked(Region.RowSpan + (Bounds.Height < Minimum.Height ? 1 : 0)),
                     checked(Region.ColumnSpan + (Bounds.Width < Minimum.Width ? 1 : 0)));
             }
-            if (!Fits) return false;
+            if (!Fits)
+            {
+                return false;
+            }
+
             Targets[Node.Id] = Region;
         }
         return true;
@@ -56,16 +67,23 @@ public static partial class DiagramGridLayout
     /// <returns>Whether the complete legal capacity plan was published.</returns>
     internal static bool GrowCellCrowdedSides(List<GridNode> Placed, IReadOnlyDictionary<string, int> Counts, int BoxWidth, int BoxHeight)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed);
-        foreach (var Pair in Counts)
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed);
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        foreach (KeyValuePair<string, int> Pair in Counts)
         {
             string[] Parts = Pair.Key.Split('|');
-            if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out var Node) || Pair.Value < 2 || Node.PlacementHintLocked) continue;
+            if (Parts.Length != 2 || !ById.TryGetValue(Parts[0], out GridNode? Node) || Pair.Value < 2 || Node.PlacementHintLocked)
+            {
+                continue;
+            }
+
             bool Width = Parts[1] is "top" or "bottom";
             double Pitch = FlowchartLayoutRules.LineSpacing;
-            if (TryPlanCellPortCapacity(Node, Targets[Node.Id], Parts[1], Pair.Value, Pitch, out var Candidate)) Targets[Node.Id] = Candidate;
+            if (TryPlanCellPortCapacity(Node, Targets[Node.Id], Parts[1], Pair.Value, Pitch, out FlowchartCellRegion? Candidate))
+            {
+                Targets[Node.Id] = Candidate;
+            }
         }
         // Sharing a newly reserved cell rejects every proposed resize. Later
         // joint allocation may choose a free side instead of growing the node.
@@ -87,16 +105,29 @@ public static partial class DiagramGridLayout
         bool Width = Side is "top" or "bottom";
         for (int Attempt = 0; Attempt < FlowchartLayoutRules.RepairCandidateMoves; Attempt++)
         {
-            var Bounds = Node.CellNode!.Bounds(Candidate, Node.GeometryProvider);
-            var Boundary = (Node.GeometryProvider?.Create(Bounds.Width, Bounds.Height) ?? NodeGeometry.Rectangle(Bounds.Width, Bounds.Height)).ConnectionBoundary;
+            FlowchartLayoutNodeBounds Bounds = Node.CellNode!.Bounds(Candidate, Node.GeometryProvider);
+            INodeConnectionBoundary Boundary = (Node.GeometryProvider?.Create(Bounds.Width, Bounds.Height) ?? NodeGeometry.Rectangle(Bounds.Width, Bounds.Height)).ConnectionBoundary;
             // Capacity is the side's centre-out grid (rule 3.2): grow until the default pattern fits.
-            if (!Boundary.TryPort(Side, 0.5, out _)) return false;
+            if (!Boundary.TryPort(Side, 0.5, out _))
+            {
+                return false;
+            }
+
             if (ConnectionPointGrid.TryCentreOutFractions(Boundary, Side, Width ? Bounds.Width : Bounds.Height, Count, out var Fractions))
             {
-                var Ports = new List<NodeGeometryPort>();
+                List<NodeGeometryPort> Ports = [];
                 foreach (double Fraction in Fractions)
-                    if (Boundary.TryPort(Side, Fraction, out var Port)) Ports.Add(Port);
-                if (Ports.Count == Count && FlowchartPortCapacity.Shortfall(Ports, Pitch) <= 0) return true;
+                {
+                    if (Boundary.TryPort(Side, Fraction, out NodeGeometryPort Port))
+                    {
+                        Ports.Add(Port);
+                    }
+                }
+
+                if (Ports.Count == Count && FlowchartPortCapacity.Shortfall(Ports, Pitch) <= 0)
+                {
+                    return true;
+                }
             }
             Candidate = new(Candidate.StartRow, Candidate.StartColumn, checked(Candidate.RowSpan + (Width ? 0 : 1)),
                 checked(Candidate.ColumnSpan + (Width ? 1 : 0)));

@@ -18,30 +18,45 @@ public static partial class UnnecessaryBendChecker
         // These witnesses describe the shared production renderer. Other kinds
         // require their own drawn geometry, not a synthetic flowchart model.
         if (!Contract.Kind.Equals("flowchart", StringComparison.OrdinalIgnoreCase)
-            && !Contract.Kind.Equals("graph", StringComparison.OrdinalIgnoreCase)) yield break;
-        var ById = Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).ToDictionary(Route => Route.EdgeId);
-        if (Layout.NodeBounds.Count == 0) yield break;
-        foreach (var Improvement in FlowchartBendRemovingPortRepair.Inspect(Contract, Layout).GroupBy(Item => Item.LineId).Select(Group => Group.Last()))
+            && !Contract.Kind.Equals("graph", StringComparison.OrdinalIgnoreCase))
         {
-            var Route = ById[Improvement.LineId];
-            var First = Improvement.Points[0]; var Last = Improvement.Points[^1];
+            yield break;
+        }
+
+        Dictionary<string, FlowchartLayoutEdgeRoute> ById = Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).ToDictionary(Route => Route.EdgeId);
+        if (Layout.NodeBounds.Count == 0)
+        {
+            yield break;
+        }
+
+        foreach (FlowchartBendRemovingPortRepair.Improvement? Improvement in FlowchartBendRemovingPortRepair.Inspect(Contract, Layout).GroupBy(Item => Item.LineId).Select(Group => Group.Last()))
+        {
+            FlowchartLayoutEdgeRoute Route = ById[Improvement.LineId];
+            (double X, double Y) First = Improvement.Points[0]; (double X, double Y) Last = Improvement.Points[^1];
             yield return Expanded(DiagramId, Route, 'P', Improvement.Points,
                 $"port-allocation bend; better ports ({First.X:R},{First.Y:R}) -> ({Last.X:R},{Last.Y:R})");
         }
-        foreach (var Route in ById.Values)
+        foreach (FlowchartLayoutEdgeRoute? Route in ById.Values)
         {
             bool Hinted = DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true;
             if (Route.Points.Count > 2 && !Hinted)
             {
-                var Move = FlowchartLayoutAlternatives.Straighten(Contract, Layout, Route);
-                if (Move != null) yield return Expanded(DiagramId, Route, 'S', Better(Move), "placement bend under 5.10; " + Move.Detail);
+                FlowchartLayoutAlternatives.Witness? Move = FlowchartLayoutAlternatives.Straighten(Contract, Layout, Route);
+                if (Move != null)
+                {
+                    yield return Expanded(DiagramId, Route, 'S', Better(Move), "placement bend under 5.10; " + Move.Detail);
+                }
             }
-            var Interior = FlowchartLayoutAlternatives.Interior(Contract, Layout, Route);
-            if (Interior != null) yield return Expanded(DiagramId, Route, 'M', Better(Interior), Interior.Detail);
+            FlowchartLayoutAlternatives.Witness? Interior = FlowchartLayoutAlternatives.Interior(Contract, Layout, Route);
+            if (Interior != null)
+            {
+                yield return Expanded(DiagramId, Route, 'M', Better(Interior), Interior.Detail);
+            }
+
             int Degree = Contract.Edges.Count(Edge => Edge.Stroke != "invisible" && (Edge.SourceId == Route.TargetId || Edge.TargetId == Route.TargetId));
             if (Degree >= 3 && !Hinted && FlowchartLayoutAlternatives.FarSide(Layout, Route))
             {
-                var Facing = FlowchartLayoutAlternatives.FacingHub(Contract, Layout, Route);
+                FlowchartLayoutAlternatives.Witness? Facing = FlowchartLayoutAlternatives.FacingHub(Contract, Layout, Route);
                 yield return Expanded(DiagramId, Route, 'H', Facing == null ? [] : Better(Facing),
                     "hub entry on far side " + Route.EntrySide + (Facing == null ? "; no non-worsening joint alternative found within the existing limits" : "; " + Facing.Detail));
             }
@@ -52,7 +67,7 @@ public static partial class UnnecessaryBendChecker
     /// <param name="Witness">Independently owned candidate.</param>
     /// <returns>Exact better polyline.</returns>
     private static (double X, double Y)[] Better(FlowchartLayoutAlternatives.Witness Witness) =>
-        Witness.Layout.EdgeRoutes.Single(Route => Route.EdgeId == Witness.LineId).Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        [.. Witness.Layout.EdgeRoutes.Single(Route => Route.EdgeId == Witness.LineId).Points.Select(Point => (Point.X, Point.Y))];
 
     /// <summary>Publishes a named expanded finding using the original line's bend and length measurements.</summary>
     /// <param name="DiagramId">Catalogue identity.</param>

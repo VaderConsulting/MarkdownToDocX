@@ -19,8 +19,12 @@ internal static partial class FlowchartGroupedChannelPlacement
     {
         string? A = Sources[0].GroupId, B = Targets[0].GroupId;
         if (A == null || B == null || A == B || Sources.Any(Node => Node.GroupId != A) || Targets.Any(Node => Node.GroupId != B)
-            || Nodes.Count(Node => Node.GroupId == A) != Sources.Length || Nodes.Count(Node => Node.GroupId == B) != Targets.Length) return false;
-        var Members = Sources.Concat(Targets).ToArray(); var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            || Nodes.Count(Node => Node.GroupId == A) != Sources.Length || Nodes.Count(Node => Node.GroupId == B) != Targets.Length)
+        {
+            return false;
+        }
+
+        DiagramGridLayout.GridNode[] Members = [.. Sources, .. Targets]; HashSet<string> Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
         return !Members.Any(Node => Node.PlacementHintLocked)
             && !Contract.Nodes.Any(Node => Ids.Contains(Node.Id) && Node.PlacementHint?.IsActive == true)
             && !Contract.Groups.Any(Group => Group.PlacementHint?.IsActive == true
@@ -35,45 +39,57 @@ internal static partial class FlowchartGroupedChannelPlacement
     internal static bool ApplyCellBlock(List<DiagramGridLayout.GridNode> Nodes, DiagramGridLayout.GridNode[] Sources,
         DiagramGridLayout.GridNode[] Targets)
     {
-        var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Nodes[0].CellNode!.Grid;
-        var Spans = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        foreach (var Node in Sources.Concat(Targets))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes); FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        Dictionary<string, FlowchartCellRegion> Spans = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        foreach (DiagramGridLayout.GridNode? Node in Sources.Concat(Targets))
         {
             bool Source = Sources.Contains(Node);
             if (!DiagramGridLayout.TryPlanCellPortCapacity(Node, Spans[Node.Id], Source ? "right" : "left",
-                Source ? Targets.Length : Sources.Length, DiagramGridMetrics.GRID_UNIT_PX, out var Region)) return false;
+                Source ? Targets.Length : Sources.Length, DiagramGridMetrics.GRID_UNIT_PX, out FlowchartCellRegion? Region))
+            {
+                return false;
+            }
+
             Spans[Node.Id] = Region;
         }
         int SourceRows = Sources.Max(Node => Spans[Node.Id].RowSpan), TargetRows = Targets.Max(Node => Spans[Node.Id].RowSpan);
         int SourceColumns = Sources.Max(Node => Spans[Node.Id].ColumnSpan);
         int Left = Sources.Concat(Targets).Min(Node => Spans[Node.Id].StartColumn), Top = Sources.Concat(Targets).Min(Node => Spans[Node.Id].StartRow);
-        int Tracks = checked(Sources.Length * Targets.Length - Math.Min(Sources.Length, Targets.Length));
-        int Needed = checked(DiagramGridMetrics.CeilToGrid(4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX
-            + Math.Max(0, Tracks - 1) * DiagramGridMetrics.GRID_UNIT_PX) + 2 * DiagramGridMetrics.GRID_UNIT_PX);
+        int Tracks = checked((Sources.Length * Targets.Length) - Math.Min(Sources.Length, Targets.Length));
+        int Needed = checked(DiagramGridMetrics.CeilToGrid((4 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
+            + (Math.Max(0, Tracks - 1) * DiagramGridMetrics.GRID_UNIT_PX)) + (2 * DiagramGridMetrics.GRID_UNIT_PX));
         FlowchartCellRepair.Assignment? Best = null; double BestScore = double.PositiveInfinity;
         for (int ExtraColumns = 0; ExtraColumns < FlowchartLayoutRules.RepairCandidateMoves; ExtraColumns++)
         {
-            var Regions = new Dictionary<string, FlowchartCellRegion>(Spans, StringComparer.Ordinal);
+            Dictionary<string, FlowchartCellRegion> Regions = new Dictionary<string, FlowchartCellRegion>(Spans, StringComparer.Ordinal);
             for (int Index = 0; Index < Sources.Length; Index++)
             {
-                var Region = Spans[Sources[Index].Id]; Regions[Sources[Index].Id] = new(checked(Top + Index * SourceRows), Left, Region.RowSpan, Region.ColumnSpan);
+                FlowchartCellRegion Region = Spans[Sources[Index].Id]; Regions[Sources[Index].Id] = new(checked(Top + (Index * SourceRows)), Left, Region.RowSpan, Region.ColumnSpan);
             }
             for (int Index = 0; Index < Targets.Length; Index++)
             {
-                var Region = Spans[Targets[Index].Id]; Regions[Targets[Index].Id] = new(checked(Top + Index * TargetRows),
+                FlowchartCellRegion Region = Spans[Targets[Index].Id]; Regions[Targets[Index].Id] = new(checked(Top + (Index * TargetRows)),
                     checked(Left + SourceColumns + ExtraColumns), Region.RowSpan, Region.ColumnSpan);
             }
             int After = checked(Left + SourceColumns - 1);
-            double End = Sources.Max(Node => { var Box = Node.CellNode!.Bounds(Regions[Node.Id], Node.GeometryProvider); return Box.CenterX + Box.Width / 2; });
-            double Start = Targets.Min(Node => { var Box = Node.CellNode!.Bounds(Regions[Node.Id], Node.GeometryProvider); return Box.CenterX - Box.Width / 2; });
-            double Missing = Needed - (Start - End); var Growth = new List<FlowchartCellGapGrowth>();
+            double End = Sources.Max(Node => { FlowchartLayoutNodeBounds Box = Node.CellNode!.Bounds(Regions[Node.Id], Node.GeometryProvider); return Box.CenterX + (Box.Width / 2); });
+            double Start = Targets.Min(Node => { FlowchartLayoutNodeBounds Box = Node.CellNode!.Bounds(Regions[Node.Id], Node.GeometryProvider); return Box.CenterX - (Box.Width / 2); });
+            double Missing = Needed - (Start - End); List<FlowchartCellGapGrowth> Growth = [];
             if (Missing > 0)
             {
-                if (Regions.Values.Any(Region => Region.StartColumn <= After && Region.EndColumn > After + 1)) continue;
+                if (Regions.Values.Any(Region => Region.StartColumn <= After && Region.EndColumn > After + 1))
+                {
+                    continue;
+                }
+
                 Growth.Add(new(true, After, Missing, DiagramGridMetrics.GRID_UNIT_PX));
             }
-            var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Regions, Growth);
-            if (Plan == null) continue;
+            FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, Regions, Growth);
+            if (Plan == null)
+            {
+                continue;
+            }
+
             double Score = FlowchartCellCandidateScore.Measure(Nodes, Plan.After).Score;
             if (Score < BestScore) { Best = Plan; BestScore = Score; }
         }

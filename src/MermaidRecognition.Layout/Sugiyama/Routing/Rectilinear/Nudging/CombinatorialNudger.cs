@@ -231,7 +231,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             //Here the visibility graph is always a DAG since the edges point only to North and East
             // where possible
             Queue<VisibilityVertex> sourcesQueue = new Queue<VisibilityVertex>();
-            Dictionary<VisibilityVertex, int> inDegreeLeftUnprocessed = new Dictionary<VisibilityVertex, int>();
+            Dictionary<VisibilityVertex, int> inDegreeLeftUnprocessed = [];
             InitQueueOfSources(sourcesQueue, inDegreeLeftUnprocessed, visibilityGraph);
             while (sourcesQueue.Count > 0){
                 VisibilityVertex visVertex = sourcesQueue.Dequeue();

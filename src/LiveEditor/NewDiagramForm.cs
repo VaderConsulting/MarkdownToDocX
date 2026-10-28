@@ -10,7 +10,7 @@ namespace LiveEditor;
 /// </summary>
 internal sealed partial class NewDiagramForm : Form
 {
-    private readonly List<Button> _Choices = new List<Button>();
+    private readonly List<Button> _Choices = [];
 
     private DiagramKindDefinition? _SelectedKind;
 
@@ -34,8 +34,8 @@ internal sealed partial class NewDiagramForm : Form
 
     private void WireChoices()
     {
-        Button[] Choices = new Button[]
-        {
+        Button[] Choices =
+        [
             Kind_enterprise,
             Kind_flowchart,
             Kind_sequence,
@@ -56,7 +56,7 @@ internal sealed partial class NewDiagramForm : Form
             Kind_radar,
             Kind_treemap,
             Kind_c4
-        };
+        ];
         for (int Index = 0; Index < Choices.Length; Index++)
         {
             _Choices.Add(Choices[Index]);

@@ -20,13 +20,13 @@ public sealed class LayoutDefaultTests
 
     private static byte[] Image(string Source, DiagramLayoutMode? Default)
     {
-        var Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions
+        MarkdownToDocxConverter Converter = new MarkdownToDocxConverter(new MarkdownToDocxOptions
             { Mermaid = new MermaidOptions { DefaultLayout = Default } });
         byte[] Bytes = Converter.ConvertText("```mermaid\n" + Source + "\n```", Environment.CurrentDirectory);
-        using var Stream = new MemoryStream(Bytes);
-        using var Archive = new ZipArchive(Stream, ZipArchiveMode.Read);
-        using var Input = Archive.Entries.First(Entry => Entry.FullName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)).Open();
-        using var Output = new MemoryStream();
+        using MemoryStream Stream = new MemoryStream(Bytes);
+        using ZipArchive Archive = new ZipArchive(Stream, ZipArchiveMode.Read);
+        using Stream Input = Archive.Entries.First(Entry => Entry.FullName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)).Open();
+        using MemoryStream Output = new MemoryStream();
         Input.CopyTo(Output);
         return Output.ToArray();
     }

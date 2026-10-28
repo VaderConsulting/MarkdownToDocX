@@ -19,7 +19,7 @@ namespace MermaidRecognition.Tests.Core;
 public sealed class AllKindParserTests
 {
     private static readonly object[] Cases =
-    {
+    [
         new object[] { "sequenceDiagram\nparticipant alice as Alice\nactor bob as Bob\nalice->>bob: Hi\n", SequenceParser.Default, "alice", "bob" },
         new object[] { "classDiagram\nclass Shop\nclass Cart\nShop --> Cart\n", ClassDiagramParser.Default, "Shop", "Cart" },
         new object[] { "stateDiagram-v2\nstate \"Ready\" as ready\nstate \"Done\" as done\nready --> done\n", StateDiagramParser.Default, "ready", "done" },
@@ -38,7 +38,7 @@ public sealed class AllKindParserTests
         new object[] { "packet-beta\n0-7: \"Type\"\n", PacketParser.Default, "Type", "Type" },
         new object[] { "radar-beta\naxis Speed\n", RadarParser.Default, "Speed", "Speed" },
         new object[] { "treemap-beta\nLeaf: 10\n", TreemapParser.Default, "Leaf", "Leaf" },
-    };
+    ];
 
     [TestCaseSource(nameof(Cases))]
     public void ForSourceFindsKindParser(string Source, Parser Expected, string? FirstId, string? SecondId)

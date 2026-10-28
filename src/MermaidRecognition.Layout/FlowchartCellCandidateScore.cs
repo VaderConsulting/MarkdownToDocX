@@ -15,17 +15,17 @@ internal static class FlowchartCellCandidateScore
     internal static (double Score, double Area) Measure(IReadOnlyList<DiagramGridLayout.GridNode> Nodes,
         FlowchartLogicalGrid.Snapshot State, bool IncludeEmptySpace = true)
     {
-        var Bounds = Nodes.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State)).ToArray();
-        double Width = Bounds.Max(Box => Box.CenterX + Box.Width / 2) - Bounds.Min(Box => Box.CenterX - Box.Width / 2);
-        double Height = Bounds.Max(Box => Box.CenterY + Box.Height / 2) - Bounds.Min(Box => Box.CenterY - Box.Height / 2);
+        FlowchartLayoutNodeBounds[] Bounds = [.. Nodes.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State))];
+        double Width = Bounds.Max(Box => Box.CenterX + (Box.Width / 2)) - Bounds.Min(Box => Box.CenterX - (Box.Width / 2));
+        double Height = Bounds.Max(Box => Box.CenterY + (Box.Height / 2)) - Bounds.Min(Box => Box.CenterY - (Box.Height / 2));
         double Used = IncludeEmptySpace ? Bounds.Sum(Box => (Box.Width + DiagramGridMetrics.NODE_GAP_PX) * (Box.Height + DiagramGridMetrics.NODE_GAP_PX)) : 0;
-        double Empty = IncludeEmptySpace ? Math.Max(0, 1 - Used / Math.Max(1, Width * Height)) : 0;
+        double Empty = IncludeEmptySpace ? Math.Max(0, 1 - (Used / Math.Max(1, Width * Height))) : 0;
         return (FlowchartLayoutScore.Calculate(Width, Height, 0, Empty), Width * Height);
     }
 
     internal static double MeasureWidth(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid.Snapshot State)
     {
-        var Bounds = Nodes.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State)).ToArray();
-        return Bounds.Max(Box => Box.CenterX + Box.Width / 2.0) - Bounds.Min(Box => Box.CenterX - Box.Width / 2.0);
+        FlowchartLayoutNodeBounds[] Bounds = [.. Nodes.Select(Node => Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State))];
+        return Bounds.Max(Box => Box.CenterX + (Box.Width / 2.0)) - Bounds.Min(Box => Box.CenterX - (Box.Width / 2.0));
     }
 }

@@ -300,7 +300,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private bool Intersect(LayerEdge e, LayerEdge m) {
             int a = layerArrays.X[e.Source] - layerArrays.X[m.Source];
             int b = layerArrays.X[e.Target] - layerArrays.X[m.Target];
-            return a > 0 && b < 0 || a < 0 && b > 0;
+            return (a > 0 && b < 0) || (a < 0 && b > 0);
             //return (layerArrays.X[e.Source] - layerArrays.X[m.Source]) * (layerArrays.X[e.Target] - layerArrays.X[m.Target]) < 0;
         }
         #endregion
@@ -442,10 +442,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             while (site != null) {
                 ret.headSite = site.Clone();
                 ret.headSite.Next = v;
-                if (v != null)
-                {
-                    v.Previous = ret.headSite;
-                }
+                v?.Previous = ret.headSite;
 
                 v = ret.headSite;
                 site = site.Next;
@@ -624,7 +621,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             k *= 2; //that was the last k
             if (k < 0.5) {//one time try a smoother seg
-                k = 0.5 * (k + k * 2);
+                k = 0.5 * (k + (k * 2));
                 CubicBezierSegment nseg = Curve.CreateBezierSeg(k, k, a, b, c);
                 if (!BezierSegIntersectsBoundary(nseg)) {
                     b.PreviousBezierSegmentFitCoefficient = b.NextBezierSegmentFitCoefficient = k;

@@ -31,7 +31,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 Point ct = curve.Derivative(t);
                 Point ctt = curve.SecondDerivative(t);
 
-                double secondDerivative = ct * ct + (c - a) * ctt;
+                double secondDerivative = (ct * ct) + ((c - a) * ctt);
 
                 if (Math.Abs(secondDerivative) < ApproximateComparer.Tolerance)
                 {

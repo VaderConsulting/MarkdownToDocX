@@ -17,7 +17,7 @@ public sealed class EnterpriseParseResult
     public EnterpriseParseResult(EnterpriseDocument Document, List<EnterpriseDiagnostic> Diagnostics)
     {
         _Document = Document ?? new EnterpriseDocument();
-        _Diagnostics = Diagnostics ?? new List<EnterpriseDiagnostic>();
+        _Diagnostics = Diagnostics ?? [];
     }
 
     /// <summary>Gets the parsed document.</summary>

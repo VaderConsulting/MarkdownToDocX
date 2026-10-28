@@ -239,7 +239,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         public ICurve Curve
         {
-            get => edgeGeometry != null ? edgeGeometry.Curve : null;
+            get => edgeGeometry?.Curve;
             set
             {
                 RaiseLayoutChangeEvent(value);
@@ -270,21 +270,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             }
 
             Arrowhead? sourceArrow = edgeGeometry.SourceArrowhead;
-            if (sourceArrow != null)
-            {
-                sourceArrow.TipPosition = matrix * sourceArrow.TipPosition;
-            }
+            sourceArrow?.TipPosition = matrix * sourceArrow.TipPosition;
 
             Arrowhead? targetArrow = edgeGeometry.TargetArrowhead;
-            if (targetArrow != null)
-            {
-                targetArrow.TipPosition = matrix * targetArrow.TipPosition;
-            }
+            targetArrow?.TipPosition = matrix * targetArrow.TipPosition;
 
-            if (Label != null)
-            {
-                Label.Center = matrix * LabelBBox.Center;
-            }
+            Label?.Center = matrix * LabelBBox.Center;
         }
 
         /// <summary>
@@ -293,10 +284,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// <param name="delta">amount to shift geometry</param>
         public void Translate(Point delta)
         {
-            if (EdgeGeometry != null)
-            {
-                EdgeGeometry.Translate(delta);
-            }
+            EdgeGeometry?.Translate(delta);
             foreach (Label l in Labels)
             {
                 l.Translate(delta);
@@ -345,12 +333,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             double h = boundaryCurve.BoundingBox.Height;
             Point center = boundaryCurve.BoundingBox.Center;
 
-            Point p0 = new Point(center.X - w / 4, center.Y);
-            Point p1 = new Point(center.X - w / 4, center.Y - h / 2 - howMuchToStickOut);
-            Point p2 = new Point(center.X + w / 4, center.Y - h / 2 - howMuchToStickOut);
-            Point p3 = new Point(center.X + w / 4, center.Y);
+            Point p0 = new Point(center.X - (w / 4), center.Y);
+            Point p1 = new Point(center.X - (w / 4), center.Y - (h / 2) - howMuchToStickOut);
+            Point p2 = new Point(center.X + (w / 4), center.Y - (h / 2) - howMuchToStickOut);
+            Point p3 = new Point(center.X + (w / 4), center.Y);
 
-            smoothedPolyline = SmoothedPolyline.FromPoints(new[] { p0, p1, p2, p3 });
+            smoothedPolyline = SmoothedPolyline.FromPoints([p0, p1, p2, p3]);
 
             return smoothedPolyline.CreateCurve();
         }
@@ -368,11 +356,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             double h = boundaryCurve.BoundingBox.Height;
             Point center = boundaryCurve.BoundingBox.Center;
 
-            Point p0 = new Point(center.X, center.Y - h / 4);
-            Point p1 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y - h / 4);
-            Point p2 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y);
-            Point p3 = new Point(center.X - w / 2 - howMuchToStickOut, center.Y + h / 4);
-            Point p4 = new Point(center.X, center.Y + h / 4);
+            Point p0 = new Point(center.X, center.Y - (h / 4));
+            Point p1 = new Point(center.X - (w / 2) - howMuchToStickOut, center.Y - (h / 4));
+            Point p2 = new Point(center.X - (w / 2) - howMuchToStickOut, center.Y);
+            Point p3 = new Point(center.X - (w / 2) - howMuchToStickOut, center.Y + (h / 4));
+            Point p4 = new Point(center.X, center.Y + (h / 4));
 
             Curve curve = new Curve();
             curve.AddSegment(new CubicBezierSegment(p0, p1, p1, p2));

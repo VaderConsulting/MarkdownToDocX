@@ -125,7 +125,7 @@ internal sealed partial class SelectionPanel : UserControl
 
             if (TypeCombo.Items.Count == 0)
             {
-                List<TypeChoice> Choices = new List<TypeChoice>();
+                List<TypeChoice> Choices = [];
                 foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
                 {
                     if (Metadata.ElementType == EnterpriseElementType.Junction)

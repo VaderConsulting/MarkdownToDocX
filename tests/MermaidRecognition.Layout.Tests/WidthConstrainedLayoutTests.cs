@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
 
@@ -10,8 +11,8 @@ public sealed class WidthConstrainedLayoutTests
     public void SingleLayerFreeNodesUseWidthToAvoidAnUnnecessarilyTallColumn()
     {
         string Source = "enterprise\n" + string.Join("\n", Enumerable.Range(0, 12).Select(I => " application-component a" + I));
-        var Before = Layout(Source, false, 1200);
-        var After = Layout(Source, true, 1200);
+        FlowchartLayoutResult Before = Layout(Source, false, 1200);
+        FlowchartLayoutResult After = Layout(Source, true, 1200);
         Assert.Multiple(() =>
         {
             Assert.That(After.NodeBounds.Count, Is.EqualTo(12));
@@ -27,8 +28,8 @@ public sealed class WidthConstrainedLayoutTests
     {
         string Source = "enterprise\n application-component hub\n" + string.Join("\n", Enumerable.Range(0, 8)
             .Select(I => " application-component a" + I + "\n hub -flow-> a" + I));
-        var Before = Layout(Source, false, 700);
-        var After = Layout(Source, true, 700);
+        FlowchartLayoutResult Before = Layout(Source, false, 700);
+        FlowchartLayoutResult After = Layout(Source, true, 700);
         Assert.That(After.EdgeRoutes.Count, Is.EqualTo(8));
         Assert.That(After.EdgeRoutes.All(Route => Route.Points.Count >= 2), Is.True);
         Assert.That(FlowchartLayoutScore.PlacementWidth(After), Is.LessThan(FlowchartLayoutScore.PlacementWidth(Before)));
@@ -49,8 +50,8 @@ public sealed class WidthConstrainedLayoutTests
     {
         string Source = "enterprise\n direction LR\n" + string.Join("\n", Enumerable.Range(0, 5).Select(I => " application-component a" + I))
             + "\n" + string.Join("\n", Enumerable.Range(0, 4).Select(I => " a" + I + " -flow-> a" + (I + 1)));
-        var Result = Layout(Source, true, 300);
-        var Nodes = Result.NodeBounds.ToDictionary(Node => Node.NodeId);
+        FlowchartLayoutResult Result = Layout(Source, true, 300);
+        Dictionary<string, FlowchartLayoutNodeBounds> Nodes = Result.NodeBounds.ToDictionary(Node => Node.NodeId);
         Assert.That(Enumerable.Range(0, 4).All(I => Nodes["a" + I].CenterX < Nodes["a" + (I + 1)].CenterX), Is.True);
         Assert.That(FlowchartLayoutScore.PlacementWidth(Result), Is.GreaterThan(300));
     }
@@ -59,8 +60,8 @@ public sealed class WidthConstrainedLayoutTests
     public void ExplicitPlacementHintRemainsActive()
     {
         const string Source = "enterprise\n application-component a\n application-component b right-of a";
-        var Graph = Contract(Source);
-        var Context = new FlowchartRenderContext { UseCellRegions = true,
+        DiagramContract Graph = Contract(Source);
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = true,
             LayoutOptions = new() { EnableWidthConstrainedLayout = true, TargetWidthPx = 300 } };
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Graph, Context, out _), Is.True);
         Assert.That(Graph.Nodes.Single(Node => Node.Id == "b").PlacementHint!.IsActive, Is.True);
@@ -73,8 +74,8 @@ public sealed class WidthConstrainedLayoutTests
             + string.Join("\n", Enumerable.Range(0, 5).Select(I => " application-component a" + I
                 + " \"" + (I == 2 ? "This component has enough text to require additional measured space and several wrapped lines" : "Peer " + I)
                 + "\"\n hub -flow-> a" + I));
-        var Graph = Contract(Source);
-        var Result = Layout(Source, true, 700);
+        DiagramContract Graph = Contract(Source);
+        FlowchartLayoutResult Result = Layout(Source, true, 700);
         Assert.That(Result.NodeBounds.Count, Is.EqualTo(6));
         Assert.That(FlowchartLayoutScore.Measure(Graph, Result, false).Overlaps, Is.Zero);
         Assert.That(Result.EdgeRoutes.Count, Is.EqualTo(5));
@@ -90,7 +91,7 @@ public sealed class WidthConstrainedLayoutTests
         try
         {
             string Render(DiagramLayoutOptions Options) => EnterpriseSvgRenderer.Render(EnterpriseValidator.Analyze(Source).Document, Options);
-            var Enabled = new DiagramLayoutOptions { EnableWidthConstrainedLayout = true, TargetWidthPx = 700 };
+            DiagramLayoutOptions Enabled = new DiagramLayoutOptions { EnableWidthConstrainedLayout = true, TargetWidthPx = 700 };
             string Before = Render(DiagramLayoutOptions.Default);
             string After = Render(Enabled);
             Assert.That(After, Is.Not.EqualTo(Before));
@@ -105,9 +106,9 @@ public sealed class WidthConstrainedLayoutTests
 
     private static FlowchartLayoutResult Layout(string Source, bool Enabled, double Width)
     {
-        var Context = new FlowchartRenderContext { UseCellRegions = true,
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = true,
             LayoutOptions = new() { EnableWidthConstrainedLayout = Enabled, TargetWidthPx = Width } };
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract(Source), Context, out var Result), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract(Source), Context, out FlowchartLayoutResult? Result), Is.True);
         return Result;
     }
 }

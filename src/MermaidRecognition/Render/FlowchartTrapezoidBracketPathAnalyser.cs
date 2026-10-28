@@ -117,10 +117,9 @@ public static class FlowchartTrapezoidBracketPathAnalyser
             ? Points.Max(Point => Point.Y)
             : Points.Min(Point => Point.Y);
 
-        List<double> XValues = Points
+        List<double> XValues = [.. Points
             .Where(Point => Math.Abs(Point.Y - TargetY) <= Y_TOLERANCE_PX)
-            .Select(Point => Point.X)
-            .ToList();
+            .Select(Point => Point.X)];
 
         if (XValues.Count < 2)
         {
@@ -145,10 +144,9 @@ public static class FlowchartTrapezoidBracketPathAnalyser
             ? Points.Max(Point => Point.Y)
             : Points.Min(Point => Point.Y);
 
-        List<double> XValues = Points
+        List<double> XValues = [.. Points
             .Where(Point => Math.Abs(Point.Y - TargetY) <= Y_TOLERANCE_PX)
-            .Select(Point => Point.X)
-            .ToList();
+            .Select(Point => Point.X)];
 
         if (XValues.Count == 0)
         {

@@ -275,7 +275,7 @@ public static class DiagramGridMetrics
         int Skip = PortCount % 2 == 0
             && Grid.Count > PortCount
             && Math.Abs(Grid[Ranked[0]] - Middle) <= PORT_GRID_TOLERANCE_PX ? 1 : 0;
-        int[] Chosen = Ranked.Skip(Skip).Take(PortCount).ToArray();
+        int[] Chosen = [.. Ranked.Skip(Skip).Take(PortCount)];
         Array.Sort(Chosen);
         return Chosen;
     }

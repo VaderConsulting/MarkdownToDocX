@@ -162,7 +162,7 @@ public static class MermaidMarkdownFenceExtractor
             return false;
         }
 
-        string[] Lines = Body.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+        string[] Lines = Body.Split(["\r\n", "\n"], StringSplitOptions.None);
         bool SawContent = false;
         foreach (string Line in Lines)
         {

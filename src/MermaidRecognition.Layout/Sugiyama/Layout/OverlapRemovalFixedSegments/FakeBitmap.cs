@@ -21,12 +21,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
                 return 0;
             }
 
-            return _m[x + y*_width];
+            return _m[x + (y*_width)];
         }
 
         int Offset(int x, int y) {
             Debug.Assert(InBounds(x, y));
-            return x + _width*y;
+            return x + (_width*y);
         }
 
         bool InBounds(int x, int y) => 0 <= x && x < _width &&
@@ -153,7 +153,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments 
 
             pixelInside.Y -= 2*sign;
             proj -= 2*sign*perp.Y;
-            Debug.Assert(Math.Abs(proj - 2*sign*perp.Y) <= halfInterval);
+            Debug.Assert(Math.Abs(proj - (2*sign*perp.Y)) <= halfInterval);
         }
 
         internal void DrawFatSegByY(PixelPoint a, PixelPoint b, int halfDistInPixels) {

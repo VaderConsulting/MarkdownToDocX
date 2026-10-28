@@ -1,5 +1,8 @@
 using System;
 using LiveEditor.Editor;
+
+using MermaidRecognition.Layout;
+
 using NUnit.Framework;
 
 namespace LiveEditor.Tests;
@@ -10,7 +13,7 @@ public sealed class LayoutSettingsTests
     [Test]
     public void OlderSessionsKeepAllExperimentsOffAndUseTheDefaultWidth()
     {
-        var Settings = SessionSettings.FromJson("{}");
+        SessionSettings Settings = SessionSettings.FromJson("{}");
         Assert.That(Settings.IncrementalDiagramRouting || Settings.RouteAwareDiagramConstruction || Settings.WidthConstrainedLayout, Is.False);
         Assert.That(Settings.DiagramTargetWidthPx, Is.EqualTo(1200));
     }
@@ -18,12 +21,12 @@ public sealed class LayoutSettingsTests
     [Test]
     public void LayoutChoicesRoundTripInTheSession()
     {
-        var Settings = new SessionSettings
+        SessionSettings Settings = new SessionSettings
         {
             IncrementalDiagramRouting = true, RouteAwareDiagramConstruction = true,
             WidthConstrainedLayout = true, DiagramTargetWidthPx = 900
         };
-        var Restored = SessionSettings.FromJson(Settings.ToJson());
+        SessionSettings Restored = SessionSettings.FromJson(Settings.ToJson());
         Assert.Multiple(() =>
         {
             Assert.That(Restored.IncrementalDiagramRouting, Is.True);
@@ -40,7 +43,7 @@ public sealed class LayoutSettingsTests
     [TestCase(true, true, true)]
     public void SavedChoicesReachTheNextPreviewSnapshot(bool Incremental, bool RouteAware, bool Width)
     {
-        var Before = LiveEditorFeatureGate.CaptureLayoutOptions();
+        DiagramLayoutOptions Before = LiveEditorFeatureGate.CaptureLayoutOptions();
         try
         {
             LiveEditorFeatureGate.ApplyLayoutSettings(new()
@@ -48,7 +51,7 @@ public sealed class LayoutSettingsTests
                 IncrementalDiagramRouting = Incremental, RouteAwareDiagramConstruction = RouteAware,
                 WidthConstrainedLayout = Width, DiagramTargetWidthPx = 900
             });
-            var After = LiveEditorFeatureGate.CaptureLayoutOptions();
+            DiagramLayoutOptions After = LiveEditorFeatureGate.CaptureLayoutOptions();
             Assert.Multiple(() =>
             {
                 Assert.That(After.EnableIncrementalRouting, Is.EqualTo(Incremental));
@@ -73,7 +76,7 @@ public sealed class LayoutSettingsTests
     [TestCase(int.MaxValue, SessionSettings.MAXIMUM_DIAGRAM_TARGET_WIDTH_PX)]
     public void InvalidSavedWidthsAreClampedBeforeReachingLayout(int Saved, int Expected)
     {
-        var Before = LiveEditorFeatureGate.CaptureLayoutOptions();
+        DiagramLayoutOptions Before = LiveEditorFeatureGate.CaptureLayoutOptions();
         try
         {
             LiveEditorFeatureGate.ApplyLayoutSettings(new() { WidthConstrainedLayout = true, DiagramTargetWidthPx = Saved });

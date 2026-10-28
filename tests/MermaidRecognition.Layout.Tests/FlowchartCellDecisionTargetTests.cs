@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -12,8 +14,8 @@ public sealed class FlowchartCellDecisionTargetTests
     [TestCase(true)]
     public void OutcomesUseOppositeWholeCellSideLanes(bool Horizontal)
     {
-        var (Contract, Nodes, Grid) = Fixture(Horizontal);
-        var Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
         Invoke(Contract, Nodes, Horizontal);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
@@ -23,10 +25,10 @@ public sealed class FlowchartCellDecisionTargetTests
     [Test]
     public void BlockedSecondOutcomeRejectsBothMoves()
     {
-        var (Contract, Nodes, Grid) = Fixture(false);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(false);
         Grid.TryPlace("O", new(4, 3, 1, 1));
-        var O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
-        var Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        DiagramGridLayout.GridNode O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
         Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
@@ -38,7 +40,7 @@ public sealed class FlowchartCellDecisionTargetTests
     /// <param name="Horizontal">Flow orientation.</param>
     private static void Invoke(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        var Method = typeof(DiagramGridLayout).GetMethod("AlignTerminalDecisionTargets", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        MethodInfo Method = typeof(DiagramGridLayout).GetMethod("AlignTerminalDecisionTargets", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
         Method.Invoke(null, [Contract, Nodes, Horizontal, DiagramGridMetrics.GRID_UNIT_PX, false]);
         Method.Invoke(null, [Contract, Nodes, Horizontal, DiagramGridMetrics.GRID_UNIT_PX, true]);
     }
@@ -48,13 +50,17 @@ public sealed class FlowchartCellDecisionTargetTests
     /// <returns>Contract, bound members and their common grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool Horizontal)
     {
-        var Contract = new DiagramContract(); var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        DiagramContract Contract = new DiagramContract(); FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("D", new(Horizontal ? 2 : 1, Horizontal ? 1 : 2, 2, 1));
         Grid.TryPlace("A", new(Horizontal ? 0 : 4, Horizontal ? 4 : 0, 1, 1));
         Grid.TryPlace("B", new(4, 4, 1, 1));
-        var Nodes = new List<DiagramGridLayout.GridNode> { new() { Id = "D", IsDiamond = true, Rank = 0, Column = 2 },
-            new() { Id = "A", Rank = 1, Column = 0 }, new() { Id = "B", Rank = 1, Column = 4 } };
-        foreach (var Node in Nodes) Node.BindCells(Grid);
+        List<DiagramGridLayout.GridNode> Nodes = [ new() { Id = "D", IsDiamond = true, Rank = 0, Column = 2 },
+            new() { Id = "A", Rank = 1, Column = 0 }, new() { Id = "B", Rank = 1, Column = 4 } ];
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            Node.BindCells(Grid);
+        }
+
         Contract.EdgesMutable.AddRange([new() { SourceId = "D", TargetId = "A" }, new() { SourceId = "D", TargetId = "B" }]);
         return (Contract, Nodes, Grid);
     }

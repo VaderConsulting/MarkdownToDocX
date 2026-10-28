@@ -37,7 +37,11 @@ public abstract class ProductionCatalogueTestFixture
     [TearDown]
     public void RestoreCataloguePath()
     {
-        if (ObserveProgress) DiagramGridLayout.PublishedLayoutObserver = PreviousObserver;
+        if (ObserveProgress)
+        {
+            DiagramGridLayout.PublishedLayoutObserver = PreviousObserver;
+        }
+
         AppContext.SetSwitch(FlowchartRenderContext.CellRegionsSwitch, PreviousCells);
     }
 }

@@ -63,7 +63,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             }
             else if (Count <= 2)
             {
-                _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(_rootNode.GetAllLeafNodes().Concat(new[] {node}));
+                _rootNode = RectangleNode<TData>.CreateRectangleNodeOnEnumeration(_rootNode.GetAllLeafNodes().Concat([node]));
             }
             else
             {
@@ -125,14 +125,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// return all the data elements stored at the leaves of the BSPTree in an IEnumerable
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<TData> GetAllLeaves() => _rootNode != null && Count > 0 ? _rootNode.GetAllLeaves() : new TData[0];
+        public IEnumerable<TData> GetAllLeaves() => _rootNode != null && Count > 0 ? _rootNode.GetAllLeaves() : [];
 
         /// <summary>
         /// Get all data items with rectangles intersecting the specified rectangular region
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        public TData[] GetAllIntersecting(Rectangle queryRegion) => _rootNode == null || Count == 0 ? new TData[0] : _rootNode.GetNodeItemsIntersectingRectangle(queryRegion).ToArray();
+        public TData[] GetAllIntersecting(Rectangle queryRegion) => _rootNode == null || Count == 0 ? [] : [.. _rootNode.GetNodeItemsIntersectingRectangle(queryRegion)];
 
         public bool OneIntersecting(Rectangle queryRegion, out TData? intersectedLeaf) {
             if (_rootNode == null || Count == 0) {
@@ -153,7 +153,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        internal IEnumerable<RectangleNode<TData>> GetAllLeavesIntersectingRectangle(Rectangle queryRegion) => _rootNode == null || Count == 0 ? new RectangleNode<TData>[0] : _rootNode.GetLeafRectangleNodesIntersectingRectangle(queryRegion);
+        internal IEnumerable<RectangleNode<TData>> GetAllLeavesIntersectingRectangle(Rectangle queryRegion) => _rootNode == null || Count == 0 ? [] : _rootNode.GetLeafRectangleNodesIntersectingRectangle(queryRegion);
 
         /// <summary>
         /// Does minimal work to determine if any objects in the tree intersect with the query region

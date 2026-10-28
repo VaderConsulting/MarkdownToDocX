@@ -91,7 +91,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             do { 
                 e=e.Next;
                 if (e.Start.Point.X < pivot.Start.Point.X ||
-                    e.Start.Point.X == pivot.Start.Point.X && e.Start.Point.Y < pivot.Start.Point.Y)
+                    (e.Start.Point.X == pivot.Start.Point.X && e.Start.Point.Y < pivot.Start.Point.Y))
                 {
                     pivot = e;
                 }
@@ -147,7 +147,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         }
 
         void RemoveP1AndP2Triangles() {
-            Set<CdtTriangle> trianglesToRemove = new Set<CdtTriangle>();
+            Set<CdtTriangle> trianglesToRemove = [];
             foreach (CdtTriangle t in triangles)
             {
                 if (t.Sites.Contains(p_1) || t.Sites.Contains(p_2))
@@ -237,7 +237,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
 #if DEBUG && TEST_MSAGL
         void ShowFrontWithSite(CdtSite site, params ICurve[] redCurves) {
-            List<DebugCurve> ls = new List<DebugCurve>();
+            List<DebugCurve> ls = [];
 
 
             if (site.Edges != null)
@@ -335,7 +335,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
 
 #if DEBUG && TEST_MSAGL
         void TestTriangles() {
-            Set<CdtSite> usedSites = new Set<CdtSite>();
+            Set<CdtSite> usedSites = [];
             foreach(CdtTriangle t in Triangles)
             {
                 usedSites.InsertRange(t.Sites);
@@ -785,10 +785,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
             double bydy = b.Point.Y - d.Point.Y;
             double cxdx = c.Point.X - d.Point.X;
             double cydy = c.Point.Y - d.Point.Y;
-            double t0 = axdx * axdx + aydy * aydy;
-            double t1 = bxdx * bxdx + bydy * bydy;
-            double t2 = cxdx * cxdx + cydy * cydy;
-            return axdx * (bydy * t2 - cydy * t1) - bxdx * (aydy * t2 - cydy * t0) + cxdx * (aydy * t1 - bydy * t0) > ApproximateComparer.Tolerance;                    
+            double t0 = (axdx * axdx) + (aydy * aydy);
+            double t1 = (bxdx * bxdx) + (bydy * bydy);
+            double t2 = (cxdx * cxdx) + (cydy * cydy);
+            return (axdx * ((bydy * t2) - (cydy * t1))) - (bxdx * ((aydy * t2) - (cydy * t0))) + (cxdx * ((aydy * t1) - (bydy * t0))) > ApproximateComparer.Tolerance;                    
         }
 
       /// <summary>

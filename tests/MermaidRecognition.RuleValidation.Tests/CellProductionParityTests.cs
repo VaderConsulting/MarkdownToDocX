@@ -27,20 +27,24 @@ public sealed class CellProductionParityTests
         FlowchartLayoutResult? Reference = null;
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, false, (Contract, Layout) =>
         { ReferenceContract = Contract; Reference = Layout; });
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        var Context = new FlowchartRenderContext { UseCellRegions = true };
-        bool Complete = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out var Production);
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = true };
+        bool Complete = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out FlowchartLayoutResult? Production);
         Assert.That(Complete, Is.EqualTo(Reference != null));
-        if (!Complete) return;
+        if (!Complete)
+        {
+            return;
+        }
+
         Assert.That(Snapshot(Contract, Production), Is.EqualTo(Snapshot(ReferenceContract!, Reference!)),
             "Production activation must not alter the last audited cell layout.");
         Assert.That(Context.RejectedCellPixelWrites, Is.Empty);
         if (Production.CellNodes != null)
         {
             Assert.That(CellGridAudit.Faults(Contract, Production, Production.CellNodes), Is.Empty);
-            Assert.That(FlowchartPlacementHints.CellHintsMatch(Contract, Production.CellNodes.ToList(),
+            Assert.That(FlowchartPlacementHints.CellHintsMatch(Contract, [.. Production.CellNodes],
                 FlowchartCellRepair.Capture(Production.CellNodes).Regions), Is.True);
         }
         TestContext.Out.WriteLine($"CELL_PRODUCTION_PARITY|{Scenario.Id}|bends={Production.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points))}|equal=True");

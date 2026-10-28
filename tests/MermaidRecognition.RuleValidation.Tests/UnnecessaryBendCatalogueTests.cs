@@ -22,7 +22,9 @@ public sealed class UnnecessaryBendCatalogueTests
     {
         string Root = FindRepositoryRoot();
         foreach (CatalogueScenario Scenario in ReadCatalogue(Root))
+        {
             yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Scenario).SetName($"CatalogueScenario_{Scenario.Id}_DoesNotExceedBendBaseline"), Scenario.Id);
+        }
     }
 
     [TestCaseSource(nameof(CatalogueScenarios))]
@@ -66,12 +68,18 @@ public sealed class UnnecessaryBendCatalogueTests
         }
         CheckTimer.Stop();
         if (CheckTimer.Elapsed > TimeSpan.FromSeconds(10))
+        {
             TestContext.WriteLine($"SPEED_FAULT {Scenario.Id}: {CheckTimer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
+        }
+
         List<string> Regressions = [];
         foreach (UnnecessaryBendViolation Violation in Violations)
         {
             string Key = Violation.Check + ":" + Violation.LineId;
-            if (!Allowed.Contains(Key)) Regressions.Add(Key);
+            if (!Allowed.Contains(Key))
+            {
+                Regressions.Add(Key);
+            }
         }
         TestContext.Out.WriteLine($"{Scenario.Id}: {Layout.EdgeRoutes.Count} routes, {Violations.Count} bend findings, {Regressions.Count} new findings.");
         Assert.That(HasBaseline, Is.True, $"Scenario {Scenario.Id} was laid out and scored with {Violations.Count} findings, but is missing from the checked-in bend baseline.");
@@ -84,9 +92,9 @@ public sealed class UnnecessaryBendCatalogueTests
         string Root = FindRepositoryRoot();
         string BaselinePath = Path.Combine(Root, "tests", "MermaidRecognition.RuleValidation.Tests", "UnnecessaryBendBaseline.txt");
         Assert.That(File.Exists(BaselinePath), Is.True, "The checked-in unnecessary-bend baseline is required and must not be recreated by the test.");
-        CatalogueScenario[] Scenarios = ReadCatalogue(Root).ToArray();
+        CatalogueScenario[] Scenarios = [.. ReadCatalogue(Root)];
         Dictionary<string, HashSet<string>> Baseline = ReadBaseline(BaselinePath);
-        ScenarioResult[] Results = Scenarios.Select(Scenario => new ScenarioResult(Scenario.Id, 0, true, [])).ToArray();
+        ScenarioResult[] Results = [.. Scenarios.Select(Scenario => new ScenarioResult(Scenario.Id, 0, true, []))];
         Assert.That(Scenarios, Is.Not.Empty, "At least one catalogue diagram must be extracted and scored.");
         AssertBaselineCoversExactlyTheScoredScenarios(Results, Baseline);
     }
@@ -115,21 +123,32 @@ public sealed class UnnecessaryBendCatalogueTests
     private static int CountOrthogonalCrossings(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second)
     {
         HashSet<(long X, long Y)> Crossings = [];
-        foreach (var A in First.Points.Zip(First.Points.Skip(1)))
-        foreach (var B in Second.Points.Zip(Second.Points.Skip(1)))
+        foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) A in First.Points.Zip(First.Points.Skip(1)))
+        {
+            foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) B in Second.Points.Zip(Second.Points.Skip(1)))
         {
             bool AVertical = Math.Abs(A.First.X - A.Second.X) < 0.01;
             bool BVertical = Math.Abs(B.First.X - B.Second.X) < 0.01;
-            if (AVertical == BVertical) continue;
-            var Vertical = AVertical ? A : B;
-            var Horizontal = AVertical ? B : A;
+            if (AVertical == BVertical)
+                {
+                    continue;
+                }
+
+                (FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Vertical = AVertical ? A : B;
+                (FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Horizontal = AVertical ? B : A;
             double X = Vertical.First.X, Y = Horizontal.First.Y;
             if (X <= Math.Min(Horizontal.First.X, Horizontal.Second.X) + 0.01
                 || X >= Math.Max(Horizontal.First.X, Horizontal.Second.X) - 0.01
                 || Y <= Math.Min(Vertical.First.Y, Vertical.Second.Y) + 0.01
-                || Y >= Math.Max(Vertical.First.Y, Vertical.Second.Y) - 0.01) continue;
-            Crossings.Add(((long)Math.Round(X * 1000), (long)Math.Round(Y * 1000)));
+                || Y >= Math.Max(Vertical.First.Y, Vertical.Second.Y) - 0.01)
+                {
+                    continue;
+                }
+
+                Crossings.Add(((long)Math.Round(X * 1000), (long)Math.Round(Y * 1000)));
         }
+        }
+
         return Crossings.Count;
     }
 
@@ -149,8 +168,8 @@ public sealed class UnnecessaryBendCatalogueTests
         IReadOnlyDictionary<string, HashSet<string>> Baseline)
     {
         HashSet<string> ScoredScenarioIds = Results.Select(Result => Result.Id).ToHashSet(StringComparer.Ordinal);
-        string[] Missing = ScoredScenarioIds.Except(Baseline.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        string[] Unknown = Baseline.Keys.Except(ScoredScenarioIds, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        string[] Missing = [.. ScoredScenarioIds.Except(Baseline.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+        string[] Unknown = [.. Baseline.Keys.Except(ScoredScenarioIds, StringComparer.Ordinal).Order(StringComparer.Ordinal)];
         Assert.That(Missing, Is.Empty,
             "The bend baseline must include every scored scenario. Missing: " + string.Join(", ", Missing));
         Assert.That(Unknown, Is.Empty,
@@ -163,7 +182,7 @@ public sealed class UnnecessaryBendCatalogueTests
     private static IEnumerable<CatalogueScenario> ReadCatalogue(string Root) =>
         RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
             return new CatalogueScenario(Scenario.Id, Scenario.Source, Scenario.Enterprise);
         });
     private static Dictionary<string, HashSet<string>> ReadBaseline(string PathValue)
@@ -171,7 +190,11 @@ public sealed class UnnecessaryBendCatalogueTests
         Dictionary<string, HashSet<string>> Result = new(StringComparer.Ordinal);
         foreach (string Line in File.ReadLines(PathValue))
         {
-            if (string.IsNullOrWhiteSpace(Line) || Line.StartsWith('#')) continue;
+            if (string.IsNullOrWhiteSpace(Line) || Line.StartsWith('#'))
+            {
+                continue;
+            }
+
             string[] Parts = Line.Split('\t');
             Result[Parts[0]] = Parts.Skip(2).Where(Value => Value.Length > 0).ToHashSet(StringComparer.Ordinal);
         }
@@ -192,11 +215,16 @@ public sealed class UnnecessaryBendCatalogueTests
         TestContext.Out.WriteLine($"Totals: a={Total('a')}, b={Total('b')}, c={Total('c')}, d={Total('d')}, e={Total('e')}, "
             + $"f={Total('f')}, g={Total('g')}, h={Total('h')}, i={Total('i')}, j={Total('j')}, k={Total('k')}");
         foreach (ScenarioResult Result in Results.Where(Result => Result.Violations.Count > 0))
-        foreach (UnnecessaryBendViolation Violation in Result.Violations)
-            TestContext.Out.WriteLine($"{Result.Id} {Violation.LineId} check {Violation.Check}: "
+        {
+            foreach (UnnecessaryBendViolation Violation in Result.Violations)
+            {
+                TestContext.Out.WriteLine($"{Result.Id} {Violation.LineId} check {Violation.Check}: "
                 + $"{Violation.RoutedCorners} corners, length {Violation.RoutedLength.ToString("0.#", CultureInfo.InvariantCulture)}; better "
                 + string.Join(" ", Violation.BetterRoute.Select(Point =>
                     $"({Point.X.ToString("0.#", CultureInfo.InvariantCulture)},{Point.Y.ToString("0.#", CultureInfo.InvariantCulture)})")));
+            }
+        }
+
         TestContext.Out.WriteLine("Top 10: " + string.Join(", ", Results.OrderByDescending(Result => Result.Violations.Count)
             .ThenBy(Result => Result.Id, StringComparer.Ordinal).Take(10)
             .Select(Result => Result.Id + "=" + Result.Violations.Count.ToString(CultureInfo.InvariantCulture))));
@@ -205,8 +233,14 @@ public sealed class UnnecessaryBendCatalogueTests
     private static string FindRepositoryRoot()
     {
         for (DirectoryInfo? Cursor = new(AppContext.BaseDirectory); Cursor != null; Cursor = Cursor.Parent)
+        {
             if (File.Exists(Path.Combine(Cursor.FullName, "flow.md"))
-                && File.Exists(Path.Combine(Cursor.FullName, "docs", "currentstatus.md"))) return Cursor.FullName;
+                && File.Exists(Path.Combine(Cursor.FullName, "docs", "currentstatus.md")))
+            {
+                return Cursor.FullName;
+            }
+        }
+
         throw new DirectoryNotFoundException("Repository root containing flow.md was not found.");
     }
 }

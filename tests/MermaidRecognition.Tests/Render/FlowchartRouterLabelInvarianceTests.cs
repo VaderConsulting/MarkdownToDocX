@@ -13,7 +13,7 @@ namespace MermaidRecognition.Tests.Render;
 public sealed class FlowchartRouterLabelInvarianceTests
 {
     private static readonly (string First, string Second)[] LABEL_VARIANTS =
-    {
+    [
         ("Yes", "No"),
         ("True", "False"),
         ("1", "0"),
@@ -22,13 +22,13 @@ public sealed class FlowchartRouterLabelInvarianceTests
         ("α", "β"),
         ("very long branch label A", "very long branch label B"),
         ("Done", "End")
-    };
+    ];
 
     [Test]
     public void G12_LabelInvariance_All_Label_Variants_Produce_Identical_Route_Structure()
     {
         List<List<(FlowchartRouteKind Kind, int SourceBranch, int TargetJoin)>> Signatures =
-            new List<List<(FlowchartRouteKind Kind, int SourceBranch, int TargetJoin)>>();
+            [];
 
         foreach ((string First, string Second) Variant in LABEL_VARIANTS)
         {
@@ -59,7 +59,7 @@ public sealed class FlowchartRouterLabelInvarianceTests
         List<(FlowchartRouteKind Kind, int SourceBranch, int TargetJoin)> BaselineSignature =
             BuildSignature(BaselineResult);
 
-        Dictionary<EdgeContract, string?> OriginalLabels = new Dictionary<EdgeContract, string?>();
+        Dictionary<EdgeContract, string?> OriginalLabels = [];
 
         foreach (EdgeContract Edge in Contract.Edges)
         {
@@ -141,11 +141,10 @@ public sealed class FlowchartRouterLabelInvarianceTests
     private static List<(FlowchartRouteKind Kind, int SourceBranch, int TargetJoin)> BuildSignature(
         FlowchartRouteResult Result)
     {
-        return Result.Routes
+        return [.. Result.Routes
             .OrderBy(Route => Route.SourceId, StringComparer.Ordinal)
             .ThenBy(Route => Route.TargetId, StringComparer.Ordinal)
-            .Select(Route => (Route.Kind, Route.SourceBranchIndex, Route.TargetJoinIndex))
-            .ToList();
+            .Select(Route => (Route.Kind, Route.SourceBranchIndex, Route.TargetJoinIndex))];
     }
 
     private static string FindRepositoryRoot()

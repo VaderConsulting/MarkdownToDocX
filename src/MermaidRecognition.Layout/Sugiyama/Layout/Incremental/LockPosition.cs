@@ -140,10 +140,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             }
             foreach (Cluster ancestor in node.AllClusterAncestors)
             {
-                if (ancestor.RectangularBoundary != null)
-                {
-                    ancestor.RectangularBoundary.GenerateFixedConstraints = false;
-                }
+                ancestor.RectangularBoundary?.GenerateFixedConstraints = false;
                 ancestor.UnsetInitialLayoutState();
             }
         }
@@ -171,10 +168,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             Cluster parent = node.ClusterParents.FirstOrDefault();
             while (parent != null)
             {
-                if (parent.RectangularBoundary != null)
-                {
-                    parent.RectangularBoundary.GenerateFixedConstraints = parent.RectangularBoundary.GenerateFixedConstraintsDefault;
-                }
+                parent.RectangularBoundary?.GenerateFixedConstraints = parent.RectangularBoundary.GenerateFixedConstraintsDefault;
                 parent = parent.ClusterParents.FirstOrDefault();
             }
         }
@@ -194,7 +188,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         {
             get
             {
-                List<Node> nodes = new List<Node>();
+                List<Node> nodes = [];
                 if (node is Cluster cluster)
                 {
                     cluster.ForEachNode(nodes.Add);

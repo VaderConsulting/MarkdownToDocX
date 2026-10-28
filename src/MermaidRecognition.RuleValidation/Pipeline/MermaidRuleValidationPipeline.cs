@@ -26,7 +26,7 @@ public sealed class MermaidRuleValidationPipeline
     {
         _SpecBundle = SpecDocumentLoader.LoadFromDirectory(SpecDirectory);
         RequireFactEvaluator RequireFactEvaluator = new RequireFactEvaluator();
-        _RulesEngine = new RulesEngine(_SpecBundle, new IRuleEvaluator[] { RequireFactEvaluator });
+        _RulesEngine = new RulesEngine(_SpecBundle, [RequireFactEvaluator]);
     }
 
     /// <summary>

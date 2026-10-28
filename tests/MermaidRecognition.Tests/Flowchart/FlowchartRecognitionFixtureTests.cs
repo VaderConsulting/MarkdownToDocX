@@ -9,7 +9,7 @@ namespace MermaidRecognition.Tests.Flowchart;
 public class FlowchartRecognitionFixtureTests
 {
     private static readonly string[] FixtureBaseNames =
-    {
+    [
         "chain-a-b-c",
         "grouped-a-b-to-c",
         "chained-a-b-c-d",
@@ -42,7 +42,7 @@ public class FlowchartRecognitionFixtureTests
         "config-front-matter-theme",
         "edge-class-animate",
         "edge-metadata-f87",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureBaseNameCases))]
     public void Fixture_Matches_Verified_Json(string FixtureBaseName)

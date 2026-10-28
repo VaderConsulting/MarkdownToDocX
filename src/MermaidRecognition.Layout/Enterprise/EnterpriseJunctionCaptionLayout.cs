@@ -16,29 +16,36 @@ internal static class EnterpriseJunctionCaptionLayout
         Dictionary<string, EnterpriseLayoutNode> Nodes, List<EnterpriseRoutedEdge> Edges)
     {
         Dictionary<string, Caption> Captions = new(StringComparer.Ordinal);
-        foreach (var Node in Nodes.Values)
+        foreach (EnterpriseLayoutNode Node in Nodes.Values)
         {
             if (Node.Element?.ElementType != EnterpriseElementType.Junction
                 || string.IsNullOrEmpty(Node.Element.Label)
-                || string.Equals(Node.Element.Label, Node.Element.Id, StringComparison.Ordinal)) continue;
+                || string.Equals(Node.Element.Label, Node.Element.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             double Width = 0;
             foreach (var Line in Node.LabelLines)
+            {
                 Width = Math.Max(Width, FlowchartRichLabelSvgWriter.EstimateLineWidthPx(Line, FontSize));
-            double TextHeight = FontSize + 15 * (Node.LabelLines.Count - 1);
-            double CentreY = Node.AbsoluteY + Node.Height / 2;
+            }
+
+            double TextHeight = FontSize + (15 * (Node.LabelLines.Count - 1));
+            double CentreY = Node.AbsoluteY + (Node.Height / 2);
             Caption? Selected = null;
             // Search nearest positions first; captions never alter connector geometry.
             for (int Step = 0; Step < 100 && Selected == null; Step++)
             {
                 double Offset = Step * 15;
                 Caption[] Candidates =
-                {
+                [
                     new(Node.AbsoluteX + Node.Width + Clearance, CentreY - TextHeight - Clearance - Offset, Width, TextHeight),
                     new(Node.AbsoluteX + Node.Width + Clearance, CentreY + Clearance + Offset, Width, TextHeight),
                     new(Node.AbsoluteX - Width - Clearance, CentreY - TextHeight - Clearance - Offset, Width, TextHeight),
                     new(Node.AbsoluteX - Width - Clearance, CentreY + Clearance + Offset, Width, TextHeight)
-                };
-                foreach (var Candidate in Candidates)
+                ];
+                foreach (Caption Candidate in Candidates)
                 {
                     if (IsClear(Candidate, Nodes, Edges, Captions.Values))
                     {
@@ -57,27 +64,47 @@ internal static class EnterpriseJunctionCaptionLayout
     private static bool IsClear(Caption Candidate, Dictionary<string, EnterpriseLayoutNode> Nodes,
         List<EnterpriseRoutedEdge> Edges, IEnumerable<Caption> Captions)
     {
-        if (Candidate.X < 0 || Candidate.Y < 0) return false;
-        foreach (var Node in Nodes.Values)
+        if (Candidate.X < 0 || Candidate.Y < 0)
+        {
+            return false;
+        }
+
+        foreach (EnterpriseLayoutNode Node in Nodes.Values)
         {
             // Frame interiors are available; their title strips are occupied.
-            double Height = Node.IsGroup ? 18 + 15 * (Node.LabelLines.Count - 1) : Node.Height;
-            if (Overlaps(Candidate, Node.AbsoluteX, Node.AbsoluteY, Node.Width, Height)) return false;
+            double Height = Node.IsGroup ? 18 + (15 * (Node.LabelLines.Count - 1)) : Node.Height;
+            if (Overlaps(Candidate, Node.AbsoluteX, Node.AbsoluteY, Node.Width, Height))
+            {
+                return false;
+            }
         }
-        foreach (var Existing in Captions)
-            if (Overlaps(Candidate, Existing.X, Existing.Y, Existing.Width, Existing.Height)) return false;
-        foreach (var Edge in Edges)
+        foreach (Caption Existing in Captions)
+        {
+            if (Overlaps(Candidate, Existing.X, Existing.Y, Existing.Width, Existing.Height))
+            {
+                return false;
+            }
+        }
+
+        foreach (EnterpriseRoutedEdge Edge in Edges)
         {
             if (Edge.Label.Length > 0 && Overlaps(Candidate,
-                Edge.LabelX - Edge.LabelWidth / 2, Edge.LabelY - Edge.LabelHeight / 2,
-                Edge.LabelWidth, Edge.LabelHeight)) return false;
+                Edge.LabelX - (Edge.LabelWidth / 2), Edge.LabelY - (Edge.LabelHeight / 2),
+                Edge.LabelWidth, Edge.LabelHeight))
+            {
+                return false;
+            }
+
             for (int Index = 1; Index < Edge.SvgPoints.Count; Index++)
             {
-                var A = Edge.SvgPoints[Index - 1];
-                var B = Edge.SvgPoints[Index];
+                (double X, double Y) A = Edge.SvgPoints[Index - 1];
+                (double X, double Y) B = Edge.SvgPoints[Index];
                 // The segment envelope also conservatively reserves rounded corners.
                 if (Overlaps(Candidate, Math.Min(A.X, B.X), Math.Min(A.Y, B.Y),
-                    Math.Abs(B.X - A.X), Math.Abs(B.Y - A.Y))) return false;
+                    Math.Abs(B.X - A.X), Math.Abs(B.Y - A.Y)))
+                {
+                    return false;
+                }
             }
         }
         return true;

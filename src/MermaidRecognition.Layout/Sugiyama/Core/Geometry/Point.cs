@@ -33,16 +33,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <returns></returns>
         public override int GetHashCode() {
             uint hc = (uint)X.GetHashCode();
-            return (int)((hc << 5 | hc >> 27) + (uint)Y.GetHashCode());
+            return (int)(((hc << 5) | (hc >> 27)) + (uint)Y.GetHashCode());
         }
         /// <summary>
         /// the point norm
         /// </summary>
-        public double Length => (double)Math.Sqrt(X * X + Y * Y);
+        public double Length => (double)Math.Sqrt((X * X) + (Y * Y));
         /// <summary>
         /// point norm squared (faster to compute than Length)
         /// </summary>
-        public double LengthSquared => X * X + Y * Y;
+        public double LengthSquared => (X * X) + (Y * Y);
         /// <summary>
         /// overrides the equality
         /// </summary>
@@ -136,7 +136,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static double operator *(Point point0, Point point1) => point0.X * point1.X + point0.Y * point1.Y;
+        public static double operator *(Point point0, Point point1) => (point0.X * point1.X) + (point0.Y * point1.Y);
 
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="point0"></param>
         /// <param name="point1"></param>
         /// <returns></returns>
-        public static double CrossProduct(Point point0, Point point1) => point0.X * point1.Y - point0.Y * point1.X;
+        public static double CrossProduct(Point point0, Point point1) => (point0.X * point1.Y) - (point0.Y * point1.X);
 
         /// <summary>
         /// the multipliction by scalar in x and y
@@ -300,7 +300,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             a /= alength;
             b /= blength;
 
-            return Math.Abs(-a.X * b.Y + a.Y * b.X) < eps;
+            return Math.Abs((-a.X * b.Y) + (a.Y * b.X)) < eps;
         }
 
 
@@ -313,7 +313,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             double c = Math.Cos(angle);
             double s = Math.Sin(angle);
 
-            return new Point(c * X - s * Y, s * X + c * Y);
+            return new Point((c * X) - (s * Y), (s * X) + (c * Y));
 
         }
 
@@ -337,7 +337,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <returns></returns>
         public static double Angle(Point point1, Point center, Point point3) => Angle(point1 - center, point3 - center);
 
-        public static double Dot(Point v1, Point v2) => v1.X * v2.X + v1.Y * v2.Y;
+        public static double Dot(Point v1, Point v2) => (v1.X * v2.X) + (v1.Y * v2.Y);
 
         /// <summary>
         /// The angle you need to turn "side0" counterclockwise to make it collinear with "side1"
@@ -351,8 +351,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             double bx = side1.X;
             double by = side1.Y;
 
-            double cross = ax * by - ay * bx;
-            double dot = ax * bx + ay * by;
+            double cross = (ax * by) - (ay * bx);
+            double dot = (ax * bx) + (ay * by);
 
             if (Math.Abs(dot) < ApproximateComparer.Tolerance) {
                 if (Math.Abs(cross) < ApproximateComparer.Tolerance)
@@ -383,7 +383,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                 return atan2;
             }
 
-            return Math.PI * 2.0 + atan2;
+            return (Math.PI * 2.0) + atan2;
         }
 
         /// <summary>
@@ -440,7 +440,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         /// <param name="cornerB"></param>
         /// <param name="cornerC"></param>
         /// <returns></returns>        
-        public static double SignedDoubledTriangleArea(Point cornerA, Point cornerB, Point cornerC) => (cornerB.X - cornerA.X) * (cornerC.Y - cornerA.Y) - (cornerC.X - cornerA.X) * (cornerB.Y - cornerA.Y);
+        public static double SignedDoubledTriangleArea(Point cornerA, Point cornerB, Point cornerC) => ((cornerB.X - cornerA.X) * (cornerC.Y - cornerA.Y)) - ((cornerC.X - cornerA.X) * (cornerB.Y - cornerA.Y));
 
         /// <summary>
         /// figures out the triangle on the plane orientation: positive- counterclockwise, negative - clockwise
@@ -589,7 +589,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 
             d /= dLen;
             double pr = (point - pointOnLine0) * d; //projection 
-            Point ret = pointOnLine0 + pr * d;
+            Point ret = pointOnLine0 + (pr * d);
             Debug.Assert(Math.Abs((point - ret) * d) < ApproximateComparer.DistanceEpsilon);
             return ret;
         }
@@ -616,7 +616,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                 return (point - segmentEnd).Length;
             }
             parameter = c1 / c2;
-            return (ba - parameter * bc).Length;
+            return (ba - (parameter * bc)).Length;
         }
 
         /// <summary>
@@ -642,7 +642,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             }
 
             double parameter = c1 / c2;
-            return segmentStart + parameter * bc;
+            return segmentStart + (parameter * bc);
         }
 
         /// <summary>
@@ -687,7 +687,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             Point ca = c - a;
             bool ret = LinearSystem2.Solve(ba.X, cd.X, ca.X, ba.Y, cd.Y, ca.Y, out double u, out double v);
             if (ret) {
-                x = a + u * ba;
+                x = a + (u * ba);
                 return true;
             }
             else {
@@ -713,7 +713,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
             bool ret = LinearSystem2.Solve(ba.X, cd.X, ca.X, ba.Y, cd.Y, ca.Y, out double u, out double v);
             double eps = ApproximateComparer.Tolerance;
             if (ret && u > -eps && u < 1.0 + eps && v > -eps && v < 1.0 + eps) {
-                x = a + u * ba;
+                x = a + (u * ba);
                 return true;
             }
             else {
@@ -788,8 +788,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
         ///creates random unit point
         ///</summary>
         internal static Point RandomPoint() {
-            double x = -1 + 2 * rnd.NextDouble();
-            double y = -1 + 2 * rnd.NextDouble();
+            double x = -1 + (2 * rnd.NextDouble());
+            double y = -1 + (2 * rnd.NextDouble());
             return new Point(x, y).Normalize();
         }
     }

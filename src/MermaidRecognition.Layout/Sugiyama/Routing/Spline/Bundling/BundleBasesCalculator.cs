@@ -100,7 +100,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                         }
 
                         Set<Polyline> obstaclesToIgnore = metroGraphData.tightIntersections.ObstaclesToIgnoreForBundle(station, neighbor);
-                        BundleInfo bundle = new BundleInfo(bb, bb2, obstaclesToIgnore, bundlingSettings.EdgeSeparation, metroOrdering.GetOrder(station, neighbor).Select(l => l.Width / 2).ToArray());
+                        BundleInfo bundle = new BundleInfo(bb, bb2, obstaclesToIgnore, bundlingSettings.EdgeSeparation, [.. metroOrdering.GetOrder(station, neighbor).Select(l => l.Width / 2)]);
                         bb.OutgoingBundleInfo = bb2.IncomingBundleInfo = bundle;
                         Bundles.Add(bundle);
                     }
@@ -320,7 +320,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         /// </summary>
         /// <returns>true if the segment interiors intersect</returns>
         double RegularCut(double l1, double r1, double l2, double r2, double span1, double span2) {
-            double cutParam = (span1 * r2 + span2 * l1) / (span1 + span2);
+            double cutParam = ((span1 * r2) + (span2 * l1)) / (span1 + span2);
             double mn = Math.Min(r1, r2);
             double mx = Math.Max(l1, l2);
             Debug.Assert(ApproximateComparer.LessOrEqual(mx, cutParam) && ApproximateComparer.LessOrEqual(cutParam, mn));
@@ -341,17 +341,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
         #region Optimization
 
-        static readonly int[][] Deltas = new[] {
-              new [] {1,1},//rotating both point ccw
-              new [] {0,1},//rotating both point ccw
-              new [] {-1,1},//rotating both point ccw
-              new [] {1,0},//rotating both point ccw
-              new [] {-1,0},//rotating both point ccw
-              new [] {1,-1},//rotating both point ccw
-              new [] {0,-1},//rotating both point ccw
-              new [] {-1,-1},//rotating both point ccw
-              new [] {0,0},//rotating both point ccw
-            };
+        static readonly int[][] Deltas = [
+              [1,1],//rotating both point ccw
+              [0,1],//rotating both point ccw
+              [-1,1],//rotating both point ccw
+              [1,0],//rotating both point ccw
+              [-1,0],//rotating both point ccw
+              [1,-1],//rotating both point ccw
+              [0,-1],//rotating both point ccw
+              [-1,-1],//rotating both point ccw
+              [0,0],//rotating both point ccw
+            ];
 
         const double SeparationCoeff = 1;
         const double SqueezeCoeff = 1;
@@ -494,10 +494,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             return bundleCost - newCost;
         }
 
-        double Cost(BundleInfo bundleInfo) => SeparationCoeff * SeparationCost(bundleInfo) +
-                SqueezeCoeff * SqueezeCost(bundleInfo) +
-                AssymetryCoeff * AssymetryCost(bundleInfo) +
-                CenterCoeff * CenterCost(bundleInfo);
+        double Cost(BundleInfo bundleInfo) => (SeparationCoeff * SeparationCost(bundleInfo)) +
+                (SqueezeCoeff * SqueezeCost(bundleInfo)) +
+                (AssymetryCoeff * AssymetryCost(bundleInfo)) +
+                (CenterCoeff * CenterCost(bundleInfo));
 
         //this is an accelerated version of the above function (calculate cost partly)
         double Cost(BundleInfo bundleInfo, double limit) {
@@ -619,9 +619,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             //double ac = Math.Sqrt(delx * delx + dely * dely);
             //double bc = Math.Sqrt(ay * ay + by * by);
-            double ac = delx * delx + dely * dely;
-            double bc = ay * ay + by * by;
-            return 10 * ac + assymetryWeight * bc;
+            double ac = (delx * delx) + (dely * dely);
+            double bc = (ay * ay) + (by * by);
+            return (10 * ac) + (assymetryWeight * bc);
         }
 
         double SeparationCost(BundleInfo bundleInfo) => SeparationCostForBundleBase(bundleInfo.SourceBase) + SeparationCostForBundleBase(bundleInfo.TargetBase);
@@ -690,7 +690,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 double c3 = SqueezeCoeff * SqueezeCost(bundleInfo);
                 double c4 = CenterCoeff * CenterCost(bundleInfo);
 
-                cost += c1 / 2.0 + c2 / 2.0 + c3 + c4;
+                cost += (c1 / 2.0) + (c2 / 2.0) + c3 + c4;
                 Debug.Assert(cost < double.PositiveInfinity);
             }
             return cost;

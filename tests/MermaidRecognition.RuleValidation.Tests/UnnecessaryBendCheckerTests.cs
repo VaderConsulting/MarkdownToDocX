@@ -4,6 +4,7 @@ using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 using NUnit.Framework;
 using System.Text;
+using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
@@ -137,7 +138,7 @@ public sealed class UnnecessaryBendCheckerTests
     [Test]
     public void InvisibleLabelledEdge_IsNotCheckedAsRenderedLine()
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\nA[A] ~~~|skip| B[B]");
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\nA[A] ~~~|skip| B[B]");
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         Assert.That(UnnecessaryBendChecker.Check("invisible", Contract, Layout), Is.Empty);
@@ -183,12 +184,26 @@ public sealed class UnnecessaryBendCheckerTests
     [TestCase(4, 2)]
     public void AdjacentRankBlocks_AreCheckedByBlockRules(int SourceCount, int TargetCount)
     {
-        var Text = new StringBuilder("flowchart TB\n");
-        for (int Source = 0; Source < SourceCount; Source++) Text.AppendLine($"s{Source}[\"Source {Source}\"]");
-        for (int Target = 0; Target < TargetCount; Target++) Text.AppendLine($"t{Target}[\"Target {Target}\"]");
+        StringBuilder Text = new StringBuilder("flowchart TB\n");
         for (int Source = 0; Source < SourceCount; Source++)
-        for (int Target = 0; Target < TargetCount; Target++) Text.AppendLine($"s{Source} --> t{Target}");
-        var Contract = MermaidRecognizer.Parse(Text.ToString());
+        {
+            Text.AppendLine($"s{Source}[\"Source {Source}\"]");
+        }
+
+        for (int Target = 0; Target < TargetCount; Target++)
+        {
+            Text.AppendLine($"t{Target}[\"Target {Target}\"]");
+        }
+
+        for (int Source = 0; Source < SourceCount; Source++)
+        {
+            for (int Target = 0; Target < TargetCount; Target++)
+            {
+                Text.AppendLine($"s{Source} --> t{Target}");
+            }
+        }
+
+        DiagramContract Contract = MermaidRecognizer.Parse(Text.ToString());
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         IReadOnlyList<UnnecessaryBendViolation> Findings = UnnecessaryBendChecker.Check("block", Contract, Layout);

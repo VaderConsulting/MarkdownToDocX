@@ -8,10 +8,10 @@ namespace LiveEditor.Editor;
 /// <summary>
 /// Stops colouring from being recorded as undo steps.
 /// </summary>
-internal sealed class RichTextBoxUndoSuspension : IDisposable
+internal sealed partial class RichTextBoxUndoSuspension : IDisposable
 {
-    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
-    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref IntPtr LParam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, ref IntPtr LParam);
 
     private const int WM_USER = 0x0400;
 
@@ -55,7 +55,7 @@ internal sealed class RichTextBoxUndoSuspension : IDisposable
                 BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Public,
                 null,
                 _Document,
-                new object[] { Command });
+                [Command]);
         }
         catch (TargetInvocationException)
         {

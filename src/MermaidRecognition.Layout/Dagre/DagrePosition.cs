@@ -18,10 +18,7 @@ internal static partial class DagreLayoutEngine
         foreach (KeyValuePair<string, double> Pair in Xs)
         {
             DagreNodeLabel? Node = Flat.Node(Pair.Key);
-            if (Node != null)
-            {
-                Node.X = Pair.Value;
-            }
+            Node?.X = Pair.Value;
         }
     }
 
@@ -64,10 +61,7 @@ internal static partial class DagreLayoutEngine
                     }
 
                     DagreNodeLabel? Node = Graph.Node(NodeId);
-                    if (Node != null)
-                    {
-                        Node.Y = Previous + (MaxHeight / 2);
-                    }
+                    Node?.Y = Previous + (MaxHeight / 2);
                 }
             }
 
@@ -83,7 +77,7 @@ internal static partial class DagreLayoutEngine
         Dictionary<string, Dictionary<string, double>> Alignments = new Dictionary<string, Dictionary<string, double>>(StringComparer.Ordinal);
         foreach (string Vertical in new[] { "u", "d" })
         {
-            List<List<string>> Adjusted = new List<List<string>>();
+            List<List<string>> Adjusted = [];
             if (Vertical == "u")
             {
                 foreach (List<string> Layer in Layering)
@@ -104,7 +98,7 @@ internal static partial class DagreLayoutEngine
                 List<List<string>> Directed = Adjusted;
                 if (Horizontal == "r")
                 {
-                    Directed = new List<List<string>>();
+                    Directed = [];
                     foreach (List<string> Layer in Adjusted)
                     {
                         List<string> Reversed = new List<string>(Layer);
@@ -696,7 +690,7 @@ internal static partial class DagreLayoutEngine
                 continue;
             }
 
-            List<double> Values = new List<double>();
+            List<double> Values = [];
             foreach (Dictionary<string, double> Xs in Alignments.Values)
             {
                 if (Xs.TryGetValue(NodeId, out double Value))

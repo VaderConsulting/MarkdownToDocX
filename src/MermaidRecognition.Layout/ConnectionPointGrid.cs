@@ -30,7 +30,7 @@ internal static class ConnectionPointGrid
         out double Length)
     {
         Length = SideLength;
-        List<SideGridPoint> Points = new List<SideGridPoint>();
+        List<SideGridPoint> Points = [];
         if (Boundary != null && !TryMeasureSegment(Boundary, Side, out Length))
         {
             return Points;
@@ -71,7 +71,7 @@ internal static class ConnectionPointGrid
             return false;
         }
 
-        Fractions = Indexes.Select(Index => Points[Index].Fraction).ToArray();
+        Fractions = [.. Indexes.Select(Index => Points[Index].Fraction)];
         return true;
     }
 
@@ -102,7 +102,7 @@ internal static class ConnectionPointGrid
             return null;
         }
 
-        double[] Targets = Defaults.Select(Index => Grid[Index]).ToArray();
+        double[] Targets = [.. Defaults.Select(Index => Grid[Index])];
         int[]? Ordered = PlanInOrder(Grid, Targets, Fixed, Enumerable.Range(0, Grid.Count).ToList());
         if (Ordered != null)
         {
@@ -111,10 +111,10 @@ internal static class ConnectionPointGrid
 
         // A fixed straight connection may sit out of peer order. It keeps its point, and the
         // remaining lines keep their own order across the points that are left.
-        HashSet<int> Taken = Fixed.Where(Index => Index >= 0).ToHashSet();
-        List<int> Free = Enumerable.Range(0, Grid.Count).Where(Index => !Taken.Contains(Index)).ToList();
-        int[] Unfixed = Enumerable.Repeat(-1, Count).ToArray();
-        List<int> FreeLines = Enumerable.Range(0, Count).Where(Line => Fixed[Line] < 0).ToList();
+        HashSet<int> Taken = [.. Fixed.Where(Index => Index >= 0)];
+        List<int> Free = [.. Enumerable.Range(0, Grid.Count).Where(Index => !Taken.Contains(Index))];
+        int[] Unfixed = [.. Enumerable.Repeat(-1, Count)];
+        List<int> FreeLines = [.. Enumerable.Range(0, Count).Where(Line => Fixed[Line] < 0)];
         int[]? Rest = PlanInOrder(Grid, FreeLines.Select(Line => Targets[Line]).ToArray(),
             Enumerable.Repeat(-1, FreeLines.Count).ToArray(), Free);
         if (Rest == null)
@@ -122,7 +122,7 @@ internal static class ConnectionPointGrid
             return null;
         }
 
-        int[] Result = Fixed.ToArray();
+        int[] Result = [.. Fixed];
         for (int Index = 0; Index < FreeLines.Count; Index++)
         {
             Result[FreeLines[Index]] = Rest[Index];

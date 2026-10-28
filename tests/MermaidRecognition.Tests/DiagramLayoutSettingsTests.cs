@@ -17,7 +17,7 @@ public sealed class DiagramLayoutSettingsTests
     [TestCase("flowchart TB")]
     public void UnknownSetting_WarnsOnceAndFallsBackToGrid(string Header)
     {
-        var Result = MermaidRecognizer.Parse("---\nconfig:\n  layout: freeform\n---\n" + Header);
+        DiagramContract Result = MermaidRecognizer.Parse("---\nconfig:\n  layout: freeform\n---\n" + Header);
         Assert.That(Result.LayoutMode, Is.EqualTo(DiagramLayoutMode.Grid));
         Assert.That(Result.Diagnostics.Count(Item => Item.Severity == MermaidDiagnosticSeverity.Warning), Is.EqualTo(1));
     }
@@ -26,7 +26,7 @@ public sealed class DiagramLayoutSettingsTests
     [TestCase("flowchart TB")]
     public void Frontmatter_SelectsOpenAcrossDiagramKinds(string Header)
     {
-        var Result = MermaidRecognizer.Parse("---\nconfig:\n  layout: open\n---\n" + Header);
+        DiagramContract Result = MermaidRecognizer.Parse("---\nconfig:\n  layout: open\n---\n" + Header);
         Assert.That(Result.LayoutMode, Is.EqualTo(DiagramLayoutMode.Open));
     }
 }

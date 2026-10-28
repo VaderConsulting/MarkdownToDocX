@@ -48,11 +48,10 @@ internal static class FlowchartBendRemovingPortRepair
     /// <returns>Total bends removed from this completed layout.</returns>
     internal static int Apply(DiagramContract Contract, FlowchartLayoutResult Layout, Action<Improvement>? Accepted = null)
     {
-        var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
-        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Hinted = Layout.EdgeRoutes.Where(Route => DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
-            .Select(Route => (string?)Route.EdgeId).ToHashSet();
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        HashSet<string?> Hinted = [.. Layout.EdgeRoutes.Where(Route => DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true).Select(Route => (string?)Route.EdgeId)];
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         int Removed = 0;
         bool Progress;
@@ -61,15 +60,23 @@ internal static class FlowchartBendRemovingPortRepair
             Progress = false;
             foreach (string Id in Bounds.Keys)
             {
-                var Ends = Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).SelectMany(Route =>
-                    (Route.SourceId == Id ? new[] { new End(Route, true) } : Array.Empty<End>())
-                    .Concat(Route.TargetId == Id ? new[] { new End(Route, false) } : Array.Empty<End>())).ToArray();
-                var Routes = Ends.Select(End => End.Route).Distinct().ToArray();
+                End[] Ends = [.. Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).SelectMany(Route =>
+                    (Route.SourceId == Id ? [new End(Route, true)] : Array.Empty<End>())
+                    .Concat(Route.TargetId == Id ? [new End(Route, false)] : Array.Empty<End>()))];
+                FlowchartLayoutEdgeRoute[] Routes = [.. Ends.Select(End => End.Route).Distinct()];
                 if (Routes.Length > FlowchartLayoutRules.RepairChainLines || !Ends.Any(End =>
-                    !Hinted.Contains(End.Route.EdgeId) && FlowchartLayoutScore.CountCorners(End.Route.Points) > 0)) continue;
-                var Original = Save(Routes);
-                var Changes = Candidates(Id, Ends, Hinted, Contract, Layout, Bounds, Nodes).Take(FlowchartLayoutRules.RepairCandidateMoves).ToArray();
-                if (Changes.Length == 0) continue;
+                    !Hinted.Contains(End.Route.EdgeId) && FlowchartLayoutScore.CountCorners(End.Route.Points) > 0))
+                {
+                    continue;
+                }
+
+                Saved[] Original = Save(Routes);
+                (string Kind, Action Apply)[] Changes = [.. Candidates(Id, Ends, Hinted, Contract, Layout, Bounds, Nodes).Take(FlowchartLayoutRules.RepairCandidateMoves)];
+                if (Changes.Length == 0)
+                {
+                    continue;
+                }
+
                 FlowchartLayoutScore.Result Initial = FlowchartLayoutScore.Measure(Contract, Layout, false);
                 FlowchartLayoutScore.CellMovementContext? Scorer = null;
                 IReadOnlyList<FlowchartRouteRuleChecker.Finding> InitialFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
@@ -77,21 +84,25 @@ internal static class FlowchartBendRemovingPortRepair
                     Route => Route,
                     Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray());
                 Dictionary<(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second), (int Crossings, double Overlap)> ReferenceInteractions =
-                    new Dictionary<(FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute), (int, double)>();
-                Saved[]? Best = null; var BestCost = Initial.Cost; int BestRemoved = 0; string BestKind = "";
+                    [];
+                Saved[]? Best = null; FlowchartLayoutScore.ComparisonCost BestCost = Initial.Cost; int BestRemoved = 0; string BestKind = "";
                 bool EnterpriseBands = Layout.RenderContext.EnterpriseBandWrapWidths.Count > 0;
                 FlowchartRepairSearchPatience Patience = new FlowchartRepairSearchPatience(Layout.EdgeRoutes.Count, EnterpriseBands);
-                foreach (var Change in Changes)
+                foreach ((string Kind, Action Apply) Change in Changes)
                 {
                     Restore(Original); Change.Apply();
-                    var Affected = Routes.Where(Route => !SameTerminals(Original.Single(Saved => Saved.Route == Route))).ToHashSet();
-                    if (Affected.Count == 0 || Affected.Any(Route => Hinted.Contains(Route.EdgeId))) continue;
-                    bool Valid = true;
-                    foreach (var Route in Affected)
+                    HashSet<FlowchartLayoutEdgeRoute> Affected = [.. Routes.Where(Route => !SameTerminals(Original.Single(Saved => Saved.Route == Route)))];
+                    if (Affected.Count == 0 || Affected.Any(Route => Hinted.Contains(Route.EdgeId)))
                     {
-                        var A = Route.Points[0]; var B = Route.Points[^1];
-                        Nodes.TryGetValue(Route.SourceId, out var Source); Nodes.TryGetValue(Route.TargetId, out var Target);
-                        var Path = DiagramGridRouteBuilder.BuildRoute(A.X, A.Y, Bounds[Route.SourceId], Source?.Shape, Route.ExitSide,
+                        continue;
+                    }
+
+                    bool Valid = true;
+                    foreach (FlowchartLayoutEdgeRoute? Route in Affected)
+                    {
+                        FlowchartLayoutPoint A = Route.Points[0]; FlowchartLayoutPoint B = Route.Points[^1];
+                        Nodes.TryGetValue(Route.SourceId, out NodeContract? Source); Nodes.TryGetValue(Route.TargetId, out NodeContract? Target);
+                        List<(double X, double Y)> Path = DiagramGridRouteBuilder.BuildRoute(A.X, A.Y, Bounds[Route.SourceId], Source?.Shape, Route.ExitSide,
                             B.X, B.Y, Bounds[Route.TargetId], Target?.Shape, Route.EntrySide, Bounds, Route.SourceId, Route.TargetId,
                             Contract, Direction, Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft,
                             RequireLegal: true, ExitNormal: (Route.ExitNormalX, Route.ExitNormalY), EntryNormal: (Route.EntryNormalX, Route.EntryNormalY));
@@ -99,15 +110,26 @@ internal static class FlowchartBendRemovingPortRepair
                         Route.Points.Clear(); Route.Points.AddRange(Path.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
                         if (FlowchartLayoutScore.CountCorners(Route.Points) > Corners(Reference[Route])) { Valid = false; break; }
                     }
-                    if (!Valid || !Separated(Ends)) continue;
+                    if (!Valid || !Separated(Ends))
+                    {
+                        continue;
+                    }
                     // Flow and EIP may change only on lines independently flagged
                     // for this repair: every changed line must lose a bend.
                     int Reduction = Affected.Sum(Route => Corners(Reference[Route]) - FlowchartLayoutScore.CountCorners(Route.Points));
-                    if (Reduction <= 0) continue;
+                    if (Reduction <= 0)
+                    {
+                        continue;
+                    }
+
                     if (!InteractionsDoNotGrow(Layout, Affected, Reference, ReferenceInteractions))
                     {
                         Restore(Original);
-                        if (Change.Kind == "swap") SwapDecisionObserver?.Invoke(Id, "crossing-rejected");
+                        if (Change.Kind == "swap")
+                        {
+                            SwapDecisionObserver?.Invoke(Id, "crossing-rejected");
+                        }
+
                         continue;
                     }
                     Scorer ??= new FlowchartLayoutScore.CellMovementContext(Contract, Layout);
@@ -121,7 +143,7 @@ internal static class FlowchartBendRemovingPortRepair
 
                         continue;
                     }
-                    var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+                    IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
                     if (Findings.Any(Finding => !InitialFindings.Any(Old => Old.Rule == Finding.Rule && Old.Subject == Finding.Subject)))
                     {
                         if (Patience.RegisterNonImprovement())
@@ -136,12 +158,16 @@ internal static class FlowchartBendRemovingPortRepair
                     BestCost = Score.Cost; Best = Save(Routes); BestRemoved = Reduction; BestKind = Change.Kind;
                 }
                 Restore(Original);
-                if (Best == null) continue;
+                if (Best == null)
+                {
+                    continue;
+                }
+
                 Restore(Best); Removed += BestRemoved; Progress = true;
                 foreach (Saved Item in Original.Where(Saved => Corners(Saved.Points) > FlowchartLayoutScore.CountCorners(Saved.Route.Points)))
                 {
                     Accepted?.Invoke(new(Item.Route.EdgeId, Corners(Item.Points), FlowchartLayoutScore.CountCorners(Item.Route.Points),
-                        Item.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()));
+                        [.. Item.Route.Points.Select(Point => (Point.X, Point.Y))]));
                 }
 
                 if (BestKind == "swap")
@@ -166,10 +192,9 @@ internal static class FlowchartBendRemovingPortRepair
             .GroupBy(Box => Box.NodeId)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
         Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        HashSet<string?> Hinted = Layout.EdgeRoutes
+        HashSet<string?> Hinted = [.. Layout.EdgeRoutes
             .Where(Route => DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
-            .Select(Route => (string?)Route.EdgeId)
-            .ToHashSet();
+            .Select(Route => (string?)Route.EdgeId)];
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         bool HorizontalFlow = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         int Removed = 0;
@@ -179,9 +204,9 @@ internal static class FlowchartBendRemovingPortRepair
             Progress = false;
             foreach (string Id in Bounds.Keys.OrderBy(Key => Key, StringComparer.Ordinal))
             {
-                End[] Ends = Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).SelectMany(Route =>
-                    (Route.SourceId == Id ? new[] { new End(Route, true) } : Array.Empty<End>())
-                    .Concat(Route.TargetId == Id ? new[] { new End(Route, false) } : Array.Empty<End>())).ToArray();
+                End[] Ends = [.. Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2).SelectMany(Route =>
+                    (Route.SourceId == Id ? [new End(Route, true)] : Array.Empty<End>())
+                    .Concat(Route.TargetId == Id ? [new End(Route, false)] : Array.Empty<End>()))];
                 if (Ends.Length < 2 || Ends.Select(End => End.Route).Distinct().Count() > FlowchartLayoutRules.RepairChainLines)
                 {
                     continue;
@@ -201,7 +226,7 @@ internal static class FlowchartBendRemovingPortRepair
                             continue;
                         }
 
-                        Saved[] Original = Save(new[] { A.Route, B.Route });
+                        Saved[] Original = Save([A.Route, B.Route]);
                         (double X, double Y)[] APoints = Original[0].Points;
                         (double X, double Y)[] BPoints = Original[1].Points;
                         if (FlowchartBranchRouteOrder.Intersections(APoints, BPoints).Crossings == 0)
@@ -222,8 +247,8 @@ internal static class FlowchartBendRemovingPortRepair
                             continue;
                         }
 
-                        (double X, double Y)[] AAfter = A.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-                        (double X, double Y)[] BAfter = B.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                        (double X, double Y)[] AAfter = [.. A.Route.Points.Select(Point => (Point.X, Point.Y))];
+                        (double X, double Y)[] BAfter = [.. B.Route.Points.Select(Point => (Point.X, Point.Y))];
                         int AfterBends = Corners(AAfter) + Corners(BAfter);
                         int AfterCrossings = PairCrossings(Layout, A.Route, AAfter, B.Route, BAfter);
                         int Drop = BeforeCrossings - AfterCrossings;
@@ -236,7 +261,7 @@ internal static class FlowchartBendRemovingPortRepair
                         }
 
                         BestDrop = Drop;
-                        Best = Save(new[] { A.Route, B.Route });
+                        Best = Save([A.Route, B.Route]);
                         Restore(Original);
                     }
                 }
@@ -291,7 +316,7 @@ internal static class FlowchartBendRemovingPortRepair
                 continue;
             }
 
-            (double X, double Y)[] OtherPoints = Other.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            (double X, double Y)[] OtherPoints = [.. Other.Points.Select(Point => (Point.X, Point.Y))];
             if (Grew(FirstBefore, OtherPoints, FirstAfter, OtherPoints) || Grew(SecondBefore, OtherPoints, SecondAfter, OtherPoints))
             {
                 return true;
@@ -320,7 +345,7 @@ internal static class FlowchartBendRemovingPortRepair
                 continue;
             }
 
-            (double X, double Y)[] OtherPoints = Other.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            (double X, double Y)[] OtherPoints = [.. Other.Points.Select(Point => (Point.X, Point.Y))];
             Count += FlowchartBranchRouteOrder.Intersections(FirstPoints, OtherPoints).Crossings;
             Count += FlowchartBranchRouteOrder.Intersections(SecondPoints, OtherPoints).Crossings;
         }
@@ -334,9 +359,9 @@ internal static class FlowchartBendRemovingPortRepair
     /// <returns>Proven alternatives; the original layout and its caches are untouched.</returns>
     internal static IReadOnlyList<Improvement> Inspect(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
-        var Copy = FlowchartLayoutAlternatives.Copy(Layout);
-        using var Active = FlowchartRenderContext.Activate(Copy.RenderContext);
-        var Result = new List<Improvement>();
+        FlowchartLayoutResult Copy = FlowchartLayoutAlternatives.Copy(Layout);
+        using IDisposable Active = FlowchartRenderContext.Activate(Copy.RenderContext);
+        List<Improvement> Result = [];
         Apply(Contract, Copy, Result.Add);
         return Result;
     }
@@ -354,37 +379,47 @@ internal static class FlowchartBendRemovingPortRepair
         FlowchartLayoutResult Layout, Dictionary<string, FlowchartLayoutNodeBounds> Bounds, Dictionary<string, NodeContract> Nodes)
     {
         string[] Sides = ["top", "right", "bottom", "left"];
-        foreach (var A in Ends.Where(End => !Hinted.Contains(End.Route.EdgeId) && FlowchartLayoutScore.CountCorners(End.Route.Points) > 0))
+        foreach (End? A in Ends.Where(End => !Hinted.Contains(End.Route.EdgeId) && FlowchartLayoutScore.CountCorners(End.Route.Points) > 0))
         {
-            foreach (var B in Ends.Where(End => End != A && End.Side == A.Side && !Hinted.Contains(End.Route.EdgeId)))
+            foreach (End? B in Ends.Where(End => End != A && End.Side == A.Side && !Hinted.Contains(End.Route.EdgeId)))
             {
-                var AP = (A.Point.X, A.Point.Y); var BP = (B.Point.X, B.Point.Y);
+                (double X, double Y) AP = (A.Point.X, A.Point.Y); (double X, double Y) BP = (B.Point.X, B.Point.Y);
                 yield return ("swap", () => { Put(A, BP, A.Side, Bounds[Id], Nodes.GetValueOrDefault(Id)); Put(B, AP, B.Side, Bounds[Id], Nodes.GetValueOrDefault(Id)); });
             }
-            var Other = A.Source ? A.Route.Points[^1] : A.Route.Points[0]; var Box = Bounds[Id];
-            var Aligned = A.Side is "left" or "right" ? (A.Point.X, Other.Y) : (Other.X, A.Point.Y);
+            FlowchartLayoutPoint Other = A.Source ? A.Route.Points[^1] : A.Route.Points[0]; FlowchartLayoutNodeBounds Box = Bounds[Id];
+            (double X, double Y) Aligned = A.Side is "left" or "right" ? (A.Point.X, Other.Y) : (Other.X, A.Point.Y);
             string Side = A.Side;
             yield return ("align", () =>
             {
                 // Alignment may exchange allocated slots, never manufacture an
                 // off-slot terminal. Keep this candidate in its original budget
                 // position even when no allocated slot matches the approach.
-                var Peer = Ends.FirstOrDefault(End => End != A && End.Side == Side
+                End? Peer = Ends.FirstOrDefault(End => End != A && End.Side == Side
                     && !Hinted.Contains(End.Route.EdgeId)
                     && Math.Abs(End.Point.X - Aligned.Item1) < 0.001
                     && Math.Abs(End.Point.Y - Aligned.Item2) < 0.001);
-                if (Peer == null) return;
-                var Original = (A.Point.X, A.Point.Y);
+                if (Peer == null)
+                {
+                    return;
+                }
+
+                (double X, double Y) Original = (A.Point.X, A.Point.Y);
                 Put(A, Aligned, Side, Box, Nodes.GetValueOrDefault(Id));
                 Put(Peer, Original, Side, Box, Nodes.GetValueOrDefault(Id));
             });
             int Index = Array.IndexOf(Sides, Side);
-            if (Index < 0) continue;
+            if (Index < 0)
+            {
+                continue;
+            }
+
             foreach (string Next in new[] { Sides[(Index + 1) % Sides.Length], Sides[(Index + Sides.Length - 1) % Sides.Length] })
             {
                 yield return ("side", () => { SetSide(A, Next); DiagramGridLayout.ReallocateBendRepairPorts(Contract, Layout, Bounds, Nodes, Id); });
-                foreach (var B in Ends.Where(End => End.Side == Next && !Hinted.Contains(End.Route.EdgeId)))
+                foreach (End? B in Ends.Where(End => End.Side == Next && !Hinted.Contains(End.Route.EdgeId)))
+                {
                     yield return ("side-swap", () => { SetSide(A, Next); SetSide(B, Side); DiagramGridLayout.ReallocateBendRepairPorts(Contract, Layout, Bounds, Nodes, Id); });
+                }
             }
         }
     }
@@ -397,13 +432,21 @@ internal static class FlowchartBendRemovingPortRepair
     /// <param name="Node">Optional renderer geometry provider; frames use their rectangular outline.</param>
     private static void Put(End End, (double X, double Y) Point, string Side, FlowchartLayoutNodeBounds Box, NodeContract? Node)
     {
-        double Fraction = Side is "left" or "right" ? (Box.CenterY + Box.Height / 2 - Point.Y) / Box.Height
-            : (Point.X - Box.CenterX + Box.Width / 2) / Box.Width;
-        if (Fraction <= 0 || Fraction >= 1) return;
+        double Fraction = Side is "left" or "right" ? (Box.CenterY + (Box.Height / 2) - Point.Y) / Box.Height
+            : (Point.X - Box.CenterX + (Box.Width / 2)) / Box.Width;
+        if (Fraction <= 0 || Fraction >= 1)
+        {
+            return;
+        }
+
         double Nx = Side == "left" ? -1 : Side == "right" ? 1 : 0, Ny = Side == "bottom" ? -1 : Side == "top" ? 1 : 0;
         if (Node?.GeometryProvider is { } Provider)
         {
-            if (!Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, Fraction, out var Port)) return;
+            if (!Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, Fraction, out NodeGeometryPort Port))
+            {
+                return;
+            }
+
             Point = (Box.CenterX + Port.X, Box.CenterY - Port.Y); Nx = Port.NormalX; Ny = -Port.NormalY;
         }
         End.Point.X = Point.X; End.Point.Y = Point.Y; SetSide(End, Side);
@@ -414,7 +457,15 @@ internal static class FlowchartBendRemovingPortRepair
     /// <summary>Sets one trial side; joint allocation supplies its new slots and normals.</summary>
     /// <param name="End">Endpoint changed inside this candidate only.</param>
     /// <param name="Side">Adjacent side to try.</param>
-    private static void SetSide(End End, string Side) { if (End.Source) End.Route.ExitSide = Side; else End.Route.EntrySide = Side; }
+    private static void SetSide(End End, string Side) { if (End.Source)
+        {
+            End.Route.ExitSide = Side;
+        }
+        else
+        {
+            End.Route.EntrySide = Side;
+        }
+    }
 
     /// <summary>Checks minimum side-port separation without relaxing an existing checker.</summary>
     /// <param name="Ends">Current node's complete ports.</param>
@@ -426,6 +477,7 @@ internal static class FlowchartBendRemovingPortRepair
     /// <param name="Layout">Complete candidate.</param>
     /// <param name="Affected">Only rerouted lines.</param>
     /// <param name="Reference">Exact unchanged base polylines.</param>
+    /// <param name="ReferenceInteractions"></param>
     /// <returns>Whether every pair preserves or reduces crossings and overlap.</returns>
     private static bool InteractionsDoNotGrow(
         FlowchartLayoutResult Layout,
@@ -435,7 +487,7 @@ internal static class FlowchartBendRemovingPortRepair
     {
         foreach (FlowchartLayoutEdgeRoute A in Affected)
         {
-            (double X, double Y)[] AfterA = A.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            (double X, double Y)[] AfterA = [.. A.Points.Select(Point => (Point.X, Point.Y))];
             foreach (FlowchartLayoutEdgeRoute B in Layout.EdgeRoutes)
             {
                 if (B == A)
@@ -458,7 +510,7 @@ internal static class FlowchartBendRemovingPortRepair
                     Before = FlowchartBranchRouteOrder.Intersections(Reference[A], Reference[B]);
                 }
 
-                (double X, double Y)[] AfterB = B.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                (double X, double Y)[] AfterB = [.. B.Points.Select(Point => (Point.X, Point.Y))];
                 (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(AfterA, AfterB);
                 if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + 0.001)
                 {
@@ -478,9 +530,9 @@ internal static class FlowchartBendRemovingPortRepair
     /// <summary>Captures independent route state before a trial.</summary>
     /// <param name="Routes">Complete affected-node inventory.</param>
     /// <returns>Exact rollback values.</returns>
-    private static Saved[] Save(IEnumerable<FlowchartLayoutEdgeRoute> Routes) => Routes.Select(Route => new Saved(Route,
-        Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(), Route.ExitSide, Route.EntrySide,
-        Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY)).ToArray();
+    private static Saved[] Save(IEnumerable<FlowchartLayoutEdgeRoute> Routes) => [.. Routes.Select(Route => new Saved(Route,
+        [.. Route.Points.Select(Point => (Point.X, Point.Y))], Route.ExitSide, Route.EntrySide,
+        Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY))];
 
     /// <summary>Detects whether joint allocation changed either terminal.</summary>
     /// <param name="Saved">Original complete route.</param>
@@ -495,9 +547,9 @@ internal static class FlowchartBendRemovingPortRepair
     /// <param name="Saved">Independent captured assignment.</param>
     private static void Restore(IEnumerable<Saved> Saved)
     {
-        foreach (var Item in Saved)
+        foreach (Saved Item in Saved)
         {
-            var Route = Item.Route; Route.ExitSide = Item.Exit; Route.EntrySide = Item.Entry;
+            FlowchartLayoutEdgeRoute Route = Item.Route; Route.ExitSide = Item.Exit; Route.EntrySide = Item.Entry;
             Route.ExitNormalX = Item.ExitX; Route.ExitNormalY = Item.ExitY; Route.EntryNormalX = Item.EntryX; Route.EntryNormalY = Item.EntryY;
             Route.Points.Clear(); Route.Points.AddRange(Item.Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
         }

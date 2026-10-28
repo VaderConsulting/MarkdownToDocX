@@ -93,11 +93,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         /// </summary>
         public EdgeLabelPlacement(IEnumerable<Node> nodes, IEnumerable<Edge> edges) {
             InitializeObstacles(nodes, edges);
-            labels = edges.SelectMany(e => e.Labels).ToList();
+            labels = [.. edges.SelectMany(e => e.Labels)];
         }
 
         void InitializeObstacles(IEnumerable<Node> nodes, IEnumerable<Edge> edges) {
-            List<Edge> edgeList = edges.ToList();
+            List<Edge> edgeList = [.. edges];
             int modifiedGranularity = GetModifiedGranularity(edgeList);
 
             List<IObstacle> edgeObstacles = GetEdgeObstacles(edges, modifiedGranularity);
@@ -105,7 +105,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             RTree<IObstacle> edgeObstacleMap =
                 new RTree<IObstacle>(edgeObstacles.Select(e => new KeyValuePair<Rectangle, IObstacle>(e.Rectangle, e)));
 
-            List<IObstacle> nodeObstacles = new List<IObstacle>();
+            List<IObstacle> nodeObstacles = [];
             foreach (Node v in nodes)
             {
                 nodeObstacles.Add(new RectangleObstacle(v.BoundingBox, v));
@@ -119,7 +119,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         }
 
         List<IObstacle> GetEdgeObstacles(IEnumerable<Edge> edges, int modifiedGranularity) {
-            List<IObstacle> edgeObstacles = new List<IObstacle>();
+            List<IObstacle> edgeObstacles = [];
             foreach (Edge e in edges) {
                 List<KeyValuePair<double, Point>> curvePoints = CurvePoints(e.Curve ?? new LineSegment(e.Source.Center, e.Target.Center), modifiedGranularity);
                 edgePoints[e] = curvePoints;
@@ -157,7 +157,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             {
                 if (labelObstacleMap == null) {
                     labelObstacleMap =
-                        new RTree<IObstacle>(new[] {new KeyValuePair<Rectangle, IObstacle>(label.Rectangle, label)});
+                        new RTree<IObstacle>([new KeyValuePair<Rectangle, IObstacle>(label.Rectangle, label)]);
                     obstacleMaps[0] = labelObstacleMap;
                 }
                 else
@@ -171,7 +171,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     Places the given labels.
         /// </summary>
         protected override void RunInternal() {
-            Label[] lbs = labels.Where(l => l != null).ToArray();
+            Label[] lbs = [.. labels.Where(l => l != null)];
             StartListenToLocalProgress(lbs.Length);
 
             // Place outer most labels first, since their positions are more semantically important
@@ -200,8 +200,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             if (label.PlacementStrategyPriority != null)
             {
                 foreach (Label.PlacementStrategy s in label.PlacementStrategyPriority) {
-                    placed = s == Label.PlacementStrategy.AlongCurve && PlaceEdgeLabelOnCurve(label)
-                             || s == Label.PlacementStrategy.Horizontal && PlaceEdgeLabelHorizontally(label);
+                    placed = (s == Label.PlacementStrategy.AlongCurve && PlaceEdgeLabelOnCurve(label))
+                             || (s == Label.PlacementStrategy.Horizontal && PlaceEdgeLabelHorizontally(label));
                     if (placed)
                     {
                         break;
@@ -384,8 +384,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         ///     Sets the label's position to be the given bounds.
         /// </summary>
         static void SetLabelBounds(Label label, Rectangle bounds) {
-            List<Point> innerPoints = new List<Point>();
-            List<Point> outerPoints = new List<Point>();
+            List<Point> innerPoints = [];
+            List<Point> outerPoints = [];
 
             innerPoints.Add(new Point(bounds.LeftTop.X, bounds.LeftTop.Y));
             innerPoints.Add(new Point(bounds.RightTop.X, bounds.RightTop.Y));
@@ -406,35 +406,35 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             switch (side) {
                 case Label.PlacementSide.Port:
-                    return new double[] {-1};
+                    return [-1];
                 case Label.PlacementSide.Starboard:
-                    return new double[] {1};
+                    return [1];
                 case Label.PlacementSide.Top:
                     if (ApproximateComparer.Close(derivative.X, 0)) {
                         // If the line is vertical, Top becomes Left
                         return GetPossibleSides(Label.PlacementSide.Left, derivative);
                     }
-                    return new double[] {derivative.X < 0 ? 1 : -1};
+                    return [derivative.X < 0 ? 1 : -1];
                 case Label.PlacementSide.Bottom:
                     if (ApproximateComparer.Close(derivative.X, 0)) {
                         // If the line is vertical, Bottom becomes Right
                         return GetPossibleSides(Label.PlacementSide.Right, derivative);
                     }
-                    return new double[] {derivative.X < 0 ? -1 : 1};
+                    return [derivative.X < 0 ? -1 : 1];
                 case Label.PlacementSide.Left:
                     if (ApproximateComparer.Close(derivative.Y, 0)) {
                         // If the line is horizontal, Left becomes Top
                         return GetPossibleSides(Label.PlacementSide.Top, derivative);
                     }
-                    return new double[] {derivative.Y < 0 ? -1 : 1};
+                    return [derivative.Y < 0 ? -1 : 1];
                 case Label.PlacementSide.Right:
                     if (ApproximateComparer.Close(derivative.Y, 0)) {
                         // If the line is horizontal, Right becomes Bottom
                         return GetPossibleSides(Label.PlacementSide.Bottom, derivative);
                     }
-                    return new double[] {derivative.Y < 0 ? 1 : -1};
+                    return [derivative.Y < 0 ? 1 : -1];
                 default:
-                    return new double[] {-1, 1};
+                    return [-1, 1];
             }
         }
 
@@ -542,9 +542,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
         void CaseOfCoveredLengthGreaterThanLabelLength(Label label, PointSetList placedPoints, double coveredLength,
                                                        double labelLength, Point wh) {
-            List<Point> innerPoints = new List<Point>();
-            List<Point> outerPoints = new List<Point>();
-            List<PointSet> orderedPoints = placedPoints.Points.ToList();
+            List<Point> innerPoints = [];
+            List<Point> outerPoints = [];
+            List<PointSet> orderedPoints = [.. placedPoints.Points];
             double excess = coveredLength - labelLength;
             if (excess > 0) {
                 // move back the last point
@@ -598,14 +598,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 }
 
                 Point o = der.Rotate(Math.PI/2).Normalize()*side;
-                Point labelPos = p.Value + (radius + distanceFromCurve)*o;
+                Point labelPos = p.Value + ((radius + distanceFromCurve)*o);
                 if (!Conflict(labelPos, radius, wh)) {
                     // found a valid candidate position
                     PointSet ps = new PointSet {
                         Key = p.Key,
                         Center = labelPos,
-                        Inner = p.Value + distanceFromCurve*o,
-                        Outer = p.Value + (2.0*radius + distanceFromCurve)*o
+                        Inner = p.Value + (distanceFromCurve*o),
+                        Outer = p.Value + (((2.0*radius) + distanceFromCurve)*o)
                     };
                     coveredLength = i <= index
                                         ? placedPoints.AddFirst(ps)
@@ -740,7 +740,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         }
 
         static List<KeyValuePair<double, Point>> CurvePoints(ICurve curve, int granularity) {
-            List<KeyValuePair<double, Point>> points = new List<KeyValuePair<double, Point>>();
+            List<KeyValuePair<double, Point>> points = [];
             double delta = (curve.End - curve.Start).LengthSquared/(granularity*granularity);
             SubdivideCurveSegment(points, curve, delta, curve.ParStart, curve.ParEnd);
 

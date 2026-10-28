@@ -17,15 +17,15 @@ public sealed class CellRouteProductionLegalityTests
     [TestCase("managerOk", "financeOk")]
     public void RebuildPublishesLegalPathBeforeFinalRecovery(string Target, string Blocker)
     {
-        var Scenario = Source("A112");
+        RouteRuleCatalogueAuditTests.Scenario Scenario = Source("A112");
         DiagramContract? Contract = null;
         FlowchartLayoutResult? Layout = null;
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true,
             (CompletedContract, CompletedLayout) => { Contract = CompletedContract; Layout = CompletedLayout; }, Nodes =>
             {
-                var Route = Layout!.EdgeRoutes.Single(Edge => Edge.TargetId == Target);
-                var Start = Route.Points[0]; var End = Route.Points[^1];
-                var Before = Nodes[0].CellNode!.Grid.Capture();
+                FlowchartLayoutEdgeRoute Route = Layout!.EdgeRoutes.Single(Edge => Edge.TargetId == Target);
+                FlowchartLayoutPoint Start = Route.Points[0]; FlowchartLayoutPoint End = Route.Points[^1];
+                FlowchartLogicalGrid.Snapshot Before = Nodes[0].CellNode!.Grid.Capture();
                 Layout.RenderContext.GridRouteCache.Clear();
                 (double X, double Y)[]? ColdPath = null;
                 foreach (string CacheState in new[] { "cold", "warm" })
@@ -33,7 +33,7 @@ public sealed class CellRouteProductionLegalityTests
                     // Only constructor inputs are retained. No final completion
                     // or legality-recovery stage runs after this direct call.
                     Route.Points.Clear(); Route.Points.AddRange([Start, End]);
-                    DiagramGridRouteBuilder.RebuildAllRoutes(Layout, Nodes.ToList(),
+                    DiagramGridRouteBuilder.RebuildAllRoutes(Layout, [.. Nodes],
                         Contract!.Nodes.ToDictionary(Node => Node.Id), Contract, [],
                         FlowchartDirection.TopToBottom, new HashSet<FlowchartLayoutEdgeRoute> { Route });
                     Assert.That(Route.Points.Count, Is.GreaterThanOrEqualTo(2));
@@ -43,9 +43,15 @@ public sealed class CellRouteProductionLegalityTests
                         .Where(Finding => Finding.Subject == Route.EdgeId && Finding.Rule is "10" or "3.1" or "4.1"),
                         Is.Empty, $"The {CacheState} producer must not publish a path through {Blocker} or lose its allocated normal.");
                     Assert.That(Nodes[0].CellNode!.Grid.Capture(), Is.SameAs(Before));
-                    var Points = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-                    if (ColdPath == null) ColdPath = Points;
-                    else Assert.That(Points, Is.EqualTo(ColdPath), "A warm cache must preserve exact normal and body coordinates.");
+                    (double X, double Y)[] Points = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
+                    if (ColdPath == null)
+                    {
+                        ColdPath = Points;
+                    }
+                    else
+                    {
+                        Assert.That(Points, Is.EqualTo(ColdPath), "A warm cache must preserve exact normal and body coordinates.");
+                    }
                 }
             });
     }

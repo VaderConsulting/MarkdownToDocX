@@ -40,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         public Edge[] Run() {
             ignoreInteresingEdgesFunc = false;
-            Edge[] ret =SearchForPath().ToArray();
+            Edge[] ret = [.. SearchForPath()];
             if (ret.Length>0)
             {
                 return ret;
@@ -53,7 +53,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
             ignoreInteresingEdgesFunc = true;
             Cleanup();
-            Edge[] p = SearchForPath().ToArray();
+            Edge[] p = [.. SearchForPath()];
             return p;
         }
 
@@ -189,7 +189,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         double AStarH(Node node) => (node.Center - target.Center).Length * (1 - alpha);
 
-        double CalculateCostPlus(Edge edge, Point edgeVector) => edgeVector.Length * (1 - alpha / ZoomLevel(edge));//diminishing the edge length for important edges
+        double CalculateCostPlus(Edge edge, Point edgeVector) => edgeVector.Length * (1 - (alpha / ZoomLevel(edge)));//diminishing the edge length for important edges
 
         double ZoomLevel(Edge edge) {
             LgNodeInfo src = geomNodeToLgNode(edge.Source);

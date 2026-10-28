@@ -14,7 +14,7 @@ namespace LiveEditor.Tests;
 /// </summary>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
-public sealed class PreviewSelectionTests
+public sealed partial class PreviewSelectionTests
 {
     private const string SOURCE = "enterprise\n"
         + "group box \"Box\"\n"
@@ -132,8 +132,8 @@ public sealed class PreviewSelectionTests
     [Test]
     public void BoldDashesFollowTheDashesUnderneath()
     {
-        Assert.That(PreviewSelection.DashPattern(new float[] { 6, 4 }, 1.5), Is.EqualTo(new float[] { 3, 2 }));
-        Assert.That(PreviewSelection.DashPattern(new float[] { 3 }, 1.0)!.Length, Is.EqualTo(2));
+        Assert.That(PreviewSelection.DashPattern([6, 4], 1.5), Is.EqualTo(new float[] { 3, 2 }));
+        Assert.That(PreviewSelection.DashPattern([3], 1.0)!.Length, Is.EqualTo(2));
         Assert.That(PreviewSelection.DashPattern(null, 1.0), Is.Null);
     }
 
@@ -295,8 +295,8 @@ public sealed class PreviewSelectionTests
 
     private const int VK_DOWN = 0x28;
 
-    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
-    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
 
     private static void WaitForCurrentIndex(MainForm Form)
     {

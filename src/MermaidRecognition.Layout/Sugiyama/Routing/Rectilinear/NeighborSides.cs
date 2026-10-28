@@ -23,7 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// <summary>
             /// Dereferences the node if non-null to return the side Item.
             /// </summary>
-            internal BasicObstacleSide LowNeighborSide => (null == LowNeighbor) ? null : LowNeighbor.Item;
+            internal BasicObstacleSide LowNeighborSide => LowNeighbor?.Item;
 
             /// <summary>
             /// A LowObstacleSide that we pass through in the low direction into open space.
@@ -43,7 +43,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             /// <summary>
             /// Dereferences the node if non-null to return the side Item.
             /// </summary>
-            internal BasicObstacleSide HighNeighborSide => (null == HighNeighbor) ? null : HighNeighbor.Item;
+            internal BasicObstacleSide HighNeighborSide => HighNeighbor?.Item;
 
             /// <summary>
             /// A HighObstacleSide that we pass through in the high direction into open space.

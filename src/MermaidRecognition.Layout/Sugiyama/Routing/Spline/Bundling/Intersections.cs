@@ -190,7 +190,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         internal static Polyline Create4gon(Point apex, Point baseCenter, double width1, double width2) {
             Point norm = (baseCenter - apex).Normalize();
             norm = new Point(norm.Y, -norm.X);
-            return new Polyline(apex + norm * width1 / 2, apex - norm * width1 / 2, baseCenter - norm * width2 / 2, baseCenter + norm * width2 / 2) { Closed = true };
+            return new Polyline(apex + (norm * width1 / 2), apex - (norm * width1 / 2), baseCenter - (norm * width2 / 2), baseCenter + (norm * width2 / 2)) { Closed = true };
         }
 
 
@@ -230,7 +230,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     if (!EdgeIsLegal(station, adj, station.Position, adj.Position)) {
                         if (LayoutAlgorithmSettings.ShowDebugCurvesEnumeration != null) {
                             //debug visualization 
-                            List<DebugCurve> l = new List<DebugCurve>();
+                            List<DebugCurve> l = [];
                             //foreach (var st in metroGraphData.Stations) {
                             //    l.Add(new DebugCurve(100, 0.5, "grey", st.BoundaryCurve));
                             //}
@@ -260,7 +260,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void ShowStationWithObstaclesToIgnore(Station station, IEnumerable<Polyline> allHitItems) {
-            List<DebugCurve> l = new List<DebugCurve>();
+            List<DebugCurve> l = [];
             foreach (Polyline poly in allHitItems) {
                 l.Add(new DebugCurve(100, 0.5, "brown", poly));
             }
@@ -290,7 +290,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             List<IntersectionInfo> crossings = InteractiveEdgeRouter.IntersectionsOfLineAndRectangleNodeOverPolyline(new LineSegment(a, b), obstacleTree);
             Set<Polyline> obstaclesToIgnoreForBundle = ObstaclesToIgnoreForBundle(stationA, stationB);
             if (crossings.Count < 0) {
-                List<DebugCurve> l = new List<DebugCurve>();
+                List<DebugCurve> l = [];
                 Set<ICurve> crossingSet = new Set<ICurve>(crossings.Select(ii => ii.Segment1));
                 l.AddRange(crossingSet.Select(p=>new DebugCurve(100,1,"red",p)));
                 l.AddRange(obstaclesToIgnoreForBundle.Select(p=>new DebugCurve(100,0.5,"green",p)));

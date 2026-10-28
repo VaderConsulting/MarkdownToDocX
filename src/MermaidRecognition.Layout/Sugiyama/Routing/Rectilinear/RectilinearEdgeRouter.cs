@@ -463,15 +463,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
 #if TEST_MSAGL
         private IEnumerable<DebugCurve> GetGraphDebugCurves() {
-            List<DebugCurve> l = 
-                VisibilityGraph.Edges.Select(e => new DebugCurve(50, 0.1, "blue", new LineSegment(e.SourcePoint, e.TargetPoint))).ToList();
+            List<DebugCurve> l =
+                [.. VisibilityGraph.Edges.Select(e => new DebugCurve(50, 0.1, "blue", new LineSegment(e.SourcePoint, e.TargetPoint)))];
             l.AddRange(Obstacles.Select(o => new DebugCurve(1, "green", o.BoundaryCurve)));
             return l;
         }
 #endif
 
         private static Dictionary<EdgeGeometry, IEnumerable<Path>> SplitEdgeGeomsWithWaypoints(IEnumerable<EdgeGeometry> edgeGeometries) {
-            Dictionary<EdgeGeometry, IEnumerable<Path>> ret = new Dictionary<EdgeGeometry, IEnumerable<Path>>();
+            Dictionary<EdgeGeometry, IEnumerable<Path>> ret = [];
             foreach (EdgeGeometry edgeGeometry in edgeGeometries.Where(eg => eg.HasWaypoints)) {
                 ret[edgeGeometry] = SplitEdgeGeomWithWaypoints(edgeGeometry, edgeGeometry.Waypoints);
             }
@@ -479,7 +479,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private static IEnumerable<Path> SplitEdgeGeomWithWaypoints(EdgeGeometry edgeGeom, IEnumerable<Point> waypoints) {
-            List<Path> ret = new List<Path>();
+            List<Path> ret = [];
             IEnumerator<Point> wp0 = waypoints.GetEnumerator();
             wp0.MoveNext();
             ret.Add(new Path(new EdgeGeometry(edgeGeom.SourcePort, new WaypointPort(wp0.Current))));
@@ -590,17 +590,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 // or disconnected subcomponents due to excessive overlaps, such as Rectilinear(File)Tests.*Disconnected*.  In this
                 // case, just put the single-bend path in there, even though it most likely cuts across unrelated obstacles.
                 if (PointComparer.IsPureDirection(edgePath.EdgeGeometry.SourcePort.Location, edgePath.EdgeGeometry.TargetPort.Location)) {
-                    edgePath.PathPoints = new[] {
+                    edgePath.PathPoints = [
                             edgePath.EdgeGeometry.SourcePort.Location,
                             edgePath.EdgeGeometry.TargetPort.Location
-                    };
+                    ];
                     return;
                 }
-                edgePath.PathPoints = new[] {
+                edgePath.PathPoints = [
                     edgePath.EdgeGeometry.SourcePort.Location,
                     new Point(edgePath.EdgeGeometry.SourcePort.Location.X, edgePath.EdgeGeometry.TargetPort.Location.Y),
                     edgePath.EdgeGeometry.TargetPort.Location
-                };
+                ];
             }
         }
 
@@ -621,12 +621,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 // ReSharper disable InconsistentNaming
             const double w0 = 0.1;
             const int w1 = 3;
-            Point[] arr = p.ToArray();
+            Point[] arr = [.. p];
             double d = (w1 - w0)/(arr.Length - 1);
-            List<DebugCurve> l = new List<DebugCurve>();
+            List<DebugCurve> l = [];
             for (int i = 0; i < arr.Length - 1; i++) {
                 Console.WriteLine(arr[i]);
-                l.Add(new DebugCurve(100, w0 + i*d, "blue", new LineSegment(arr[i], arr[i + 1])));
+                l.Add(new DebugCurve(100, w0 + (i*d), "blue", new LineSegment(arr[i], arr[i + 1])));
             }
             Console.WriteLine(arr.Last());
             Console.WriteLine("================");
@@ -726,7 +726,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 }
                 Polyline? poly = (edgeGeom.Curve as Polyline);
                 if (poly != null) {
-                    edgeGeom.Curve = FitArcsIntoCorners(CornerFitRadius, poly.ToArray());
+                    edgeGeom.Curve = FitArcsIntoCorners(CornerFitRadius, [.. poly]);
                 }
                 CalculateArrowheads(edgeGeom);
             }
@@ -811,7 +811,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 #if TEST_MSAGL
         internal void ShowPathWithTakenEdgesAndGraph(IEnumerable<VisibilityVertex> path, Set<VisibilityEdge> takenEdges){
             List<VisibilityVertex> list = new List<VisibilityVertex>(path);
-            List<LineSegment> lines = new List<LineSegment>();
+            List<LineSegment> lines = [];
             for (int i = 0; i < list.Count - 1; i++)
             {
                 lines.Add(new LineSegment(list[i].Point, list[i + 1].Point));
@@ -822,7 +822,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             const double w1 = 8;
             double delta = (w1 - w0)/(list.Count - 1);
 
-            List<DebugCurve> dc = new List<DebugCurve>();
+            List<DebugCurve> dc = [];
             foreach (LineSegment line in lines) {
                 dc.Add(new DebugCurve(50, w0, "red", line));
                 w0 += delta;

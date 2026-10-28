@@ -52,7 +52,7 @@ internal static partial class DagreLayoutEngine
 
     private static List<DagreEdge> DfsFeedback(DagreGraph Graph)
     {
-        List<DagreEdge> Feedback = new List<DagreEdge>();
+        List<DagreEdge> Feedback = [];
         HashSet<string> Stack = new HashSet<string>(StringComparer.Ordinal);
         HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal);
         foreach (string NodeId in Graph.Nodes())
@@ -95,7 +95,7 @@ internal static partial class DagreLayoutEngine
     {
         if (Graph.NodeCount <= 1)
         {
-            return new List<DagreEdge>();
+            return [];
         }
 
         DagreGraph FasGraph = new DagreGraph();
@@ -137,7 +137,7 @@ internal static partial class DagreLayoutEngine
         }
 
         int BucketCount = (int)MaxOut + (int)MaxIn + 3;
-        List<DagreLinkedList> Buckets = new List<DagreLinkedList>();
+        List<DagreLinkedList> Buckets = [];
         for (int Index = 0; Index < BucketCount; Index++)
         {
             Buckets.Add(new DagreLinkedList());
@@ -154,7 +154,7 @@ internal static partial class DagreLayoutEngine
         }
 
         List<DagreEdge> Simple = DoGreedyFeedback(FasGraph, Buckets, ZeroIndex);
-        List<DagreEdge> Expanded = new List<DagreEdge>();
+        List<DagreEdge> Expanded = [];
         foreach (DagreEdge Edge in Simple)
         {
             Expanded.AddRange(Graph.OutEdgesTo(Edge.V, Edge.W));
@@ -165,7 +165,7 @@ internal static partial class DagreLayoutEngine
 
     private static List<DagreEdge> DoGreedyFeedback(DagreGraph Graph, List<DagreLinkedList> Buckets, int ZeroIndex)
     {
-        List<DagreEdge> Results = new List<DagreEdge>();
+        List<DagreEdge> Results = [];
         DagreLinkedList Sources = Buckets[Buckets.Count - 1];
         DagreLinkedList Sinks = Buckets[0];
         while (Graph.NodeCount > 0)
@@ -438,10 +438,7 @@ internal static partial class DagreLayoutEngine
             }
 
             DagreEdgeLabel? TreeEdge = Tree.Edge(Child, Label.TreeParent);
-            if (TreeEdge != null)
-            {
-                TreeEdge.CutValue = CalcCutValue(Tree, Graph, Child);
-            }
+            TreeEdge?.CutValue = CalcCutValue(Tree, Graph, Child);
         }
     }
 

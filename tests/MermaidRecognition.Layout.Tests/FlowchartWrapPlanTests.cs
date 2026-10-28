@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 
@@ -12,7 +13,7 @@ public sealed class FlowchartWrapPlanTests
     [TestCase(503, false)]
     public void Choose_KeepsSingleRunWithinDiagramUsableWidth(int NodeCount, bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart TD\n  measured[\"A label long enough to determine the shared box\"]");
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TD\n  measured[\"A label long enough to determine the shared box\"]");
         (int NodeWidth, int NodeHeight) = DiagramGridLayout.ResolveStandardBox(Contract);
         int ColumnGap = DiagramGridMetrics.NODE_GAP_PX;
         int RankGap = Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX);

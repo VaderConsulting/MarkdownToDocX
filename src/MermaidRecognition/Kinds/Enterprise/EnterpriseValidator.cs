@@ -8,15 +8,15 @@ namespace MermaidRecognition.Kinds.Enterprise;
 /// </summary>
 public static class EnterpriseValidator
 {
-    private static readonly HashSet<EnterpriseRelationshipKind> NestableKinds = new HashSet<EnterpriseRelationshipKind>
-    {
+    private static readonly HashSet<EnterpriseRelationshipKind> NestableKinds =
+    [
         EnterpriseRelationshipKind.Composition,
         EnterpriseRelationshipKind.Aggregation,
         EnterpriseRelationshipKind.Assignment,
         EnterpriseRelationshipKind.Realization,
         EnterpriseRelationshipKind.Access,
         EnterpriseRelationshipKind.Specialization
-    };
+    ];
 
     /// <summary>
     /// Text appended when a 3.2 check hits one of the 15 unverified cells.
@@ -37,7 +37,7 @@ public static class EnterpriseValidator
         }
 
         EnterpriseRulesCatalog Rules = Catalog ?? EnterpriseRulesCatalog.Instance;
-        List<EnterpriseDiagnostic> Diagnostics = new List<EnterpriseDiagnostic>();
+        List<EnterpriseDiagnostic> Diagnostics = [];
         if (string.Equals(Document.Version, "3.2", StringComparison.Ordinal))
         {
             Diagnostics.Add(new EnterpriseDiagnostic(
@@ -207,7 +207,7 @@ public static class EnterpriseValidator
             return "none";
         }
 
-        List<string> Names = new List<string>();
+        List<string> Names = [];
         foreach (char Letter in AllowedLetters)
         {
             if (EnterpriseElementCatalog.TryResolveLetter(Letter, out EnterpriseRelationshipKind Kind))

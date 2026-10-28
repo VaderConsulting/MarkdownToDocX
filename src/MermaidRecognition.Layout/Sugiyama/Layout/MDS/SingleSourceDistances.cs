@@ -171,7 +171,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
             List<IEnumerable<int>> comps = new List<IEnumerable<int>>( ConnectedComponentCalculator<IntPair>.GetComponents(basicGraph));
             if (comps.Count == 1)
             {
-                return new GeometryGraph[] { graph };
+                return [graph];
             }
 
             GeometryGraph[] ret = new GeometryGraph[comps.Count];

@@ -73,7 +73,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         }
 
         void DetouchNode(Node item) {
-            Edge[] nodeEdges = item.Edges.ToArray(); //cannot use lazy evaluation here
+            Edge[] nodeEdges = [.. item.Edges]; //cannot use lazy evaluation here
             foreach (Edge? edge in nodeEdges)
             {
                 graph.Edges.Remove(edge);

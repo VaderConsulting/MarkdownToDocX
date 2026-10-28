@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -11,7 +12,7 @@ public sealed class DecisionDetourPlacementTests
     [TestCase("RL", true)]
     public void Layout_Detour_RejoinsContinuationFromSide(string Direction, bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse($$"""
+        DiagramContract Contract = MermaidRecognizer.Parse($$"""
             flowchart {{Direction}}
             Root{Root} --> First{First}
             Root -->|exit| Earlier[Earlier] --> End
@@ -23,21 +24,21 @@ public sealed class DecisionDetourPlacementTests
             Last -->|finish| End([End])
             Store --> End
             """);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        var First = Layout.NodeBounds.Single(Node => Node.NodeId == "First");
-        var Join = Layout.NodeBounds.Single(Node => Node.NodeId == "Join");
-        var Last = Layout.NodeBounds.Single(Node => Node.NodeId == "Last");
-        var Store = Layout.NodeBounds.Single(Node => Node.NodeId == "Store");
-        var End = Layout.NodeBounds.Single(Node => Node.NodeId == "End");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutNodeBounds First = Layout.NodeBounds.Single(Node => Node.NodeId == "First");
+        FlowchartLayoutNodeBounds Join = Layout.NodeBounds.Single(Node => Node.NodeId == "Join");
+        FlowchartLayoutNodeBounds Last = Layout.NodeBounds.Single(Node => Node.NodeId == "Last");
+        FlowchartLayoutNodeBounds Store = Layout.NodeBounds.Single(Node => Node.NodeId == "Store");
+        FlowchartLayoutNodeBounds End = Layout.NodeBounds.Single(Node => Node.NodeId == "End");
         double Cross(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterY : Node.CenterX;
         Assert.That(Cross(Join), Is.EqualTo(Cross(First)).Within(0.5));
         Assert.That((Cross(Store) - Cross(Last)) * (Cross(End) - Cross(Last)), Is.LessThan(0));
-        var Direct = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == "First" && Edge.TargetId == "Join");
+        FlowchartLayoutEdgeRoute Direct = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == "First" && Edge.TargetId == "Join");
         Assert.That(Direct.Points, Has.Count.EqualTo(2));
         foreach (string Source in new[] { "Side", "Store" })
         {
-            var Route = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Source);
-            var Target = Source == "Side" ? Join : End;
+            FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Source);
+            FlowchartLayoutNodeBounds Target = Source == "Side" ? Join : End;
             Assert.That(Route.Points, Has.Count.EqualTo(3));
             Assert.That(Horizontal ? Route.Points[^1].X : Route.Points[^1].Y,
                 Is.EqualTo(Horizontal ? Target.CenterX : Target.CenterY).Within(0.5));

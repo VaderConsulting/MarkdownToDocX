@@ -11,9 +11,9 @@ public sealed class FlowchartCellFrameHintRepairTests
     [Test]
     public void ExternalGapPreservesHintedCellsAndRestoresExactly()
     {
-        var (Contract, Nodes, Grid) = Fixture();
-        var Before = Grid.Capture(); double X = Nodes[1].X;
-        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>(), [new(true, 0, 60, 30)])!;
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); double X = Nodes[1].X;
+        FlowchartCellRepair.Assignment Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>(), [new(true, 0, 60, 30)])!;
         Assert.That(Plan.TryApply(), Is.True);
         Assert.That(Grid.RegionOf("B"), Is.EqualTo(Before.Regions["B"]));
         Assert.That(Nodes[1].X, Is.EqualTo(X + 60));
@@ -26,7 +26,7 @@ public sealed class FlowchartCellFrameHintRepairTests
     [Test]
     public void OrdinaryMoveRetainsTheHintLock()
     {
-        var (_, Nodes, Grid) = Fixture(); var Before = Grid.Capture();
+        (DiagramContract _, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartCellRepair.PlanMove([Nodes[1]], 0, 1), Is.Null);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -38,7 +38,7 @@ public sealed class FlowchartCellFrameHintRepairTests
     [TestCase(0, -1)]
     public void LegalityMoveStillRejectsBrokenHint(int Row, int Column)
     {
-        var (_, Nodes, Grid) = Fixture(); var Before = Grid.Capture();
+        (DiagramContract _, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartCellRepair.PlanAssignment(Nodes,
             new Dictionary<string, FlowchartCellRegion> { ["B"] = new(Row, Column, 1, 1) }, AllowHintedRegionRepair: true), Is.Null);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
@@ -48,10 +48,10 @@ public sealed class FlowchartCellFrameHintRepairTests
     [Test]
     public void LegalityMoveCannotShortenTheDeclaredOffset()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Assert.That(Grid.TryMove(["B"], 0, 2), Is.True);
         Contract.Nodes.Single(Node => Node.Id == "B").PlacementHint!.Offset = 2;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartCellRepair.PlanAssignment(Nodes,
             new Dictionary<string, FlowchartCellRegion> { ["B"] = new(0, 2, 1, 1) }, AllowHintedRegionRepair: true), Is.Null);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
@@ -61,10 +61,10 @@ public sealed class FlowchartCellFrameHintRepairTests
     [Test]
     public void FrameFitSelectsGapInsteadOfTheFartherHintedCell()
     {
-        using var Scope = FlowchartRenderContext.Activate(new());
-        var (Contract, Nodes, Grid) = Fixture();
+        using IDisposable Scope = FlowchartRenderContext.Activate(new());
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Nodes[0].CellHintValidator = null; // An independently fixed frame member cannot move.
-        var Before = Grid.Capture(); var Frames = new List<DiagramGridLayout.GridFrame>();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); List<DiagramGridLayout.GridFrame> Frames = [];
         DiagramGridLayout.ReplaceCellFrames(Contract, Nodes, Frames);
         DiagramGridLayout.FitFrames(Contract, Nodes, Frames, false, "hinted-gap-choice");
         Assert.That(Grid.RegionOf("B"), Is.EqualTo(Before.Regions["B"]));
@@ -77,29 +77,32 @@ public sealed class FlowchartCellFrameHintRepairTests
     [Test]
     public void FrameFitCanPreferCellsOverGapOnly()
     {
-        using var Scope = FlowchartRenderContext.Activate(new());
-        var Contract = new DiagramContract();
-        var Region = new GroupContract { Id = "Region" }; Region.ChildGroupIdsMutable.Add("Zone"); Region.ChildNodeIdsMutable.AddRange(["Gate", "Db"]);
-        var Zone = new GroupContract { Id = "Zone", ParentGroupId = "Region" }; Zone.ChildNodeIdsMutable.AddRange(["web", "App"]);
+        using IDisposable Scope = FlowchartRenderContext.Activate(new());
+        DiagramContract Contract = new DiagramContract();
+        GroupContract Region = new GroupContract { Id = "Region" }; Region.ChildGroupIdsMutable.Add("Zone"); Region.ChildNodeIdsMutable.AddRange(["Gate", "Db"]);
+        GroupContract Zone = new GroupContract { Id = "Zone", ParentGroupId = "Region" }; Zone.ChildNodeIdsMutable.AddRange(["web", "App"]);
         Contract.GroupsMutable.AddRange([Region, Zone]);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
         string[] Ids = ["Client", "Gate", "web", "App", "Db"];
         for (int Row = 0; Row < Ids.Length; Row++)
         {
             string? Group = Row == 0 ? null : Row is 2 or 3 ? "Zone" : "Region";
             Contract.NodesMutable.Add(new() { Id = Ids[Row], ParentGroupId = Group, Shape = "rect" });
             Grid.TryPlace(Ids[Row], new(Row, 0, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Ids[Row], GroupId = Group }; Node.BindCells(Grid); Nodes.Add(Node);
-            if (Row > 0) Contract.EdgesMutable.Add(new() { SourceId = Ids[Row - 1], TargetId = Ids[Row] });
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Ids[Row], GroupId = Group }; Node.BindCells(Grid); Nodes.Add(Node);
+            if (Row > 0)
+            {
+                Contract.EdgesMutable.Add(new() { SourceId = Ids[Row - 1], TargetId = Ids[Row] });
+            }
         }
-        var GapOnly = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>(),
+        FlowchartCellRepair.Assignment GapOnly = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>(),
             [new(false, 0, 120, 30), new(false, 1, 90, 30), new(false, 3, 30, 30)])!;
-        var GapFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, GapOnly.After);
-        var GapBounds = Nodes.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Bounds(GapOnly.After.Regions[Node.Id], Node.GeometryProvider, GapOnly.After));
+        List<DiagramGridLayout.GridFrame> GapFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, GapOnly.After);
+        Dictionary<string, FlowchartLayoutNodeBounds> GapBounds = Nodes.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Bounds(GapOnly.After.Regions[Node.Id], Node.GeometryProvider, GapOnly.After));
         Assert.That(DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, GapFrames, GapBounds), Is.Empty);
         double GapScore = PlacementScore(Nodes, GapOnly.After, GapFrames);
-        var Frames = new List<DiagramGridLayout.GridFrame>(); DiagramGridLayout.ReplaceCellFrames(Contract, Nodes, Frames);
+        List<DiagramGridLayout.GridFrame> Frames = []; DiagramGridLayout.ReplaceCellFrames(Contract, Nodes, Frames);
         DiagramGridLayout.FitFrames(Contract, Nodes, Frames, false, "move-versus-gap-score");
         Assert.That(Grid.RegionOf("Client").StartRow, Is.Not.EqualTo(0));
         Assert.That(PlacementScore(Nodes, Grid.Capture(), Frames), Is.LessThan(GapScore));
@@ -113,11 +116,19 @@ public sealed class FlowchartCellFrameHintRepairTests
     private static double PlacementScore(List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid.Snapshot State,
         List<DiagramGridLayout.GridFrame> Frames)
     {
-        var Layout = new FlowchartLayoutResult();
-        foreach (var Node in Nodes) Layout.NodeBoundsMutable.Add(Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State));
-        foreach (var Frame in Frames) Layout.ClusterBoundsMutable.Add(new() { NodeId = Frame.Id,
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            Layout.NodeBoundsMutable.Add(Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State));
+        }
+
+        foreach (DiagramGridLayout.GridFrame Frame in Frames)
+        {
+            Layout.ClusterBoundsMutable.Add(new() { NodeId = Frame.Id,
             CenterX = (Frame.Left + Frame.Right) / 2.0, CenterY = (Frame.Top + Frame.Bottom) / 2.0,
             Width = Frame.Right - Frame.Left, Height = Math.Abs(Frame.Top - Frame.Bottom) });
+        }
+
         return FlowchartLayoutScore.MeasurePlacement(Layout);
     }
 
@@ -125,17 +136,17 @@ public sealed class FlowchartCellFrameHintRepairTests
     /// <returns>Complete source membership, bound nodes and authoritative grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract();
-        var Group = new GroupContract { Id = "G", Title = "G" }; Group.ChildNodeIdsMutable.Add("A");
+        DiagramContract Contract = new DiagramContract();
+        GroupContract Group = new GroupContract { Id = "G", Title = "G" }; Group.ChildNodeIdsMutable.Add("A");
         Contract.GroupsMutable.Add(Group);
         Contract.NodesMutable.AddRange([new() { Id = "A", ParentGroupId = "G", Shape = "rect" },
             new() { Id = "B", Shape = "rect", PlacementHint = new() { Kind = PlacementHintKind.RightOf, PeerId = "A", IsActive = true } }]);
         Contract.EdgesMutable.Add(new() { SourceId = "A", TargetId = "B" });
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1)); Grid.TryPlace("B", new(0, 1, 1, 1));
-        var Nodes = new List<DiagramGridLayout.GridNode> { new() { Id = "A", GroupId = "G" }, new() { Id = "B" } };
+        List<DiagramGridLayout.GridNode> Nodes = [new() { Id = "A", GroupId = "G" }, new() { Id = "B" }];
         Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool> Validate = Regions => FlowchartPlacementHints.CellHintsMatch(Contract, Nodes, Regions);
-        foreach (var Node in Nodes) { Node.BindCells(Grid); Node.PlacementHintLocked = true; Node.CellHintValidator = Validate; }
+        foreach (DiagramGridLayout.GridNode Node in Nodes) { Node.BindCells(Grid); Node.PlacementHintLocked = true; Node.CellHintValidator = Validate; }
         return (Contract, Nodes, Grid);
     }
 }

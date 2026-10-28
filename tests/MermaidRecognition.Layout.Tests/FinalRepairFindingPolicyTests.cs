@@ -21,8 +21,14 @@ public sealed class FinalRepairFindingPolicyTests
         int Count((double X, double Y)[][] Paths)
         {
             int Result = 0;
-            for (int A = 0; A < Paths.Length; A++) for (int B = A + 1; B < Paths.Length; B++)
-                Result += FlowchartBranchRouteOrder.Intersections(Paths[A], Paths[B]).Crossings;
+            for (int A = 0; A < Paths.Length; A++)
+            {
+                for (int B = A + 1; B < Paths.Length; B++)
+                {
+                    Result += FlowchartBranchRouteOrder.Intersections(Paths[A], Paths[B]).Crossings;
+                }
+            }
+
             return Result;
         }
     }
@@ -55,7 +61,7 @@ public sealed class FinalRepairFindingPolicyTests
     [TestCase("fault"), TestCase("crossing"), TestCase("hint"), TestCase("score")]
     public void OtherConditions_RejectChangedIdentity(string Reason)
     {
-        var Candidate = Facts(60, 3, 2);
+        FlowchartFinalRepairPolicy.Measurement Candidate = Facts(60, 3, 2);
         Candidate = Reason switch
         {
             "fault" => Candidate with { Faults = [new("NoLegalRoute", "missing", ["line"], null)] },
@@ -71,7 +77,7 @@ public sealed class FinalRepairFindingPolicyTests
     /// <param name="Identities">Exact subjects reported by the checker.</param>
     /// <returns>Finding inventory.</returns>
     private static FlowchartRouteRuleChecker.Finding[] Findings(params string[] Identities) =>
-        Identities.Select(Id => new FlowchartRouteRuleChecker.Finding("5.9", Id, "crossing")).ToArray();
+        [.. Identities.Select(Id => new FlowchartRouteRuleChecker.Finding("5.9", Id, "crossing"))];
 
     /// <summary>Creates complete immutable measurements without a mutable diagram.</summary>
     /// <param name="Cost">Primary score.</param>

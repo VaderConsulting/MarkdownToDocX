@@ -37,7 +37,7 @@ internal static class EnterpriseSamplePaths
         DirectoryInfo? DirectoryCursor = new DirectoryInfo(AppContext.BaseDirectory);
         while (DirectoryCursor != null)
         {
-            string Candidate = Path.Combine(new[] { DirectoryCursor.FullName }.Concat(RelativeParts).ToArray());
+            string Candidate = Path.Combine([DirectoryCursor.FullName, .. RelativeParts]);
             if (Directory.Exists(Candidate))
             {
                 return Candidate;

@@ -34,16 +34,27 @@ internal static class FinalRepairAuditCapture
         IReadOnlyList<Confirmation> Confirmations)
     {
         string? Path = Environment.GetEnvironmentVariable("FINAL_REPAIR_CAPTURE");
-        if (Path == null || Layout == null) return;
-        int Crossings = 0, Shared = 0;
-        for (int A = 0; A < Layout.EdgeRoutes.Count; A++) for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+        if (Path == null || Layout == null)
         {
-            var Hits = FlowchartBranchRouteOrder.Intersections(Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
-                Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray());
-            Crossings += Hits.Crossings; if (Hits.Overlap > 0) Shared++;
+            return;
         }
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
-        var EnterpriseScore = Id.StartsWith("A", StringComparison.Ordinal) && Layout.NodeBounds.Count > 0
+
+        int Crossings = 0, Shared = 0;
+        for (int A = 0; A < Layout.EdgeRoutes.Count; A++)
+        {
+            for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+        {
+            (int Crossings, double Overlap) Hits = FlowchartBranchRouteOrder.Intersections(Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray());
+            Crossings += Hits.Crossings; if (Hits.Overlap > 0)
+                {
+                    Shared++;
+                }
+            }
+        }
+
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        FlowchartLayoutScore.Result? EnterpriseScore = Id.StartsWith("A", StringComparison.Ordinal) && Layout.NodeBounds.Count > 0
             ? FlowchartLayoutScore.Measure(Contract, Layout, false) : null;
         File.AppendAllText(Path, JsonSerializer.Serialize(new { Id, Complete = Layout.NodeBounds.Count > 0, Seconds,
             Bends = Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)), Crossings, Shared,

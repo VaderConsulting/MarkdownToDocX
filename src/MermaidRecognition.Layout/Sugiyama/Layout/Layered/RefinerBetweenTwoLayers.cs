@@ -242,7 +242,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             //intermediate moves
             while (site != bottomSite) {
                 double K = (site.Point.Y - bottomSite.Point.Y) / (topSite.Point.Y - bottomSite.Point.Y);
-                site.Point = new Point(site.Point.X + K * upperMove + (1.0 - K) * downMove, site.Point.Y);
+                site.Point = new Point(site.Point.X + (K * upperMove) + ((1.0 - K) * downMove), site.Point.Y);
                 site = site.Next;
             }
 

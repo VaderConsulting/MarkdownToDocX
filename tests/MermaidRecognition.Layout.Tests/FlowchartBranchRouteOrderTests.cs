@@ -16,26 +16,30 @@ public sealed class FlowchartBranchRouteOrderTests
     [TestCase(true, true, false, false)]
     public void CrossedFanPorts_AreSwappedOnlyWhenOtherRoutesAndAllocatedFacesRemainClear(bool Rotate, bool Incoming, bool BlockingRoute, bool Circle)
     {
-        var Contract = new DiagramContract { Direction = Rotate ? "LR" : "TB" };
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>();
+        DiagramContract Contract = new DiagramContract { Direction = Rotate ? "LR" : "TB" };
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = [];
         AddNode("hub", 0, 300, Circle ? 60 : 100, 60);
         Contract.NodesMutable[0].Shape = Circle ? "circle" : "rect";
         AddNode("near", 200, 0, 100, 60);
         AddNode("far", 400, -200, 100, 60);
-        var Layout = new FlowchartLayoutResult();
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
         AddRoute("first", "near", "right", [(Circle ? 30 : 50, 300), (200, 300), (200, 30)]);
         AddRoute("second", "far", "bottom", [(0, 270), (0, 150), (400, 150), (400, -170)]);
         if (BlockingRoute)
         {
-            var Blocker = new FlowchartLayoutEdgeRoute { SourceId = "externalStart", TargetId = "externalEnd" };
-            foreach (var Point in new[] { Map(250, 230), Map(450, 230) }) Blocker.Points.Add(new() { X = Point.X, Y = Point.Y });
+            FlowchartLayoutEdgeRoute Blocker = new FlowchartLayoutEdgeRoute { SourceId = "externalStart", TargetId = "externalEnd" };
+            foreach ((double X, double Y) Point in new[] { Map(250, 230), Map(450, 230) })
+            {
+                Blocker.Points.Add(new() { X = Point.X, Y = Point.Y });
+            }
+
             Layout.EdgeRoutesMutable.Add(Blocker);
         }
-        var Routes = Layout.EdgeRoutes.Take(2).ToList();
+        List<FlowchartLayoutEdgeRoute> Routes = [.. Layout.EdgeRoutes.Take(2)];
         Assert.That(FlowchartBranchRouteOrder.Intersections(Path(Routes[0]), Path(Routes[1])).Crossings, Is.GreaterThan(0));
-        var Identities = Routes.Select(Route => (Route.EdgeId, Route.SourceId, Route.TargetId)).ToArray();
-        var FixedEnds = Routes.Select(Route => Incoming ? Path(Route)[0] : Path(Route)[^1]).ToArray();
-        var Ports = Routes.Select(Route => Incoming ? Path(Route)[^1] : Path(Route)[0]).ToArray();
+        (string EdgeId, string SourceId, string TargetId)[] Identities = [.. Routes.Select(Route => (Route.EdgeId, Route.SourceId, Route.TargetId))];
+        (double X, double Y)[] FixedEnds = [.. Routes.Select(Route => Incoming ? Path(Route)[0] : Path(Route)[^1])];
+        (double X, double Y)[] Ports = [.. Routes.Select(Route => Incoming ? Path(Route)[^1] : Path(Route)[0])];
         FlowchartBranchRouteOrder.RemoveAvoidableCrossings(Layout, Contract, Bounds,
             Contract.Nodes.ToDictionary(Node => Node.Id), Rotate ? FlowchartDirection.LeftToRight : FlowchartDirection.TopToBottom);
         Assert.That(FlowchartBranchRouteOrder.Intersections(Path(Routes[0]), Path(Routes[1])).Crossings,
@@ -47,7 +51,7 @@ public sealed class FlowchartBranchRouteOrderTests
         (double X, double Y) Map(double X, double Y) => Rotate ? (Y, X) : (X, Y);
         void AddNode(string Id, double X, double Y, double Width, double Height)
         {
-            var Centre = Map(X, Y);
+            (double X, double Y) Centre = Map(X, Y);
             Contract.NodesMutable.Add(new() { Id = Id, Shape = "rect" });
             Bounds[Id] = new() { NodeId = Id, CenterX = Centre.X, CenterY = Centre.Y,
                 Width = Rotate ? Height : Width, Height = Rotate ? Width : Height };
@@ -55,15 +59,19 @@ public sealed class FlowchartBranchRouteOrderTests
         void AddRoute(string Id, string Other, string Side, List<(double X, double Y)> Points)
         {
             string RotatedSide = Rotate ? (Side == "right" ? "top" : "left") : Side;
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Id, SourceId = Incoming ? Other : "hub",
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Id, SourceId = Incoming ? Other : "hub",
                 TargetId = Incoming ? "hub" : Other, ExitSide = Incoming ? (Rotate ? "right" : "top") : RotatedSide,
                 EntrySide = Incoming ? RotatedSide : (Rotate ? "right" : "top") };
-            if (Incoming) Points.Reverse();
-            foreach (var Point in Points) { var P = Map(Point.X, Point.Y); Route.Points.Add(new() { X = P.X, Y = P.Y }); }
+            if (Incoming)
+            {
+                Points.Reverse();
+            }
+
+            foreach ((double X, double Y) Point in Points) { (double X, double Y) P = Map(Point.X, Point.Y); Route.Points.Add(new() { X = P.X, Y = P.Y }); }
             Layout.EdgeRoutesMutable.Add(Route);
             Contract.EdgesMutable.Add(new() { Id = Id, SourceId = Route.SourceId, TargetId = Route.TargetId });
         }
     }
 
-    private static List<(double X, double Y)> Path(FlowchartLayoutEdgeRoute Route) => Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+    private static List<(double X, double Y)> Path(FlowchartLayoutEdgeRoute Route) => [.. Route.Points.Select(Point => (Point.X, Point.Y))];
 }

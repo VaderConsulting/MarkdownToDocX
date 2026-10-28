@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
+
 using MermaidSharp;
 
 namespace MDConverter.Tests;
@@ -21,10 +23,10 @@ public sealed class SequenceNoteSpacingTests
     {
         string Svg = Mermaid.Render("sequenceDiagram\nparticipant P\nparticipant Q\n"
             + "P->>Q: First\n" + Note + "\nQ->>P: Second", RenderOptions.Default);
-        var Document = System.Xml.Linq.XDocument.Parse(Svg);
+        XDocument Document = System.Xml.Linq.XDocument.Parse(Svg);
         string[] ViewBox = Document.Root!.Attribute("viewBox")!.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         double Width = double.Parse(ViewBox[2], CultureInfo.InvariantCulture);
-        var NotePath = Document.Descendants().Single(Element => Element.Name.LocalName == "path"
+        XElement NotePath = Document.Descendants().Single(Element => Element.Name.LocalName == "path"
             && (string?)Element.Attribute("fill") == "#FFF2B3");
         MatchCollection Coordinates = Regex.Matches(NotePath.Attribute("d")!.Value, @"-?\d+(?:\.\d+)?");
         for (int Index = 0; Index < Coordinates.Count; Index += 2)
@@ -113,7 +115,7 @@ public sealed class SequenceNoteSpacingTests
             @"<line[^>]+marker-end=""url\(#mermaid-svg_sequence[^""]+\)""[^>]*/>",
             RegexOptions.CultureInvariant);
 
-        var messageYs = new List<double>();
+        List<double> messageYs = [];
         foreach (Match match in matches)
         {
             double x1 = ReadAttribute(match.Value, "x1");
@@ -144,7 +146,7 @@ public sealed class SequenceNoteSpacingTests
 
         double top = double.Parse(match.Groups["top"].Value, CultureInfo.InvariantCulture);
         MatchCollection numbers = Regex.Matches(match.Value, @"[\d.]+", RegexOptions.CultureInvariant);
-        var yValues = new List<double>();
+        List<double> yValues = [];
         for (int i = 1; i < numbers.Count; i += 2)
         {
             yValues.Add(double.Parse(numbers[i].Value, CultureInfo.InvariantCulture));

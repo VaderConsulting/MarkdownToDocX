@@ -16,7 +16,11 @@ public static partial class DiagramGridLayout
         // This is an aesthetic midpoint translation, not containment or
         // clearance. Cell frames derive from their members; do not reposition
         // those regions to align two envelopes' centres.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         foreach (GroupContract Parent in Contract.Groups)
         {
             if (Parent.ChildGroupIds.Count != 1)
@@ -25,7 +29,7 @@ public static partial class DiagramGridLayout
             }
 
             string ChildGroupId = Parent.ChildGroupIds[0];
-            List<GridNode> Members = new List<GridNode>();
+            List<GridNode> Members = [];
             foreach (GridNode Node in Placed)
             {
                 if (IsInsideGroup(Contract, Node.Id, ChildGroupId))
@@ -49,7 +53,7 @@ public static partial class DiagramGridLayout
                 ContentRight = Math.Max(ContentRight, Centre + Half);
             }
 
-            List<GridNode> ParentRank = new List<GridNode>();
+            List<GridNode> ParentRank = [];
             foreach (GridNode Node in Placed)
             {
                 if (string.Equals(GroupOf(Contract, Node.Id), Parent.Id, StringComparison.Ordinal)
@@ -94,11 +98,15 @@ public static partial class DiagramGridLayout
     {
         Frames.Clear();
         BuildFrames(Contract, Placed, Frames);
-        var Roots = Frames.Where(Frame => ParentGroup(Contract, Frame.Id) == null).ToList();
+        List<GridFrame> Roots = [.. Frames.Where(Frame => ParentGroup(Contract, Frame.Id) == null)];
         bool Overlapping = Roots.Any(First => Roots.Any(Second => First != Second
             && First.Left < Second.Right && First.Right > Second.Left
             && First.Top < Second.Bottom && First.Bottom > Second.Top));
-        if (!Overlapping) return;
+        if (!Overlapping)
+        {
+            return;
+        }
+
         if (Placed.Any(Node => Node.CellNode != null))
         {
             PackCellRootGroups(Contract, Placed, Frames);
@@ -108,35 +116,41 @@ public static partial class DiagramGridLayout
 
         // Global ranks can scatter a container's members between other containers.
         // Close those empty strips locally, then move each container as one unit.
-        foreach (var Root in Roots)
+        foreach (GridFrame? Root in Roots)
         {
-            var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Root.Id)).ToList();
+            List<GridNode> Members = [.. Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Root.Id))];
             DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root {Root.Id}: begin reflow ({Members.Count} members)");
-            var Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
+            DiagramContract Local = new DiagramContract { Kind = Contract.Kind, Header = Contract.Header,
                 Direction = Contract.Direction, LayoutMode = Contract.LayoutMode };
-            var Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-            List<NodeContract> LocalNodes = Contract.Nodes.Where(Node => Ids.Contains(Node.Id)).ToList();
+            HashSet<string> Ids = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            List<NodeContract> LocalNodes = [.. Contract.Nodes.Where(Node => Ids.Contains(Node.Id))];
             Local.NodesMutable.AddRange(LocalNodes);
-            List<GroupContract> LocalGroups = Contract.Groups.Where(Group => Group.Id == Root.Id
-                || Members.Any(Node => IsInsideGroup(Contract, Node.Id, Group.Id))
-                    && IsInsideGroup(Contract, Group.Id, Root.Id)).ToList();
-            var Endpoints = Ids.Concat(LocalGroups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal);
+            List<GroupContract> LocalGroups = [.. Contract.Groups.Where(Group => Group.Id == Root.Id
+                || (Members.Any(Node => IsInsideGroup(Contract, Node.Id, Group.Id))
+                    && IsInsideGroup(Contract, Group.Id, Root.Id)))];
+            HashSet<string> Endpoints = Ids.Concat(LocalGroups.Select(Group => Group.Id)).ToHashSet(StringComparer.Ordinal);
             foreach (GroupContract Group in LocalGroups)
+            {
                 Local.GroupsMutable.Add(CloneGroupForLocalLayout(Group, Endpoints));
+            }
+
             Local.EdgesMutable.AddRange(Contract.Edges.Where(Edge => Endpoints.Contains(Edge.SourceId)
                 && Endpoints.Contains(Edge.TargetId)));
-            PlacementHintContract?[] OriginalHints = LocalNodes.Select(Node => Node.PlacementHint).ToArray();
+            PlacementHintContract?[] OriginalHints = [.. LocalNodes.Select(Node => Node.PlacementHint)];
             for (int Index = 0; Index < LocalNodes.Count; Index++)
+            {
                 LocalNodes[Index].PlacementHint = CloneHint(OriginalHints[Index]);
+            }
+
             try
             {
                 Stopwatch ReflowTimer = Stopwatch.StartNew();
-                if (FlowchartDagrePlacement.TryPlace(Local, out var LocalRaw))
+                if (FlowchartDagrePlacement.TryPlace(Local, out FlowchartLayoutResult? LocalRaw))
                 {
-                    var LocalLayout = ApplyForGroupReflow(Local, LocalRaw, RenderContext);
-                    foreach (var Bounds in LocalLayout.NodeBounds)
+                    FlowchartLayoutResult LocalLayout = ApplyForGroupReflow(Local, LocalRaw, RenderContext);
+                    foreach (FlowchartLayoutNodeBounds Bounds in LocalLayout.NodeBounds)
                     {
-                        var Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
+                        GridNode Member = Members.Find(Node => Node.Id == Bounds.NodeId)!;
                         Member.X = Bounds.CenterX;
                         Member.Y = -Bounds.CenterY;
                     }
@@ -154,38 +168,46 @@ public static partial class DiagramGridLayout
             finally
             {
                 for (int Index = 0; Index < LocalNodes.Count; Index++)
+                {
                     LocalNodes[Index].PlacementHint = OriginalHints[Index];
+                }
             }
             FlowchartGridCompaction.Apply(Members, Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
             FlowchartGridCompaction.Apply(Members, !Horizontal, 2 * DiagramGridMetrics.GRID_UNIT_PX);
-            foreach (var Member in Members) { Member.OldX = Member.X; Member.OldY = Member.Y; }
+            foreach (GridNode? Member in Members) { Member.OldX = Member.X; Member.OldY = Member.Y; }
             AssignRanks(Members, Horizontal);
             SeparateOverlaps(Members, Horizontal);
             DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"compact root {Root.Id}: local packing complete");
         }
         Frames.Clear();
         BuildFrames(Contract, Placed, Frames);
-        Roots = Contract.Groups.Where(Group => Group.ParentGroupId == null)
+        Roots = [.. Contract.Groups.Where(Group => Group.ParentGroupId == null)
             .Select(Group => Frames.Find(Frame => Frame.Id == Group.Id)).Where(Frame => Frame != null)
-            .Cast<GridFrame>().ToList();
-        foreach (var Node in Placed.Where(Node => Node.GroupId == null))
+            .Cast<GridFrame>()];
+        foreach (GridNode? Node in Placed.Where(Node => Node.GroupId == null))
         {
-            var Neighbour = Roots.Select(Frame => (Frame, Links: Contract.Edges.Count(Edge =>
-                Edge.SourceId == Node.Id && IsInsideGroup(Contract, Edge.TargetId, Frame.Id)
-                || Edge.TargetId == Node.Id && IsInsideGroup(Contract, Edge.SourceId, Frame.Id))))
+            (GridFrame Frame, int Links) Neighbour = Roots.Select(Frame => (Frame, Links: Contract.Edges.Count(Edge =>
+                (Edge.SourceId == Node.Id && IsInsideGroup(Contract, Edge.TargetId, Frame.Id))
+                || (Edge.TargetId == Node.Id && IsInsideGroup(Contract, Edge.SourceId, Frame.Id)))))
                 .OrderByDescending(Item => Item.Links).FirstOrDefault();
-            var Unit = new GridFrame { Id = Node.Id,
-                Left = (int)Math.Floor(Node.X - Node.Width / 2.0),
-                Right = (int)Math.Ceiling(Node.X + Node.Width / 2.0),
-                Top = (int)Math.Floor(Node.Y - Node.Height / 2.0),
-                Bottom = (int)Math.Ceiling(Node.Y + Node.Height / 2.0) };
-            if (Neighbour.Links > 0) Roots.Insert(Roots.IndexOf(Neighbour.Frame) + 1, Unit);
-            else Roots.Add(Unit);
+            GridFrame Unit = new GridFrame { Id = Node.Id,
+                Left = (int)Math.Floor(Node.X - (Node.Width / 2.0)),
+                Right = (int)Math.Ceiling(Node.X + (Node.Width / 2.0)),
+                Top = (int)Math.Floor(Node.Y - (Node.Height / 2.0)),
+                Bottom = (int)Math.Ceiling(Node.Y + (Node.Height / 2.0)) };
+            if (Neighbour.Links > 0)
+            {
+                Roots.Insert(Roots.IndexOf(Neighbour.Frame) + 1, Unit);
+            }
+            else
+            {
+                Roots.Add(Unit);
+            }
         }
-        FlowchartContainerPacking.Apply(Contract, Roots.Select(Root => new FlowchartContainerPacking.Unit(Root,
-            Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id)).ToList())).ToList());
+        FlowchartContainerPacking.Apply(Contract, [.. Roots.Select(Root => new FlowchartContainerPacking.Unit(Root,
+            [.. Placed.Where(Node => Node.Id == Root.Id || IsInsideGroup(Contract, Node.Id, Root.Id))]))]);
         DiagramGridLayout.GroupFrameFitPassObserver?.Invoke("compact root groups: container packing complete");
-        foreach (var Node in Placed) { Node.OldX = Node.X; Node.OldY = Node.Y; }
+        foreach (GridNode Node in Placed) { Node.OldX = Node.X; Node.OldY = Node.Y; }
         AssignRanks(Placed, Horizontal);
         Frames.Clear();
     }
@@ -218,7 +240,7 @@ public static partial class DiagramGridLayout
             // Keep the iterative boundary observable, including iterations
             // that only separate siblings and never refit an individual frame.
             MeasureLayoutStage("group-fit/rebuild-frames", () => BuildFrames(Contract, Placed, Frames));
-            (double X, double Y)[] BeforeUnrelatedFrameSeparation = Placed.Select(Node => (Node.X, Node.Y)).ToArray();
+            (double X, double Y)[] BeforeUnrelatedFrameSeparation = [.. Placed.Select(Node => (Node.X, Node.Y))];
             if (SeparateUnrelatedFrames(Contract, Placed, Frames))
             {
                 EnqueueChangedMemberFrames(Contract, ChangedNodeIds(Placed, BeforeUnrelatedFrameSeparation), PendingCauses,
@@ -233,7 +255,7 @@ public static partial class DiagramGridLayout
             }
             // Keep sibling containers intact before clearing individual outsiders.
             // Run the global sibling pass once per dirty batch, then refit only changed descendants.
-            (double X, double Y)[] BeforeSiblingSeparation = Placed.Select(Node => (Node.X, Node.Y)).ToArray();
+            (double X, double Y)[] BeforeSiblingSeparation = [.. Placed.Select(Node => (Node.X, Node.Y))];
             if (SeparateSiblingFrames(Contract, Placed, Frames, Horizontal) && PositionsDiffer(Placed, BeforeSiblingSeparation))
             {
                 EnqueueChangedMemberFrames(Contract, ChangedNodeIds(Placed, BeforeSiblingSeparation),
@@ -258,20 +280,31 @@ public static partial class DiagramGridLayout
                 Frames.Clear();
                 BuildFrames(Contract, Placed, Frames);
                 GridFrame? FrameToFit = Frames.FirstOrDefault(Frame => Frame.Id == FrameId);
-                if (FrameToFit == null) continue;
+                if (FrameToFit == null)
+                {
+                    continue;
+                }
+
                 string Signature = FrameMemberSignature(Contract, Placed, FrameId);
-                if (FittedMembers.TryGetValue(FrameId, out string? Fitted) && Fitted == Signature) continue;
+                if (FittedMembers.TryGetValue(FrameId, out string? Fitted) && Fitted == Signature)
+                {
+                    continue;
+                }
+
                 string FrameCause = CausesThisBatch.GetValueOrDefault(FrameId, "changed nested members");
                 Refit++;
                 DiagramGridLayout.GroupFrameFitPassObserver?.Invoke($"refit frame {FrameId}: {FrameCause}");
                 FittedMembers[FrameId] = Signature;
-                List<GridNode> TrialPlaced = Placed.Select(CloneForFrameFit).ToList();
+                List<GridNode> TrialPlaced = [.. Placed.Select(CloneForFrameFit)];
                 List<string> FrameAdjustments = [];
                 GridFrame Frame = FrameToFit;
                 for (int NodeIndex = 0; NodeIndex < TrialPlaced.Count; NodeIndex++)
                 {
                     GridNode Node = TrialPlaced[NodeIndex];
-                    if (IsInsideGroup(Contract, Node.Id, Frame.Id)) continue;
+                    if (IsInsideGroup(Contract, Node.Id, Frame.Id))
+                    {
+                        continue;
+                    }
 
                     int Clearance = Contract.Edges.Any(Edge =>
                         (Edge.SourceId == Node.Id && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id)))
@@ -279,14 +312,17 @@ public static partial class DiagramGridLayout
                         ? 2 * DiagramGridMetrics.GRID_UNIT_PX : DiagramGridMetrics.GRID_UNIT_PX;
                     string? ParentFrame = ParentGroup(Contract, Frame.Id);
                     if (ParentFrame != null && IsInsideGroup(Contract, Node.Id, ParentFrame))
+                    {
                         Clearance = Math.Max(Clearance, DiagramGridMetrics.CeilToGrid(
                             FlowchartSubgraphGapThresholds.ResolveDirectMemberNestedGapPx(FlowchartRenderOptions.FromContract(Contract))));
+                    }
+
                     if (!Overlaps(Node, Frame, Clearance))
                     {
                         continue;
                     }
 
-                    (double X, double Y)[] BeforeNodeMove = TrialPlaced.Select(Node => (Node.X, Node.Y)).ToArray();
+                    (double X, double Y)[] BeforeNodeMove = [.. TrialPlaced.Select(Node => (Node.X, Node.Y))];
                     if (FlowchartPlacementHints.ReapplyLockedNodeHintAgainstFrame(
                             Contract, Node, Frame, TrialPlaced, Clearance))
                     {
@@ -339,9 +375,11 @@ public static partial class DiagramGridLayout
                         }
                     }
                     if (PositionsDiffer(TrialPlaced, BeforeNodeMove))
+                    {
                         FrameAdjustments.Add(MovedConflictSide
                             ? $"move unhinted members of frame {Frame.Id} away from locked node {Node.Id}"
                             : $"push rank around frame {Frame.Id} for node {Node.Id}");
+                    }
                     else if (Overlaps(Node, Frame, Clearance))
                     {
                         string Conflict = $"unresolved group-frame conflict: node {Node.Id} remains inside frame {Frame.Id}; "
@@ -353,9 +391,12 @@ public static partial class DiagramGridLayout
 
                 if (PositionsDiffer(TrialPlaced, Placed))
                 {
-                    (double X, double Y)[] BeforeMove = Placed.Select(Node => (Node.X, Node.Y)).ToArray();
+                    (double X, double Y)[] BeforeMove = [.. Placed.Select(Node => (Node.X, Node.Y))];
                     for (int Index = 0; Index < Placed.Count; Index++)
+                    {
                         Placed[Index].SetPositionFromFrameFit(TrialPlaced[Index].X, TrialPlaced[Index].Y);
+                    }
+
                     HashSet<string> ChangedNodes = ChangedNodeIds(Placed, BeforeMove);
                     Dictionary<string, string> Affected = new(StringComparer.Ordinal);
                     EnqueueChangedMemberFrames(Contract, ChangedNodes, Affected,
@@ -364,7 +405,10 @@ public static partial class DiagramGridLayout
                     {
                         // A later frame in this bottom-up batch will see the new geometry on its turn.
                         // Only already-fitted frames need to be scheduled for another batch.
-                        if (ProcessedThisBatch.Contains(Id)) PendingCauses[Id] = Cause;
+                        if (ProcessedThisBatch.Contains(Id))
+                        {
+                            PendingCauses[Id] = Cause;
+                        }
                     }
                     Adjustments.AddRange(FrameAdjustments);
                     if (!SeenStates.Add(PositionSignature(Placed)))
@@ -380,8 +424,15 @@ public static partial class DiagramGridLayout
                 ProcessedThisBatch.Add(FrameId);
             }
 
-            if (StopReason == "repeated placement state") break;
-            if (PendingCauses.Count == 0) break;
+            if (StopReason == "repeated placement state")
+            {
+                break;
+            }
+
+            if (PendingCauses.Count == 0)
+            {
+                break;
+            }
         }
         DiagramGridLayout.GroupFrameRefitObserver?.Invoke(
             $"refit for {Trigger}; {Refit} fitting passes; stop={StopReason}; adjustments: {string.Join(" -> ", Adjustments)}");
@@ -397,8 +448,13 @@ public static partial class DiagramGridLayout
     {
         HashSet<string> Changed = new(StringComparer.Ordinal);
         for (int Index = 0; Index < Nodes.Count; Index++)
+        {
             if (Nodes[Index].X != Before[Index].X || Nodes[Index].Y != Before[Index].Y)
+            {
                 Changed.Add(Nodes[Index].Id);
+            }
+        }
+
         return Changed;
     }
 
@@ -406,8 +462,15 @@ public static partial class DiagramGridLayout
         Dictionary<string, string> Pending, string Cause)
     {
         foreach (string NodeId in ChangedNodes)
-        foreach (GroupContract Group in Contract.Groups)
-            if (IsInsideGroup(Contract, NodeId, Group.Id)) Pending[Group.Id] = Cause;
+        {
+            foreach (GroupContract Group in Contract.Groups)
+            {
+                if (IsInsideGroup(Contract, NodeId, Group.Id))
+                {
+                    Pending[Group.Id] = Cause;
+                }
+            }
+        }
     }
 
     private static GridNode CloneForFrameFit(GridNode Node) => new()
@@ -429,17 +492,37 @@ public static partial class DiagramGridLayout
 
     private static bool PositionsDiffer(IReadOnlyList<GridNode> First, IReadOnlyList<GridNode> Second)
     {
-        if (First.Count != Second.Count) return true;
+        if (First.Count != Second.Count)
+        {
+            return true;
+        }
+
         for (int Index = 0; Index < First.Count; Index++)
-            if (First[Index].X != Second[Index].X || First[Index].Y != Second[Index].Y) return true;
+        {
+            if (First[Index].X != Second[Index].X || First[Index].Y != Second[Index].Y)
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
     private static bool PositionsDiffer(IReadOnlyList<GridNode> Nodes, IReadOnlyList<(double X, double Y)> Positions)
     {
-        if (Nodes.Count != Positions.Count) return true;
+        if (Nodes.Count != Positions.Count)
+        {
+            return true;
+        }
+
         for (int Index = 0; Index < Nodes.Count; Index++)
-            if (Nodes[Index].X != Positions[Index].X || Nodes[Index].Y != Positions[Index].Y) return true;
+        {
+            if (Nodes[Index].X != Positions[Index].X || Nodes[Index].Y != Positions[Index].Y)
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -458,7 +541,9 @@ public static partial class DiagramGridLayout
         PlacementHintContract? Hint = CloneHint(Group.PlacementHint);
         if (Hint != null && Hint.Kind != PlacementHintKind.Push
             && (Hint.PeerId == null || !LocalEndpoints.Contains(Hint.PeerId)))
+        {
             Hint = null;
+        }
 
         GroupContract Copy = new GroupContract
         {
@@ -501,10 +586,10 @@ public static partial class DiagramGridLayout
             ? Math.Max(A.Top, B.Top) - Math.Min(A.Bottom, B.Bottom)
             : Math.Max(A.Left, B.Left) - Math.Min(A.Right, B.Right);
         bool AlongMain = CrossGap <= 0 && (MainGap >= 0 || Sequential);
-        double Needed = AlongMain ? 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX
+        double Needed = AlongMain ? (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) + DiagramGridMetrics.GRID_UNIT_PX
             : DiagramGridMetrics.GRID_UNIT_PX;
         double Gap = AlongMain ? MainGap : CrossGap;
-        return (AlongMain, Gap >= Needed || !AlongMain && MainGap >= 0 ? 0 : Needed - Gap);
+        return (AlongMain, Gap >= Needed || (!AlongMain && MainGap >= 0) ? 0 : Needed - Gap);
     }
 
     private static bool SeparateSiblingFrames(
@@ -515,52 +600,75 @@ public static partial class DiagramGridLayout
             string? Current = ParentGroup(Contract, Child);
             while (Current != null)
             {
-                if (Current == Parent) return true;
+                if (Current == Parent)
+                {
+                    return true;
+                }
+
                 Current = ParentGroup(Contract, Current);
             }
             return false;
         }
         for (int First = 0; First < Frames.Count; First++)
-        for (int Second = First + 1; Second < Frames.Count; Second++)
         {
-            var A = Frames[First];
-            var B = Frames[Second];
-            if (Ancestor(A.Id, B.Id) || Ancestor(B.Id, A.Id)) continue;
-            double MainMin(GridFrame Frame) => Horizontal ? Frame.Left : Frame.Top;
+            for (int Second = First + 1; Second < Frames.Count; Second++)
+        {
+                GridFrame A = Frames[First];
+                GridFrame B = Frames[Second];
+            if (Ancestor(A.Id, B.Id) || Ancestor(B.Id, A.Id))
+                {
+                    continue;
+                }
+
+                double MainMin(GridFrame Frame) => Horizontal ? Frame.Left : Frame.Top;
             double CrossMin(GridFrame Frame) => Horizontal ? Frame.Top : Frame.Left;
-            var AMembers = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, A.Id)).ToArray();
-            var BMembers = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, B.Id)).ToArray();
+                GridNode[] AMembers = [.. Placed.Where(Node => IsInsideGroup(Contract, Node.Id, A.Id))];
+                GridNode[] BMembers = [.. Placed.Where(Node => IsInsideGroup(Contract, Node.Id, B.Id))];
             bool Sequential = AMembers.Length > 0 && BMembers.Length > 0
                 && (AMembers.Max(Node => Node.Rank) < BMembers.Min(Node => Node.Rank)
                     || BMembers.Max(Node => Node.Rank) < AMembers.Min(Node => Node.Rank));
-            var Shortfall = SiblingFrameShortfall(A, B, Horizontal, Sequential);
+                (bool AlongMain, double Missing) Shortfall = SiblingFrameShortfall(A, B, Horizontal, Sequential);
             bool AlongMain = Shortfall.AlongMain;
-            if (Shortfall.Missing <= 0) continue;
-            var Moving = AlongMain ? (MainMin(A) > MainMin(B) ? A : B)
+            if (Shortfall.Missing <= 0)
+                {
+                    continue;
+                }
+
+                GridFrame Moving = AlongMain ? (MainMin(A) > MainMin(B) ? A : B)
                 : (CrossMin(A) < CrossMin(B) ? A : B);
             int Shift = DiagramGridMetrics.CeilToGrid(Shortfall.Missing) * (AlongMain ? 1 : -1);
-            var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Moving.Id)).ToHashSet();
-            var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+                HashSet<GridNode> Members = [.. Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Moving.Id))];
+                List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
             bool Added;
             do
             {
                 Added = false;
-                foreach (var Node in Placed.Where(Node => Node.GroupId == null && !Members.Contains(Node)))
+                foreach (GridNode? Node in Placed.Where(Node => Node.GroupId == null && !Members.Contains(Node)))
                 {
                     if (Visible.Count(Edge => Edge.SourceId == Node.Id) <= 1
                         && Visible.Count(Edge => Edge.TargetId == Node.Id) <= 1
                         && Visible.Any(Edge => (Edge.SourceId == Node.Id && Members.Any(Member => Member.Id == Edge.TargetId))
                             || (Edge.TargetId == Node.Id && Members.Any(Member => Member.Id == Edge.SourceId))))
-                        Added |= Members.Add(Node);
-                }
+                        {
+                            Added |= Members.Add(Node);
+                        }
+                    }
             } while (Added);
-            foreach (var Node in Members)
+            foreach (GridNode? Node in Members)
             {
-                if (AlongMain) SetMain(Node, (int)Math.Round(Main(Node, Horizontal, Old: false)) + Shift, Horizontal);
-                else SetCross(Node, (int)Math.Round(Cross(Node, Horizontal, Old: false)) + Shift, Horizontal);
-            }
+                if (AlongMain)
+                    {
+                        SetMain(Node, (int)Math.Round(Main(Node, Horizontal, Old: false)) + Shift, Horizontal);
+                    }
+                    else
+                    {
+                        SetCross(Node, (int)Math.Round(Cross(Node, Horizontal, Old: false)) + Shift, Horizontal);
+                    }
+                }
             return true;
         }
+        }
+
         return false;
     }
 
@@ -578,7 +686,11 @@ public static partial class DiagramGridLayout
             string? Parent = ParentGroup(Contract, Child);
             while (Parent != null)
             {
-                if (string.Equals(Parent, PossibleAncestor, StringComparison.Ordinal)) return true;
+                if (string.Equals(Parent, PossibleAncestor, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
                 Parent = ParentGroup(Contract, Parent);
             }
             return false;
@@ -595,30 +707,40 @@ public static partial class DiagramGridLayout
 
         HashSet<string> Existing = [];
         for (int I = 0; I < Frames.Count; I++)
-        for (int J = I + 1; J < Frames.Count; J++)
+        {
+            for (int J = I + 1; J < Frames.Count; J++)
         {
             GridFrame A = Frames[I], B = Frames[J];
             if (!Ancestor(Contract, A.Id, B.Id) && !Ancestor(Contract, B.Id, A.Id)
-                && Intersects(A, B)) Existing.Add(PairKey(A.Id, B.Id));
+                && Intersects(A, B))
+                {
+                    Existing.Add(PairKey(A.Id, B.Id));
+                }
+            }
         }
-        if (Existing.Count == 0) return false;
+
+        if (Existing.Count == 0)
+        {
+            return false;
+        }
 
         Dictionary<string, NodeContract> NodeContracts = Contract.Nodes
             .ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         Dictionary<string, GroupContract> Groups = Contract.Groups
             .ToDictionary(Group => Group.Id, StringComparer.Ordinal);
-        var FramePairs = (from A in Frames
+        (GridFrame A, GridFrame B)[] FramePairs = [.. (from A in Frames
                           from B in Frames
                           where string.CompareOrdinal(A.Id, B.Id) < 0
                               && !Ancestor(Contract, A.Id, B.Id)
                               && !Ancestor(Contract, B.Id, A.Id)
                               && Intersects(A, B)
                           orderby A.Id, B.Id
-                          select (A, B)).ToArray();
+                          select (A, B))];
 
         (int Count, int Distance, string Pair, string Group, double Dx, double Dy, List<GridNode> Moved)? Best = null;
         foreach ((GridFrame A, GridFrame B) in FramePairs)
-        foreach ((GridFrame MovingFrame, GridFrame FixedFrame) in new[] { (A, B), (B, A) })
+        {
+            foreach ((GridFrame MovingFrame, GridFrame FixedFrame) in new[] { (A, B), (B, A) })
         {
             HashSet<string> MovingGroupIds = Groups.Keys.Where(Id => Id == MovingFrame.Id
                 || IsInsideGroup(Contract, Id, MovingFrame.Id)).ToHashSet(StringComparer.Ordinal);
@@ -636,8 +758,11 @@ public static partial class DiagramGridLayout
                     MovingGroupIds.Add(Dependent.Id);
                     foreach (string Descendant in Groups.Keys.Where(Id => Id == Dependent.Id
                                  || Ancestor(Contract, Dependent.Id, Id)))
-                        MovingGroupIds.Add(Descendant);
-                    MovingIds.UnionWith(Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Dependent.Id))
+                        {
+                            MovingGroupIds.Add(Descendant);
+                        }
+
+                        MovingIds.UnionWith(Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Dependent.Id))
                         .Select(Node => Node.Id));
                     AddedDependency = true;
                 }
@@ -650,11 +775,15 @@ public static partial class DiagramGridLayout
                     AddedDependency = true;
                 }
             } while (AddedDependency);
-            List<GridNode> Members = Placed.Where(Node => MovingIds.Contains(Node.Id)).ToList();
-            if (Members.Count == 0) continue;
-            bool HasExternalHint(PlacementHintContract? Hint) => Hint?.IsActive == true
+            List<GridNode> Members = [.. Placed.Where(Node => MovingIds.Contains(Node.Id))];
+            if (Members.Count == 0)
+                {
+                    continue;
+                }
+
+                bool HasExternalHint(PlacementHintContract? Hint) => Hint?.IsActive == true
                 && (Hint.Kind == PlacementHintKind.Push || Hint.PeerId == null
-                    || !MovingIds.Contains(Hint.PeerId) && !MovingGroupIds.Contains(Hint.PeerId));
+                    || (!MovingIds.Contains(Hint.PeerId) && !MovingGroupIds.Contains(Hint.PeerId)));
             PlacementHintContract? FrameHint = Groups.TryGetValue(MovingFrame.Id, out GroupContract? MovingGroup)
                 && MovingGroup.PlacementHint?.IsActive == true ? MovingGroup.PlacementHint : null;
             bool DirectionalFrameHint = FrameHint?.Kind is PlacementHintKind.RightOf or PlacementHintKind.LeftOf
@@ -663,8 +792,12 @@ public static partial class DiagramGridLayout
                     && HasExternalHint(Node.PlacementHint))
                 || Groups.Values.Any(Group => MovingGroupIds.Contains(Group.Id)
                     && (Group.Id != MovingFrame.Id || !DirectionalFrameHint)
-                    && HasExternalHint(Group.PlacementHint))) continue;
-            bool HasExternalDependent = Contract.Nodes.Any(Node => !MovingIds.Contains(Node.Id)
+                    && HasExternalHint(Group.PlacementHint)))
+                {
+                    continue;
+                }
+
+                bool HasExternalDependent = Contract.Nodes.Any(Node => !MovingIds.Contains(Node.Id)
                     && Node.PlacementHint?.IsActive == true
                     && (MovingIds.Contains(Node.PlacementHint.PeerId ?? string.Empty)
                         || MovingGroupIds.Contains(Node.PlacementHint.PeerId ?? string.Empty)))
@@ -672,18 +805,21 @@ public static partial class DiagramGridLayout
                     && Group.PlacementHint?.IsActive == true
                     && (MovingGroupIds.Contains(Group.PlacementHint.PeerId ?? string.Empty)
                         || MovingIds.Contains(Group.PlacementHint.PeerId ?? string.Empty)));
-            if (HasExternalDependent) continue;
+            if (HasExternalDependent)
+                {
+                    continue;
+                }
 
-            int Step = DiagramGridMetrics.GRID_UNIT_PX;
+                int Step = DiagramGridMetrics.GRID_UNIT_PX;
             static double GridDelta(double Delta) => Math.Sign(Delta)
                 * DiagramGridMetrics.CeilToGrid(Math.Abs(Delta));
-            GridFrame[] UnrelatedFrames = Frames.Where(Other => Other.Id != MovingFrame.Id
+            GridFrame[] UnrelatedFrames = [.. Frames.Where(Other => Other.Id != MovingFrame.Id
                 && !Ancestor(Contract, MovingFrame.Id, Other.Id)
-                && !Ancestor(Contract, Other.Id, MovingFrame.Id)).ToArray();
-            GridFrame[] HorizontalConflicts = UnrelatedFrames.Where(Other =>
-                MovingFrame.Left < Other.Right && MovingFrame.Right > Other.Left).ToArray();
-            GridFrame[] VerticalConflicts = UnrelatedFrames.Where(Other =>
-                MaxY(MovingFrame) > MinY(Other) && MinY(MovingFrame) < MaxY(Other)).ToArray();
+                && !Ancestor(Contract, Other.Id, MovingFrame.Id))];
+            GridFrame[] HorizontalConflicts = [.. UnrelatedFrames.Where(Other =>
+                MovingFrame.Left < Other.Right && MovingFrame.Right > Other.Left)];
+            GridFrame[] VerticalConflicts = [.. UnrelatedFrames.Where(Other =>
+                MaxY(MovingFrame) > MinY(Other) && MinY(MovingFrame) < MaxY(Other))];
             (double Dx, double Dy)[] Shifts = DirectionalFrameHint
                 ? FrameHint!.Kind switch
                 {
@@ -708,50 +844,86 @@ public static partial class DiagramGridLayout
                 ];
             foreach ((double Dx, double Dy) in Shifts)
             {
-                if (Dx == 0 && Dy == 0) continue;
-                double TrialDx = Dx, TrialDy = Dy;
+                if (Dx == 0 && Dy == 0)
+                    {
+                        continue;
+                    }
+
+                    double TrialDx = Dx, TrialDy = Dy;
                 HashSet<string> SeenTranslations = [];
                 while (SeenTranslations.Add($"{TrialDx:0.##},{TrialDy:0.##}"))
                 {
                     bool Collision = false;
                     double RequiredDelta = TrialDx != 0 ? TrialDx : TrialDy;
                     foreach (GridNode Member in Members)
-                    foreach (GridNode Other in Placed.Where(Node => !MovingIds.Contains(Node.Id)))
+                        {
+                            foreach (GridNode Other in Placed.Where(Node => !MovingIds.Contains(Node.Id)))
                     {
                         double MovedX = Member.X + TrialDx, MovedY = Member.Y + TrialDy;
                         bool OverlapX = Math.Abs(MovedX - Other.X) * 2 < Member.Width + Other.Width;
                         bool OverlapY = Math.Abs(MovedY - Other.Y) * 2 < Member.Height + Other.Height;
-                        if (!OverlapX || !OverlapY) continue;
-                        Collision = true;
+                        if (!OverlapX || !OverlapY)
+                                {
+                                    continue;
+                                }
+
+                                Collision = true;
                         if (TrialDx < 0)
-                            RequiredDelta = Math.Min(RequiredDelta,
-                                Other.X - Other.Width / 2.0 - Step - (Member.X + Member.Width / 2.0));
-                        else if (TrialDx > 0)
-                            RequiredDelta = Math.Max(RequiredDelta,
-                                Other.X + Other.Width / 2.0 + Step - (Member.X - Member.Width / 2.0));
-                        else if (TrialDy < 0)
-                            RequiredDelta = Math.Min(RequiredDelta,
-                                Other.Y - Other.Height / 2.0 - Step - (Member.Y + Member.Height / 2.0));
+                                {
+                                    RequiredDelta = Math.Min(RequiredDelta,
+                                Other.X - (Other.Width / 2.0) - Step - (Member.X + (Member.Width / 2.0)));
+                                }
+                                else if (TrialDx > 0)
+                                {
+                                    RequiredDelta = Math.Max(RequiredDelta,
+                                Other.X + (Other.Width / 2.0) + Step - (Member.X - (Member.Width / 2.0)));
+                                }
+                                else if (TrialDy < 0)
+                                {
+                                    RequiredDelta = Math.Min(RequiredDelta,
+                                Other.Y - (Other.Height / 2.0) - Step - (Member.Y + (Member.Height / 2.0)));
+                                }
+                                else
+                                {
+                                    RequiredDelta = Math.Max(RequiredDelta,
+                                Other.Y + (Other.Height / 2.0) + Step - (Member.Y - (Member.Height / 2.0)));
+                                }
+                            }
+                        }
+
+                        if (!Collision)
+                        {
+                            break;
+                        }
+
+                        double Snapped = GridDelta(RequiredDelta);
+                    if (TrialDx != 0)
+                        {
+                            TrialDx = Snapped;
+                        }
                         else
-                            RequiredDelta = Math.Max(RequiredDelta,
-                                Other.Y + Other.Height / 2.0 + Step - (Member.Y - Member.Height / 2.0));
+                        {
+                            TrialDy = Snapped;
+                        }
                     }
-                    if (!Collision) break;
-                    double Snapped = GridDelta(RequiredDelta);
-                    if (TrialDx != 0) TrialDx = Snapped;
-                    else TrialDy = Snapped;
-                }
-                if (!SeenTranslations.Contains($"{TrialDx:0.##},{TrialDy:0.##}")) continue;
-                List<GridNode> Trial = Placed.Select(CloneForFrameFit).ToList();
+                if (!SeenTranslations.Contains($"{TrialDx:0.##},{TrialDy:0.##}"))
+                    {
+                        continue;
+                    }
+
+                    List<GridNode> Trial = [.. Placed.Select(CloneForFrameFit)];
                 HashSet<string> TrialIds = Trial.Where(Node => MovingIds.Contains(Node.Id))
                     .Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
                 foreach (GridNode Member in Trial.Where(Node => TrialIds.Contains(Node.Id)))
-                    Member.SetPositionFromFrameFit(Member.X + TrialDx, Member.Y + TrialDy);
+                    {
+                        Member.SetPositionFromFrameFit(Member.X + TrialDx, Member.Y + TrialDy);
+                    }
 
-                bool NodeCollision = false;
-                GridNode[] Moved = Trial.Where(Node => TrialIds.Contains(Node.Id)).ToArray();
+                    bool NodeCollision = false;
+                GridNode[] Moved = [.. Trial.Where(Node => TrialIds.Contains(Node.Id))];
                 foreach (GridNode MovedNode in Moved)
-                foreach (GridNode Other in Trial.Where(Node => !TrialIds.Contains(Node.Id)))
+                    {
+                        foreach (GridNode Other in Trial.Where(Node => !TrialIds.Contains(Node.Id)))
                 {
                     if (Math.Abs(MovedNode.X - Other.X) * 2 < MovedNode.Width + Other.Width
                         && Math.Abs(MovedNode.Y - Other.Y) * 2 < MovedNode.Height + Other.Height)
@@ -760,35 +932,52 @@ public static partial class DiagramGridLayout
                         break;
                     }
                 }
-                if (NodeCollision) continue;
+                    }
 
-                List<GridFrame> TrialFrames = [];
+                    if (NodeCollision)
+                    {
+                        continue;
+                    }
+
+                    List<GridFrame> TrialFrames = [];
                 BuildFrames(Contract, Trial, TrialFrames);
                 HashSet<string> After = [];
                 for (int I = 0; I < TrialFrames.Count; I++)
-                for (int J = I + 1; J < TrialFrames.Count; J++)
+                    {
+                        for (int J = I + 1; J < TrialFrames.Count; J++)
                 {
                     GridFrame First = TrialFrames[I], Second = TrialFrames[J];
                     if (!Ancestor(Contract, First.Id, Second.Id) && !Ancestor(Contract, Second.Id, First.Id)
-                        && Intersects(First, Second)) After.Add(PairKey(First.Id, Second.Id));
-                }
-                // A rigid translation can remove one conflict while exposing a
-                // different pair. Accept only a strict reduction in total frame
-                // conflicts; the next fit pass resolves any remaining pair.
-                if (After.Count >= Existing.Count) continue;
-                int Distance = (int)(Math.Abs(TrialDx) + Math.Abs(TrialDy));
-                var Candidate = (Count: After.Count, Distance, Pair: PairKey(A.Id, B.Id),
+                        && Intersects(First, Second))
+                            {
+                                After.Add(PairKey(First.Id, Second.Id));
+                            }
+                        }
+                    }
+                    // A rigid translation can remove one conflict while exposing a
+                    // different pair. Accept only a strict reduction in total frame
+                    // conflicts; the next fit pass resolves any remaining pair.
+                    if (After.Count >= Existing.Count)
+                    {
+                        continue;
+                    }
+
+                    int Distance = (int)(Math.Abs(TrialDx) + Math.Abs(TrialDy));
+                    (int Count, int Distance, string Pair, string Group, double Dx, double Dy, List<GridNode> Moved) Candidate = (Count: After.Count, Distance, Pair: PairKey(A.Id, B.Id),
                     Group: MovingFrame.Id, Dx: TrialDx, Dy: TrialDy, Moved: Members);
                 DiagramGridLayout.GroupFrameCandidateObserver?.Invoke(
                     $"rule 7.8 candidate {MovingFrame.Id} by ({TrialDx:0},{TrialDy:0}) "
                     + $"clears {Candidate.Pair}; remaining overlaps={Candidate.Count}; distance={Distance}");
                 if (Best == null || Candidate.Count < Best.Value.Count
-                    || Candidate.Count == Best.Value.Count && (Candidate.Distance < Best.Value.Distance
-                        || Candidate.Distance == Best.Value.Distance
+                    || (Candidate.Count == Best.Value.Count && (Candidate.Distance < Best.Value.Distance
+                        || (Candidate.Distance == Best.Value.Distance
                             && string.CompareOrdinal(Candidate.Pair + Candidate.Group,
-                                Best.Value.Pair + Best.Value.Group) < 0))
-                    Best = Candidate;
-            }
+                                Best.Value.Pair + Best.Value.Group) < 0))))
+                    {
+                        Best = Candidate;
+                    }
+                }
+        }
         }
 
         if (Best == null)
@@ -798,7 +987,10 @@ public static partial class DiagramGridLayout
             return false;
         }
         foreach (GridNode Member in Best.Value.Moved)
+        {
             Member.SetPositionFromFrameFit(Member.X + Best.Value.Dx, Member.Y + Best.Value.Dy);
+        }
+
         DiagramGridLayout.GroupFrameFitPassObserver?.Invoke(
             $"rule 7.8 move members of {Best.Value.Group} by ({Best.Value.Dx:0},{Best.Value.Dy:0}) to clear frame {Best.Value.Pair}");
         return true;
@@ -811,7 +1003,11 @@ public static partial class DiagramGridLayout
             string? Parent = ParentGroup(Contract, Child);
             while (Parent != null)
             {
-                if (string.Equals(Parent, PossibleAncestor, StringComparison.Ordinal)) return true;
+                if (string.Equals(Parent, PossibleAncestor, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
                 Parent = ParentGroup(Contract, Parent);
             }
             return false;
@@ -819,14 +1015,24 @@ public static partial class DiagramGridLayout
 
         int Count = 0;
         for (int First = 0; First < Frames.Count; First++)
-        for (int Second = First + 1; Second < Frames.Count; Second++)
+        {
+            for (int Second = First + 1; Second < Frames.Count; Second++)
         {
             GridFrame A = Frames[First], B = Frames[Second];
-            if (IsAncestor(A.Id, B.Id) || IsAncestor(B.Id, A.Id)) continue;
-            if (Math.Min(A.Right, B.Right) > Math.Max(A.Left, B.Left)
+            if (IsAncestor(A.Id, B.Id) || IsAncestor(B.Id, A.Id))
+                {
+                    continue;
+                }
+
+                if (Math.Min(A.Right, B.Right) > Math.Max(A.Left, B.Left)
                 && Math.Min(Math.Max(A.Top, A.Bottom), Math.Max(B.Top, B.Bottom))
-                    > Math.Max(Math.Min(A.Top, A.Bottom), Math.Min(B.Top, B.Bottom))) Count++;
+                    > Math.Max(Math.Min(A.Top, A.Bottom), Math.Min(B.Top, B.Bottom)))
+                {
+                    Count++;
+                }
+            }
         }
+
         return Count;
     }
 
@@ -837,8 +1043,11 @@ public static partial class DiagramGridLayout
         int Gap = DiagramGridMetrics.GRID_UNIT_PX)
     {
         if (Node.CellNode != null)
+        {
             return SearchCellFrameAssignment(Contract, Placed, FramesForCells(Contract, Placed),
                 MovingOnly: Node.Id, RequiredGap: Gap, ConcernedFrame: Frame.Id, ConcernedNode: Node.Id);
+        }
+
         if (!Overlaps(Node, Frame, Gap))
         {
             return false;
@@ -851,12 +1060,28 @@ public static partial class DiagramGridLayout
         double Best = double.MaxValue;
         double ChosenX = 0.0;
         double ChosenY = 0.0;
-        var Members = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)).ToList();
+        List<GridNode> Members = [.. Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id))];
         double Snap(double Delta) => Math.Sign(Delta) * DiagramGridMetrics.CeilToGrid(Math.Abs(Delta));
-        if (Members.All(Member => Member.Y > Node.Y)) ConsiderEviction(0.0, Snap(ShiftUp), ref Best, ref ChosenX, ref ChosenY);
-        if (Members.All(Member => Member.Y < Node.Y)) ConsiderEviction(0.0, Snap(ShiftDown), ref Best, ref ChosenX, ref ChosenY);
-        if (Members.All(Member => Member.X > Node.X)) ConsiderEviction(Snap(ShiftLeft), 0.0, ref Best, ref ChosenX, ref ChosenY);
-        if (Members.All(Member => Member.X < Node.X)) ConsiderEviction(Snap(ShiftRight), 0.0, ref Best, ref ChosenX, ref ChosenY);
+        if (Members.All(Member => Member.Y > Node.Y))
+        {
+            ConsiderEviction(0.0, Snap(ShiftUp), ref Best, ref ChosenX, ref ChosenY);
+        }
+
+        if (Members.All(Member => Member.Y < Node.Y))
+        {
+            ConsiderEviction(0.0, Snap(ShiftDown), ref Best, ref ChosenX, ref ChosenY);
+        }
+
+        if (Members.All(Member => Member.X > Node.X))
+        {
+            ConsiderEviction(Snap(ShiftLeft), 0.0, ref Best, ref ChosenX, ref ChosenY);
+        }
+
+        if (Members.All(Member => Member.X < Node.X))
+        {
+            ConsiderEviction(Snap(ShiftRight), 0.0, ref Best, ref ChosenX, ref ChosenY);
+        }
+
         if (Best == double.MaxValue)
         {
             // A non-member inside the members' extent needs a separate grid
@@ -867,19 +1092,33 @@ public static partial class DiagramGridLayout
             ConsiderEviction(Snap(ShiftLeft), 0.0, ref Best, ref ChosenX, ref ChosenY);
             ConsiderEviction(Snap(ShiftRight), 0.0, ref Best, ref ChosenX, ref ChosenY);
             double OutsideColumn = Node.X, OutsideRow = Node.Y;
-            foreach (var Other in Placed.Where(Other => !Members.Contains(Other)))
+            foreach (GridNode? Other in Placed.Where(Other => !Members.Contains(Other)))
             {
-                if (ChosenX != 0 && Other.X == OutsideColumn) Other.X += (int)ChosenX;
-                if (ChosenY != 0 && Other.Y == OutsideRow) Other.Y += (int)ChosenY;
+                if (ChosenX != 0 && Other.X == OutsideColumn)
+                {
+                    Other.X += (int)ChosenX;
+                }
+
+                if (ChosenY != 0 && Other.Y == OutsideRow)
+                {
+                    Other.Y += (int)ChosenY;
+                }
             }
             return true;
         }
 
         double CutX = Node.X, CutY = Node.Y;
-        foreach (var Other in Placed)
+        foreach (GridNode Other in Placed)
         {
-            if ((ChosenX < 0 && Other.X <= CutX) || (ChosenX > 0 && Other.X >= CutX)) Other.X += (int)ChosenX;
-            if ((ChosenY < 0 && Other.Y <= CutY) || (ChosenY > 0 && Other.Y >= CutY)) Other.Y += (int)ChosenY;
+            if ((ChosenX < 0 && Other.X <= CutX) || (ChosenX > 0 && Other.X >= CutX))
+            {
+                Other.X += (int)ChosenX;
+            }
+
+            if ((ChosenY < 0 && Other.Y <= CutY) || (ChosenY > 0 && Other.Y >= CutY))
+            {
+                Other.Y += (int)ChosenY;
+            }
         }
         return true;
     }
@@ -892,13 +1131,23 @@ public static partial class DiagramGridLayout
         bool Horizontal,
         int Distance)
     {
-        if (!LockedNode.PlacementHintLocked) return false;
+        if (!LockedNode.PlacementHintLocked)
+        {
+            return false;
+        }
+
         if (Placed.Any(Node => Node.CellNode != null))
+        {
             return SearchCellFrameAssignment(Contract, Placed, FramesForCells(Contract, Placed),
                 MovingOnly: Frame.Id, RequiredGap: Distance, ConcernedFrame: Frame.Id, ConcernedNode: LockedNode.Id);
-        List<GridNode> Members = Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id)).ToList();
+        }
+
+        List<GridNode> Members = [.. Placed.Where(Member => IsInsideGroup(Contract, Member.Id, Frame.Id))];
         if (Members.Count == 0 || Members.Any(Member => Member.PlacementHintLocked
-            && !HasRelativeHintWithinFrame(Contract, Member, Frame.Id))) return false;
+            && !HasRelativeHintWithinFrame(Contract, Member, Frame.Id)))
+        {
+            return false;
+        }
 
         int Direction = Main(LockedNode, Horizontal, Old: false) >= Frame.CenterMain(Horizontal) ? -1 : 1;
         foreach (GridNode Member in Members)
@@ -914,8 +1163,8 @@ public static partial class DiagramGridLayout
     {
         NodeContract? Source = Contract.Nodes.FirstOrDefault(Node => Node.Id == Member.Id);
         PlacementHintContract? Hint = Source?.PlacementHint;
-        return Hint?.IsActive != true || Hint.Kind != PlacementHintKind.Push && Hint.PeerId != null
-            && IsInsideGroup(Contract, Hint.PeerId, FrameId);
+        return Hint?.IsActive != true || (Hint.Kind != PlacementHintKind.Push && Hint.PeerId != null
+            && IsInsideGroup(Contract, Hint.PeerId, FrameId));
     }
 
     private static void ConsiderEviction(
@@ -951,13 +1200,13 @@ public static partial class DiagramGridLayout
             Frames.AddRange(ProjectCellFrames(Contract, Placed, FlowchartCellRepair.Capture(Placed)));
             return;
         }
-        var Mirrored = Placed.Select(Node => new GridNode { Id = Node.Id, Shape = Node.Shape,
+        List<GridNode> Mirrored = [.. Placed.Select(Node => new GridNode { Id = Node.Id, Shape = Node.Shape,
             GeometryProvider = Node.GeometryProvider,
             GroupId = Node.GroupId, X = Node.X, Y = -Node.Y, OldX = Node.OldX, OldY = -Node.OldY,
             Width = Node.Width, Height = Node.Height, Rank = Node.Rank, Column = Node.Column,
-            IsDiamond = Node.IsDiamond }).ToList();
+            IsDiamond = Node.IsDiamond })];
         BuildFrames(Contract, Mirrored, Frames);
-        foreach (var Frame in Frames)
+        foreach (GridFrame Frame in Frames)
         {
             Frame.Top = -Frame.Top;
             Frame.Bottom = -Frame.Bottom;
@@ -968,10 +1217,10 @@ public static partial class DiagramGridLayout
     {
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<GroupContract> Ordered = Contract.Groups.Select((Group, Index) => (Group, Index))
+        List<GroupContract> Ordered = [.. Contract.Groups.Select((Group, Index) => (Group, Index))
             .OrderByDescending(Item => DepthOf(Contract, Item.Group.Id))
             .ThenBy(Item => Item.Index)
-            .Select(Item => Item.Group).ToList();
+            .Select(Item => Item.Group)];
 
         Dictionary<string, GridFrame> FrameById = new Dictionary<string, GridFrame>(StringComparer.Ordinal);
         foreach (GroupContract Group in Ordered)
@@ -1015,17 +1264,23 @@ public static partial class DiagramGridLayout
             }
 
             string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
-            var TitleReservation = FlowchartFrameTitleReservation.Measure(Title, Options.FontSizePx);
+            FlowchartFrameTitleReservation.Measurement TitleReservation = FlowchartFrameTitleReservation.Measure(Title, Options.FontSizePx);
             double TitleWidth = TitleReservation.TextWidthPx;
             int Strip = TitleReservation.BandHeightPx;
             int Padding = DiagramGridMetrics.NODE_GAP_PX;
             if (Group.ChildGroupIds.Count > 0)
+            {
                 Padding = Math.Max(Padding, DiagramGridMetrics.CeilToGrid(
                     FlowchartSubgraphGapThresholds.ResolveNestedFlowAxisGapPx(Options)));
+            }
+
             int InternalReturns = FlowchartBackEdgeHelper.FindBackEdges(Contract).Count(Edge =>
                 IsInsideGroup(Contract, Edge.SourceId, Group.Id) && IsInsideGroup(Contract, Edge.TargetId, Group.Id));
             if (InternalReturns > 0)
-                Padding += DiagramGridMetrics.CeilToGrid(DiagramGridRouteBuilder.CORNER_RADIUS_PX + 6 * InternalReturns);
+            {
+                Padding += DiagramGridMetrics.CeilToGrid(DiagramGridRouteBuilder.CORNER_RADIUS_PX + (6 * InternalReturns));
+            }
+
             int BoundaryPadding = FlowchartCompoundEndpointHelper.InternalBoundaryPadding(Contract, Group.Id);
             int Unit = DiagramGridMetrics.GRID_UNIT_PX;
             int HorizontalPadding = Math.Max(Padding, BoundaryPadding);
@@ -1071,7 +1326,11 @@ public static partial class DiagramGridLayout
             string? Parent = ParentGroup(Contract, Second);
             while (Parent != null)
             {
-                if (string.Equals(Parent, First, StringComparison.Ordinal)) return true;
+                if (string.Equals(Parent, First, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
                 Parent = ParentGroup(Contract, Parent);
             }
             return false;
@@ -1081,14 +1340,18 @@ public static partial class DiagramGridLayout
             && Group.ChildGroupIds.Count == 0
             && !Contract.Nodes.Any(Node => string.Equals(Node.ParentGroupId, Group.Id, StringComparison.Ordinal));
 
-        var Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
+        FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         bool Horizontal = Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         bool Overlaps(GridFrame A, GridFrame B) => SiblingFrameShortfall(A, B, Horizontal, false).Missing > 0;
 
         foreach (GroupContract Group in Ordered.Where(IsEmpty)
                      .OrderBy(Group => Group.PlacementHint?.SourceLine ?? int.MaxValue))
         {
-            if (!FrameById.TryGetValue(Group.Id, out GridFrame? Frame)) continue;
+            if (!FrameById.TryGetValue(Group.Id, out GridFrame? Frame))
+            {
+                continue;
+            }
+
             PlacementHintContract? Hint = Group.PlacementHint is { IsActive: true } ? Group.PlacementHint : null;
             int StepX = Hint?.Kind switch
             {
@@ -1102,7 +1365,10 @@ public static partial class DiagramGridLayout
                 PlacementHintKind.Above => -1,
                 _ => 0
             };
-            if (StepX == 0 && StepY == 0) StepX = 1;
+            if (StepX == 0 && StepY == 0)
+            {
+                StepX = 1;
+            }
 
             while (Frames.Any(Other => Other != Frame
                        && !IsAncestor(Group.Id, Other.Id) && !IsAncestor(Other.Id, Group.Id)
@@ -1129,12 +1395,12 @@ public static partial class DiagramGridLayout
         FlowchartRenderOptions Options)
     {
         string Title = string.IsNullOrWhiteSpace(Group.Title) ? Group.Id : Group.Title;
-        var TitleReservation = FlowchartFrameTitleReservation.Measure(Title, Options.FontSizePx);
+        FlowchartFrameTitleReservation.Measurement TitleReservation = FlowchartFrameTitleReservation.Measure(Title, Options.FontSizePx);
         double TitleWidth = TitleReservation.TextWidthPx;
         int Strip = TitleReservation.BandHeightPx;
         int Padding = DiagramGridMetrics.NODE_GAP_PX;
-        int Width = DiagramGridMetrics.CeilToGrid(TitleWidth + 2.0 * Padding);
-        int Height = DiagramGridMetrics.CeilToGrid(Strip + 2.0 * Padding);
+        int Width = DiagramGridMetrics.CeilToGrid(TitleWidth + (2.0 * Padding));
+        int Height = DiagramGridMetrics.CeilToGrid(Strip + (2.0 * Padding));
         double Left = 0.0;
         double Top = 0.0;
 
@@ -1149,17 +1415,17 @@ public static partial class DiagramGridLayout
             }
             else if (Nodes.TryGetValue(Hint.PeerId, out GridNode? PeerNode))
             {
-                PeerLeft = PeerNode.X - PeerNode.Width / 2.0;
-                PeerTop = PeerNode.Y - PeerNode.Height / 2.0;
-                PeerRight = PeerNode.X + PeerNode.Width / 2.0;
-                PeerBottom = PeerNode.Y + PeerNode.Height / 2.0;
+                PeerLeft = PeerNode.X - (PeerNode.Width / 2.0);
+                PeerTop = PeerNode.Y - (PeerNode.Height / 2.0);
+                PeerRight = PeerNode.X + (PeerNode.Width / 2.0);
+                PeerBottom = PeerNode.Y + (PeerNode.Height / 2.0);
             }
             else
             {
                 PeerLeft = PeerTop = PeerRight = PeerBottom = 0.0;
             }
 
-            int Gap = DiagramGridMetrics.NODE_GAP_PX + Hint.Offset * DiagramGridMetrics.GRID_UNIT_PX;
+            int Gap = DiagramGridMetrics.NODE_GAP_PX + (Hint.Offset * DiagramGridMetrics.GRID_UNIT_PX);
             switch (Hint.Kind)
             {
                 case PlacementHintKind.Above:
@@ -1179,8 +1445,8 @@ public static partial class DiagramGridLayout
                     Top = (PeerTop + PeerBottom - Height) / 2.0;
                     break;
                 default:
-                    Left = PeerLeft + (PeerRight - PeerLeft - Width) / 2.0;
-                    Top = PeerTop + (PeerBottom - PeerTop - Height) / 2.0;
+                    Left = PeerLeft + ((PeerRight - PeerLeft - Width) / 2.0);
+                    Top = PeerTop + ((PeerBottom - PeerTop - Height) / 2.0);
                     break;
             }
         }
@@ -1356,7 +1622,11 @@ public static partial class DiagramGridLayout
                 // Native group-edge placeholders can carry NaN coordinates.
                 // They are rebuilt from allocated ports; they cannot define
                 // the reflection origin of finite authoritative cell regions.
-                if (CellBound && !double.IsFinite(Point.Y)) continue;
+                if (CellBound && !double.IsFinite(Point.Y))
+                {
+                    continue;
+                }
+
                 MaxY = Math.Max(MaxY, Point.Y);
             }
         }
@@ -1369,8 +1639,15 @@ public static partial class DiagramGridLayout
 
         foreach (GridNode Node in Placed)
         {
-            if (Node.CellNode is { } Cells) Cells.UseRoutingCoordinates(Flip);
-            else Node.SetYAfterCoordinateTransform(Flip - Node.Y);
+            if (Node.CellNode is { } Cells)
+            {
+                Cells.UseRoutingCoordinates(Flip);
+            }
+            else
+            {
+                Node.SetYAfterCoordinateTransform(Flip - Node.Y);
+            }
+
             Node.OldY = Flip - Node.OldY;
         }
 

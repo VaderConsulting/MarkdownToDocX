@@ -121,7 +121,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         void RemoveTightObstaclesOverlappingPortTightObstacles() {
-            List<Polyline> toRemove = new List<Polyline>();
+            List<Polyline> toRemove = [];
             foreach (Polyline poly in TightObstaclesMinusPortObstacles())
             {
                 foreach (ICurve portObstacle in portObstacles)
@@ -195,8 +195,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         static List<Set<Polyline>> ConnectedComponents(PolylineGraph overlapGraph) {
-            List<Set<Polyline>> list = new List<Set<Polyline>>();
-            Set<Polyline> processedPolylines = new Set<Polyline>();
+            List<Set<Polyline>> list = [];
+            Set<Polyline> processedPolylines = [];
             foreach (Polyline poly in overlapGraph.Nodes) {
                 if (!processedPolylines.Contains(poly)) {
                     Set<Polyline> component = GetComponent(poly, overlapGraph);
@@ -212,7 +212,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         static Set<Polyline> GetComponent(Polyline poly, PolylineGraph graph) {
-            Set<Polyline> ret = new Set<Polyline>();
+            Set<Polyline> ret = [];
             ret.Insert(poly);
             Queue<Polyline> queue = new Queue<Polyline>();
             queue.Enqueue(poly);
@@ -234,7 +234,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
         }
 
         void CalculateTightHierarchy() {
-            List<RectangleNode<Polyline>> rectNodes = new List<RectangleNode<Polyline>>();
+            List<RectangleNode<Polyline>> rectNodes = [];
             foreach (Polyline polyline in TightObstacles)
             {
                 rectNodes.Add(CreateRectNodeOfPolyline(polyline));
@@ -527,7 +527,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
             Point u = pp.Polyline.Prev(pp).Point;
             Point v = pp.Point;
             Point w = pp.Polyline.Next(pp).Point;
-            return p * ((v - u).Normalize() + (v - w).Normalize()).Normalize() + v;
+            return (p * ((v - u).Normalize() + (v - w).Normalize()).Normalize()) + v;
         }
 
 

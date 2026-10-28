@@ -84,10 +84,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
         /// </summary>
         public void Cancel()
         {
-            if (cancelToken != null)
-            {
-                cancelToken.Canceled = true;
-            }
+            cancelToken?.Canceled = true;
         }
 
         /// <summary>
@@ -100,10 +97,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
         /// </summary>
         protected void ThrowIfCanceled()
         {
-            if (cancelToken != null)
-            {
-                cancelToken.ThrowIfCanceled();
-            }
+            cancelToken?.ThrowIfCanceled();
         }
 
         /// <summary>

@@ -236,14 +236,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         double BuildStepLength(Station node, Point direction) {
             double stepLength = MinStep;
 
-            double costGain = CostGain(node, node.Position + direction * stepLength);
+            double costGain = CostGain(node, node.Position + (direction * stepLength));
             if (costGain < 0.01)
             {
                 return 0;
             }
 
             while (2 * stepLength <= MaxStep) {
-                double newCostGain = CostGain(node, node.Position + direction * stepLength * 2);
+                double newCostGain = CostGain(node, node.Position + (direction * stepLength * 2));
                 if (newCostGain <= costGain)
                 {
                     break;
@@ -334,7 +334,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             foreach (Tuple<Polyline, Point> d in touchedObstacles) {
                 double dist = (d.Item2 - node.Position).Length;
                 Debug.Assert(dist <= idealR);
-                double lforce = 2.0 * (1.0 - dist / idealR);
+                double lforce = 2.0 * (1.0 - (dist / idealR));
                 Point dir = (node.Position - d.Item2).Normalize();
                 direction += dir * lforce;
             }
@@ -364,7 +364,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 foreach (Tuple<Point, Point> d in closestPoints) {
                     double dist = (d.Item1 - d.Item2).Length;
                     Debug.Assert(ApproximateComparer.LessOrEqual(dist, idealWidth / 2));
-                    double lforce = 2.0 * (1.0 - dist / (idealWidth / 2));
+                    double lforce = 2.0 * (1.0 - (dist / (idealWidth / 2)));
                     Point dir = -(d.Item1 - d.Item2).Normalize();
                     direction += dir * lforce;
                 }

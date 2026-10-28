@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -13,9 +14,9 @@ public sealed class EnclosingFrameFallbackTests
     [Test]
     public void NestedFrameCandidateKeepsEveryAllocatedRouteLegal()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A115");
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
         bool Observed = false;
         DiagramGridLayout.FinalRepairRegionForTests = Nodes => new Dictionary<string, FlowchartCellRegion>
         {
@@ -48,15 +49,21 @@ public sealed class EnclosingFrameFallbackTests
         };
         DiagramGridLayout.FinalRepairMeasurementObserver = (Key, Layout) =>
         {
-            if (Key != "diagnostic-region") return;
+            if (Key != "diagnostic-region")
+            {
+                return;
+            }
+
             Observed = true;
             Assert.That(Layout.EdgeRoutes, Has.Count.EqualTo(Contract.Edges.Count));
             Assert.That(Layout.EdgeRoutes.Where(Route => Route.Points.Count < 2).Select(Route => Route.EdgeId), Is.Empty);
             Assert.That(Layout.RenderContext.LayoutStageViolations.Where(Item => Item.Kind == "NoLegalRoute"), Is.Empty);
-            var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
-            foreach (var Route in Layout.EdgeRoutes)
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+            foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+            {
                 Assert.That(FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route,
                     Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()), Is.True, Route.EdgeId);
+            }
         };
         try
         {

@@ -131,7 +131,7 @@ public sealed class LineMoveTests
     {
         MethodInfo? OnKeyDown = typeof(Control).GetMethod("OnKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.That(OnKeyDown, Is.Not.Null);
-        OnKeyDown!.Invoke(_Box, new object[] { new KeyEventArgs(KeyData) });
+        OnKeyDown!.Invoke(_Box, [new KeyEventArgs(KeyData)]);
         Application.DoEvents();
     }
 

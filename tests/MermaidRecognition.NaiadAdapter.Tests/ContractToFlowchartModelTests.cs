@@ -237,12 +237,11 @@ public sealed class FlowchartRecognitionRenderBridgeTests
         Assert.That(Rendered, Is.True);
         Assert.That(Svg, Does.Contain("edge-pattern-dotted"));
 
-        List<string> LinkPaths = System.Text.RegularExpressions.Regex.Matches(
+        List<string> LinkPaths = [.. System.Text.RegularExpressions.Regex.Matches(
                 Svg,
                 "<path[^>]*class=\"[^\"]*flowchart-link[^\"]*\"[^>]*>",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase)
-            .Select(Match => Match.Value)
-            .ToList();
+            .Select(Match => Match.Value)];
 
         Assert.That(LinkPaths, Has.Count.GreaterThanOrEqualTo(6));
         Assert.That(LinkPaths[3], Does.Contain("stroke-dasharray"));

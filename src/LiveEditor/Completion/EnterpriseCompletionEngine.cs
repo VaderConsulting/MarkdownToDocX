@@ -281,7 +281,7 @@ internal sealed class EnterpriseCompletionEngine
 
         string SourceType = EnterpriseElementCatalog.GetKebabName(SourceElement.ElementType);
         HashSet<char> Letters = CollectOutgoingLetters(_CachedDocument, SourceType);
-        List<string> Names = new List<string>();
+        List<string> Names = [];
         foreach (KeyValuePair<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata> Pair in EnterpriseElementCatalog.Relationships)
         {
             if (Letters.Contains(Pair.Value.Letter))
@@ -391,7 +391,7 @@ internal sealed class EnterpriseCompletionEngine
             Context.Items.Add(new CompletionItem("in ", "in", "Container", "in <container>\n\nOptional. Identifier of the containing group. The statement can end before this."));
         }
 
-        string[] Hints = new string[] { "above", "below", "left-of", "right-of", "push" };
+        string[] Hints = ["above", "below", "left-of", "right-of", "push"];
         foreach (string Hint in Hints)
         {
             Context.Items.Add(new CompletionItem(Hint + " ", Hint, "Placement", EnterpriseHelp.PlacementDocumentation(Hint)));
@@ -411,9 +411,9 @@ internal sealed class EnterpriseCompletionEngine
         Context.ReplaceEnd = LineStart + QualGroup.Index + QualGroup.Length;
         string[] Options = Kind switch
         {
-            "access" => new[] { "read", "write", "readwrite", "access" },
-            "influence" => new[] { "+", "-", "++", "--" },
-            "association" => new[] { "directed" },
+            "access" => ["read", "write", "readwrite", "access"],
+            "influence" => ["+", "-", "++", "--"],
+            "association" => ["directed"],
             _ => Array.Empty<string>()
         };
         foreach (string Option in Options)
@@ -435,7 +435,7 @@ internal sealed class EnterpriseCompletionEngine
         Group HintGroup = Match.Groups["hint"];
         Context.ReplaceStart = LineStart + HintGroup.Index;
         Context.ReplaceEnd = LineStart + HintGroup.Index + HintGroup.Length;
-        string[] Hints = { "above", "below", "left-of", "right-of", "push" };
+        string[] Hints = ["above", "below", "left-of", "right-of", "push"];
         foreach (string Hint in Hints)
         {
             if (!StartsWithPrefix(Hint, Prefix))
@@ -457,14 +457,14 @@ internal sealed class EnterpriseCompletionEngine
         Context.ReplaceStart = LineStart + TypeGroup.Index;
         Context.ReplaceEnd = LineStart + TypeGroup.Index + TypeGroup.Length;
         (string Name, string Insert, string Detail)[] Snippets =
-        {
+        [
             ("snippet-serving",
                 "application-component app \"App\"\r\n  application-service svc \"Service\"\r\n  app -serving-> svc\r\n",
                 "component serving service"),
             ("snippet-access",
                 "application-component app \"App\"\r\n  data-object data \"Data\"\r\n  app -access(write)-> data\r\n",
                 "component access data")
-        };
+        ];
         foreach ((string Name, string Insert, string Detail) in Snippets)
         {
             if (!StartsWithPrefix(Name, Prefix) && !StartsWithPrefix("snippet", Prefix))
@@ -485,13 +485,13 @@ internal sealed class EnterpriseCompletionEngine
         Context.ReplaceStart = LineStart + DirectionGroup.Index;
         Context.ReplaceEnd = LineStart + DirectionGroup.Index + DirectionGroup.Length;
         (string Name, string Meaning)[] Values =
-        {
+        [
             ("TB", "Top to bottom."),
             ("TD", "Top to bottom, same as TB."),
             ("BT", "Bottom to top."),
             ("LR", "Left to right."),
             ("RL", "Right to left.")
-        };
+        ];
         foreach ((string Name, string Meaning) in Values)
         {
             if (!StartsWithPrefix(Name, Prefix))
@@ -521,12 +521,12 @@ internal sealed class EnterpriseCompletionEngine
         }
 
         (string Name, string Meaning)[] Values =
-        {
+        [
             ("N", "Toward the top of the page."),
             ("S", "Toward the bottom of the page."),
             ("E", "Toward the right of the page."),
             ("W", "Toward the left of the page.")
-        };
+        ];
         foreach ((string Name, string Meaning) in Values)
         {
             if (!StartsWithPrefix(Name, Prefix))
@@ -652,7 +652,7 @@ internal sealed class EnterpriseCompletionEngine
             return;
         }
 
-        List<CompletionItem> Items = new List<CompletionItem>();
+        List<CompletionItem> Items = [];
         foreach (KeyValuePair<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata> Pair in EnterpriseElementCatalog.Relationships)
         {
             if (!AllowedLetters.Contains(Pair.Value.Letter))
@@ -717,7 +717,7 @@ internal sealed class EnterpriseCompletionEngine
         char Letter = EnterpriseElementCatalog.GetLetter(Kind);
         string SourceType = EnterpriseElementCatalog.GetKebabName(SourceElement.ElementType);
         EnterpriseRulesCatalog Rules = EnterpriseRulesCatalog.Instance;
-        List<CompletionItem> Items = new List<CompletionItem>();
+        List<CompletionItem> Items = [];
         foreach (KeyValuePair<string, EnterpriseElement> Pair in Document.Elements)
         {
             if (string.Equals(Pair.Key, SourceId, StringComparison.Ordinal))
@@ -764,7 +764,7 @@ internal sealed class EnterpriseCompletionEngine
 
     private static HashSet<char> CollectOutgoingLetters(EnterpriseDocument Document, string SourceType)
     {
-        HashSet<char> Letters = new HashSet<char>();
+        HashSet<char> Letters = [];
         foreach (string Name in EnterpriseHelp.OutgoingRelationshipNames(Document.Version, SourceType))
         {
             if (EnterpriseElementCatalog.TryResolveRelationship(Name, out EnterpriseRelationshipKind Kind))

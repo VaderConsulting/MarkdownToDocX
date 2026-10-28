@@ -918,7 +918,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered.Layering
         {
             if (graph.Edges.Count == 0 && graph.NodeCount == 0)
             {
-                layers =new int[0];
+                layers =[];
             }
 
             FeasibleTree();

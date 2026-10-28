@@ -12,7 +12,7 @@ public sealed class EnterpriseValidatorTests
             EnterpriseSamplePaths.ReadSample("04-invalid-relationships.mmd"));
 
         Assert.That(Result.Errors, Has.Count.EqualTo(5), string.Join(Environment.NewLine, Result.Errors.Select(Item => Item.Message)));
-        Assert.That(Result.Errors.Select(Item => Item.LineNumber).ToArray(), Is.EqualTo(new[] { 12, 13, 14, 15, 16 }));
+        Assert.That(Result.Errors.Select(Item => Item.LineNumber).ToArray(), Is.EqualTo([12, 13, 14, 15, 16]));
         Assert.That(
             Result.Errors[0].Message,
             Is.EqualTo("line 12: serving from DataObject \"Order\" to ApplicationComponent \"Web Shop\" is not allowed in Enterprise 3.2. Allowed: association."));

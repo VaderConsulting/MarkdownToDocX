@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using MDConverter.Options;
 using MermaidRecognition.Layout;
@@ -13,8 +14,8 @@ public sealed class NativeDiagramConversionTests
         string Source = "pie showData title Workload\n accTitle: Work split\n accDescr: Two categories.\n\"First\":3\n\"Second\":1";
         Assert.IsTrue(NativeDiagramRenderBridge.TryRenderSvg(Source, out string Svg));
         StringAssert.Contains(Svg, "data-native-renderer=\"pie\"");
-        using var Document = Convert(Source);
-        var Picture = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties>().Single();
+        using WordprocessingDocument Document = Convert(Source);
+        DocProperties Picture = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties>().Single();
         Assert.AreEqual("Work split", Picture.Title!.Value);
         Assert.AreEqual("Two categories.", Picture.Description!.Value);
         Assert.IsGreaterThan(0, Document.MainDocumentPart.ImageParts.Count());
@@ -25,7 +26,7 @@ public sealed class NativeDiagramConversionTests
     {
         const string Source = "sequenceDiagram\n Alice->>Bob: Hello";
         Assert.IsFalse(NativeDiagramRenderBridge.TryRenderSvg(Source, out _));
-        using var Document = Convert(Source);
+        using WordprocessingDocument Document = Convert(Source);
         Assert.IsGreaterThan(0, Document.MainDocumentPart!.ImageParts.Count());
         Assert.IsFalse(Document.MainDocumentPart.Document!.InnerText.Contains("Mermaid diagram not rendered", StringComparison.Ordinal));
     }
@@ -35,7 +36,7 @@ public sealed class NativeDiagramConversionTests
     {
         const string Source = "pie\nunsupported statement";
         Assert.ThrowsExactly<InvalidOperationException>(() => NativeDiagramRenderBridge.TryRenderSvg(Source, out _));
-        using var Document = Convert(Source);
+        using WordprocessingDocument Document = Convert(Source);
         StringAssert.Contains(Document.MainDocumentPart!.Document!.InnerText, "Mermaid diagram not rendered");
         StringAssert.Contains(Document.MainDocumentPart.Document.InnerText, "unsupported statement");
         Assert.AreEqual(0, Document.MainDocumentPart.ImageParts.Count());

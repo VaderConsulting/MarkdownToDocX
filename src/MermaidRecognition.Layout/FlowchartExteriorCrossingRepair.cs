@@ -12,11 +12,15 @@ internal static class FlowchartExteriorCrossingRepair
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         DiagramContract? Contract = null)
     {
-        if (Layout.EdgeRoutes.Count < 2 || Bounds.Count == 0) return;
-        double Left = Bounds.Values.Min(Box => Box.CenterX - Box.Width / 2.0) - DiagramGridMetrics.GRID_UNIT_PX;
-        double Right = Bounds.Values.Max(Box => Box.CenterX + Box.Width / 2.0) + DiagramGridMetrics.GRID_UNIT_PX;
-        double Bottom = Bounds.Values.Min(Box => Box.CenterY - Box.Height / 2.0) - DiagramGridMetrics.GRID_UNIT_PX;
-        double Top = Bounds.Values.Max(Box => Box.CenterY + Box.Height / 2.0) + DiagramGridMetrics.GRID_UNIT_PX;
+        if (Layout.EdgeRoutes.Count < 2 || Bounds.Count == 0)
+        {
+            return;
+        }
+
+        double Left = Bounds.Values.Min(Box => Box.CenterX - (Box.Width / 2.0)) - DiagramGridMetrics.GRID_UNIT_PX;
+        double Right = Bounds.Values.Max(Box => Box.CenterX + (Box.Width / 2.0)) + DiagramGridMetrics.GRID_UNIT_PX;
+        double Bottom = Bounds.Values.Min(Box => Box.CenterY - (Box.Height / 2.0)) - DiagramGridMetrics.GRID_UNIT_PX;
+        double Top = Bounds.Values.Max(Box => Box.CenterY + (Box.Height / 2.0)) + DiagramGridMetrics.GRID_UNIT_PX;
 
         int routeOrdinal = 0;
         bool Moved;
@@ -28,12 +32,19 @@ internal static class FlowchartExteriorCrossingRepair
                 int laneOrdinal = routeOrdinal++;
                 if (Contract != null
                     && DiagramGridLayout.FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true)
+                {
                     continue;
+                }
+
                 int Before = Score(Route.Points, Route, Layout.EdgeRoutes);
-                if (Before == 0 || Route.Points.Count < 2) continue;
+                if (Before == 0 || Route.Points.Count < 2)
+                {
+                    continue;
+                }
+
                 FlowchartLayoutPoint Start = Route.Points[0], End = Route.Points[^1];
-                var StartStub = Stub(Start, Route.ExitSide);
-                var EndStub = Stub(End, Route.EntrySide);
+                (double X, double Y) StartStub = Stub(Start, Route.ExitSide);
+                (double X, double Y) EndStub = Stub(End, Route.EntrySide);
                 List<(List<(double X, double Y)> Points, string? Side)> Candidates =
                 [
                     (Simplify([(Start.X, Start.Y), StartStub, (Left, StartStub.Y), (Left, EndStub.Y), EndStub, (End.X, End.Y)]), null),
@@ -59,10 +70,10 @@ internal static class FlowchartExteriorCrossingRepair
                 double LaneStep = DiagramGridMetrics.GRID_UNIT_PX;
                 foreach (double Lane in new[]
                 {
-                    Left - laneOrdinal * LaneStep,
-                    Right + laneOrdinal * LaneStep,
-                    Bottom - laneOrdinal * LaneStep,
-                    Top + laneOrdinal * LaneStep
+                    Left - (laneOrdinal * LaneStep),
+                    Right + (laneOrdinal * LaneStep),
+                    Bottom - (laneOrdinal * LaneStep),
+                    Top + (laneOrdinal * LaneStep)
                 })
                 {
                     Candidates.Add((Simplify([(Start.X, Start.Y), StartStub,
@@ -70,8 +81,8 @@ internal static class FlowchartExteriorCrossingRepair
                 }
                 foreach (double Lane in new[]
                 {
-                    Top + (laneOrdinal + 1) * LaneStep,
-                    Bottom - (laneOrdinal + 1) * LaneStep
+                    Top + ((laneOrdinal + 1) * LaneStep),
+                    Bottom - ((laneOrdinal + 1) * LaneStep)
                 })
                 {
                     Candidates.Add((Simplify([(Start.X, Start.Y), StartStub,
@@ -79,23 +90,30 @@ internal static class FlowchartExteriorCrossingRepair
                 }
                 foreach (double Lane in new[]
                 {
-                    Left - (laneOrdinal + 1) * LaneStep,
-                    Right + (laneOrdinal + 1) * LaneStep
+                    Left - ((laneOrdinal + 1) * LaneStep),
+                    Right + ((laneOrdinal + 1) * LaneStep)
                 })
                 {
                     Candidates.Add((Simplify([(Start.X, Start.Y), StartStub,
                         (Lane, StartStub.Y), (Lane, EndStub.Y), EndStub, (End.X, End.Y)]), null));
                 }
-                var Best = Candidates.Where(Candidate => Candidate.Side == null
+                (List<(double X, double Y)> Points, string? Side, int Score, double Length) Best = Candidates.Where(Candidate => Candidate.Side == null
                         && Clear(Candidate.Points, Route, Bounds))
                     .Select(Candidate => (Candidate.Points, Candidate.Side, Score: Score(Candidate.Points, Route, Layout.EdgeRoutes),
                         Length: Length(Candidate.Points)))
                     .Where(Candidate => Candidate.Score < Before)
                     .OrderBy(Candidate => Candidate.Score).ThenBy(Candidate => Candidate.Length).FirstOrDefault();
-                if (Best.Points == null) continue;
+                if (Best.Points == null)
+                {
+                    continue;
+                }
+
                 Route.Points.Clear();
                 foreach ((double X, double Y) in Best.Points)
+                {
                     Route.Points.Add(new FlowchartLayoutPoint { X = X, Y = Y });
+                }
+
                 if (Best.Side != null) { Route.ExitSide = Best.Side; Route.EntrySide = Best.Side; }
                 Moved = true;
             }
@@ -110,20 +128,20 @@ internal static class FlowchartExteriorCrossingRepair
         double Sign = Side is "top" or "right" ? 1 : -1;
         (double X, double Y) Start = Side switch
         {
-            "left" => (Source.CenterX - Source.Width / 2.0, Source.CenterY),
-            "right" => (Source.CenterX + Source.Width / 2.0, Source.CenterY),
-            "bottom" => (Source.CenterX, Source.CenterY - Source.Height / 2.0),
-            _ => (Source.CenterX, Source.CenterY + Source.Height / 2.0)
+            "left" => (Source.CenterX - (Source.Width / 2.0), Source.CenterY),
+            "right" => (Source.CenterX + (Source.Width / 2.0), Source.CenterY),
+            "bottom" => (Source.CenterX, Source.CenterY - (Source.Height / 2.0)),
+            _ => (Source.CenterX, Source.CenterY + (Source.Height / 2.0))
         };
         (double X, double Y) End = Side switch
         {
-            "left" => (Target.CenterX - Target.Width / 2.0, Target.CenterY),
-            "right" => (Target.CenterX + Target.Width / 2.0, Target.CenterY),
-            "bottom" => (Target.CenterX, Target.CenterY - Target.Height / 2.0),
-            _ => (Target.CenterX, Target.CenterY + Target.Height / 2.0)
+            "left" => (Target.CenterX - (Target.Width / 2.0), Target.CenterY),
+            "right" => (Target.CenterX + (Target.Width / 2.0), Target.CenterY),
+            "bottom" => (Target.CenterX, Target.CenterY - (Target.Height / 2.0)),
+            _ => (Target.CenterX, Target.CenterY + (Target.Height / 2.0))
         };
-        (double X, double Y) StartStub = VerticalSide ? (Start.X, Start.Y + Sign * Radius) : (Start.X + Sign * Radius, Start.Y);
-        (double X, double Y) EndStub = VerticalSide ? (End.X, End.Y + Sign * Radius) : (End.X + Sign * Radius, End.Y);
+        (double X, double Y) StartStub = VerticalSide ? (Start.X, Start.Y + (Sign * Radius)) : (Start.X + (Sign * Radius), Start.Y);
+        (double X, double Y) EndStub = VerticalSide ? (End.X, End.Y + (Sign * Radius)) : (End.X + (Sign * Radius), End.Y);
         List<(double X, double Y)> Points = VerticalSide
             ? Simplify([Start, StartStub, (Corridor, StartStub.Y), (Corridor, EndStub.Y), EndStub, End])
             : Simplify([Start, StartStub, (StartStub.X, Corridor), (EndStub.X, Corridor), EndStub, End]);
@@ -136,17 +154,17 @@ internal static class FlowchartExteriorCrossingRepair
         double Radius = DiagramGridRouteBuilder.CORNER_RADIUS_PX + 5;
         (double X, double Y) Start = Side switch
         {
-            "left" => (Source.CenterX - Source.Width / 2.0, Source.CenterY),
-            "right" => (Source.CenterX + Source.Width / 2.0, Source.CenterY),
-            "bottom" => (Source.CenterX, Source.CenterY - Source.Height / 2.0),
-            _ => (Source.CenterX, Source.CenterY + Source.Height / 2.0)
+            "left" => (Source.CenterX - (Source.Width / 2.0), Source.CenterY),
+            "right" => (Source.CenterX + (Source.Width / 2.0), Source.CenterY),
+            "bottom" => (Source.CenterX, Source.CenterY - (Source.Height / 2.0)),
+            _ => (Source.CenterX, Source.CenterY + (Source.Height / 2.0))
         };
         (double X, double Y) End = Side switch
         {
-            "left" => (Target.CenterX - Target.Width / 2.0, Target.CenterY),
-            "right" => (Target.CenterX + Target.Width / 2.0, Target.CenterY),
-            "bottom" => (Target.CenterX, Target.CenterY - Target.Height / 2.0),
-            _ => (Target.CenterX, Target.CenterY + Target.Height / 2.0)
+            "left" => (Target.CenterX - (Target.Width / 2.0), Target.CenterY),
+            "right" => (Target.CenterX + (Target.Width / 2.0), Target.CenterY),
+            "bottom" => (Target.CenterX, Target.CenterY - (Target.Height / 2.0)),
+            _ => (Target.CenterX, Target.CenterY + (Target.Height / 2.0))
         };
         List<(double X, double Y)> Points = Side is "left" or "right"
             ? Simplify([Start, (Start.X + (Side == "left" ? -Radius : Radius), Start.Y),
@@ -182,10 +200,14 @@ internal static class FlowchartExteriorCrossingRepair
         foreach (FlowchartLayoutEdgeRoute Other in Routes)
         {
             if (Other == Owner || Other.SourceId == Owner.SourceId || Other.SourceId == Owner.TargetId
-                || Other.TargetId == Owner.SourceId || Other.TargetId == Owner.TargetId) continue;
-            var Intersection = FlowchartBranchRouteOrder.Intersections(Points,
+                || Other.TargetId == Owner.SourceId || Other.TargetId == Owner.TargetId)
+            {
+                continue;
+            }
+
+            (int Crossings, double Overlap) Intersection = FlowchartBranchRouteOrder.Intersections(Points,
                 Other.Points.Select(Point => (Point.X, Point.Y)).ToList());
-            Result += Intersection.Crossings * 1000 + (int)Math.Ceiling(Intersection.Overlap);
+            Result += (Intersection.Crossings * 1000) + (int)Math.Ceiling(Intersection.Overlap);
         }
         return Result;
     }
@@ -195,15 +217,26 @@ internal static class FlowchartExteriorCrossingRepair
     {
         for (int Index = 1; Index < Points.Count; Index++)
         {
-            var A = Points[Index - 1]; var B = Points[Index];
-            if (Math.Abs(A.X - B.X) > 0.01 && Math.Abs(A.Y - B.Y) > 0.01) return false;
+            (double X, double Y) A = Points[Index - 1]; (double X, double Y) B = Points[Index];
+            if (Math.Abs(A.X - B.X) > 0.01 && Math.Abs(A.Y - B.Y) > 0.01)
+            {
+                return false;
+            }
+
             foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
             {
-                if (Box.NodeId == Route.SourceId || Box.NodeId == Route.TargetId) continue;
-                if (Math.Max(A.X, B.X) > Box.CenterX - Box.Width / 2.0 - 4
-                    && Math.Min(A.X, B.X) < Box.CenterX + Box.Width / 2.0 + 4
-                    && Math.Max(A.Y, B.Y) > Box.CenterY - Box.Height / 2.0 - 4
-                    && Math.Min(A.Y, B.Y) < Box.CenterY + Box.Height / 2.0 + 4) return false;
+                if (Box.NodeId == Route.SourceId || Box.NodeId == Route.TargetId)
+                {
+                    continue;
+                }
+
+                if (Math.Max(A.X, B.X) > Box.CenterX - (Box.Width / 2.0) - 4
+                    && Math.Min(A.X, B.X) < Box.CenterX + (Box.Width / 2.0) + 4
+                    && Math.Max(A.Y, B.Y) > Box.CenterY - (Box.Height / 2.0) - 4
+                    && Math.Min(A.Y, B.Y) < Box.CenterY + (Box.Height / 2.0) + 4)
+                {
+                    return false;
+                }
             }
         }
         return true;
@@ -211,12 +244,20 @@ internal static class FlowchartExteriorCrossingRepair
 
     private static List<(double X, double Y)> Simplify(List<(double X, double Y)> Points)
     {
-        var Result = new List<(double X, double Y)>();
-        foreach (var Point in Points)
+        List<(double X, double Y)> Result = [];
+        foreach ((double X, double Y) Point in Points)
         {
-            if (Result.Count > 0 && Math.Abs(Result[^1].X - Point.X) < 0.01 && Math.Abs(Result[^1].Y - Point.Y) < 0.01) continue;
-            while (Result.Count >= 2 && (Math.Abs(Result[^2].X - Result[^1].X) < 0.01 && Math.Abs(Result[^1].X - Point.X) < 0.01
-                || Math.Abs(Result[^2].Y - Result[^1].Y) < 0.01 && Math.Abs(Result[^1].Y - Point.Y) < 0.01)) Result.RemoveAt(Result.Count - 1);
+            if (Result.Count > 0 && Math.Abs(Result[^1].X - Point.X) < 0.01 && Math.Abs(Result[^1].Y - Point.Y) < 0.01)
+            {
+                continue;
+            }
+
+            while (Result.Count >= 2 && ((Math.Abs(Result[^2].X - Result[^1].X) < 0.01 && Math.Abs(Result[^1].X - Point.X) < 0.01)
+                || (Math.Abs(Result[^2].Y - Result[^1].Y) < 0.01 && Math.Abs(Result[^1].Y - Point.Y) < 0.01)))
+            {
+                Result.RemoveAt(Result.Count - 1);
+            }
+
             Result.Add(Point);
         }
         return Result;
@@ -226,7 +267,10 @@ internal static class FlowchartExteriorCrossingRepair
     {
         double Result = 0;
         for (int Index = 1; Index < Points.Count; Index++)
+        {
             Result += Math.Abs(Points[Index].X - Points[Index - 1].X) + Math.Abs(Points[Index].Y - Points[Index - 1].Y);
+        }
+
         return Result;
     }
 }

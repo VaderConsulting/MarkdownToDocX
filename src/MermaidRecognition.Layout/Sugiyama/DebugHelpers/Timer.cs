@@ -6,13 +6,13 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
     /// <summary>
     /// support for native method calls
     /// </summary>
-    public class Timer {
-        [DllImport("Kernel32.dll")]
+    public partial class Timer {
+        [LibraryImport("Kernel32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool QueryPerformanceCounter(out long lpPerformanceCount);
-        [DllImport("Kernel32.dll")]
+        private static partial bool QueryPerformanceCounter(out long lpPerformanceCount);
+        [LibraryImport("Kernel32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool QueryPerformanceFrequency(out long lpFrequency);
+        private static partial bool QueryPerformanceFrequency(out long lpFrequency);
         private long startTime;
         private long stopTime;
         private long freq;

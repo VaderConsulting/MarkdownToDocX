@@ -10,12 +10,12 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void GroupTranslationIsAtomicAndRejectedTranslationKeepsEveryRegion()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Assert.That(Grid.TryPlace("first", new(0, 0, 1, 1)), Is.True);
         Assert.That(Grid.TryPlace("second", new(0, 1, 1, 1)), Is.True);
         Assert.That(Grid.TryPlace("fixed", new(0, 3, 1, 1)), Is.True);
         Assert.That(Grid.TryMove(["first", "second"], 0, 1), Is.True);
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(Grid.TryMove(["first", "second"], 0, 1), Is.False);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
         Assert.That(Grid.RegionOf("first").StartColumn, Is.EqualTo(1));
@@ -26,9 +26,9 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void JointOrderRepairCanSwapWithoutIntermediateSharedCells()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var First = new FlowchartCellRegion(-1, -2, 2, 2);
-        var Second = new FlowchartCellRegion(-1, 0, 2, 2);
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartCellRegion First = new FlowchartCellRegion(-1, -2, 2, 2);
+        FlowchartCellRegion Second = new FlowchartCellRegion(-1, 0, 2, 2);
         Grid.TryPlace("first", First); Grid.TryPlace("second", Second);
         Assert.That(Grid.TryApply(new Dictionary<string, FlowchartCellRegion>
         {
@@ -42,7 +42,7 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void SpanRepairCannotCreateDisconnectedOrSharedOccupancy()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("hub", new(0, 0, 1, 1)); Grid.TryPlace("fixed", new(1, 1, 1, 1));
         Assert.That(Grid.TryResize("hub", 2, 2), Is.False);
         Assert.That(Grid.RegionOf("hub"), Is.EqualTo(new FlowchartCellRegion(0, 0, 1, 1)));
@@ -56,12 +56,12 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void RollbackRestoresRegionsAndGapsWithoutReadingPixelBounds()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Grid = new FlowchartLogicalGrid(Configuration);
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration);
         Grid.TryPlace("wide", new(-1, -1, 2, 2)); Grid.TryPlace("other", new(2, 2, 1, 1));
-        var Before = Grid.Capture();
-        var Origin = Grid.Origin(Grid.RegionOf("wide"));
-        var Size = Grid.Measure(Grid.RegionOf("wide"));
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        (double X, double Y) Origin = Grid.Origin(Grid.RegionOf("wide"));
+        (double Width, double Height) Size = Grid.Measure(Grid.RegionOf("wide"));
         Grid.GrowGap(true, -1, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX);
         Grid.GrowGap(false, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX);
         Assert.That(Grid.TryMove(["other"], 1, 1), Is.True);
@@ -96,10 +96,10 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void DefaultsStayFixedWhenOneNodeSpansMoreCells()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Grid = new FlowchartLogicalGrid(Configuration);
-        var Small = new FlowchartCellRegion(0, 0, 1, 1);
-        var Hub = new FlowchartCellRegion(0, 1, 3, 2);
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration);
+        FlowchartCellRegion Small = new FlowchartCellRegion(0, 0, 1, 1);
+        FlowchartCellRegion Hub = new FlowchartCellRegion(0, 1, 3, 2);
         Assert.That(Grid.TryPlace("small", Small), Is.True);
         Assert.That(Grid.TryPlace("hub", Hub), Is.True);
         Assert.Multiple(() =>
@@ -107,7 +107,7 @@ public sealed class FlowchartLogicalGridTests
             Assert.That(Configuration.CellWidth, Is.EqualTo(DiagramGridMetrics.NODE_WIDTH_PX));
             Assert.That(Configuration.CellHeight, Is.EqualTo(FlowchartLayoutRules.BaseCellHeight));
             Assert.That(Grid.Measure(Small), Is.EqualTo((Configuration.CellWidth, Configuration.CellHeight)));
-            Assert.That(Grid.Measure(Hub).Width, Is.EqualTo(2 * Configuration.CellWidth + Configuration.ColumnGap));
+            Assert.That(Grid.Measure(Hub).Width, Is.EqualTo((2 * Configuration.CellWidth) + Configuration.ColumnGap));
             Assert.That(Grid.RegionOf("small"), Is.EqualTo(Small));
         });
     }
@@ -116,8 +116,8 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void OccupancyUsesWholeRegionsAndRejectedMovesRestoreExactly()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Original = new FlowchartCellRegion(-2, -1, 2, 2);
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartCellRegion Original = new FlowchartCellRegion(-2, -1, 2, 2);
         Assert.That(Grid.TryPlace("diamond", Original), Is.True);
         Assert.That(Grid.TryPlace("neighbour", new(0, -1, 1, 2)), Is.True);
         Assert.That(Grid.TryPlace("other", new(-1, 0, 1, 1)), Is.False);
@@ -129,20 +129,20 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void GapGrowthUpdatesDerivedDimensionsOnly()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Grid = new FlowchartLogicalGrid(Configuration);
-        var Region = new FlowchartCellRegion(0, 0, 2, 2);
-        var Before = Grid.Measure(Region);
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration);
+        FlowchartCellRegion Region = new FlowchartCellRegion(0, 0, 2, 2);
+        (double Width, double Height) Before = Grid.Measure(Region);
         Grid.GrowGap(true, 0, 1, DiagramGridMetrics.GRID_UNIT_PX);
         Grid.GrowGap(false, 0, DiagramGridMetrics.GRID_UNIT_PX + 1, DiagramGridMetrics.GRID_UNIT_PX);
         Assert.Multiple(() =>
         {
             Assert.That(Grid.Configuration, Is.SameAs(Configuration));
             Assert.That(Grid.Measure(Region), Is.EqualTo((Before.Width + DiagramGridMetrics.GRID_UNIT_PX,
-                Before.Height + 2 * DiagramGridMetrics.GRID_UNIT_PX)));
+                Before.Height + (2 * DiagramGridMetrics.GRID_UNIT_PX))));
             Assert.That(Grid.Measure(new(1, 1, 1, 1)), Is.EqualTo((Configuration.CellWidth, Configuration.CellHeight)));
             Assert.That(Grid.Origin(new(1, 1, 1, 1)), Is.EqualTo((Configuration.CellWidth + Configuration.ColumnGap
-                + DiagramGridMetrics.GRID_UNIT_PX, Configuration.CellHeight + Configuration.RowGap + 2 * DiagramGridMetrics.GRID_UNIT_PX)));
+                + DiagramGridMetrics.GRID_UNIT_PX, Configuration.CellHeight + Configuration.RowGap + (2 * DiagramGridMetrics.GRID_UNIT_PX))));
         });
     }
 
@@ -150,8 +150,8 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void NegativeIndicesKeepOneSharedGridOrigin()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Grid = new FlowchartLogicalGrid(Configuration);
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration);
         Grid.GrowGap(true, -1, 1, DiagramGridMetrics.GRID_UNIT_PX);
         Assert.That(Grid.Origin(new(0, -1, 1, 1)).X,
             Is.EqualTo(-Configuration.CellWidth - Configuration.ColumnGap - DiagramGridMetrics.GRID_UNIT_PX));
@@ -171,9 +171,9 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void MeasuresWrappedTextBeforeChoosingTheBaseSpan()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        double Available = Configuration.CellWidth - 4 * Configuration.TextPadding;
-        var Candidates = FlowchartNodeSpanCandidates.Measure("one two three four", Configuration,
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        double Available = Configuration.CellWidth - (4 * Configuration.TextPadding);
+        IReadOnlyList<FlowchartNodeSpanCandidate> Candidates = FlowchartNodeSpanCandidates.Measure("one two three four", Configuration,
             Text => Text.Length * Available / "one two three".Length, 24);
         Assert.That(Candidates, Has.Count.EqualTo(1));
         Assert.Multiple(() =>
@@ -188,15 +188,15 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void GeneratesIndependentUndominatedWidthAndHeightChoices()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Candidates = FlowchartNodeSpanCandidates.Measure(string.Join(" ", Enumerable.Repeat("word", 20)),
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        IReadOnlyList<FlowchartNodeSpanCandidate> Candidates = FlowchartNodeSpanCandidates.Measure(string.Join(" ", Enumerable.Repeat("word", 20)),
             Configuration, Text => Text.Length * 10, 24);
         Assert.That(Candidates.Count, Is.GreaterThan(1));
-        foreach (var Candidate in Candidates)
+        foreach (FlowchartNodeSpanCandidate Candidate in Candidates)
         {
-            var Size = new FlowchartLogicalGrid(Configuration).Measure(new(0, 0, Candidate.RowSpan, Candidate.ColumnSpan));
-            Assert.That(Candidate.TextWidth + 4 * Configuration.TextPadding, Is.LessThanOrEqualTo(Size.Width));
-            Assert.That(Candidate.TextHeight + 2 * Configuration.TextPadding, Is.LessThanOrEqualTo(Size.Height));
+            (double Width, double Height) Size = new FlowchartLogicalGrid(Configuration).Measure(new(0, 0, Candidate.RowSpan, Candidate.ColumnSpan));
+            Assert.That(Candidate.TextWidth + (4 * Configuration.TextPadding), Is.LessThanOrEqualTo(Size.Width));
+            Assert.That(Candidate.TextHeight + (2 * Configuration.TextPadding), Is.LessThanOrEqualTo(Size.Height));
             Assert.That(Candidates.Any(Other => Other != Candidate && Other.RowSpan <= Candidate.RowSpan
                 && Other.ColumnSpan <= Candidate.ColumnSpan), Is.False);
         }
@@ -206,10 +206,10 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void PreservesExplicitBreaksAndUsesMeasuredPortMinimums()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
-        var Ordinary = FlowchartNodeSpanCandidates.Measure("short", Configuration, Text => Text.Length, 24).Single();
-        var Hub = FlowchartNodeSpanCandidates.Measure("short\n\nlabel", Configuration, Text => Text.Length, 24,
-            MinimumHeight: 2 * Configuration.CellHeight + Configuration.RowGap + 1).Single();
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartNodeSpanCandidate Ordinary = FlowchartNodeSpanCandidates.Measure("short", Configuration, Text => Text.Length, 24).Single();
+        FlowchartNodeSpanCandidate Hub = FlowchartNodeSpanCandidates.Measure("short\n\nlabel", Configuration, Text => Text.Length, 24,
+            MinimumHeight: (2 * Configuration.CellHeight) + Configuration.RowGap + 1).Single();
         Assert.Multiple(() =>
         {
             Assert.That(Hub.DisplayLabel, Is.EqualTo("short\n\nlabel"));
@@ -223,9 +223,9 @@ public sealed class FlowchartLogicalGridTests
     [Test]
     public void LongWordsGrowByWholeCellsWithoutBeingSplit()
     {
-        var Configuration = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGridConfiguration Configuration = FlowchartLogicalGridConfiguration.FromRules();
         string Word = new('W', 100);
-        var Candidate = FlowchartNodeSpanCandidates.Measure(Word, Configuration, Text => Text.Length * 16, 24).Single();
+        FlowchartNodeSpanCandidate Candidate = FlowchartNodeSpanCandidates.Measure(Word, Configuration, Text => Text.Length * 16, 24).Single();
         Assert.That(Candidate.DisplayLabel, Is.EqualTo(Word));
         Assert.That(Candidate.ColumnSpan, Is.GreaterThan(1));
     }

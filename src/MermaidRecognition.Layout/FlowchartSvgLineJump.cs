@@ -117,7 +117,11 @@ public static class FlowchartSvgLineJump
             {
                 (double X1, double Y1) = Points[SegmentIndex - 1];
                 (double X2, double Y2) = Points[SegmentIndex];
-                if (!IsAxisSegment(X1, Y1, X2, Y2, out bool Horizontal)) continue;
+                if (!IsAxisSegment(X1, Y1, X2, Y2, out bool Horizontal))
+                {
+                    continue;
+                }
+
                 Segments.Add(new SweepSegment(StrokeIndex, SegmentIndex, X1, Y1, X2, Y2, Horizontal));
             }
         }
@@ -129,7 +133,12 @@ public static class FlowchartSvgLineJump
         foreach (SweepSegment Current in Segments)
         {
             for (int Index = Active.Count - 1; Index >= 0; Index--)
-                if (Active[Index].MaxX < Current.MinX) Active.RemoveAt(Index);
+            {
+                if (Active[Index].MaxX < Current.MinX)
+                {
+                    Active.RemoveAt(Index);
+                }
+            }
 
             foreach (SweepSegment Prior in Active)
             {
@@ -137,7 +146,9 @@ public static class FlowchartSvgLineJump
                 if (Prior.StrokeIndex == Current.StrokeIndex
                     || Prior.Horizontal == Current.Horizontal
                     || Prior.MaxY < Current.MinY || Current.MaxY < Prior.MinY)
+                {
                     continue;
+                }
 
                 SweepSegment Left = Prior.StrokeIndex < Current.StrokeIndex ? Prior : Current;
                 SweepSegment Right = Prior.StrokeIndex < Current.StrokeIndex ? Current : Prior;
@@ -149,9 +160,17 @@ public static class FlowchartSvgLineJump
         Candidates.Sort(static (Left, Right) =>
         {
             int Compare = Left.Left.StrokeIndex.CompareTo(Right.Left.StrokeIndex);
-            if (Compare != 0) return Compare;
+            if (Compare != 0)
+            {
+                return Compare;
+            }
+
             Compare = Left.Right.StrokeIndex.CompareTo(Right.Right.StrokeIndex);
-            if (Compare != 0) return Compare;
+            if (Compare != 0)
+            {
+                return Compare;
+            }
+
             Compare = Left.Left.SegmentIndex.CompareTo(Right.Left.SegmentIndex);
             return Compare != 0 ? Compare : Left.Right.SegmentIndex.CompareTo(Right.Right.SegmentIndex);
         });
@@ -165,8 +184,14 @@ public static class FlowchartSvgLineJump
             if (!TryIntersect(LeftSegment.X1, LeftSegment.Y1, LeftSegment.X2, LeftSegment.Y2,
                     RightSegment.X1, RightSegment.Y1, RightSegment.X2, RightSegment.Y2,
                     out double CrossX, out double CrossY, out double Ua, out double Ub))
+            {
                 continue;
-            if (Ua <= 1e-6 || Ua >= 1 - 1e-6 || Ub <= 1e-6 || Ub >= 1 - 1e-6) continue;
+            }
+
+            if (Ua <= 1e-6 || Ua >= 1 - 1e-6 || Ub <= 1e-6 || Ub >= 1 - 1e-6)
+            {
+                continue;
+            }
 
             double LeftClear = Math.Min(Distance(CrossX, CrossY, LeftSegment.X1, LeftSegment.Y1), Distance(CrossX, CrossY, LeftSegment.X2, LeftSegment.Y2));
             double RightClear = Math.Min(Distance(CrossX, CrossY, RightSegment.X1, RightSegment.Y1), Distance(CrossX, CrossY, RightSegment.X2, RightSegment.Y2));
@@ -255,35 +280,50 @@ public static class FlowchartSvgLineJump
         string Original = Stroke.Attributes.TryGetValue("d", out string? Path) ? Path
             : "M" + Format(Stroke.Points[0].X) + "," + Format(Stroke.Points[0].Y)
                 + "L" + Format(Stroke.Points[^1].X) + "," + Format(Stroke.Points[^1].Y);
-        var Data = new StringBuilder();
-        foreach (var Command in ReadCommands(Original))
+        StringBuilder Data = new StringBuilder();
+        foreach ((char Kind, double X, double Y, double Nx, double Ny, string Markup) Command in ReadCommands(Original))
         {
             double X = Command.X, Y = Command.Y, Nx = Command.Nx, Ny = Command.Ny;
-            var OnSegment = Hops.Where(Hop => (Command.Kind is 'L' or 'H' or 'V')
+            List<Crossing> OnSegment = [.. Hops.Where(Hop => (Command.Kind is 'L' or 'H' or 'V')
                 && Distance(X, Y, Hop.X, Hop.Y) + Distance(Hop.X, Hop.Y, Nx, Ny)
                     <= Distance(X, Y, Nx, Ny) + 0.001)
                 .GroupBy(Hop => (Hop.X, Hop.Y)).Select(Group => Group.First())
-                .OrderBy(Hop => Distance(X, Y, Hop.X, Hop.Y)).ToList();
-            if (OnSegment.Count == 0) Data.Append(Command.Markup);
+                .OrderBy(Hop => Distance(X, Y, Hop.X, Hop.Y))];
+            if (OnSegment.Count == 0)
+            {
+                Data.Append(Command.Markup);
+            }
             else
             {
                 for (int Index = 0; Index < OnSegment.Count; Index++)
                 {
-                    var Hop = OnSegment[Index];
+                    Crossing Hop = OnSegment[Index];
                     double Radius = Math.Min(HOP_RADIUS_PX, Math.Min(Distance(X, Y, Hop.X, Hop.Y), Distance(Nx, Ny, Hop.X, Hop.Y)) / 2);
-                    if (Index > 0) Radius = Math.Min(Radius, Distance(Hop.X, Hop.Y, OnSegment[Index - 1].X, OnSegment[Index - 1].Y) / 2.5);
-                    if (Index + 1 < OnSegment.Count) Radius = Math.Min(Radius, Distance(Hop.X, Hop.Y, OnSegment[Index + 1].X, OnSegment[Index + 1].Y) / 2.5);
+                    if (Index > 0)
+                    {
+                        Radius = Math.Min(Radius, Distance(Hop.X, Hop.Y, OnSegment[Index - 1].X, OnSegment[Index - 1].Y) / 2.5);
+                    }
+
+                    if (Index + 1 < OnSegment.Count)
+                    {
+                        Radius = Math.Min(Radius, Distance(Hop.X, Hop.Y, OnSegment[Index + 1].X, OnSegment[Index + 1].Y) / 2.5);
+                    }
+
                     AppendHop(Data, X, Y, Nx, Ny, Hop.X, Hop.Y, Radius);
                 }
                 Data.Append('L').Append(Format(Nx)).Append(',').Append(Format(Ny));
             }
         }
-        var Builder = new StringBuilder("<path d=\"");
+        StringBuilder Builder = new StringBuilder("<path d=\"");
         Builder.Append(Data).Append("\" fill=\"none\" stroke=\"")
             .Append(Stroke.Attributes.TryGetValue("stroke", out string? Colour) ? Colour : "#333333").Append('"');
-        foreach (var Attribute in Stroke.Attributes)
+        foreach (KeyValuePair<string, string> Attribute in Stroke.Attributes)
         {
-            if (Attribute.Key is "d" or "x1" or "x2" or "y1" or "y2" or "fill" or "stroke") continue;
+            if (Attribute.Key is "d" or "x1" or "x2" or "y1" or "y2" or "fill" or "stroke")
+            {
+                continue;
+            }
+
             Builder.Append(' ').Append(Attribute.Key).Append("=\"").Append(Attribute.Value).Append('"');
         }
         return Builder.Append("/>").ToString();
@@ -294,9 +334,9 @@ public static class FlowchartSvgLineJump
     {
         double Length = Distance(FromX, FromY, ToX, ToY);
         double DirectionX = (ToX - FromX) / Length, DirectionY = (ToY - FromY) / Length;
-        Data.Append('L').Append(Format(CrossX - DirectionX * Radius)).Append(',').Append(Format(CrossY - DirectionY * Radius));
+        Data.Append('L').Append(Format(CrossX - (DirectionX * Radius))).Append(',').Append(Format(CrossY - (DirectionY * Radius)));
         Data.Append('A').Append(Format(Radius)).Append(',').Append(Format(Radius)).Append(" 0 0 1 ")
-            .Append(Format(CrossX + DirectionX * Radius)).Append(',').Append(Format(CrossY + DirectionY * Radius));
+            .Append(Format(CrossX + (DirectionX * Radius))).Append(',').Append(Format(CrossY + (DirectionY * Radius)));
     }
 
     private static bool TryReadPoints(Dictionary<string, string> Attributes, out List<(double X, double Y)> Points)
@@ -304,9 +344,12 @@ public static class FlowchartSvgLineJump
         Points = [];
         if (Attributes.TryGetValue("d", out string? PathData))
         {
-            foreach (var Command in ReadCommands(PathData))
+            foreach ((char Kind, double X, double Y, double Nx, double Ny, string Markup) Command in ReadCommands(PathData))
             {
-                if (Command.Kind is not ('L' or 'H' or 'V')) continue;
+                if (Command.Kind is not ('L' or 'H' or 'V'))
+                {
+                    continue;
+                }
                 // Never treat a move or a rounded corner as a straight chord.
                 Points.Add((double.NaN, double.NaN));
                 Points.Add((Command.X, Command.Y));
@@ -332,22 +375,35 @@ public static class FlowchartSvgLineJump
         foreach (Match Command in Regex.Matches(Path, @"[MLHVCSQTAZmlhvcsqtaz][^MLHVCSQTAZmlhvcsqtaz]*"))
         {
             char Kind = char.ToUpperInvariant(Command.Value[0]);
-            var Values = Regex.Matches(Command.Value.Substring(1), @"[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?");
+            MatchCollection Values = Regex.Matches(Command.Value.Substring(1), @"[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?");
             double Nx = X, Ny = Y;
             if (Kind == 'Z') { Nx = StartX; Ny = StartY; }
             else if (Values.Count > 0)
             {
                 double Last = double.Parse(Values[^1].Value, CultureInfo.InvariantCulture);
-                if (Kind == 'H') Nx = Last;
-                else if (Kind == 'V') Ny = Last;
+                if (Kind == 'H')
+                {
+                    Nx = Last;
+                }
+                else if (Kind == 'V')
+                {
+                    Ny = Last;
+                }
                 else if (Values.Count >= 2)
                 {
                     Nx = double.Parse(Values[^2].Value, CultureInfo.InvariantCulture); Ny = Last;
                 }
                 if (char.IsLower(Command.Value[0]))
                 {
-                    if (Kind != 'V') Nx += X;
-                    if (Kind != 'H') Ny += Y;
+                    if (Kind != 'V')
+                    {
+                        Nx += X;
+                    }
+
+                    if (Kind != 'H')
+                    {
+                        Ny += Y;
+                    }
                 }
             }
             yield return (Kind, X, Y, Nx, Ny, Command.Value);

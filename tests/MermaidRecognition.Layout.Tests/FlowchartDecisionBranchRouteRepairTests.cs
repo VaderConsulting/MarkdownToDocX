@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -8,7 +9,7 @@ public sealed class FlowchartDecisionBranchRouteRepairTests
     [Test]
     public void Layout_OffsetDecisionBranches_LeaveFacingVerticesWithOneCorner()
     {
-        var Contract = MermaidRecognizer.Parse("""
+        DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TB
             Start --> Check{Valid?}
             Check -->|Yes| Accept
@@ -24,14 +25,14 @@ public sealed class FlowchartDecisionBranchRouteRepairTests
             Assert.That(Route.Points[0].Y, Is.EqualTo(Diamond.CenterY).Within(0.5));
             Assert.That(Math.Abs(Route.Points[0].X - Diamond.CenterX), Is.EqualTo(Diamond.Width / 2).Within(0.5));
             Assert.That(Route.Points[^1].X, Is.EqualTo(Target.CenterX).Within(0.5));
-            Assert.That(Route.Points[^1].Y, Is.EqualTo(Target.CenterY + Target.Height / 2).Within(0.5));
+            Assert.That(Route.Points[^1].Y, Is.EqualTo(Target.CenterY + (Target.Height / 2)).Within(0.5));
         }
     }
 
     [Test]
     public void Layout_DecisionBesideReturnLoop_StillUsesFacingVertexAndOneCorner()
     {
-        var Contract = MermaidRecognizer.Parse("""
+        DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TB
             Poll --> Handle{Handled?}
             Handle -->|Yes| Ack
@@ -41,6 +42,8 @@ public sealed class FlowchartDecisionBranchRouteRepairTests
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.Where(Route => Route.SourceId == "Handle"))
+        {
             Assert.That(Route.Points, Has.Count.EqualTo(3), Route.TargetId + " must use one corner");
+        }
     }
 }

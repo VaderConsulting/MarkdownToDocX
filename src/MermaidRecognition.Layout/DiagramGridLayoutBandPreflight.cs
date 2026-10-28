@@ -12,9 +12,17 @@ public static partial class DiagramGridLayout
     /// <returns>Whether fixed semantic membership or a drawn frame already makes this candidate illegal.</returns>
     private static bool BandCandidateIsIllegal(GridLayoutState State)
     {
-        if (!State.EnterpriseBands) return false;
-        var Grid = State.Placed[0].CellNode!.Grid;
-        if (!Grid.CheckRegionConvention(Grid.Capture().Regions)) return true;
+        if (!State.EnterpriseBands)
+        {
+            return false;
+        }
+
+        FlowchartLogicalGrid Grid = State.Placed[0].CellNode!.Grid;
+        if (!Grid.CheckRegionConvention(Grid.Capture().Regions))
+        {
+            return true;
+        }
+
         return !CellBandFramesAreLegal(State.Contract, State.Placed, Grid.Capture());
     }
 
@@ -26,7 +34,7 @@ public static partial class DiagramGridLayout
     internal static bool CellBandFramesAreLegal(MermaidRecognition.Contract.DiagramContract Contract,
         System.Collections.Generic.List<GridNode> Nodes, FlowchartLogicalGrid.Snapshot Candidate)
     {
-        var Frames = ProjectCellFrames(Contract, Nodes, Candidate);
+        List<GridFrame> Frames = ProjectCellFrames(Contract, Nodes, Candidate);
         return !Frames.Any(Frame => !double.IsFinite(Frame.Right - (double)Frame.Left)
             || Frame.Right <= Frame.Left || Frame.Top == Frame.Bottom)
             && CellFrameConflicts(Contract, Nodes, Frames, DiagramGridMetrics.GRID_UNIT_PX).Count == 0;
@@ -41,7 +49,11 @@ public static partial class DiagramGridLayout
     private static int SpendBandPreflightSlots(GridLayoutState State, string Pass, int Count, int Remaining)
     {
         int Spent = Math.Min(Count, Math.Max(0, Remaining));
-        if (Spent > 0) State.Copy.RenderContext.BandPreflightDrops[Pass] = State.Copy.RenderContext.BandPreflightDrops.GetValueOrDefault(Pass) + Spent;
+        if (Spent > 0)
+        {
+            State.Copy.RenderContext.BandPreflightDrops[Pass] = State.Copy.RenderContext.BandPreflightDrops.GetValueOrDefault(Pass) + Spent;
+        }
+
         return Spent;
     }
 }

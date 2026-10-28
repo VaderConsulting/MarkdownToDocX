@@ -10,7 +10,10 @@ public sealed class FinalRepairFailureTraceSetup
     [OneTimeSetUp]
     public void Begin() => DiagramGridLayout.FinalRepairObserver = (Key, Reason, ExtraLength) =>
     {
-        if (Reason == "accepted") TestContext.Out.WriteLine($"FINAL_ACCEPTED|{Key}|extraLength={ExtraLength:R}");
+        if (Reason == "accepted")
+        {
+            TestContext.Out.WriteLine($"FINAL_ACCEPTED|{Key}|extraLength={ExtraLength:R}");
+        }
     };
 
     /// <summary>Restores the production observer state after all normal tests finish.</summary>

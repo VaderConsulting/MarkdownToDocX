@@ -29,6 +29,10 @@ namespace LiveEditor
             SaveMenuItem = new ToolStripMenuItem();
             SaveAsMenuItem = new ToolStripMenuItem();
             RecentFilesMenuItem = new ToolStripMenuItem();
+            ImportMenuItem = new ToolStripMenuItem();
+            AzureMenuItem = new ToolStripMenuItem();
+            AzureResourceGraphMenuItem = new ToolStripMenuItem();
+            ImportAzureResourceGraphMenuItem = new ToolStripMenuItem();
             FileSeparator = new ToolStripSeparator();
             ExitMenuItem = new ToolStripMenuItem();
             EditMenu = new ToolStripMenuItem();
@@ -181,12 +185,12 @@ namespace LiveEditor
             MainMenu.Location = new Point(0, 0);
             MainMenu.Name = "MainMenu";
             MainMenu.Padding = new Padding(6, 3, 0, 3);
-            MainMenu.Size = new Size(1317, 30);
+            MainMenu.Size = new Size(1321, 30);
             MainMenu.TabIndex = 0;
             // 
             // FileMenu
             // 
-            FileMenu.DropDownItems.AddRange(new ToolStripItem[] { NewMenuItem, OpenMenuItem, SaveMenuItem, SaveAsMenuItem, RecentFilesMenuItem, FileSeparator, ExitMenuItem });
+            FileMenu.DropDownItems.AddRange(new ToolStripItem[] { ImportMenuItem, NewMenuItem, OpenMenuItem, SaveMenuItem, SaveAsMenuItem, RecentFilesMenuItem, FileSeparator, ExitMenuItem });
             FileMenu.Name = "FileMenu";
             FileMenu.Size = new Size(46, 24);
             FileMenu.Text = "&File";
@@ -195,7 +199,7 @@ namespace LiveEditor
             // 
             NewMenuItem.Name = "NewMenuItem";
             NewMenuItem.ShortcutKeys = Keys.Control | Keys.N;
-            NewMenuItem.Size = new Size(190, 26);
+            NewMenuItem.Size = new Size(224, 26);
             NewMenuItem.Text = "&New...";
             NewMenuItem.Click += NewMenuItem_Click;
             // 
@@ -203,7 +207,7 @@ namespace LiveEditor
             // 
             OpenMenuItem.Name = "OpenMenuItem";
             OpenMenuItem.ShortcutKeys = Keys.Control | Keys.O;
-            OpenMenuItem.Size = new Size(190, 26);
+            OpenMenuItem.Size = new Size(224, 26);
             OpenMenuItem.Text = "&Open...";
             OpenMenuItem.Click += OpenMenuItem_Click;
             // 
@@ -211,32 +215,60 @@ namespace LiveEditor
             // 
             SaveMenuItem.Name = "SaveMenuItem";
             SaveMenuItem.ShortcutKeys = Keys.Control | Keys.S;
-            SaveMenuItem.Size = new Size(190, 26);
+            SaveMenuItem.Size = new Size(224, 26);
             SaveMenuItem.Text = "&Save";
             SaveMenuItem.Click += SaveMenuItem_Click;
             // 
             // SaveAsMenuItem
             // 
             SaveAsMenuItem.Name = "SaveAsMenuItem";
-            SaveAsMenuItem.Size = new Size(190, 26);
+            SaveAsMenuItem.Size = new Size(224, 26);
             SaveAsMenuItem.Text = "Save &As...";
             SaveAsMenuItem.Click += SaveAsMenuItem_Click;
             // 
             // RecentFilesMenuItem
             // 
             RecentFilesMenuItem.Name = "RecentFilesMenuItem";
-            RecentFilesMenuItem.Size = new Size(190, 26);
+            RecentFilesMenuItem.Size = new Size(224, 26);
             RecentFilesMenuItem.Text = "&Recent files";
+            // 
+            // ImportMenuItem
+            // 
+            ImportMenuItem.DropDownItems.AddRange(new ToolStripItem[] { AzureMenuItem });
+            ImportMenuItem.Name = "ImportMenuItem";
+            ImportMenuItem.Size = new Size(224, 26);
+            ImportMenuItem.Text = "&Import";
+            // 
+            // AzureMenuItem
+            // 
+            AzureMenuItem.DropDownItems.AddRange(new ToolStripItem[] { AzureResourceGraphMenuItem, ImportAzureResourceGraphMenuItem });
+            AzureMenuItem.Name = "AzureMenuItem";
+            AzureMenuItem.Size = new Size(224, 26);
+            AzureMenuItem.Text = "&Azure";
+            // 
+            // AzureResourceGraphMenuItem
+            // 
+            AzureResourceGraphMenuItem.Name = "AzureResourceGraphMenuItem";
+            AzureResourceGraphMenuItem.Size = new Size(286, 26);
+            AzureResourceGraphMenuItem.Text = "Resource Graph";
+            AzureResourceGraphMenuItem.Click += AzureResourceGraphMenuItem_Click;
+            // 
+            // ImportAzureResourceGraphMenuItem
+            // 
+            ImportAzureResourceGraphMenuItem.Name = "ImportAzureResourceGraphMenuItem";
+            ImportAzureResourceGraphMenuItem.Size = new Size(286, 26);
+            ImportAzureResourceGraphMenuItem.Text = "Resource Graph Export (*.csv)";
+            ImportAzureResourceGraphMenuItem.Click += ImportAzureResourceGraphMenuItem_Click;
             // 
             // FileSeparator
             // 
             FileSeparator.Name = "FileSeparator";
-            FileSeparator.Size = new Size(187, 6);
+            FileSeparator.Size = new Size(221, 6);
             // 
             // ExitMenuItem
             // 
             ExitMenuItem.Name = "ExitMenuItem";
-            ExitMenuItem.Size = new Size(190, 26);
+            ExitMenuItem.Size = new Size(224, 26);
             ExitMenuItem.Text = "E&xit";
             ExitMenuItem.Click += ExitMenuItem_Click;
             // 
@@ -1101,7 +1133,7 @@ namespace LiveEditor
             // 
             BodySplit.Panel2.Controls.Add(DiagnosticsList);
             BodySplit.Panel2Collapsed = true;
-            BodySplit.Size = new Size(1317, 919);
+            BodySplit.Size = new Size(1321, 935);
             BodySplit.SplitterDistance = 448;
             BodySplit.SplitterWidth = 3;
             BodySplit.TabIndex = 1;
@@ -1110,7 +1142,7 @@ namespace LiveEditor
             // 
             EditorSplit.Dock = DockStyle.Fill;
             EditorSplit.FixedPanel = FixedPanel.Panel1;
-            EditorSplit.Location = new Point(0, 92);
+            EditorSplit.Location = new Point(0, 90);
             EditorSplit.Margin = new Padding(2, 3, 2, 3);
             EditorSplit.Name = "EditorSplit";
             // 
@@ -1124,7 +1156,7 @@ namespace LiveEditor
             EditorSplit.Panel2.Controls.Add(SelectionDetails);
             EditorSplit.Panel2.Controls.Add(Preview);
             EditorSplit.Panel2MinSize = 240;
-            EditorSplit.Size = new Size(1317, 827);
+            EditorSplit.Size = new Size(1321, 845);
             EditorSplit.SplitterDistance = 390;
             EditorSplit.SplitterWidth = 3;
             EditorSplit.TabIndex = 0;
@@ -1136,21 +1168,20 @@ namespace LiveEditor
             CodeView.Location = new Point(0, 0);
             CodeView.Margin = new Padding(0);
             CodeView.Name = "CodeView";
-            CodeView.Size = new Size(390, 827);
+            CodeView.Size = new Size(390, 845);
             CodeView.TabIndex = 0;
             // 
             // SelectionDetails
             // 
             SelectionDetails.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             SelectionDetails.BackColor = SystemColors.ControlDark;
-            SelectionDetails.Location = new Point(11, 523);
+            SelectionDetails.Location = new Point(11, 541);
             SelectionDetails.Margin = new Padding(0);
             SelectionDetails.MinimumSize = new Size(440, 292);
             SelectionDetails.Name = "SelectionDetails";
             SelectionDetails.Padding = new Padding(1);
             SelectionDetails.Size = new Size(440, 292);
             SelectionDetails.TabIndex = 6;
-            SelectionDetails.Visible = true;
             SelectionDetails.ChangeTypeClicked += SelectionDetails_ChangeTypeClicked;
             // 
             // Preview
@@ -1159,7 +1190,7 @@ namespace LiveEditor
             Preview.Location = new Point(0, 0);
             Preview.Margin = new Padding(2, 3, 2, 3);
             Preview.Name = "Preview";
-            Preview.Size = new Size(924, 827);
+            Preview.Size = new Size(928, 845);
             Preview.TabIndex = 0;
             Preview.PictureMouseMove += Preview_PictureMouseMove;
             Preview.PictureMouseLeave += Preview_PictureMouseLeave;
@@ -1175,7 +1206,7 @@ namespace LiveEditor
             ElementToolbar.Location = new Point(0, 0);
             ElementToolbar.Margin = new Padding(3, 4, 3, 4);
             ElementToolbar.Name = "ElementToolbar";
-            ElementToolbar.Size = new Size(1317, 92);
+            ElementToolbar.Size = new Size(1321, 90);
             ElementToolbar.TabIndex = 2;
             ElementToolbar.InsertRequested += ElementToolbar_InsertRequested;
             ElementToolbar.PromptClosed += ElementToolbar_PromptClosed;
@@ -1184,12 +1215,12 @@ namespace LiveEditor
             // 
             DiagnosticsList.AccessibleName = "Validation diagnostics";
             DiagnosticsList.Dock = DockStyle.Fill;
-            DiagnosticsList.Font = new Font("Consolas", 0.0111414632F);
+            DiagnosticsList.Font = new Font("Consolas", 0.00713053672F);
             DiagnosticsList.HorizontalScrollbar = true;
             DiagnosticsList.Location = new Point(0, 0);
             DiagnosticsList.Margin = new Padding(2, 3, 2, 3);
             DiagnosticsList.Name = "DiagnosticsList";
-            DiagnosticsList.Size = new Size(171, 61);
+            DiagnosticsList.Size = new Size(150, 46);
             DiagnosticsList.TabIndex = 0;
             DiagnosticsList.DoubleClick += DiagnosticsList_DoubleClick;
             // 
@@ -1197,16 +1228,16 @@ namespace LiveEditor
             // 
             StatusBar.ImageScalingSize = new Size(20, 20);
             StatusBar.Items.AddRange(new ToolStripItem[] { StatusLabel, SignatureLabel, TimingLabel, CoArchiDirtyLabel });
-            StatusBar.Location = new Point(0, 949);
+            StatusBar.Location = new Point(0, 965);
             StatusBar.Name = "StatusBar";
             StatusBar.Padding = new Padding(1, 0, 11, 0);
-            StatusBar.Size = new Size(1317, 26);
+            StatusBar.Size = new Size(1321, 26);
             StatusBar.TabIndex = 2;
             // 
             // StatusLabel
             // 
             StatusLabel.Name = "StatusLabel";
-            StatusLabel.Size = new Size(1305, 20);
+            StatusLabel.Size = new Size(1309, 20);
             StatusLabel.Spring = true;
             StatusLabel.Text = "Ready";
             StatusLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -1235,7 +1266,7 @@ namespace LiveEditor
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1317, 975);
+            ClientSize = new Size(1321, 991);
             Controls.Add(BodySplit);
             Controls.Add(StatusBar);
             Controls.Add(MainMenu);
@@ -1274,6 +1305,10 @@ namespace LiveEditor
         private ToolStripMenuItem SaveMenuItem;
         private ToolStripMenuItem SaveAsMenuItem;
         private ToolStripMenuItem RecentFilesMenuItem;
+        private ToolStripMenuItem ImportMenuItem;
+        private ToolStripMenuItem AzureMenuItem;
+        private ToolStripMenuItem AzureResourceGraphMenuItem;
+        private ToolStripMenuItem ImportAzureResourceGraphMenuItem;
         private ToolStripSeparator FileSeparator;
         private ToolStripMenuItem ExitMenuItem;
         private ToolStripMenuItem EditMenu;

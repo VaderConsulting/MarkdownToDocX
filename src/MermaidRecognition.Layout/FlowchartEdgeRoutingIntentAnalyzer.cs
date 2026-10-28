@@ -637,7 +637,7 @@ public static class FlowchartEdgeRoutingIntentAnalyzer
             ExpectedBehaviour.Add("MergeBackIntoMainPath");
         }
 
-        return ExpectedBehaviour.Distinct(StringComparer.Ordinal).ToList();
+        return [.. ExpectedBehaviour.Distinct(StringComparer.Ordinal)];
     }
 
     private static List<string> BuildInvalidBehaviours(
@@ -716,7 +716,7 @@ public static class FlowchartEdgeRoutingIntentAnalyzer
             InvalidBehaviours.Add("CollapseWithUnrelatedEdge");
         }
 
-        return InvalidBehaviours.Distinct(StringComparer.Ordinal).ToList();
+        return [.. InvalidBehaviours.Distinct(StringComparer.Ordinal)];
     }
 
     private static bool IsShortAdjacentEdge(

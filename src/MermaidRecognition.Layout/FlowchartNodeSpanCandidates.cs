@@ -31,20 +31,39 @@ internal static class FlowchartNodeSpanCandidates
     {
         ArgumentNullException.ThrowIfNull(MeasureWidth);
         _ = new FlowchartLogicalGrid(Grid);
-        if (!double.IsFinite(LineHeight) || LineHeight <= 0) throw new ArgumentOutOfRangeException(nameof(LineHeight));
-        if (!double.IsFinite(MinimumWidth) || MinimumWidth < 0) throw new ArgumentOutOfRangeException(nameof(MinimumWidth));
-        if (!double.IsFinite(MinimumHeight) || MinimumHeight < 0) throw new ArgumentOutOfRangeException(nameof(MinimumHeight));
+        if (!double.IsFinite(LineHeight) || LineHeight <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(LineHeight));
+        }
+
+        if (!double.IsFinite(MinimumWidth) || MinimumWidth < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(MinimumWidth));
+        }
+
+        if (!double.IsFinite(MinimumHeight) || MinimumHeight < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(MinimumHeight));
+        }
+
         string[] Paragraphs = (Label ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace('\r', '\n').Split('\n');
-        string[][] Words = Paragraphs.Select(Paragraph => Regex.Split(Paragraph.Trim(), @"\s+")
-            .Where(Word => Word.Length > 0).ToArray()).ToArray();
-        var WidthCache = new Dictionary<string, double>(StringComparer.Ordinal);
+        string[][] Words = [.. Paragraphs.Select(Paragraph => Regex.Split(Paragraph.Trim(), @"\s+")
+            .Where(Word => Word.Length > 0).ToArray())];
+        Dictionary<string, double> WidthCache = new Dictionary<string, double>(StringComparer.Ordinal);
         double Width(string Text)
         {
-            if (WidthCache.TryGetValue(Text, out double Cached)) return Cached;
+            if (WidthCache.TryGetValue(Text, out double Cached))
+            {
+                return Cached;
+            }
+
             double Measured = Text.Length == 0 ? 0 : MeasureWidth(Text);
             if (!double.IsFinite(Measured) || Measured < 0)
+            {
                 throw new InvalidOperationException("The renderer returned an invalid text width.");
+            }
+
             WidthCache[Text] = Measured;
             return Measured;
         }
@@ -56,21 +75,26 @@ internal static class FlowchartNodeSpanCandidates
         double WidestWord = Words.SelectMany(Paragraph => Paragraph).Select(Width).DefaultIfEmpty(0).Max();
         // With no maximum span, every word fits some candidate. Never split it prematurely.
         MinimumColumns = Math.Max(MinimumColumns, SpanFor(WidestWord + HorizontalPadding, Grid.CellWidth, Grid.ColumnGap));
-        var Columns = new SortedSet<int> { MinimumColumns };
+        SortedSet<int> Columns = [MinimumColumns];
         foreach (string[] Paragraph in Words)
-        for (int Start = 0; Start < Paragraph.Length; Start++)
-        for (int End = Start + 1; End <= Paragraph.Length; End++)
+        {
+            for (int Start = 0; Start < Paragraph.Length; Start++)
+            {
+                for (int End = Start + 1; End <= Paragraph.Length; End++)
         {
             // Wrapping changes only when a contiguous word sequence starts fitting.
             // Deduplicate whole-cell thresholds instead of searching arbitrary span limits.
             double RunWidth = Width(string.Join(" ", Paragraph[Start..End]));
             Columns.Add(Math.Max(MinimumColumns, SpanFor(RunWidth + HorizontalPadding, Grid.CellWidth, Grid.ColumnGap)));
         }
-        var Candidates = new List<FlowchartNodeSpanCandidate>();
+            }
+        }
+
+        List<FlowchartNodeSpanCandidate> Candidates = [];
         foreach (int ColumnSpan in Columns)
         {
-            double Available = ColumnSpan * Grid.CellWidth + (ColumnSpan - 1.0) * Grid.ColumnGap - HorizontalPadding;
-            var Lines = new List<string>();
+            double Available = (ColumnSpan * Grid.CellWidth) + ((ColumnSpan - 1.0) * Grid.ColumnGap) - HorizontalPadding;
+            List<string> Lines = [];
             foreach (string[] Paragraph in Words)
             {
                 string Line = string.Empty;
@@ -82,7 +106,10 @@ internal static class FlowchartNodeSpanCandidates
                         Lines.Add(Line);
                         Line = Word;
                     }
-                    else Line = Joined;
+                    else
+                    {
+                        Line = Joined;
+                    }
                 }
                 Lines.Add(Line);
             }
@@ -91,9 +118,16 @@ internal static class FlowchartNodeSpanCandidates
             int RowSpan = Math.Max(MinimumRows, SpanFor(TextHeight + VerticalPadding, Grid.CellHeight, Grid.RowGap));
             // Wider candidates are useful only when they reduce height. Mandatory minima
             // were applied before pruning, so no required geometry is pruned away.
-            if (Candidates.Any(Candidate => Candidate.ColumnSpan <= ColumnSpan && Candidate.RowSpan <= RowSpan)) continue;
+            if (Candidates.Any(Candidate => Candidate.ColumnSpan <= ColumnSpan && Candidate.RowSpan <= RowSpan))
+            {
+                continue;
+            }
+
             Candidates.Add(new(RowSpan, ColumnSpan, string.Join("\n", Lines), TextWidth, TextHeight));
-            if (ColumnSpan == 1 && RowSpan == 1) break;
+            if (ColumnSpan == 1 && RowSpan == 1)
+            {
+                break;
+            }
         }
         return Candidates;
     }

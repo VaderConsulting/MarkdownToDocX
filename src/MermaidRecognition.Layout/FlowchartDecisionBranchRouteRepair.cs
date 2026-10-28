@@ -32,15 +32,24 @@ internal static class FlowchartDecisionBranchRouteRepair
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
                 || !Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode)
                 || !FlowchartDagrePresentation.IsDiamondShape(SourceNode.Shape)
-                || IsHinted(Contract, Route)) continue;
-            List<EdgeContract> Outgoing = Contract.Edges.Where(Visible)
-                .Where(Edge => Edge.SourceId == Route.SourceId && !BackEdges.Contains(Edge)).ToList();
+                || IsHinted(Contract, Route))
+            {
+                continue;
+            }
+
+            List<EdgeContract> Outgoing = [.. Contract.Edges.Where(Visible).Where(Edge => Edge.SourceId == Route.SourceId && !BackEdges.Contains(Edge))];
             EdgeContract? Edge = Outgoing.FirstOrDefault(Edge => Edge.TargetId == Route.TargetId);
-            if (Edge == null || Outgoing.Count is not (2 or 3)) continue;
+            if (Edge == null || Outgoing.Count is not (2 or 3))
+            {
+                continue;
+            }
 
             (double SourceCross, double SourceFlow, double SourceHalfCross, _) = Axes(Source, Direction);
             (double TargetCross, double TargetFlow, double TargetHalfCross, double TargetHalfFlow) = Axes(Target, Direction);
-            if (TargetFlow <= SourceFlow + Epsilon || Math.Abs(TargetCross - SourceCross) <= Epsilon) continue;
+            if (TargetFlow <= SourceFlow + Epsilon || Math.Abs(TargetCross - SourceCross) <= Epsilon)
+            {
+                continue;
+            }
 
             bool TargetIsRight = TargetCross > SourceCross;
             (double X, double Y) Start = Point(SourceCross + (TargetIsRight ? SourceHalfCross : -SourceHalfCross),
@@ -53,7 +62,10 @@ internal static class FlowchartDecisionBranchRouteRepair
             (double X, double Y) Corner = Point(TopFree ? TargetCross : SourceCross
                 + (TargetIsRight ? SourceHalfCross : -SourceHalfCross), TopFree ? SourceFlow : TargetFlow, Direction);
             List<FlowchartLayoutPoint> Candidate = Normalize([New(Start), New(Corner), New(End)]);
-            if (Candidate.Count != 3 || !Legal(Candidate, Route, Layout, Contract, Bounds)) continue;
+            if (Candidate.Count != 3 || !Legal(Candidate, Route, Layout, Contract, Bounds))
+            {
+                continue;
+            }
 
             // Rules 3.8 and 3.9 are routing requirements, so a legal one-corner
             // branch replaces the rejected two-corner route even when its line
@@ -69,24 +81,40 @@ internal static class FlowchartDecisionBranchRouteRepair
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
         if (Distance(Points[0], Points[1]) + Epsilon < MinimumRun
-            || Distance(Points[1], Points[2]) + Epsilon < MinimumRun) return false;
+            || Distance(Points[1], Points[2]) + Epsilon < MinimumRun)
+        {
+            return false;
+        }
+
         foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
         {
             if (Box.NodeId == Route.SourceId || Box.NodeId == Route.TargetId
                 || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, Route.SourceId)
-                || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, Route.TargetId)) continue;
+                || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, Route.TargetId))
+            {
+                continue;
+            }
+
             for (int Index = 1; Index < Points.Count; Index++)
+            {
                 if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
-                    Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Box)) return false;
+                    Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Box))
+                {
+                    return false;
+                }
+            }
         }
-        List<(double X, double Y)> Candidate = Points.Select(Point => (Point.X, Point.Y)).ToList();
-        List<(double X, double Y)> Original = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+        List<(double X, double Y)> Candidate = [.. Points.Select(Point => (Point.X, Point.Y))];
+        List<(double X, double Y)> Original = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
         foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes.Where(Other => Other != Route))
         {
-            List<(double X, double Y)> OtherPoints = Other.Points.Select(Point => (Point.X, Point.Y)).ToList();
-            var Before = FlowchartBranchRouteOrder.Intersections(Original, OtherPoints);
-            var After = FlowchartBranchRouteOrder.Intersections(Candidate, OtherPoints);
-            if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + Epsilon) return false;
+            List<(double X, double Y)> OtherPoints = [.. Other.Points.Select(Point => (Point.X, Point.Y))];
+            (int Crossings, double Overlap) Before = FlowchartBranchRouteOrder.Intersections(Original, OtherPoints);
+            (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(Candidate, OtherPoints);
+            if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + Epsilon)
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -128,15 +156,22 @@ internal static class FlowchartDecisionBranchRouteRepair
         List<FlowchartLayoutPoint> Result = [];
         foreach (FlowchartLayoutPoint Point in Points)
         {
-            if (Result.Count > 0 && Near(Result[^1], (Point.X, Point.Y))) continue;
+            if (Result.Count > 0 && Near(Result[^1], (Point.X, Point.Y)))
+            {
+                continue;
+            }
+
             Result.Add(Copy(Point));
-            while (Result.Count >= 3 && Collinear(Result[^3], Result[^2], Result[^1])) Result.RemoveAt(Result.Count - 2);
+            while (Result.Count >= 3 && Collinear(Result[^3], Result[^2], Result[^1]))
+            {
+                Result.RemoveAt(Result.Count - 2);
+            }
         }
         return Result;
     }
     private static bool Collinear(FlowchartLayoutPoint A, FlowchartLayoutPoint B, FlowchartLayoutPoint C) =>
-        Math.Abs(A.X - B.X) <= Epsilon && Math.Abs(B.X - C.X) <= Epsilon
-        || Math.Abs(A.Y - B.Y) <= Epsilon && Math.Abs(B.Y - C.Y) <= Epsilon;
+        (Math.Abs(A.X - B.X) <= Epsilon && Math.Abs(B.X - C.X) <= Epsilon)
+        || (Math.Abs(A.Y - B.Y) <= Epsilon && Math.Abs(B.Y - C.Y) <= Epsilon);
     private static FlowchartLayoutPoint New((double X, double Y) Point) => new() { X = Math.Round(Point.X), Y = Math.Round(Point.Y) };
     private static FlowchartLayoutPoint Copy(FlowchartLayoutPoint Point) => new() { X = Point.X, Y = Point.Y };
     private static double Distance(FlowchartLayoutPoint A, FlowchartLayoutPoint B) => Math.Abs(A.X - B.X) + Math.Abs(A.Y - B.Y);

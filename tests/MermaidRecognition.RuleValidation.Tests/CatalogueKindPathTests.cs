@@ -1,4 +1,6 @@
 using MDConverter;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
@@ -14,17 +16,20 @@ public sealed class CatalogueKindPathTests : ProductionCatalogueTestFixture
     [Test]
     public void SharedGridCatalogueMustUseTheActualProductionDiagramKind()
     {
-        var Wrong = new List<string>();
-        var Rows = new List<string> { "Scenario\tSourceKind\tProductionRenderer\tSharedGridApplicable" };
-        foreach (var Scenario in RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        List<string> Wrong = [];
+        List<string> Rows = ["Scenario\tSourceKind\tProductionRenderer\tSharedGridApplicable"];
+        foreach (RouteRuleCatalogueAuditTests.Scenario? Scenario in RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!))
         {
-            var Contract = Scenario.Enterprise ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
+            DiagramContract Contract = Scenario.Enterprise ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
                 : MermaidRecognizer.Parse(Scenario.Source);
             bool Shared = Contract.Kind.Equals("flowchart", StringComparison.OrdinalIgnoreCase) || Contract.Kind.Equals("graph", StringComparison.OrdinalIgnoreCase);
             string Renderer = Scenario.Enterprise ? "Native Enterprise" : Shared ? "Native flowchart" : "MermaidSharp kind renderer";
             Rows.Add($"{Scenario.Id}\t{(Scenario.Enterprise ? "enterprise" : Contract.Kind)}\t{Renderer}\t{Shared}");
-            if (!Shared && Contract.Nodes.Count != 0) Wrong.Add(Scenario.Id + ":" + Contract.Kind);
+            if (!Shared && Contract.Nodes.Count != 0)
+            {
+                Wrong.Add(Scenario.Id + ":" + Contract.Kind);
+            }
         }
         File.WriteAllLines(Path.Combine(FindRoot(), "docs", "catalogue-production-kind-paths.tsv"), Rows);
         TestContext.Out.WriteLine("CATALOGUE_KIND_PATH_MISMATCH|" + string.Join(",", Wrong));
@@ -37,7 +42,7 @@ public sealed class CatalogueKindPathTests : ProductionCatalogueTestFixture
     [Explicit("Writes actual native-kind PNGs for the path investigation only.")]
     public void CaptureActualNonFlowchartProductionPng(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
         byte[]? Png = MermaidDiagramExport.TryRenderPng(Scenario.Source);
         Assert.That(Png, Is.Not.Null.And.Not.Empty);
@@ -52,7 +57,13 @@ public sealed class CatalogueKindPathTests : ProductionCatalogueTestFixture
     private static string FindRoot()
     {
         for (DirectoryInfo? Current = new(AppContext.BaseDirectory); Current != null; Current = Current.Parent)
-            if (File.Exists(Path.Combine(Current.FullName, "enterprise.md"))) return Current.FullName;
+        {
+            if (File.Exists(Path.Combine(Current.FullName, "enterprise.md")))
+            {
+                return Current.FullName;
+            }
+        }
+
         throw new DirectoryNotFoundException("Cannot locate the source catalogues.");
     }
 }

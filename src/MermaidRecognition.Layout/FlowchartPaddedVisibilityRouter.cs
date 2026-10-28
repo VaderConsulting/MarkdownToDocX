@@ -237,7 +237,10 @@ public static class FlowchartPaddedVisibilityRouter
     {
         GridPathCallCount++;
         if (FlowchartRenderContext.Current.IsSvgEdgePainting)
+        {
             FlowchartRenderContext.ReportOperationCount("paint-grid-path-searches", 1);
+        }
+
         Stopwatch Timer = Stopwatch.StartNew();
         Points = [];
         PaddedBoxSpatialIndex Spatial = new(Boxes);
@@ -283,17 +286,21 @@ public static class FlowchartPaddedVisibilityRouter
                 AddVertex(Vertices, VertexKeys, EndX, Y);
             }
             // Keep only candidates inside this search window; endpoints always remain.
-            Vertices = Vertices.Where((Point, Index) => Index < 2
-                || (Point.X >= SearchLeft && Point.X <= SearchRight && Point.Y >= SearchBottom && Point.Y <= SearchTop))
-                .ToList();
+            Vertices = [.. Vertices.Where((Point, Index) => Index < 2
+                || (Point.X >= SearchLeft && Point.X <= SearchRight && Point.Y >= SearchBottom && Point.Y <= SearchTop))];
             int Count = Vertices.Count;
             GridPathLastVertexCount = Count;
             GridPathMaximumVertexCount = Math.Max(GridPathMaximumVertexCount, Count);
-            List<int>[] Neighbours = Enumerable.Range(0, Count).Select(_ => new List<int>()).ToArray();
-            foreach (var SameX in Enumerable.Range(0, Count).GroupBy(Index => Vertices[Index].X))
-                Connect(SameX.OrderBy(Index => Vertices[Index].Y).ToArray(), Vertices, Neighbours, Spatial);
-            foreach (var SameY in Enumerable.Range(0, Count).GroupBy(Index => Vertices[Index].Y))
-                Connect(SameY.OrderBy(Index => Vertices[Index].X).ToArray(), Vertices, Neighbours, Spatial);
+            List<int>[] Neighbours = [.. Enumerable.Range(0, Count).Select(_ => new List<int>())];
+            foreach (IGrouping<double, int> SameX in Enumerable.Range(0, Count).GroupBy(Index => Vertices[Index].X))
+            {
+                Connect([.. SameX.OrderBy(Index => Vertices[Index].Y)], Vertices, Neighbours, Spatial);
+            }
+
+            foreach (IGrouping<double, int> SameY in Enumerable.Range(0, Count).GroupBy(Index => Vertices[Index].Y))
+            {
+                Connect([.. SameY.OrderBy(Index => Vertices[Index].X)], Vertices, Neighbours, Spatial);
+            }
 
             double Manhattan = Math.Abs(EndX - StartX) + Math.Abs(EndY - StartY);
             double BendCost = Math.Max(1.0, Manhattan * BEND_PENALTY_FRACTION);
@@ -302,7 +309,11 @@ public static class FlowchartPaddedVisibilityRouter
             {
                 GridPathLastVisitedStateCount = VisitedStates;
                 GridPathMaximumVisitedStateCount = Math.Max(GridPathMaximumVisitedStateCount, VisitedStates);
-                foreach (int Index in Path) Points.Add(Vertices[Index]);
+                foreach (int Index in Path)
+                {
+                    Points.Add(Vertices[Index]);
+                }
+
                 SimplifyColinear(Points);
                 GridPathElapsedMilliseconds += Timer.Elapsed.TotalMilliseconds;
                 return Points.Count >= 2;
@@ -327,7 +338,11 @@ public static class FlowchartPaddedVisibilityRouter
         {
             int First = Ordered[Index - 1], Second = Ordered[Index];
             if (!Spatial.SegmentClears(Vertices[First].X, Vertices[First].Y,
-                Vertices[Second].X, Vertices[Second].Y)) continue;
+                Vertices[Second].X, Vertices[Second].Y))
+            {
+                continue;
+            }
+
             Neighbours[First].Add(Second);
             Neighbours[Second].Add(First);
         }
@@ -606,17 +621,21 @@ public static class FlowchartPaddedVisibilityRouter
         const int Directions = 3; // 0 = source, 1 = horizontal, 2 = vertical.
         int Source = 0, Target = 1;
         int StateCount = Vertices.Count * Directions;
-        double[] Distance = Enumerable.Repeat(double.PositiveInfinity, StateCount).ToArray();
-        int[] Previous = Enumerable.Repeat(-1, StateCount).ToArray();
+        double[] Distance = [.. Enumerable.Repeat(double.PositiveInfinity, StateCount)];
+        int[] Previous = [.. Enumerable.Repeat(-1, StateCount)];
         bool[] Closed = new bool[StateCount];
         int StartState = Source * Directions;
         Distance[StartState] = 0;
-        var Queue = new PriorityQueue<int, (double Estimate, double Cost, int State)>();
+        PriorityQueue<int, (double Estimate, double Cost, int State)> Queue = new PriorityQueue<int, (double Estimate, double Cost, int State)>();
         Queue.Enqueue(StartState, (Manhattan(Vertices[Source], Vertices[Target]), 0, StartState));
         int GoalState = -1;
-        while (Queue.TryDequeue(out int CurrentState, out var Priority))
+        while (Queue.TryDequeue(out int CurrentState, out (double Estimate, double Cost, int State) Priority))
         {
-            if (Closed[CurrentState] || Priority.Cost > Distance[CurrentState]) continue;
+            if (Closed[CurrentState] || Priority.Cost > Distance[CurrentState])
+            {
+                continue;
+            }
+
             Closed[CurrentState] = true;
             VisitedStates++;
             int Current = CurrentState / Directions;
@@ -625,20 +644,36 @@ public static class FlowchartPaddedVisibilityRouter
             foreach (int Next in Neighbours[Current])
             {
                 int NextDirection = Math.Abs(Vertices[Next].X - Vertices[Current].X) <= 0.6 ? 2 : 1;
-                int NextState = Next * Directions + NextDirection;
-                if (Closed[NextState]) continue;
+                int NextState = (Next * Directions) + NextDirection;
+                if (Closed[NextState])
+                {
+                    continue;
+                }
+
                 double Length = Manhattan(Vertices[Current], Vertices[Next]);
                 double Candidate = Distance[CurrentState] + Length
                     + (Direction != 0 && Direction != NextDirection ? BendCost : 0);
-                if (Candidate >= Distance[NextState]) continue;
+                if (Candidate >= Distance[NextState])
+                {
+                    continue;
+                }
+
                 Distance[NextState] = Candidate;
                 Previous[NextState] = CurrentState;
                 double Estimate = Candidate + Manhattan(Vertices[Next], Vertices[Target]);
                 Queue.Enqueue(NextState, (Estimate, Candidate, NextState));
             }
         }
-        if (GoalState < 0) return false;
-        for (int State = GoalState; State >= 0; State = Previous[State]) Path.Add(State / Directions);
+        if (GoalState < 0)
+        {
+            return false;
+        }
+
+        for (int State = GoalState; State >= 0; State = Previous[State])
+        {
+            Path.Add(State / Directions);
+        }
+
         Path.Reverse();
         return Path.Count >= 2 && Path[0] == Source && Path[^1] == Target;
 
@@ -881,11 +916,16 @@ public static class FlowchartPaddedVisibilityRouter
                 (int MinX, int MinY, int MaxX, int MaxY) = CellRange(
                     Box.Left, Box.Bottom, Box.Right, Box.Top);
                 for (int X = MinX; X <= MaxX; X++)
-                for (int Y = MinY; Y <= MaxY; Y++)
+                {
+                    for (int Y = MinY; Y <= MaxY; Y++)
                 {
                     if (!_cells.TryGetValue(new Cell(X, Y), out List<PaddedBox>? Items))
-                        _cells[new Cell(X, Y)] = Items = [];
-                    Items.Add(Box);
+                        {
+                            _cells[new Cell(X, Y)] = Items = [];
+                        }
+
+                        Items.Add(Box);
+                }
                 }
             }
         }
@@ -894,13 +934,25 @@ public static class FlowchartPaddedVisibilityRouter
         {
             (int MinX, int MinY, int MaxX, int MaxY) = CellRange(X, Y, X, Y);
             for (int CellX = MinX; CellX <= MaxX; CellX++)
-            for (int CellY = MinY; CellY <= MaxY; CellY++)
             {
-                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
-                foreach (PaddedBox Box in Items)
-                    if (X > Box.Left + 0.6 && X < Box.Right - 0.6
-                        && Y > Box.Bottom + 0.6 && Y < Box.Top - 0.6) return true;
+                for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items))
+                    {
+                        continue;
+                    }
+
+                    foreach (PaddedBox Box in Items)
+                    {
+                        if (X > Box.Left + 0.6 && X < Box.Right - 0.6
+                        && Y > Box.Bottom + 0.6 && Y < Box.Top - 0.6)
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
+
             return false;
         }
 
@@ -910,7 +962,8 @@ public static class FlowchartPaddedVisibilityRouter
             List<PaddedBox> Found = [];
             HashSet<PaddedBox> Seen = [];
             for (int CellX = MinX; CellX <= MaxX; CellX++)
-            for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                for (int CellY = MinY; CellY <= MaxY; CellY++)
             {
                 if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items))
                 {
@@ -925,6 +978,7 @@ public static class FlowchartPaddedVisibilityRouter
                         Found.Add(Box);
                     }
                 }
+            }
             }
 
             Found.Sort(static (First, Second) =>
@@ -957,12 +1011,24 @@ public static class FlowchartPaddedVisibilityRouter
             (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Math.Min(X1, X2), Math.Min(Y1, Y2),
                 Math.Max(X1, X2), Math.Max(Y1, Y2));
             for (int CellX = MinX; CellX <= MaxX; CellX++)
-            for (int CellY = MinY; CellY <= MaxY; CellY++)
             {
-                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items)) continue;
-                foreach (PaddedBox Box in Items)
-                    if (SegmentHitsInterior(X1, Y1, X2, Y2, Box)) return false;
+                for (int CellY = MinY; CellY <= MaxY; CellY++)
+            {
+                if (!_cells.TryGetValue(new Cell(CellX, CellY), out List<PaddedBox>? Items))
+                    {
+                        continue;
+                    }
+
+                    foreach (PaddedBox Box in Items)
+                    {
+                        if (SegmentHitsInterior(X1, Y1, X2, Y2, Box))
+                        {
+                            return false;
+                        }
+                    }
+                }
             }
+
             return true;
         }
 

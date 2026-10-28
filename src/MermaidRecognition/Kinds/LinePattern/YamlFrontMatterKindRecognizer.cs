@@ -20,7 +20,7 @@ public sealed class YamlFrontMatterKindRecognizer : IKindRecognizer
 
         MermaidConfigurationPipeline.ParseLeadingInitDirectives(Source, Contract.Configuration);
 
-        string[] Lines = Source.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        string[] Lines = Source.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
         for (int LineIndex = 0; LineIndex < Lines.Length; LineIndex++)
         {
             string Line = Lines[LineIndex];

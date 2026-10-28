@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -14,12 +15,12 @@ public sealed class CapRemovalFanRegressionTests
     [TestCase("A104"), TestCase("A105")]
     public void CompletedFanIsTheReferenceForCellMoves(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
-        var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
         TestContext.Out.WriteLine($"CAP_REMOVAL_FAN|{Id}|bends={Score.Bends}|crossings={Score.Crossings}|score={Score.OptimizationScore:R}");
         Assert.Multiple(() =>
         {

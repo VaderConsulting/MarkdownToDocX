@@ -26,11 +26,11 @@ public sealed class HorizontalRetryReturnTests
         double RetryX = Find(Layout, "D").CenterX;
 
         Assert.That(RetryX, Is.EqualTo(DecisionX).Within(1.0), "Retry sits directly below the decision");
-        var Columns = Layout.NodeBounds.GroupBy(Bounds => Bounds.CenterX).OrderBy(Column => Column.Key).ToList();
+        List<IGrouping<double, FlowchartLayoutNodeBounds>> Columns = [.. Layout.NodeBounds.GroupBy(Bounds => Bounds.CenterX).OrderBy(Column => Column.Key)];
         for (int Index = 1; Index < Columns.Count; Index++)
         {
-            double Left = Columns[Index - 1].Max(Bounds => Bounds.CenterX + Bounds.Width / 2);
-            double Right = Columns[Index].Min(Bounds => Bounds.CenterX - Bounds.Width / 2);
+            double Left = Columns[Index - 1].Max(Bounds => Bounds.CenterX + (Bounds.Width / 2));
+            double Right = Columns[Index].Min(Bounds => Bounds.CenterX - (Bounds.Width / 2));
             Assert.That(Right - Left, Is.GreaterThanOrEqualTo(60), "Local growth preserves base clearance");
             Assert.That((Columns[Index].Key - Columns[Index - 1].Key) % 30, Is.Zero, "Whole grid steps");
         }
@@ -79,7 +79,7 @@ public sealed class HorizontalRetryReturnTests
         FlowchartLayoutEdgeRoute NoRoute = FindRoute(Layout, "B", "D");
 
         Assert.That(YesRoute.Points[0].Y, Is.EqualTo(Decision.CenterY).Within(0.5));
-        Assert.That(YesRoute.Points[0].X, Is.EqualTo(Decision.CenterX + Decision.Width / 2).Within(0.5));
+        Assert.That(YesRoute.Points[0].X, Is.EqualTo(Decision.CenterX + (Decision.Width / 2)).Within(0.5));
         Assert.That(NoRoute.Points[0].Y, Is.EqualTo(Decision.CenterY - HalfHeight).Within(0.5));
         Assert.That(NoRoute.Points[0].X, Is.EqualTo(Decision.CenterX).Within(0.5));
     }

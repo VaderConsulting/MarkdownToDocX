@@ -256,9 +256,7 @@ public sealed class FlowchartSharedRouteQualityTests
     public void TryResolve_Sample03_EdgesKeepGroupBorderClearance()
     {
         FlowchartRenderedSvgQualityReport Report = FlowchartRenderedSvgQualityGate.Evaluate("sample-03", SAMPLE_03_SOURCE);
-        List<FlowchartLayoutQualityFailure> BorderFailures = Report.Failures
-            .Where(Failure => Failure.Kind.StartsWith("GroupBorder", StringComparison.Ordinal))
-            .ToList();
+        List<FlowchartLayoutQualityFailure> BorderFailures = [.. Report.Failures.Where(Failure => Failure.Kind.StartsWith("GroupBorder", StringComparison.Ordinal))];
         Assert.That(
             BorderFailures,
             Is.Empty,

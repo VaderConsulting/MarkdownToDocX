@@ -2,7 +2,7 @@ namespace Converter;
 
 internal static class MarkdownInputResolver
 {
-    private static readonly string[] MARKDOWN_EXTENSIONS = { ".md", ".markdown", ".txt" };
+    private static readonly string[] MARKDOWN_EXTENSIONS = [".md", ".markdown", ".txt"];
 
     public static bool TryResolve(
         IReadOnlyList<string> InputArguments,

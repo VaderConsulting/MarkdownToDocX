@@ -33,12 +33,12 @@ public sealed class FlowchartRichLabelSvgWriterTests
     [Test]
     public void GetMultilineBlockStartX_UnevenLines_UsesWidestLineForCentreing()
     {
-        List<string> Lines = new List<string>
-        {
+        List<string> Lines =
+        [
             "- Item 1",
             "- Item 22",
             "- Item 333"
-        };
+        ];
 
         const double CentreX = 100.0;
         double BlockStartX = FlowchartRichLabelSvgWriter.GetMultilineBlockStartX(CentreX, Lines, 16.0);

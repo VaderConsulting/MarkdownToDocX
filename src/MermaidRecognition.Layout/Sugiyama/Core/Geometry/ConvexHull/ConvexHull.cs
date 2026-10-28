@@ -73,12 +73,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
         IEnumerable<Point> Calculate() {
             if (pivot.Y == double.MaxValue)
             {
-                return new Point[0];
+                return [];
             }
 
             if (hullPoints.Length == 0)
             {
-                return new[] {pivot};
+                return [pivot];
             }
 
             SortAllPointsWithoutPivot();

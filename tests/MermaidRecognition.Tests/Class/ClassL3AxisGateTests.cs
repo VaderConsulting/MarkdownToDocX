@@ -13,7 +13,7 @@ public sealed class ClassL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetClassFixtureDirectory(),
-            new[] { "simple", "members", "multiple-classes" },
+            ["simple", "members", "multiple-classes"],
             Contract => Contract.Nodes.Count > 0);
     }
 
@@ -22,7 +22,7 @@ public sealed class ClassL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetClassFixtureDirectory(),
-            new[] { "namespace" },
+            ["namespace"],
             Contract => Contract.Groups.Count > 0);
     }
 
@@ -31,7 +31,7 @@ public sealed class ClassL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetClassFixtureDirectory(),
-            new[] { "classDef-style", "inline-style" },
+            ["classDef-style", "inline-style"],
             Contract =>
                 Contract.ClassDefs.Count > 0
                 || Contract.Nodes.Any(Node => Node.InlineStyle.Fill is not null || Node.InlineStyle.Stroke is not null));
@@ -42,7 +42,7 @@ public sealed class ClassL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetClassFixtureDirectory(),
-            new[] { "interface-annotation", "abstract-stereotype" },
+            ["interface-annotation", "abstract-stereotype"],
             Contract => Contract.Nodes.Any(Node => Node.Declarations.Any(Declaration => Declaration.Kind == "stereotype")));
     }
 
@@ -51,7 +51,7 @@ public sealed class ClassL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetClassFixtureDirectory(),
-            new[] { "click-href" },
+            ["click-href"],
             Contract => Contract.Interactions.Count > 0);
     }
 
@@ -60,7 +60,7 @@ public sealed class ClassL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetClassFixtureDirectory(),
-            new[] { "accessibility-inline", "accessibility" },
+            ["accessibility-inline", "accessibility"],
             Contract =>
                 !string.IsNullOrEmpty(Contract.Accessibility.Title)
                 || !string.IsNullOrEmpty(Contract.Accessibility.Description));

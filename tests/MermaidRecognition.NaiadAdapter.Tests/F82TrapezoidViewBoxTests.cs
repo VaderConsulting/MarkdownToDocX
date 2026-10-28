@@ -36,7 +36,7 @@ public sealed class F82TrapezoidViewBoxTests
 
         string PathData = PathMatch.Groups[1].Value;
         double MaxX = PathData
-            .Split(new[] { 'M', 'L' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(['M', 'L'], StringSplitOptions.RemoveEmptyEntries)
             .Select(Part => Part.Split(',')[0].Trim())
             .Where(Value => double.TryParse(Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
             .Select(Value => double.Parse(Value, System.Globalization.CultureInfo.InvariantCulture))

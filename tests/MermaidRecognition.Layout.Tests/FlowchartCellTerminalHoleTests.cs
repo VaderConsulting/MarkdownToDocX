@@ -10,12 +10,12 @@ public sealed class FlowchartCellTerminalHoleTests
     [Test]
     public void OffersHoleWithoutApplyingAlignment()
     {
-        var (Contract, Nodes, Grid) = Fixture();
-        var Before = Grid.Capture();
-        var Candidate = FlowchartTerminalRowPlacement.CellCandidates(Contract, Nodes, false).Single();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        DiagramGridLayout.CellRouteMoveTarget Candidate = FlowchartTerminalRowPlacement.CellCandidates(Contract, Nodes, false).Single();
         FlowchartTerminalRowPlacement.Apply(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
-        var Leaf = Nodes.Single(Node => Node.Id == "L");
+        DiagramGridLayout.GridNode Leaf = Nodes.Single(Node => Node.Id == "L");
         Assert.That(Leaf.Rank, Is.EqualTo(1));
         Assert.That(Candidate.Subject, Is.EqualTo("L"));
         Assert.That(Candidate.Rows, Is.EqualTo(-1));
@@ -28,9 +28,9 @@ public sealed class FlowchartCellTerminalHoleTests
     [Test]
     public void HintKeepsLeafFixed()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Nodes.Single(Node => Node.Id == "L").PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartTerminalRowPlacement.CellCandidates(Contract, Nodes, false), Is.Empty);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -39,13 +39,13 @@ public sealed class FlowchartCellTerminalHoleTests
     /// <returns>Graph, bound nodes and complete ownership.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract();
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Row, Column) in new[] { ("P", 0, 0), ("Q", 0, -2), ("O", 0, 3), ("L", 1, 3), ("S", 1, -1) })
+        DiagramContract Contract = new DiagramContract();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, int Row, int Column) in new[] { ("P", 0, 0), ("Q", 0, -2), ("O", 0, 3), ("L", 1, 3), ("S", 1, -1) })
         {
             Assert.That(Grid.TryPlace(Id, new(Row, Column, 1, 1)), Is.True);
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Row }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Row }; Node.BindCells(Grid); Nodes.Add(Node);
         }
         Contract.EdgesMutable.AddRange([new() { SourceId = "P", TargetId = "L" }, new() { SourceId = "P", TargetId = "S" }, new() { SourceId = "Q", TargetId = "S" }]);
         return (Contract, Nodes, Grid);

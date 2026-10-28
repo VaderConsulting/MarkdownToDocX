@@ -1,7 +1,10 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using MDConverter;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -18,20 +21,30 @@ public sealed class StressFaultComparisonTests
     public void ProbeA110ExistingTrackRepairs()
     {
         string Output = Environment.GetEnvironmentVariable("STRESS_FAULT_REVIEW_OUTPUT")!;
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A110");
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         string Before = CellProductionParityTests.Snapshot(Contract, Layout);
-        var Trials = new List<object>();
+        List<object> Trials = [];
         foreach (string Kind in new[] { "terminal", "internal", "separate" })
         {
-            var Candidate = FlowchartLayoutAlternatives.Copy(Layout);
-            var Nodes = Layout.CellNodes!.ToList();
-            if (Kind == "terminal") FlowchartTerminalTrackRepair.Apply(Contract, Candidate, Nodes,
+            FlowchartLayoutResult Candidate = FlowchartLayoutAlternatives.Copy(Layout);
+            List<DiagramGridLayout.GridNode> Nodes = [.. Layout.CellNodes!];
+            if (Kind == "terminal")
+            {
+                FlowchartTerminalTrackRepair.Apply(Contract, Candidate, Nodes,
                 Candidate.NodeBounds.Concat(Candidate.ClusterBounds).ToDictionary(Box => Box.NodeId));
-            else if (Kind == "internal") FlowchartDistinctTrackRepair.Apply(Contract, Candidate, Nodes);
-            else DiagramGridLayout.SeparateTracks(Candidate, Nodes, Contract);
+            }
+            else if (Kind == "internal")
+            {
+                FlowchartDistinctTrackRepair.Apply(Contract, Candidate, Nodes);
+            }
+            else
+            {
+                DiagramGridLayout.SeparateTracks(Candidate, Nodes, Contract);
+            }
+
             Trials.Add(new { Kind, Bends = Candidate.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)),
                 Score = FlowchartLayoutScore.Measure(Contract, Candidate, false),
                 Findings = FlowchartRouteRuleChecker.Check(Contract, Candidate),
@@ -46,7 +59,9 @@ public sealed class StressFaultComparisonTests
     public static IEnumerable<TestCaseData> Cases()
     {
         foreach (string Id in new[] { "F59", "F152", "F153", "A104", "A107", "A110", "A111", "A159", "A160", "A163" })
+        {
             yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Id), Id);
+        }
     }
 
     /// <summary>Enumerates every stress case with an available completed baseline; A142 remains its recorded 180-second timeout.</summary>
@@ -54,7 +69,9 @@ public sealed class StressFaultComparisonTests
     public static IEnumerable<TestCaseData> CompletedStressCases()
     {
         foreach (string Id in CatalogueScenarioPolicy.StressScenarios.Where(Id => Id != "A142").Order())
+        {
             yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Id), Id);
+        }
     }
 
     /// <summary>Captures the complete non-timeout stress set for source-change geometry comparisons.</summary>
@@ -66,14 +83,16 @@ public sealed class StressFaultComparisonTests
     /// <returns>Multi-layer inputs with canonical normal or stress watchdog metadata.</returns>
     public static IEnumerable<TestCaseData> MultiBandCases()
     {
-        foreach (var Scenario in RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        foreach (RouteRuleCatalogueAuditTests.Scenario? Scenario in RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Where(Scenario => Scenario.Enterprise && Scenario.Id != "A142"))
         {
-            var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+            DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
             if (Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
                 .Select(Node => EnterpriseElementCatalog.Elements[Enum.Parse<EnterpriseElementType>(
                     ((MermaidRecognition.Contract.RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)].Layer).Distinct().Count() > 1)
+            {
                 yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Scenario.Id), Scenario.Id);
+            }
         }
     }
 
@@ -86,7 +105,10 @@ public sealed class StressFaultComparisonTests
     /// <returns>A107 and A110 render cases.</returns>
     public static IEnumerable<TestCaseData> CorridorRenderCases()
     {
-        foreach (string Id in new[] { "A107", "A110" }) yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Id), Id);
+        foreach (string Id in new[] { "A107", "A110" })
+        {
+            yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Id), Id);
+        }
     }
 
     /// <summary>Renders the current converter PNG path and verifies its exact geometry against the captured production layout.</summary>
@@ -95,12 +117,12 @@ public sealed class StressFaultComparisonTests
     public void RenderProductionCorridorView(string Id)
     {
         string Output = Environment.GetEnvironmentVariable("STRESS_FAULT_REVIEW_OUTPUT")!;
-        using var Capture = JsonDocument.Parse(File.ReadAllText(Path.Combine(Output, Id + ".json")));
+        using JsonDocument Capture = JsonDocument.Parse(File.ReadAllText(Path.Combine(Output, Id + ".json")));
         string Expected = Capture.RootElement.GetProperty("GeometryHash").GetString()!;
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
         AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool PreviousCells);
-        var PreviousObserver = DiagramGridLayout.PublishedLayoutObserver;
+        Action<DiagramContract, FlowchartLayoutResult>? PreviousObserver = DiagramGridLayout.PublishedLayoutObserver;
         string? Actual = null;
         try
         {
@@ -129,34 +151,47 @@ public sealed class StressFaultComparisonTests
         string Output = Environment.GetEnvironmentVariable("STRESS_FAULT_REVIEW_OUTPUT")
             ?? throw new InvalidOperationException("Set STRESS_FAULT_REVIEW_OUTPUT.");
         Directory.CreateDirectory(Output);
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognition.Core.MermaidRecognizer.Parse(Scenario.Source);
-        var Clock = System.Diagnostics.Stopwatch.StartNew();
-        var PreviousObserver = DiagramGridLayout.BandWrapCandidateObserver;
-        var PreviousStageObserver = DiagramGridLayout.LayoutStageObserver;
-        var PreviousPortObserver = DiagramGridLayout.CorridorPortOrderObserver;
+        Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+        Action<int, FlowchartLayoutResult, FlowchartLayoutScore.ComparisonCost, bool>? PreviousObserver = DiagramGridLayout.BandWrapCandidateObserver;
+        Action<string, FlowchartLayoutResult>? PreviousStageObserver = DiagramGridLayout.LayoutStageObserver;
+        Action<string>? PreviousPortObserver = DiagramGridLayout.CorridorPortOrderObserver;
         FlowchartLayoutResult Layout;
         try
         {
             if (Environment.GetEnvironmentVariable("STRESS_FAULT_PORT_TRACE") == "1")
+            {
                 DiagramGridLayout.CorridorPortOrderObserver = Record => File.AppendAllText(Path.Combine(Output, Id + "-ports.txt"), Record + "\n");
+            }
+
             if (Environment.GetEnvironmentVariable("STRESS_FAULT_STAGE_TRACE") == "1")
+            {
                 DiagramGridLayout.LayoutStageObserver = (Stage, Candidate) =>
                 {
-                    if (!Candidate.RenderContext.BandSpaceDiagnostics.Any(Item => Item.StartsWith("INITIAL_CORRIDOR_CAPACITY|", StringComparison.Ordinal))) return;
+                    if (!Candidate.RenderContext.BandSpaceDiagnostics.Any(Item => Item.StartsWith("INITIAL_CORRIDOR_CAPACITY|", StringComparison.Ordinal)))
+                    {
+                        return;
+                    }
+
                     File.AppendAllText(Path.Combine(Output, Id + "-stages.jsonl"), JsonSerializer.Serialize(new {
                         Stage, Findings = FlowchartRouteRuleChecker.Check(Contract, Candidate),
                         Geometry = JsonSerializer.Deserialize<JsonElement>(GeometryJson(Candidate)) }) + "\n");
                 };
+            }
+
             if (Environment.GetEnvironmentVariable("STRESS_FAULT_WRAP_TRACE") == "1")
+            {
                 DiagramGridLayout.BandWrapCandidateObserver = (Width, Candidate, Cost, Legal) =>
                     File.AppendAllText(Path.Combine(Output, Id + "-wraps.jsonl"), JsonSerializer.Serialize(new {
                         Width, Legal, Cost.Bends, Score = (double)Cost,
                         Findings = FlowchartRouteRuleChecker.Check(Contract, Candidate),
                         OffSlots = RouteRuleCatalogueAuditTests.OffSlotPortFaults(Contract, Candidate) }) + "\n");
+            }
+
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out Layout), Is.True);
         }
         finally
@@ -165,8 +200,8 @@ public sealed class StressFaultComparisonTests
             DiagramGridLayout.LayoutStageObserver = PreviousStageObserver;
             DiagramGridLayout.CorridorPortOrderObserver = PreviousPortObserver;
         }
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
-        var Metrics = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout, false);
         string Geometry = GeometryJson(Layout);
         File.WriteAllText(Path.Combine(Output, Id + ".json"), JsonSerializer.Serialize(new { Id,
             Seconds = Clock.Elapsed.TotalSeconds, UseCellRegions = Layout.RenderContext.UseCellRegions,

@@ -164,7 +164,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         
 
         void AddEdgesAndRemoveRemainingConesByPoint(Point point) {
-            List<Cone> conesToRemove = new List<Cone>();
+            List<Cone> conesToRemove = [];
             foreach (ConeSide leftConeSide in leftConeSides) {
                 if (Point.PointToTheRightOfLineOrOnLine(point, leftConeSide.Start,
                                                         leftConeSide.Start + leftConeSide.Direction))
@@ -279,9 +279,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
             VisibilityVertex? coneApexVert = portEdgesGraph.FindVertex(cone.Apex);
             //all previous edges adjacent to cone.Apex 
-            VisibilityEdge[]? edgesToFix = (coneApexVert != null)
-                                 ? coneApexVert.InEdges.Concat(coneApexVert.OutEdges).ToArray()
-                                 : null;
+            VisibilityEdge[]? edgesToFix = coneApexVert?.InEdges.Concat(coneApexVert.OutEdges).ToArray();
             if (edgesToFix != null)
             {
                 foreach (VisibilityEdge? edge in edgesToFix) {
@@ -487,7 +485,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 return;
             }
 
-            List<Cone> conesToRemove = new List<Cone>();
+            List<Cone> conesToRemove = [];
             do {
                 conesToRemove.Add(node.Item.Cone);
                 node = tree.Next(node);
@@ -552,7 +550,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         }
 
         void ShowRightTree(params ICurve[] curves) {
-            List<DebugCurve> l = Obstacles.Select(p => new DebugCurve(100, 5, "green", p)).ToList();
+            List<DebugCurve> l = [.. Obstacles.Select(p => new DebugCurve(100, 5, "green", p))];
             l.AddRange(rightConeSides.Select(s => new DebugCurve(100, 5, "blue",ExtendSegmentToZ(s))));
 
             //            foreach (VisibilityEdge edge in visibilityGraph.Edges)
@@ -563,7 +561,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         }
 
         void ShowBothTrees(params DebugCurve[] curves) {
-            List<DebugCurve> l = Obstacles.Select(p => new DebugCurve(100, 5, "green", p)).ToList();
+            List<DebugCurve> l = [.. Obstacles.Select(p => new DebugCurve(100, 5, "green", p))];
             l.AddRange(leftConeSides.Select(s => new DebugCurve(ExtendSegmentToZ(s))));
             l .AddRange(rightConeSides.Select(s => new DebugCurve(ExtendSegmentToZ(s))));
 
@@ -574,7 +572,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         }
 
         void ShowLeftTree(params ICurve[] curves) {
-            List<DebugCurve> l = Obstacles.Select(p => new DebugCurve(100, 0.01,"green", p)).ToList();
+            List<DebugCurve> l = [.. Obstacles.Select(p => new DebugCurve(100, 0.01,"green", p))];
             RealNumberSpan range = new RealNumberSpan();
             double ellipseSize = 0.01;
 
@@ -596,7 +594,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         }
 
         DebugCurve DebugSweepLine(RealNumberSpan range) {
-            LineSegment ls = new LineSegment(Z * SweepDirection + DirectionPerp * range.Min, Z * SweepDirection + DirectionPerp * range.Max);
+            LineSegment ls = new LineSegment((Z * SweepDirection) + (DirectionPerp * range.Min), (Z * SweepDirection) + (DirectionPerp * range.Max));
             return new DebugCurve(100,0.1,"magenta", ls);
         }
 #endif
@@ -825,7 +823,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             }
 
             if (nextDelZ < -ApproximateComparer.DistanceEpsilon ||
-                ApproximateComparer.Close(nextDelZ, 0) && (nextSite - leftVertexEvent.Site) * DirectionPerp > 0) {
+                (ApproximateComparer.Close(nextDelZ, 0) && (nextSite - leftVertexEvent.Site) * DirectionPerp > 0)) {
                 //if (angle > Math.PI / 2)
                 CreateConeOnVertex(leftVertexEvent); //it is the last left vertex on this obstacle
                 
@@ -1070,7 +1068,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 
 #if TEST_MSAGL
         internal void Show(params ICurve[] curves) {
-            List<DebugCurve> l = Obstacles.Select(o => new DebugCurve(100, 0.1, "blue", o)).ToList();
+            List<DebugCurve> l = [.. Obstacles.Select(o => new DebugCurve(100, 0.1, "blue", o))];
 
             foreach (ConeSide s in rightConeSides) {
                 l.Add(new DebugCurve(0.5, "brown", ExtendSegmentToZ(s)));
@@ -1095,22 +1093,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(l);
         }
 
-        static CubicBezierSegment BezierOnEdge(VisibilityEdge edge) => new CubicBezierSegment(edge.SourcePoint, 2.0 / 3.0 * edge.SourcePoint + 1.0 / 3.0 * edge.TargetPoint,
-                                          1.0 / 3.0 * edge.SourcePoint + 2.0 / 3.0 * edge.TargetPoint, edge.TargetPoint);
+        static CubicBezierSegment BezierOnEdge(VisibilityEdge edge) => new CubicBezierSegment(edge.SourcePoint, (2.0 / 3.0 * edge.SourcePoint) + (1.0 / 3.0 * edge.TargetPoint),
+                                          (1.0 / 3.0 * edge.SourcePoint) + (2.0 / 3.0 * edge.TargetPoint), edge.TargetPoint);
 
         internal ICurve ExtendSegmentToZ(ConeSide segment) {
             double den = segment.Direction * SweepDirection;
             Debug.Assert(Math.Abs(den) > ApproximateComparer.DistanceEpsilon);
-            double t = (Z + 40 - segment.Start * SweepDirection) / den;
-            return new LineSegment(segment.Start, segment.Start + segment.Direction * t);
+            double t = (Z + 40 - (segment.Start * SweepDirection)) / den;
+            return new LineSegment(segment.Start, segment.Start + (segment.Direction * t));
         }
 
         internal ICurve ExtendSegmentToZPlus1(ConeSide segment) {
             double den = segment.Direction * SweepDirection;
             Debug.Assert(Math.Abs(den) > ApproximateComparer.DistanceEpsilon);
-            double t = (Z + 1 - segment.Start * SweepDirection) / den;
+            double t = (Z + 1 - (segment.Start * SweepDirection)) / den;
 
-            return new LineSegment(segment.Start, segment.Start + segment.Direction * t);
+            return new LineSegment(segment.Start, segment.Start + (segment.Direction * t));
         }
 #endif
 
@@ -1131,7 +1129,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 return;
             }
 
-            List<Cone> visibleCones = new List<Cone> { cone };
+            List<Cone> visibleCones = [cone];
             coneSideComparer.SetOperand(leftConeSide);
             rbNode = leftConeSides.Find(leftConeSide);
 

@@ -27,7 +27,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
         public static void ForEach<T>(IEnumerable<T> source, Action<T> action, Action<int> progressAction)
         {
             // Parallel.ForEach operates faster on an array
-            T[] sourceArray = source.ToArray();
+            T[] sourceArray = [.. source];
 
             AutoResetEvent progressMade = new AutoResetEvent(false);
             
@@ -90,20 +90,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core
             }
             finally
             {
-                if (exceptionHandleTask != null)
-                {
-                    exceptionHandleTask.Dispose();
-                }
+                exceptionHandleTask?.Dispose();
 
-                if (task != null)
-                {
-                    task.Dispose();
-                }
+                task?.Dispose();
 
-                if (progressMade != null)
-                {
-                    progressMade.Dispose();
-                }
+                progressMade?.Dispose();
             }
         }
 

@@ -28,7 +28,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             {
                 return null;
             }
-            IntPair[] intPairs = proximityEdges.Select(t => new IntPair(t.Item1, t.Item2)).ToArray();
+            IntPair[] intPairs = [.. proximityEdges.Select(t => new IntPair(t.Item1, t.Item2))];
             Dictionary<IntPair, Tuple<int, int, double, double, double>> weighting = new Dictionary<IntPair, Tuple<int, int, double, double, double>>(intPairs.Count());
             for (int i = 0; i < proximityEdges.Count; i++) {
                 weighting[intPairs[i]] = proximityEdges[i];
@@ -37,7 +37,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 
             MinimumSpanningTreeByPrim mstOnBasicGraph = new MinimumSpanningTreeByPrim(graph, intPair => weighting[(IntPair)intPair].Item5, intPairs[0].First);
 
-            List<Tuple<int, int, double, double, double>> treeEdges = mstOnBasicGraph.GetTreeEdges().Select(e => weighting[(IntPair) e]).ToList();
+            List<Tuple<int, int, double, double, double>> treeEdges = [.. mstOnBasicGraph.GetTreeEdges().Select(e => weighting[(IntPair) e])];
             return treeEdges;
         }
 
@@ -48,8 +48,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="weights"></param>
         /// <returns></returns>
         internal static List<CdtEdge> GetMstOnCdt(Cdt cdt, Func<CdtEdge, double> weights) {
-            CdtSite[] siteArray = cdt.PointsToSites.Values.ToArray();
-            Dictionary<CdtSite, int> siteIndex = new Dictionary<CdtSite, int>();
+            CdtSite[] siteArray = [.. cdt.PointsToSites.Values];
+            Dictionary<CdtSite, int> siteIndex = [];
             for (int i = 0; i < siteArray.Length; i++)
             {
                 siteIndex[siteArray[i]] = i;
@@ -65,7 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         }
 
         static Dictionary<IntPair, CdtEdge> GetEdges(CdtSite[] siteArray, Dictionary<CdtSite, int> siteIndex) {
-            Dictionary<IntPair, CdtEdge> d = new Dictionary<IntPair, CdtEdge>();
+            Dictionary<IntPair, CdtEdge> d = [];
             for (int i = 0; i < siteArray.Length; i++) {
                 CdtSite site = siteArray[i];
                 int sourceIndex = siteIndex[site];
@@ -85,7 +85,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 #if DEBUG && !SILVERLIGHT && !SHARPKIT
             int count = 100;
             Random random = new Random(3);
-            List<Point> points = new List<Point>();
+            List<Point> points = [];
             for (int i = 0; i < count; i++)
             {
                 points.Add(20 * new Point(random.NextDouble(), random.NextDouble()));
@@ -94,7 +94,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             Cdt cdt = new Cdt(points, null, null);
             cdt.Run();
             List<CdtEdge> ret = GetMstOnCdt(cdt, e => (e.lowerSite.Point - e.upperSite.Point).Length);
-            List<DebugCurve> l = new List<DebugCurve>();
+            List<DebugCurve> l = [];
             foreach(CdtSite s in cdt.PointsToSites.Values)
             {
                 foreach (CdtEdge e in s.Edges)

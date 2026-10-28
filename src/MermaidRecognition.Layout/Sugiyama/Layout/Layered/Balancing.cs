@@ -164,7 +164,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         private bool CalcJumpInfo(int upLayer, int lowLayer, int jumper, out int jumperLayer, out int layerToJumpTo) {
             jumperLayer = layering[jumper];
             layerToJumpTo = -1;
-            int min = vertsCounts[jumperLayer] - 2*nodeCount[jumper];
+            int min = vertsCounts[jumperLayer] - (2*nodeCount[jumper]);
             // jump makes sense if some layer has less than min vertices
             for (int i = upLayer - 1; i > jumperLayer; i--)
             {

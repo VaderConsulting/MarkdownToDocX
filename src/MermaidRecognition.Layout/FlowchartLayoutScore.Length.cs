@@ -32,9 +32,16 @@ internal static partial class FlowchartLayoutScore
             // two saturated bounded doubles, or applying the old score epsilon,
             // could otherwise erase a real improvement at large route lengths.
             if (Tied && Primary == Other.Primary && WeightedLength != Other.WeightedLength)
+            {
                 return WeightedLength.CompareTo(Other.WeightedLength);
+            }
+
             double Delta = Primary - Other.Primary + Threshold - Other.Threshold;
-            if (Tied) Delta += LengthTerm - Other.LengthTerm;
+            if (Tied)
+            {
+                Delta += LengthTerm - Other.LengthTerm;
+            }
+
             return double.IsNaN(Delta) ? Primary.CompareTo(Other.Primary) : Delta.CompareTo(0);
         }
 
@@ -94,9 +101,13 @@ internal static partial class FlowchartLayoutScore
     /// <returns>A nonnegative term strictly below the smaller bend or crossing weight.</returns>
     internal static double BoundedLength(double WeightedLength)
     {
-        if (WeightedLength <= 0) return 0;
+        if (WeightedLength <= 0)
+        {
+            return 0;
+        }
+
         double Bound = Math.Min(FlowchartLayoutRules.BendScore, FlowchartLayoutRules.CrossingScore);
-        return Math.Min(Bound / (1 + Bound / WeightedLength), Math.BitDecrement(Bound));
+        return Math.Min(Bound / (1 + (Bound / WeightedLength)), Math.BitDecrement(Bound));
     }
 
     /// <summary>Measures all drawn straight runs, including exact terminals and slanted diamond normals.</summary>
@@ -108,7 +119,7 @@ internal static partial class FlowchartLayoutScore
         for (int Index = 1; Index < Points.Count; Index++)
         {
             double X = Points[Index].X - Points[Index - 1].X, Y = Points[Index].Y - Points[Index - 1].Y;
-            Total += Math.Sqrt(X * X + Y * Y);
+            Total += Math.Sqrt((X * X) + (Y * Y));
         }
         return Total;
     }

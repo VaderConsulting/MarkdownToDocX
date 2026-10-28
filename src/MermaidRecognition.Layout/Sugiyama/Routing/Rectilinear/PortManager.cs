@@ -106,7 +106,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal List<VisibilityVertex> FindVertices(Port port) {
-            List<VisibilityVertex> vertices = new List<VisibilityVertex>();
+            List<VisibilityVertex> vertices = [];
             if (obstaclePortMap.TryGetValue(port, out ObstaclePort? oport))
             {
                 if (RouteToCenterOfObstacles)
@@ -332,7 +332,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // be removed from the graph, its Vertex (and thus Point) are no longer set in the FreePoint, so we
             // must use the key from the dictionary.
             if (freePointMap.Count > freePointLocationsUsedByRouteEdges.Count) {
-                KeyValuePair<Point, FreePoint>[] staleFreePairs = freePointMap.Where(kvp => !freePointLocationsUsedByRouteEdges.Contains(kvp.Key)).ToArray();
+                KeyValuePair<Point, FreePoint>[] staleFreePairs = [.. freePointMap.Where(kvp => !freePointLocationsUsedByRouteEdges.Contains(kvp.Key))];
                 foreach (KeyValuePair<Point, FreePoint> staleFreePair in staleFreePairs) {
                     freePointMap.Remove(staleFreePair.Key);
                 }
@@ -476,10 +476,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 // Probably one obstacle contained within another; we handle that elsewhere.
                 return null;
             }
-            return new[] {
+            return [
                     sourceEntrance.UnpaddedBorderIntersect,
                     targetEntrance.UnpaddedBorderIntersect
-            };
+            ];
         }
 
         private static Point[] GetPathPointsFromIntersectingVisibility(ObstaclePortEntrance sourceEntrance, ObstaclePortEntrance targetEntrance) {
@@ -490,11 +490,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             if (sourceEntrance.HasGroupCrossingBeforePoint(intersect) || targetEntrance.HasGroupCrossingBeforePoint(intersect)) {
                 return null;
             }
-            return new[] {
+            return [
                     sourceEntrance.UnpaddedBorderIntersect,
                     intersect,
                     targetEntrance.UnpaddedBorderIntersect
-            };
+            ];
         }
 
         private void CreateObstaclePortEntrancesFromPoints(ObstaclePort oport) {

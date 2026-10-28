@@ -18,9 +18,9 @@
 
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
-    <PackageReference Include="Markdig" Version="1.2.0" />
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
-    <PackageReference Include="Svg.Skia" Version="5.0.0" />
+    <PackageReference Include="Markdig" Version="1.5.0" />
+    <PackageReference Include="SkiaSharp" Version="4.154.0" />
+    <PackageReference Include="Svg.Skia" Version="5.2.3" />
     <ProjectReference Include="..\..\extern\Naiad\src\Naiad\Naiad.csproj" />
     <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
     <ProjectReference Include="..\MermaidRecognition.NaiadAdapter\MermaidRecognition.NaiadAdapter.csproj" />

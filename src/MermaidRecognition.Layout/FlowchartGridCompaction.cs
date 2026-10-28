@@ -16,19 +16,29 @@ internal static class FlowchartGridCompaction
         }
         double Cross(DiagramGridLayout.GridNode Node) => Horizontal ? Node.Y : Node.X;
         double Half(DiagramGridLayout.GridNode Node) => (Horizontal ? Node.Height : Node.Width) / 2.0;
-        var Bands = Nodes.GroupBy(Cross).OrderBy(Band => Band.Key).ToList();
+        List<IGrouping<double, DiagramGridLayout.GridNode>> Bands = [.. Nodes.GroupBy(Cross).OrderBy(Band => Band.Key)];
         double OccupiedEnd = double.NegativeInfinity;
         int Shift = 0;
-        foreach (var Band in Bands)
+        foreach (IGrouping<double, DiagramGridLayout.GridNode>? Band in Bands)
         {
             double Extent = Band.Max(Half);
             double Start = Band.Key - Extent;
             if (!double.IsNegativeInfinity(OccupiedEnd))
+            {
                 Shift += Math.Max(0, (int)Math.Floor((Start - OccupiedEnd - MinimumGap) / DiagramGridMetrics.GRID_UNIT_PX))
                     * DiagramGridMetrics.GRID_UNIT_PX;
-            foreach (var Node in Band)
+            }
+
+            foreach (DiagramGridLayout.GridNode? Node in Band)
             {
-                if (Horizontal) Node.Y -= Shift; else Node.X -= Shift;
+                if (Horizontal)
+                {
+                    Node.Y -= Shift;
+                }
+                else
+                {
+                    Node.X -= Shift;
+                }
             }
             OccupiedEnd = Math.Max(OccupiedEnd, Band.Key + Extent);
         }
@@ -41,15 +51,19 @@ internal static class FlowchartGridCompaction
     /// <returns>Whether the complete compaction plan was legal and accepted.</returns>
     internal static bool ApplyCells(List<DiagramGridLayout.GridNode> Nodes, bool Horizontal, int MinimumGap)
     {
-        if (Nodes.Count == 0) return false;
-        var Before = FlowchartCellRepair.Capture(Nodes);
-        var Grid = Nodes[0].CellNode!.Grid;
-        var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
-        var Growth = new List<FlowchartCellGapGrowth>();
-        var Bands = Before.Regions.GroupBy(Pair => Horizontal ? Pair.Value.StartRow : Pair.Value.StartColumn).OrderBy(Band => Band.Key);
+        if (Nodes.Count == 0)
+        {
+            return false;
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes);
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+        List<FlowchartCellGapGrowth> Growth = [];
+        IOrderedEnumerable<IGrouping<int, KeyValuePair<string, FlowchartCellRegion>>> Bands = Before.Regions.GroupBy(Pair => Horizontal ? Pair.Value.StartRow : Pair.Value.StartColumn).OrderBy(Band => Band.Key);
         int? End = null;
         int Removed = 0;
-        foreach (var Band in Bands)
+        foreach (IGrouping<int, KeyValuePair<string, FlowchartCellRegion>>? Band in Bands)
         {
             if (End.HasValue)
             {
@@ -58,14 +72,17 @@ internal static class FlowchartGridCompaction
                 if (Band.Key >= End.Value)
                 {
                     int After = checked(Band.Key - Removed - 1);
-                    var Gaps = Horizontal ? Before.RowGaps : Before.ColumnGaps;
+                    IReadOnlyDictionary<int, double> Gaps = Horizontal ? Before.RowGaps : Before.ColumnGaps;
                     double Existing = Gaps.GetValueOrDefault(After, Horizontal ? Grid.Configuration.RowGap : Grid.Configuration.ColumnGap);
-                    if (Existing < MinimumGap) Growth.Add(new(!Horizontal, After, MinimumGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
+                    if (Existing < MinimumGap)
+                    {
+                        Growth.Add(new(!Horizontal, After, MinimumGap - Existing, DiagramGridMetrics.GRID_UNIT_PX));
+                    }
                 }
             }
-            foreach (var Pair in Band)
+            foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Band)
             {
-                var Region = Pair.Value;
+                FlowchartCellRegion Region = Pair.Value;
                 Targets.Add(Pair.Key, new(Horizontal ? checked(Region.StartRow - Removed) : Region.StartRow,
                     Horizontal ? Region.StartColumn : checked(Region.StartColumn - Removed), Region.RowSpan, Region.ColumnSpan));
             }

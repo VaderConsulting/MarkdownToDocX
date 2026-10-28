@@ -119,7 +119,10 @@ public static class FlowchartEdgeLabelClearanceHelper
     private static void CountOperation(ref long Counter, string Name)
     {
         long Count = Interlocked.Increment(ref Counter);
-        if ((Count & 4095) == 0) FlowchartRenderContext.ReportOperationCount(Name, 4096);
+        if ((Count & 4095) == 0)
+        {
+            FlowchartRenderContext.ReportOperationCount(Name, 4096);
+        }
     }
 
     private const double LABEL_MARGIN_PX = 4.0;
@@ -207,8 +210,10 @@ public static class FlowchartEdgeLabelClearanceHelper
             {
                 if (OtherPoints.Count >= 2)
                 {
-                    foreach (var Sample in SampleConnector(OtherPoints))
+                    foreach ((double X, double Y) Sample in SampleConnector(OtherPoints))
+                    {
                         ObstacleIndex.AddPoint(Sample.X, Sample.Y);
+                    }
                 }
             }
         }
@@ -387,7 +392,11 @@ public static class FlowchartEdgeLabelClearanceHelper
         double HalfWidth = (Width / 2.0) + LABEL_HORIZONTAL_MARGIN_PX;
         double HalfHeight = (Height / 2.0) + LABEL_MARGIN_PX;
         FlowchartSvgRect LabelRect = new FlowchartSvgRect(CentreX - HalfWidth, CentreY - HalfHeight, CentreX + HalfWidth, CentreY + HalfHeight);
-        if (ObstacleIndex?.ContainsPoint(LabelRect) == true) return false;
+        if (ObstacleIndex?.ContainsPoint(LabelRect) == true)
+        {
+            return false;
+        }
+
         foreach ((double X, double Y) Sample in Samples)
         {
             CountOperation(ref _pointTests, "label-point-tests");
@@ -404,7 +413,11 @@ public static class FlowchartEdgeLabelClearanceHelper
 
         double NodeHalfWidth = (Width / 2.0) + LABEL_MARGIN_PX;
         FlowchartSvgRect NodeCheckRect = new FlowchartSvgRect(CentreX - NodeHalfWidth, CentreY - HalfHeight, CentreX + NodeHalfWidth, CentreY + HalfHeight);
-        if (ObstacleIndex?.IntersectsRectangle(NodeCheckRect) == true) return false;
+        if (ObstacleIndex?.IntersectsRectangle(NodeCheckRect) == true)
+        {
+            return false;
+        }
+
         foreach (FlowchartSvgRect NodeRect in NodeRects)
         {
             CountOperation(ref _nodeBoxTests, "label-node-box-tests");

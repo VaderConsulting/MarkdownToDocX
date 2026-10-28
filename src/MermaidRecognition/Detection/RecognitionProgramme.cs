@@ -9,7 +9,7 @@ public static class RecognitionProgramme
     /// Programme kinds requiring L1 before Stage 11.A exit (§11.1.13 / Naiad test-renders).
     /// </summary>
     public static readonly string[] L1ProgrammeKindIds =
-    {
+    [
         "flowchart",
         "sequence",
         "classDiagram",
@@ -32,7 +32,7 @@ public static class RecognitionProgramme
         "radar",
         "treemap",
         "c4",
-    };
+    ];
 
     /// <summary>
     /// Total L1 programme kinds (22).

@@ -1,5 +1,6 @@
 using System.Text;
 
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Render;
@@ -14,25 +15,28 @@ public sealed class FlowchartChainWrappingTests
     public void Grid_LongChainWrapsNearFourByThreeWithoutOverlap(string Direction)
     {
         const int NodeCount = 160;
-        var Source = new StringBuilder($"flowchart {Direction}\n");
+        StringBuilder Source = new StringBuilder($"flowchart {Direction}\n");
         for (int Index = 1; Index < NodeCount; Index++)
+        {
             Source.AppendLine($"  n{Index}[Node {Index}] --> n{Index + 1}[Node {Index + 1}]");
-        var Contract = MermaidRecognizer.Parse(Source.ToString());
+        }
+
+        DiagramContract Contract = MermaidRecognizer.Parse(Source.ToString());
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
             new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartCellNode Cell = Layout.CellNodes![0].CellNode!;
         FlowchartLogicalGridConfiguration Configuration = Cell.Grid.Configuration;
-        var Size = Cell.Grid.Measure(Cell.Region);
+        (double Width, double Height) Size = Cell.Grid.Measure(Cell.Region);
         Assert.That(Layout.CellNodes.All(Node => Node.CellNode!.Region.RowSpan == Cell.Region.RowSpan
             && Node.CellNode.Region.ColumnSpan == Cell.Region.ColumnSpan), Is.True);
         FlowchartWrapPlan.Plan Expected = FlowchartWrapPlan.Choose(
             NodeCount, (int)Size.Width, (int)Size.Height,
             (int)Configuration.ColumnGap, (int)Configuration.RowGap, Direction == "LR");
-        double Width = Layout.NodeBounds.Max(Node => Node.CenterX + Node.Width / 2.0)
-            - Layout.NodeBounds.Min(Node => Node.CenterX - Node.Width / 2.0);
-        double Height = Layout.NodeBounds.Max(Node => Node.CenterY + Node.Height / 2.0)
-            - Layout.NodeBounds.Min(Node => Node.CenterY - Node.Height / 2.0);
+        double Width = Layout.NodeBounds.Max(Node => Node.CenterX + (Node.Width / 2.0))
+            - Layout.NodeBounds.Min(Node => Node.CenterX - (Node.Width / 2.0));
+        double Height = Layout.NodeBounds.Max(Node => Node.CenterY + (Node.Height / 2.0))
+            - Layout.NodeBounds.Min(Node => Node.CenterY - (Node.Height / 2.0));
 
         Assert.Multiple(() =>
         {
@@ -49,10 +53,13 @@ public sealed class FlowchartChainWrappingTests
     public void Grid_LabelledLongChainReservesMeasuredRoomInEitherWrapDirection(string Direction)
     {
         const int NodeCount = 40;
-        var Source = new StringBuilder($"flowchart {Direction}\n");
+        StringBuilder Source = new StringBuilder($"flowchart {Direction}\n");
         for (int Index = 1; Index < NodeCount; Index++)
+        {
             Source.AppendLine($"  n{Index}[Node {Index}] -->|measured label| n{Index + 1}[Node {Index + 1}]");
-        var Contract = MermaidRecognizer.Parse(Source.ToString());
+        }
+
+        DiagramContract Contract = MermaidRecognizer.Parse(Source.ToString());
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
 
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
@@ -74,13 +81,17 @@ public sealed class FlowchartChainWrappingTests
     private static bool HasOverlap(FlowchartLayoutResult Layout)
     {
         for (int Left = 0; Left < Layout.NodeBounds.Count; Left++)
-        for (int Right = Left + 1; Right < Layout.NodeBounds.Count; Right++)
+        {
+            for (int Right = Left + 1; Right < Layout.NodeBounds.Count; Right++)
         {
             FlowchartLayoutNodeBounds A = Layout.NodeBounds[Left];
             FlowchartLayoutNodeBounds B = Layout.NodeBounds[Right];
             if (Math.Abs(A.CenterX - B.CenterX) < (A.Width + B.Width) / 2.0
                 && Math.Abs(A.CenterY - B.CenterY) < (A.Height + B.Height) / 2.0)
-                return true;
+                {
+                    return true;
+                }
+            }
         }
 
         return false;

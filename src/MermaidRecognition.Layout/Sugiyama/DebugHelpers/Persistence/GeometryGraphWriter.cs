@@ -252,7 +252,7 @@ namespace  MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
 
 
         Dictionary<Rail, int> CreateRailIds() {
-            Dictionary<Rail, int> ret = new Dictionary<Rail, int>();
+            Dictionary<Rail, int> ret = [];
             int id = 0;
             foreach (LgLevel level in graph.LgData.Levels) {
                 foreach (Rail rail in level._railDictionary.Values) {
@@ -767,7 +767,7 @@ namespace  MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
         
         void WritePolylineInSvgStyle(Polyline poly) {
             WriteStartElement( poly.Closed? GeometryToken.Polygon: GeometryToken.Polyline);
-            WriteAttribute(GeometryToken.Points, PointsToString(poly.ToArray()));
+            WriteAttribute(GeometryToken.Points, PointsToString([.. poly]));
             WriteEndElement();
         }
 
@@ -866,7 +866,7 @@ namespace  MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
             return string.Join(" ", new[] {rx, ry, xAxisRotation, largeArcFlag, sweepFlagInt.ToString(), endPoint});
         }
 
-        static bool AxesSwapped(Point axisA, Point axisB) => axisA.X * axisB.Y - axisB.X * axisA.Y < 0;
+        static bool AxesSwapped(Point axisA, Point axisB) => (axisA.X * axisB.Y) - (axisB.X * axisA.Y) < 0;
 
         string CubicBezierSegmentToString(CubicBezierSegment cubic, char previousInstruction) {
             string str = PointsToString(cubic.B(1), cubic.B(2), cubic.B(3));

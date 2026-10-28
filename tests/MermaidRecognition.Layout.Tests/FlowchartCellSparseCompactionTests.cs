@@ -10,7 +10,7 @@ public sealed class FlowchartCellSparseCompactionTests
     [Test]
     public void DisjointRanksReuseOneLogicalColumn()
     {
-        var (Nodes, Grid) = Fixture();
+        (List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Assert.That(FlowchartSparseRankCompaction.ApplyCells(new(), Nodes, false), Is.True);
         Assert.That(Nodes.Select(Node => Grid.RegionOf(Node.Id).StartColumn), Is.All.EqualTo(0));
     }
@@ -19,7 +19,7 @@ public sealed class FlowchartCellSparseCompactionTests
     [Test]
     public void RankSkippingConnectorRetainsItsSideCorridor()
     {
-        var (Nodes, Grid) = Fixture(); var Contract = new DiagramContract();
+        (List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); DiagramContract Contract = new DiagramContract();
         Contract.EdgesMutable.Add(new EdgeContract { SourceId = "N0", TargetId = "N2" });
         Assert.That(FlowchartSparseRankCompaction.ApplyCells(Contract, Nodes, false), Is.True);
         Assert.That(Grid.RegionOf("N2").StartColumn, Is.EqualTo(1));
@@ -30,9 +30,9 @@ public sealed class FlowchartCellSparseCompactionTests
     [Test]
     public void HintedCorridorParticipantKeepsExactState()
     {
-        var (Nodes, Grid) = Fixture(); var Contract = new DiagramContract();
+        (List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); DiagramContract Contract = new DiagramContract();
         Contract.EdgesMutable.Add(new EdgeContract { SourceId = "N0", TargetId = "N2" });
-        Nodes[^1].PlacementHintLocked = true; var Before = Grid.Capture();
+        Nodes[^1].PlacementHintLocked = true; FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartSparseRankCompaction.ApplyCells(Contract, Nodes, false), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -41,11 +41,11 @@ public sealed class FlowchartCellSparseCompactionTests
     /// <returns>Bound nodes and shared grid.</returns>
     private static (List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); var Nodes = new List<DiagramGridLayout.GridNode>();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); List<DiagramGridLayout.GridNode> Nodes = [];
         for (int Index = 0; Index < 3; Index++)
         {
             string Id = "N" + Index; Grid.TryPlace(Id, new(Index, Index * 3, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Index }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Index }; Node.BindCells(Grid); Nodes.Add(Node);
         }
         return (Nodes, Grid);
     }

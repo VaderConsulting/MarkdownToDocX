@@ -123,12 +123,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
 
             Point hookDir =dir.Normalize();
             Point hookPerp =hookDir.Rotate(Math.PI/2);
-            Point p1 = closestPoint + hookDir * howMuchToStickOut;
-            Point p2 = p1 + hookPerp * width;
-            Point p3 = closestPoint + hookPerp * width;
-            Point end = center + hookPerp * width;
+            Point p1 = closestPoint + (hookDir * howMuchToStickOut);
+            Point p2 = p1 + (hookPerp * width);
+            Point p3 = closestPoint + (hookPerp * width);
+            Point end = center + (hookPerp * width);
 
-            SmoothedPolyline smoothedPoly =reverse?SmoothedPolyline.FromPoints( new []{end, p3, p2, p1, closestPoint, center}): SmoothedPolyline.FromPoints( new []{center, closestPoint, p1, p2, p3, end});
+            SmoothedPolyline smoothedPoly =reverse?SmoothedPolyline.FromPoints( [end, p3, p2, p1, closestPoint, center]): SmoothedPolyline.FromPoints( [center, closestPoint, p1, p2, p3, end]);
             return smoothedPoly.CreateCurve();
         }
 
@@ -211,7 +211,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing
             }
             else
             {
-                edge.UnderlyingPolyline = SmoothedPolyline.FromPoints(new[] { a, b });
+                edge.UnderlyingPolyline = SmoothedPolyline.FromPoints([a, b]);
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
             Arrowheads.TrimSplineAndCalculateArrowheads(edge.EdgeGeometry,

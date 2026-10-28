@@ -37,7 +37,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// </summary>
         bool BT;
 
-        int EnumRightUp => (LR ? 0 : 1) + 2 * (BT ? 0 : 1);
+        int EnumRightUp => (LR ? 0 : 1) + (2 * (BT ? 0 : 1));
 
 
         /// <summary>

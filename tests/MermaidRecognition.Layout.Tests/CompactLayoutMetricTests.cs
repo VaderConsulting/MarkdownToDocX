@@ -14,9 +14,11 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
     /// <returns>Original catalogue arguments with discovery-visible watchdog descriptions.</returns>
     public static IEnumerable<TestCaseData> CompactMetricCases()
     {
-        foreach (var Item in new[] { ("F", 151), ("F", 152), ("F", 153), ("A", 64), ("A", 104), ("A", 109),
+        foreach ((string, int) Item in new[] { ("F", 151), ("F", 152), ("F", 153), ("A", 64), ("A", 104), ("A", 109),
             ("A", 110), ("A", 114), ("A", 117), ("A", 142), ("A", 163), ("A", 168) })
+        {
             yield return CatalogueScenarioPolicy.Apply(new TestCaseData(Item.Item1, Item.Item2), Item.Item1 + Item.Item2.ToString("00"));
+        }
     }
 
     [TestCaseSource(nameof(CompactMetricCases))]
@@ -30,9 +32,12 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
 
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         if (Number >= 154)
+        {
             Assert.That(Metrics.Score, Is.Not.Null,
                 $"A{Number} must remain a scoreable hinted layout: "
                     + string.Join("; ", Metrics.Violations.Select(Failure => Failure.Description)));
+        }
+
         TestContext.Out.WriteLine(
             $"{Catalogue}{Number}: width={Metrics.Width:0} height={Metrics.Height:0} "
             + $"ratio={Metrics.Width / Metrics.Height:0.000} overlaps={Metrics.Overlaps} "
@@ -67,7 +72,7 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Source).Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
-        List<FlowchartLayoutNodeBounds> Members = Layout.NodeBounds.Where(Box => Box.NodeId.StartsWith("a", StringComparison.Ordinal)).ToList();
+        List<FlowchartLayoutNodeBounds> Members = [.. Layout.NodeBounds.Where(Box => Box.NodeId.StartsWith("a", StringComparison.Ordinal))];
         Assert.Multiple(() =>
         {
             Assert.That(Members.Select(Box => Box.CenterX).Distinct().Count(), Is.GreaterThan(1));
@@ -165,16 +170,21 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         int Crossings = 0;
         List<string> CrossingPairs = [];
         for (int First = 0; First < Routes.Count; First++)
-        for (int Second = First + 1; Second < Routes.Count; Second++)
+        {
+            for (int Second = First + 1; Second < Routes.Count; Second++)
         {
             int PairCrossings = FlowchartBranchRouteOrder.Intersections(
                 Routes[First].SvgPoints.Select(Point => (Point.X, Point.Y)).ToList(),
                 Routes[Second].SvgPoints.Select(Point => (Point.X, Point.Y)).ToList()).Crossings;
             Crossings += PairCrossings;
             if (PairCrossings > 0)
-                CrossingPairs.Add($"{Routes[First].Relationship.SourceId}->{Routes[First].Relationship.TargetId}"
+                {
+                    CrossingPairs.Add($"{Routes[First].Relationship.SourceId}->{Routes[First].Relationship.TargetId}"
                     + $" x {Routes[Second].Relationship.SourceId}->{Routes[Second].Relationship.TargetId}: {PairCrossings}");
+                }
+            }
         }
+
         Assert.That(Crossings, Is.Zero, "A52 has avoidable final route crossings: " + string.Join("; ", CrossingPairs));
     }
 
@@ -186,14 +196,14 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         FlowchartLayoutNodeBounds Frame = Layout.ClusterBounds.Single(Box => Box.NodeId == GroupId);
         FlowchartLayoutPoint End = Route(Layout, Source, GroupId).Points[^1];
-        double Left = Frame.CenterX - Frame.Width / 2.0;
-        double Right = Frame.CenterX + Frame.Width / 2.0;
-        double Bottom = Frame.CenterY - Frame.Height / 2.0;
-        double Top = Frame.CenterY + Frame.Height / 2.0;
-        bool OnOutline = (Math.Abs(End.X - Left) < 1.0 || Math.Abs(End.X - Right) < 1.0)
-                && End.Y >= Bottom - 1.0 && End.Y <= Top + 1.0
-            || (Math.Abs(End.Y - Bottom) < 1.0 || Math.Abs(End.Y - Top) < 1.0)
-                && End.X >= Left - 1.0 && End.X <= Right + 1.0;
+        double Left = Frame.CenterX - (Frame.Width / 2.0);
+        double Right = Frame.CenterX + (Frame.Width / 2.0);
+        double Bottom = Frame.CenterY - (Frame.Height / 2.0);
+        double Top = Frame.CenterY + (Frame.Height / 2.0);
+        bool OnOutline = ((Math.Abs(End.X - Left) < 1.0 || Math.Abs(End.X - Right) < 1.0)
+                && End.Y >= Bottom - 1.0 && End.Y <= Top + 1.0)
+            || ((Math.Abs(End.Y - Bottom) < 1.0 || Math.Abs(End.Y - Top) < 1.0)
+                && End.X >= Left - 1.0 && End.X <= Right + 1.0);
 
         Assert.Multiple(() =>
         {
@@ -217,29 +227,40 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
         int Overlaps = 0;
         for (int First = 0; First < Routes.Count; First++)
-        for (int Second = First + 1; Second < Routes.Count; Second++)
+        {
+            for (int Second = First + 1; Second < Routes.Count; Second++)
         {
             EnterpriseRoutedEdge A = Routes[First], B = Routes[Second];
-            if (string.IsNullOrWhiteSpace(A.Label) || string.IsNullOrWhiteSpace(B.Label)) continue;
-            if (Math.Abs(A.LabelX - B.LabelX) < (A.LabelWidth + B.LabelWidth) / 2 + 6
-                && Math.Abs(A.LabelY - B.LabelY) < (A.LabelHeight + B.LabelHeight) / 2 + 6)
+            if (string.IsNullOrWhiteSpace(A.Label) || string.IsNullOrWhiteSpace(B.Label))
+                {
+                    continue;
+                }
+
+                if (Math.Abs(A.LabelX - B.LabelX) < ((A.LabelWidth + B.LabelWidth) / 2) + 6
+                && Math.Abs(A.LabelY - B.LabelY) < ((A.LabelHeight + B.LabelHeight) / 2) + 6)
             {
                 Overlaps++;
                 TestContext.Out.WriteLine($"A{Scenario} LABEL OVERLAP: {A.LabelX:0},{A.LabelY:0} / {B.LabelX:0},{B.LabelY:0}");
             }
         }
+        }
+
         Assert.That(Overlaps, Is.Zero);
         foreach (EnterpriseRoutedEdge Labelled in Routes.Where(Edge => !string.IsNullOrWhiteSpace(Edge.Label)))
-        foreach (EnterpriseRoutedEdge Other in Routes.Where(Edge => Edge != Labelled))
-        for (int Segment = 0; Segment + 1 < Other.SvgPoints.Count; Segment++)
         {
-            var A = Other.SvgPoints[Segment];
-            var B = Other.SvgPoints[Segment + 1];
-            bool Hits = Math.Max(A.X, B.X) > Labelled.LabelX - Labelled.LabelWidth / 2 - 6
-                && Math.Min(A.X, B.X) < Labelled.LabelX + Labelled.LabelWidth / 2 + 6
-                && Math.Max(A.Y, B.Y) > Labelled.LabelY - Labelled.LabelHeight / 2 - 6
-                && Math.Min(A.Y, B.Y) < Labelled.LabelY + Labelled.LabelHeight / 2 + 6;
+            foreach (EnterpriseRoutedEdge Other in Routes.Where(Edge => Edge != Labelled))
+            {
+                for (int Segment = 0; Segment + 1 < Other.SvgPoints.Count; Segment++)
+        {
+                    (double X, double Y) A = Other.SvgPoints[Segment];
+                    (double X, double Y) B = Other.SvgPoints[Segment + 1];
+            bool Hits = Math.Max(A.X, B.X) > Labelled.LabelX - (Labelled.LabelWidth / 2) - 6
+                && Math.Min(A.X, B.X) < Labelled.LabelX + (Labelled.LabelWidth / 2) + 6
+                && Math.Max(A.Y, B.Y) > Labelled.LabelY - (Labelled.LabelHeight / 2) - 6
+                && Math.Min(A.Y, B.Y) < Labelled.LabelY + (Labelled.LabelHeight / 2) + 6;
             Assert.That(Hits, Is.False, $"A{Scenario} label '{Labelled.Label}' at {Labelled.LabelX:0},{Labelled.LabelY:0} size {Labelled.LabelWidth:0}x{Labelled.LabelHeight:0} path={string.Join(';', Labelled.SvgPoints.Select(Point => $"{Point.X:0},{Point.Y:0}"))} is crossed by {Other.Relationship.SourceId} to {Other.Relationship.TargetId} bounds={Layout.Nodes[Other.Relationship.TargetId].AbsoluteX:0},{Layout.Nodes[Other.Relationship.TargetId].AbsoluteY:0} {Layout.Nodes[Other.Relationship.TargetId].Width:0}x{Layout.Nodes[Other.Relationship.TargetId].Height:0}: {string.Join(';', Other.SvgPoints.Select(Point => $"{Point.X:0},{Point.Y:0}"))}.");
+        }
+            }
         }
     }
 
@@ -279,7 +300,11 @@ public sealed class CompactLayoutMetricTests : ProductionCatalogueTestFixture
         while (Cursor != null)
         {
             string Candidate = Path.Combine(Cursor.FullName, FileName);
-            if (File.Exists(Candidate)) return Candidate;
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+
             Cursor = Cursor.Parent;
         }
         throw new FileNotFoundException(FileName);

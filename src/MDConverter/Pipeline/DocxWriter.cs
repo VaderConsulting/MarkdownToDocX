@@ -29,6 +29,9 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
 {
     internal static Action<string, double>? ConversionStageTimingObserver { get; set; }
     private const float MermaidRasterScale = 4.0f;
+    private const float LiveEditorPreviewRasterScale = 1.0f;
+    private const float MinPreviewRasterScale = 0.05f;
+    private const long PreviewMaxRasterPixels = 16_000_000L;
     private const double FlowchartRasterArrowLengthPx = 8.0;
     private const double FlowchartRasterArrowHalfWidthPx = 5.0;
     private const string FLOWCHART_RASTER_DEFAULT_ARROW_FILL = "#333333";
@@ -459,10 +462,15 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             Parent.AppendChild(CreateMermaidParagraph(Mermaid, Styles, null));
             if (MermaidRecognition.Layout.Enterprise.EnterpriseRenderBridge.TryGetLegendTableEntries(
                     Mermaid.Source, _Options.Mermaid.DefaultLegend, out IReadOnlyList<string> LegendEntries))
+            {
                 Parent.AppendChild(CreateLegendTable(LegendEntries, Styles));
+            }
             else if (MermaidRecognition.Layout.NativeFlowchartRenderBridge.TryGetLegendTableEntries(
                     Mermaid.Source, _Options.Mermaid.DefaultLegend, out LegendEntries))
+            {
                 Parent.AppendChild(CreateLegendTable(LegendEntries, Styles));
+            }
+
             return;
         }
 
@@ -758,14 +766,21 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             LegendCell("Symbol", Styles, BoldText: true),
             LegendCell("Type", Styles, BoldText: true)));
         foreach (string Entry in Entries)
+        {
             Table.Append(new DocumentFormat.OpenXml.Wordprocessing.TableRow(LegendCell("◇ ─── ▷", Styles), LegendCell(Entry, Styles)));
+        }
+
         return Table;
     }
 
     private static DocumentFormat.OpenXml.Wordprocessing.TableCell LegendCell(string Text, StyleMapping Styles, bool BoldText = false)
     {
         Run Run = new();
-        if (BoldText) Run.Append(new RunProperties(new Bold()));
+        if (BoldText)
+        {
+            Run.Append(new RunProperties(new Bold()));
+        }
+
         Run.Append(new Text(Text));
         return new DocumentFormat.OpenXml.Wordprocessing.TableCell(new Paragraph(new ParagraphProperties(
             new ParagraphStyleId { Val = Styles.ParagraphStyle }), Run));
@@ -808,7 +823,11 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
         Run Run = new Run();
         for (int Index = 0; Index < Lines.Length; Index++)
         {
-            if (Index > 0) Run.AppendChild(new Break());
+            if (Index > 0)
+            {
+                Run.AppendChild(new Break());
+            }
+
             Run.AppendChild(CreateText(Lines[Index]));
         }
         Paragraph.AppendChild(Run);
@@ -1385,6 +1404,83 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
 
     internal static byte[]? TryRasterizeSvgToPng(string Svg)
     {
+        return TryRasterizeSvgToPng(Svg, MermaidRasterScale);
+    }
+
+    /// <summary>
+    /// Rasterises SVG for LiveEditor preview, reducing scale when the layout would exceed a safe pixel budget.
+    /// </summary>
+    internal static byte[]? TryRasterizeSvgToPreviewPng(string Svg, out string? PreviewAdvisory)
+    {
+        PreviewAdvisory = null;
+        if (!TryGetSvgRasterDrawBounds(Svg, out SKRect DrawBounds))
+        {
+            return TryRasterizeSvgToPng(Svg, MermaidRasterScale);
+        }
+
+        double LogicalWidth = Math.Max(1.0, DrawBounds.Width);
+        double LogicalHeight = Math.Max(1.0, DrawBounds.Height);
+        float RasterScale = LiveEditorPreviewRasterScale;
+        double OutputPixels = LogicalWidth * RasterScale * LogicalHeight * RasterScale;
+        if (OutputPixels > PreviewMaxRasterPixels)
+        {
+            RasterScale = (float)Math.Sqrt(PreviewMaxRasterPixels / (LogicalWidth * LogicalHeight));
+            RasterScale = Math.Max(MinPreviewRasterScale, RasterScale);
+        }
+
+        byte[]? Png = TryRasterizeSvgToPng(Svg, RasterScale);
+        if (Png != null && RasterScale < LiveEditorPreviewRasterScale - 0.01f)
+        {
+            int LayoutWidth = (int)Math.Ceiling(LogicalWidth);
+            int LayoutHeight = (int)Math.Ceiling(LogicalHeight);
+            PreviewAdvisory = "Preview scaled to fit this wide diagram ("
+                + LayoutWidth.ToString(CultureInfo.InvariantCulture)
+                + "×"
+                + LayoutHeight.ToString(CultureInfo.InvariantCulture)
+                + " layout units). The editor source is complete; Word export keeps full resolution.";
+        }
+
+        return Png;
+    }
+
+    private static bool TryGetSvgRasterDrawBounds(string Svg, out SKRect DrawBounds)
+    {
+        DrawBounds = default;
+        try
+        {
+            string SvgForRaster = ExpandSvgFlowchartMarkersForRasterization(Svg);
+            SKSvg SvgDocument = new SKSvg();
+            SvgDocument.FromSvg(SvgForRaster);
+            SKPicture? Picture = SvgDocument.Picture;
+            if (Picture is null)
+            {
+                return false;
+            }
+
+            DrawBounds = Picture.CullRect;
+            if (TryGetSvgRootSizeBounds(Svg, out SKRect RootSizeBounds))
+            {
+                DrawBounds = RootSizeBounds;
+            }
+            else if (TryGetSvgViewBoxBounds(Svg, out SKRect ViewBoxBounds))
+            {
+                DrawBounds = ViewBoxBounds;
+            }
+            else
+            {
+                DrawBounds.Inflate(16, 16);
+            }
+
+            return DrawBounds.Width > 0 && DrawBounds.Height > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static byte[]? TryRasterizeSvgToPng(string Svg, float RasterScale)
+    {
         try
         {
             string SvgForRaster = ExpandSvgFlowchartMarkersForRasterization(Svg);
@@ -1397,10 +1493,6 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
                 return TryRasterizeSvgToPngViaHarness(SvgForRaster);
             }
 
-            // Skia applies the viewBox transform when building the picture. Its
-            // drawing coordinates therefore use the root viewport, which may
-            // differ from the viewBox after configuration scales the SVG.
-            // Retain viewport padding rather than using the tight CullRect.
             SKRect DrawBounds = Picture.CullRect;
             if (TryGetSvgRootSizeBounds(Svg, out SKRect RootSizeBounds))
             {
@@ -1415,13 +1507,13 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
                 DrawBounds.Inflate(16, 16);
             }
 
-            int Width = (int)Math.Ceiling(Math.Max(1.0, DrawBounds.Width * MermaidRasterScale));
-            int Height = (int)Math.Ceiling(Math.Max(1.0, DrawBounds.Height * MermaidRasterScale));
+            int Width = (int)Math.Ceiling(Math.Max(1.0, DrawBounds.Width * RasterScale));
+            int Height = (int)Math.Ceiling(Math.Max(1.0, DrawBounds.Height * RasterScale));
 
             using SKBitmap Bitmap = new SKBitmap(Width, Height);
             using SKCanvas Canvas = new SKCanvas(Bitmap);
             Canvas.Clear(SKColors.White);
-            Canvas.Scale(MermaidRasterScale);
+            Canvas.Scale(RasterScale);
             Canvas.Translate(-DrawBounds.Left, -DrawBounds.Top);
             Canvas.DrawPicture(Picture);
             Canvas.Flush();
@@ -1497,9 +1589,7 @@ public sealed class DocxWriter(EffectiveOptions Options, IConversionProgressRepo
             }
 
             XNamespace SvgNamespace = Root.Name.Namespace;
-            List<XElement> MarkableElements = Root.Descendants()
-                .Where(Element => Element.Attribute("marker-end") != null)
-                .ToList();
+            List<XElement> MarkableElements = [.. Root.Descendants().Where(Element => Element.Attribute("marker-end") != null)];
             List<XElement> OverlayElements = [];
 
             foreach (XElement Element in MarkableElements)

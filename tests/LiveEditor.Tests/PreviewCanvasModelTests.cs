@@ -35,8 +35,8 @@ public sealed class PreviewCanvasModelTests
         PreviewError Error = Preview.Errors[0];
         Assert.That(Error.Description, Does.Contain("not allowed"));
         Assert.That(Error.Description, Does.Contain("serving"));
-        Assert.That(Error.Nodes, Is.EquivalentTo(new PreviewObject[] { Order, Shop }));
-        Assert.That(Error.Relationships, Is.EquivalentTo(new PreviewObject[] { Serving }));
+        Assert.That(Error.Nodes, Is.EquivalentTo([Order, Shop]));
+        Assert.That(Error.Relationships, Is.EquivalentTo([Serving]));
         Assert.That(Error.Nodes, Does.Not.Contain(Cart));
         Assert.That(Error.Relationships, Does.Not.Contain(Flow));
         Assert.That(Shop.Selected, Is.False);
@@ -92,7 +92,7 @@ public sealed class PreviewCanvasModelTests
         Flow.TargetId = "cart";
         Flow.RelationshipKind = "flow";
 
-        Assert.That(Preview.Items, Is.EquivalentTo(new PreviewObject[] { Shop, Flow }));
+        Assert.That(Preview.Items, Is.EquivalentTo([Shop, Flow]));
         Assert.That(Shop.Selected, Is.False);
         Assert.That(Preview.FindItem("node\u001fshop"), Is.SameAs(Shop));
 
@@ -101,7 +101,7 @@ public sealed class PreviewCanvasModelTests
         Assert.That(Preview.FindItem("node\u001fshop"), Is.Null);
 
         Assert.That(Preview.RemoveItem(Shop), Is.True);
-        Assert.That(Preview.Items, Is.EquivalentTo(new PreviewObject[] { Flow }));
+        Assert.That(Preview.Items, Is.EquivalentTo([Flow]));
         Assert.That(Preview.RemoveItem(Shop), Is.False);
         Assert.Throws<ArgumentNullException>(() => Preview.AddItem(null!));
         Assert.Throws<ArgumentNullException>(() => Preview.RemoveItem(null!));
@@ -113,7 +113,7 @@ public sealed class PreviewCanvasModelTests
         using PreviewCanvas Preview = new PreviewCanvas();
         PreviewObject Shop = Preview.AddItem();
         Shop.Id = "shop";
-        Preview.SelectedItems = new PreviewObject[] { Shop };
+        Preview.SelectedItems = [Shop];
         int Events = 0;
         Preview.SelectedItemsChanged += (Sender, E) => Events++;
 
@@ -174,7 +174,7 @@ public sealed class PreviewCanvasModelTests
     {
         using PreviewCanvas Preview = new PreviewCanvas();
         Preview.Load(SCRIPT);
-        Preview.SelectedItems = new PreviewObject[] { Require(Preview, "node\u001fshop") };
+        Preview.SelectedItems = [Require(Preview, "node\u001fshop")];
 
         Preview.Clear();
 
@@ -216,7 +216,7 @@ public sealed class PreviewCanvasModelTests
         Shop.Style.FillColour = Color.Blue;
         Shop.Style.Bold = true;
         Shop.Style.Width = 4F;
-        Preview.SelectedItems = new PreviewObject[] { Shop };
+        Preview.SelectedItems = [Shop];
 
         Assert.That(Shop.Style.LineColour.ToArgb(), Is.EqualTo(Color.Red.ToArgb()));
         Assert.That(Shop.Style.FillColour.ToArgb(), Is.EqualTo(Color.Blue.ToArgb()));

@@ -8,7 +8,7 @@ namespace LiveEditor.Editor;
 /// <summary>
 /// Freezes RichTextBox painting and preserves scroll position while colouring text.
 /// </summary>
-internal sealed class RichTextBoxPaintScope : IDisposable
+internal sealed partial class RichTextBoxPaintScope : IDisposable
 {
     private const int WM_SETREDRAW = 0x000B;
 
@@ -64,8 +64,8 @@ internal sealed class RichTextBoxPaintScope : IDisposable
         SendMessage(Editor.Handle, EM_SETSCROLLPOS, IntPtr.Zero, ref Copy);
     }
 
-    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
-    private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 
     [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, ref Point LParam);

@@ -50,7 +50,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <returns></returns>
         public override int GetHashCode() {
             uint hc = (uint)source.GetHashCode();
-            return (int)((hc << 5 | hc >> 27) + (uint)target);
+            return (int)(((hc << 5) | (hc >> 27)) + (uint)target);
         }
 
         int crossingWeight=1;

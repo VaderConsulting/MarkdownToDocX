@@ -131,7 +131,7 @@ public sealed class ClassContractMapperTests
         Assert.That(Contract.Groups, Has.Count.EqualTo(1));
         GroupContract Animals = Contract.Groups[0];
         Assert.That(Animals.Id, Is.EqualTo("animals"));
-        Assert.That(Animals.ChildNodeIds, Is.EquivalentTo(new[] { "Animal", "Dog" }));
+        Assert.That(Animals.ChildNodeIds, Is.EquivalentTo(["Animal", "Dog"]));
 
         NodeContract Animal = Contract.Nodes.Single(Node => Node.Id == "Animal");
         NodeContract Dog = Contract.Nodes.Single(Node => Node.Id == "Dog");

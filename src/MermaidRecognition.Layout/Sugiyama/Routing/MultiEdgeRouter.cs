@@ -23,7 +23,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
 
         internal MultiEdgeRouter(List<Edge[]> multiEdgeGeoms, InteractiveEdgeRouter interactiveEdgeRouter, IEnumerable<ICurve> nodeBoundaryCurves, BundlingSettings bundlingSettings, Func<EdgeGeometry, List<Shape>> transparentShapeSetter) {
-            multiEdgeGeometries = multiEdgeGeoms.Select(l => l.Select(e => e.EdgeGeometry).ToArray()).ToList();
+            multiEdgeGeometries = [.. multiEdgeGeoms.Select(l => l.Select(e => e.EdgeGeometry).ToArray())];
             
             this.interactiveEdgeRouter = interactiveEdgeRouter;
             this.bundlingSettings = bundlingSettings;
@@ -50,7 +50,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         GeometryGraph CreateGeometryGraph(PreGraph preGraph) {
             GeometryGraph graph = new GeometryGraph();
-            Dictionary<ICurve, Node> nodeDictionary = new Dictionary<ICurve, Node>();
+            Dictionary<ICurve, Node> nodeDictionary = [];
             foreach (ICurve curve in preGraph.nodeBoundaries) {
                 Node node = new Node(curve);
                 nodeDictionary[curve] = node;
@@ -111,7 +111,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             }
 
             IEnumerable<IEnumerable<int>> connectedComponents = ConnectedComponentCalculator<IntPair>.GetComponents(intersectionGraph);
-            List<PreGraph> newPreGraphList = new List<PreGraph>();
+            List<PreGraph> newPreGraphList = [];
             foreach (IEnumerable<int> component in connectedComponents) {
                 PreGraph preGraph = null;
                 foreach (int i in component) {
@@ -152,7 +152,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         static IEnumerable<IntPair> EnumeratePairsOfIntersectedPreGraphs(List<PreGraph> preGraphs) {
             RectangleNode<int> rn = RectangleNode<int>.CreateRectangleNodeOnData(Enumerable.Range(0, preGraphs.Count), i => preGraphs[i].boundingBox);
-            List<IntPair> list = new List<IntPair>();
+            List<IntPair> list = [];
             RectangleNodeUtils.CrossRectangleNodes<int>(rn, rn, (a, b) => list.Add(new IntPair(a, b)));
             return list;
         }
@@ -160,7 +160,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         List<PreGraph> CreateInitialPregraphs() => new List<PreGraph>(multiEdgeGeometries.Select(CreatePregraphFromSetOfEdgeGeometries));
 
         private PreGraph CreatePregraphFromSetOfEdgeGeometries(EdgeGeometry[] egs) {
-            Set<ICurve> nodeBoundaries = new Set<ICurve>();
+            Set<ICurve> nodeBoundaries = [];
             EdgeGeometry eg = egs[0];
             ICurve c = GetPortCurve(eg.SourcePort);
             Rectangle rect = c.BoundingBox;

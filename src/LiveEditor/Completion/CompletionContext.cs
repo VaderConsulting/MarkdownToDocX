@@ -22,7 +22,7 @@ internal enum CompletionTokenKind
 /// </summary>
 internal sealed class CompletionContext
 {
-    private readonly List<CompletionItem> _Items = new List<CompletionItem>();
+    private readonly List<CompletionItem> _Items = [];
 
     /// <summary>Gets or sets the token kind under the caret.</summary>
     public CompletionTokenKind TokenKind { get; set; }

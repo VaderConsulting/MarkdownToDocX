@@ -85,7 +85,10 @@ public sealed class FlowchartRenderContext
 
     internal static void ReportOperationCount(string Name, long Count)
     {
-        if (Count > 0) OperationCountObserver?.Invoke(Name, Count);
+        if (Count > 0)
+        {
+            OperationCountObserver?.Invoke(Name, Count);
+        }
     }
 
     /// <summary>Context associated with the current render or direct layout call.</summary>

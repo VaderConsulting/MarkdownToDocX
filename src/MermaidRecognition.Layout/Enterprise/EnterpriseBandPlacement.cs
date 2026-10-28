@@ -58,27 +58,35 @@ internal static partial class EnterpriseBandPlacement
         out Action? CompletePartners)
     {
         CompletePartners = null;
-        if (Nodes.Count == 0 || Nodes.Any(Node => Node.CellNode == null)) return false;
-        var Classes = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
+        if (Nodes.Count == 0 || Nodes.Any(Node => Node.CellNode == null))
+        {
+            return false;
+        }
+
+        Dictionary<string, Classification> Classes = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
             .ToDictionary(Node => Node.Id, Node => Classify(Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)), StringComparer.Ordinal);
         int BandCount = Classes.Values.Where(Item => Item.Conventional).Select(Item => Item.Band).Distinct().Count();
         bool WidthConstrained = Context?.LayoutOptions.EnableWidthConstrainedLayout == true;
-        if (BandCount == 0 || BandCount <= 1 && !WidthConstrained) return false;
-        foreach (var Node in Nodes.Where(Node => !Classes.TryGetValue(Node.Id, out var Item) || !Item.Conventional))
+        if (BandCount == 0 || (BandCount <= 1 && !WidthConstrained))
         {
-            var Neighbours = Contract.Edges.Where(Edge => Edge.SourceId == Node.Id || Edge.TargetId == Node.Id)
+            return false;
+        }
+
+        foreach (DiagramGridLayout.GridNode? Node in Nodes.Where(Node => !Classes.TryGetValue(Node.Id, out Classification? Item) || !Item.Conventional))
+        {
+            IGrouping<int, string>? Neighbours = Contract.Edges.Where(Edge => Edge.SourceId == Node.Id || Edge.TargetId == Node.Id)
                 .Select(Edge => Edge.SourceId == Node.Id ? Edge.TargetId : Edge.SourceId)
-                .Where(Id => Classes.TryGetValue(Id, out var Item) && Item.Conventional)
+                .Where(Id => Classes.TryGetValue(Id, out Classification? Item) && Item.Conventional)
                 .GroupBy(Id => Classes[Id].Band).OrderByDescending(Group => Group.Count()).ThenBy(Group => Group.Key).FirstOrDefault();
-            var Previous = Classes.GetValueOrDefault(Node.Id);
+            Classification? Previous = Classes.GetValueOrDefault(Node.Id);
             Classes[Node.Id] = new(Neighbours?.Key ?? Classes.Values.Where(Item => Item.Conventional).Min(Item => Item.Band), Previous?.Aspect ?? 1, false, Previous?.Type);
         }
-        var Grid = Nodes[0].CellNode!.Grid;
-        var Before = Grid.Capture();
-        var Planner = new BandPlan(Contract, Nodes, Classes, Context?.UsePreviousEnterpriseBandPaddingForTests ?? false, WidthConstrained);
-        var Targets = Planner.Build(Context?.EnterpriseBandWrapWidth ?? int.MaxValue);
-        var FixedPlacement = Context?.InitialBandPlacement;
-        var SelectedGaps = new List<FlowchartCellGapGrowth>();
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        BandPlan Planner = new BandPlan(Contract, Nodes, Classes, Context?.UsePreviousEnterpriseBandPaddingForTests ?? false, WidthConstrained);
+        Dictionary<string, FlowchartCellRegion> Targets = Planner.Build(Context?.EnterpriseBandWrapWidth ?? int.MaxValue);
+        FlowchartLogicalGrid.Snapshot? FixedPlacement = Context?.InitialBandPlacement;
+        List<FlowchartCellGapGrowth> SelectedGaps = [];
         if (FixedPlacement != null)
         {
             Targets = FixedPlacement.Regions.ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
@@ -88,26 +96,45 @@ internal static partial class EnterpriseBandPlacement
                 Math.Max(0, Pair.Value - Grid.Configuration.RowGap), DiagramGridMetrics.GRID_UNIT_PX)));
         }
         var LevelRows = CaptureLevelRows(Contract, Nodes, Targets, Classes, Planner.LevelRowMembers);
-        if (!Grid.TryPrepare(Targets, SelectedGaps, out var InitialState))
+        if (!Grid.TryPrepare(Targets, SelectedGaps, out FlowchartLogicalGrid.Snapshot? InitialState))
+        {
             throw new InvalidOperationException("The selected initial band placement cannot preserve its cell ownership and gaps.");
-        var InitialGaps = PlanInitialRoutingCapacity(Contract, Targets, Grid, Context, InitialState);
+        }
+
+        IReadOnlyList<FlowchartCellGapGrowth> InitialGaps = PlanInitialRoutingCapacity(Contract, Targets, Grid, Context, InitialState);
         if (Context?.DeferInitialBandCapacity == true)
         {
             Context.InitialBandCapacityNeeded |= InitialGaps.Count > 0;
             InitialGaps = [];
         }
-        if (!MatchesConvention(Contract, Classes, Targets) || !Grid.TryPrepare(Targets, SelectedGaps.Concat(InitialGaps).ToArray(), out var After) || !Grid.TryCommit(Before, After!))
+        if (!MatchesConvention(Contract, Classes, Targets) || !Grid.TryPrepare(Targets, SelectedGaps.Concat(InitialGaps).ToArray(), out FlowchartLogicalGrid.Snapshot? After) || !Grid.TryCommit(Before, After!))
+        {
             throw new InvalidOperationException("The complete Enterprise band placement cannot reserve legal disjoint whole cells.");
-        if (Context != null) Context.HasInitialCorridorCapacity |= InitialGaps.Count > 0;
+        }
+
+        Context?.HasInitialCorridorCapacity |= InitialGaps.Count > 0;
         Grid.RegionConvention = Regions => MatchesConvention(Contract, Classes, Regions)
             && (FixedPlacement == null || FixedPlacement.Regions.All(Pair => Regions[Pair.Key] == Pair.Value))
             && LevelRows.All(Row => Row.All(Id => Regions[Id].StartRow == Regions[Row[0]].StartRow));
+        Grid.RegionConventionSnapshot = () =>
+        {
+            DiagramContract Frozen = DiagramGridLayout.CopyRoutingInputs(Contract);
+            return Regions => MatchesConvention(Frozen, Classes, Regions)
+                && (FixedPlacement == null || FixedPlacement.Regions.All(Pair => Regions[Pair.Key] == Pair.Value))
+                && LevelRows.All(Row => Row.All(Id => Regions[Id].StartRow == Regions[Row[0]].StartRow));
+        };
         CompletePartners = () =>
         {
             Planner.PublishCompletedPartnersIncrementally(Grid, Context?.BandSpaceDiagnostics);
-            var PriorConvention = Grid.RegionConvention;
-            var Alignment = Planner.CaptureSingletonAlignment(Grid.Capture().Regions);
+            Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool> PriorConvention = Grid.RegionConvention;
+            Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool> Alignment = Planner.CaptureSingletonAlignment(Grid.Capture().Regions);
             Grid.RegionConvention = Regions => PriorConvention?.Invoke(Regions) != false && Alignment(Regions);
+            var PriorSnapshot = Grid.RegionConventionSnapshot;
+            Grid.RegionConventionSnapshot = () =>
+            {
+                var Prior = PriorSnapshot?.Invoke();
+                return Regions => Prior?.Invoke(Regions) != false && Alignment(Regions);
+            };
         };
         if (Context != null)
         {
@@ -116,7 +143,7 @@ internal static partial class EnterpriseBandPlacement
                 .Select(Rows => (int)Math.Ceiling((double)Planner.MaximumWidth / Rows))).Distinct().Take(FlowchartLayoutRules.RepairCandidateMoves).ToArray();
             if (WidthConstrained)
             {
-                double Available = Context.LayoutOptions.TargetWidthPx - 2 * MermaidRecognition.Render.FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx;
+                double Available = Context.LayoutOptions.TargetWidthPx - (2 * MermaidRecognition.Render.FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx);
                 int Columns = (int)Math.Clamp(Math.Floor((Available + Grid.Configuration.ColumnGap)
                     / (Grid.Configuration.CellWidth + Grid.Configuration.ColumnGap)), 1, Math.Max(1, Planner.MaximumWidth));
                 Context.EnterpriseBandWrapWidths = new[] { int.MaxValue, Columns, Math.Max(1, Columns - 1) }
@@ -138,10 +165,10 @@ internal static partial class EnterpriseBandPlacement
     private static string[][] CaptureLevelRows(DiagramContract Contract, IReadOnlyList<DiagramGridLayout.GridNode> Nodes,
         IReadOnlyDictionary<string, FlowchartCellRegion> Targets, IReadOnlyDictionary<string, Classification> Classes, IReadOnlySet<string> RowMembers)
     {
-        var Hinted = HintControlledIds(Contract, Nodes);
-        return Nodes.Where(Node => RowMembers.Contains(Node.Id) && !Hinted.Contains(Node.Id))
+        HashSet<string> Hinted = HintControlledIds(Contract, Nodes);
+        return [.. Nodes.Where(Node => RowMembers.Contains(Node.Id) && !Hinted.Contains(Node.Id))
             .GroupBy(Node => (Classes[Node.Id].Band, Node.GroupId, Targets[Node.Id].StartRow))
-            .Where(Row => Row.Count() > 1).Select(Row => Row.Select(Node => Node.Id).ToArray()).ToArray();
+            .Where(Row => Row.Count() > 1).Select(Row => Row.Select(Node => Node.Id).ToArray())];
     }
 
     /// <summary>Finds complete hint-controlled units, including reference peers, so automatic partner alignment cannot change an honoured hint.</summary>
@@ -150,14 +177,16 @@ internal static partial class EnterpriseBandPlacement
     /// <returns>Every node whose position is controlled directly or transitively by an active hint.</returns>
     private static HashSet<string> HintControlledIds(DiagramContract Contract, IReadOnlyList<DiagramGridLayout.GridNode> Nodes)
     {
-        var Hinted = new HashSet<string>(StringComparer.Ordinal);
-        var Placed = Nodes.ToList();
-        foreach (var Item in Contract.Nodes.Select(Node => (Node.Id, Hint: Node.PlacementHint))
+        HashSet<string> Hinted = new HashSet<string>(StringComparer.Ordinal);
+        List<DiagramGridLayout.GridNode> Placed = [.. Nodes];
+        foreach ((string Id, PlacementHintContract? Hint) Item in Contract.Nodes.Select(Node => (Node.Id, Hint: Node.PlacementHint))
             .Concat(Contract.Groups.Select(Group => (Group.Id, Hint: Group.PlacementHint)))
             .Where(Item => Item.Hint?.IsActive == true))
         {
             foreach (string Id in new[] { Item.Id, Item.Hint!.PeerId }.OfType<string>())
+            {
                 Hinted.UnionWith(DiagramGridLayout.CellHintDependentUnit(Contract, Placed, Id).Select(Node => Node.Id));
+            }
         }
         return Hinted;
     }
@@ -166,7 +195,7 @@ internal static partial class EnterpriseBandPlacement
     /// <returns>Semantic layer, aspect and convention status.</returns>
     private static Classification Classify(EnterpriseElementType Type)
     {
-        var Metadata = EnterpriseElementCatalog.Elements[Type];
+        EnterpriseElementMetadata Metadata = EnterpriseElementCatalog.Elements[Type];
         int Band = Metadata.Layer switch { EnterpriseLayer.Motivation => 0, EnterpriseLayer.Strategy => 1, EnterpriseLayer.Business => 2,
             EnterpriseLayer.Application => 3, EnterpriseLayer.Technology => 4, EnterpriseLayer.Implementation => 5,
             _ => -1 };
@@ -182,20 +211,28 @@ internal static partial class EnterpriseBandPlacement
         IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
     {
         int? End = null;
-        foreach (var Band in Classes.Where(Pair => Pair.Value.Conventional).GroupBy(Pair => Pair.Value.Band).OrderBy(Group => Group.Key))
+        foreach (IGrouping<int, KeyValuePair<string, Classification>>? Band in Classes.Where(Pair => Pair.Value.Conventional).GroupBy(Pair => Pair.Value.Band).OrderBy(Group => Group.Key))
         {
-            if (End > Band.Min(Pair => Regions[Pair.Key].StartRow)) return false;
+            if (End > Band.Min(Pair => Regions[Pair.Key].StartRow))
+            {
+                return false;
+            }
+
             End = Band.Max(Pair => Regions[Pair.Key].EndRow);
         }
         // A later route repair must retain the local aspect columns reserved
         // inside each frame, even when its members occupy different ranks.
-        foreach (var Part in Contract.Nodes.Where(Node => Node.ParentGroupId != null && Classes.ContainsKey(Node.Id))
+        foreach (IGrouping<(string? ParentGroupId, int Band), NodeContract> Part in Contract.Nodes.Where(Node => Node.ParentGroupId != null && Classes.ContainsKey(Node.Id))
             .GroupBy(Node => (Node.ParentGroupId, Classes[Node.Id].Band)))
         {
             int? Right = null;
-            foreach (var Aspect in Part.GroupBy(Node => Classes[Node.Id].Aspect).OrderBy(Group => Group.Key))
+            foreach (IGrouping<int, NodeContract>? Aspect in Part.GroupBy(Node => Classes[Node.Id].Aspect).OrderBy(Group => Group.Key))
             {
-                if (Right > Aspect.Min(Node => Regions[Node.Id].StartColumn)) return false;
+                if (Right > Aspect.Min(Node => Regions[Node.Id].StartColumn))
+                {
+                    return false;
+                }
+
                 Right = Aspect.Max(Node => Regions[Node.Id].EndColumn);
             }
         }
@@ -211,30 +248,38 @@ internal static partial class EnterpriseBandPlacement
     private static void OrderPlateaus(DiagramContract Contract, IReadOnlyDictionary<string, Classification> Classes,
         Dictionary<string, FlowchartCellRegion> Targets)
     {
-        var Plateaus = Classes.Where(Pair => Pair.Value.Type == EnterpriseElementType.Plateau).Select(Pair => Pair.Key).ToList();
-        if (Plateaus.Count == 0) return;
-        var Ordered = new List<string>();
+        List<string> Plateaus = [.. Classes.Where(Pair => Pair.Value.Type == EnterpriseElementType.Plateau).Select(Pair => Pair.Key)];
+        if (Plateaus.Count == 0)
+        {
+            return;
+        }
+
+        List<string> Ordered = [];
         while (Plateaus.Count > 0)
         {
             string? Next = Plateaus.FirstOrDefault(Id => !Contract.Edges.Any(Edge => IsTriggering(Edge) && Edge.TargetId == Id && Plateaus.Contains(Edge.SourceId)));
-            if (Next == null) throw new InvalidOperationException("The declared plateau triggering order is cyclic.");
+            if (Next == null)
+            {
+                throw new InvalidOperationException("The declared plateau triggering order is cyclic.");
+            }
+
             Ordered.Add(Next); Plateaus.Remove(Next);
         }
         int Row = Targets.Values.Max(Region => Region.EndRow), Column = Targets.Values.Min(Region => Region.StartColumn);
         foreach (string Id in Ordered)
         {
-            var Region = Targets[Id]; Targets[Id] = new(Row, Column, Region.RowSpan, Region.ColumnSpan); Column += Region.ColumnSpan;
-            var Gaps = Classes.Where(Pair => Pair.Value.Type == EnterpriseElementType.Gap && Contract.Edges.Any(Edge =>
-                (Edge.SourceId == Pair.Key && Edge.TargetId == Id || Edge.TargetId == Pair.Key && Edge.SourceId == Id)))
+            FlowchartCellRegion Region = Targets[Id]; Targets[Id] = new(Row, Column, Region.RowSpan, Region.ColumnSpan); Column += Region.ColumnSpan;
+            IEnumerable<string> Gaps = Classes.Where(Pair => Pair.Value.Type == EnterpriseElementType.Gap && Contract.Edges.Any(Edge =>
+                ((Edge.SourceId == Pair.Key && Edge.TargetId == Id) || (Edge.TargetId == Pair.Key && Edge.SourceId == Id))))
                 .Select(Pair => Pair.Key).Where(Gap => !Ordered.Take(Ordered.IndexOf(Id)).Any(Prior => Contract.Edges.Any(Edge =>
-                    Edge.SourceId == Gap && Edge.TargetId == Prior || Edge.TargetId == Gap && Edge.SourceId == Prior)));
-            foreach (string Gap in Gaps) { var GapRegion = Targets[Gap]; Targets[Gap] = new(Row, Column, GapRegion.RowSpan, GapRegion.ColumnSpan); Column += GapRegion.ColumnSpan; }
+                    (Edge.SourceId == Gap && Edge.TargetId == Prior) || (Edge.TargetId == Gap && Edge.SourceId == Prior))));
+            foreach (string Gap in Gaps) { FlowchartCellRegion GapRegion = Targets[Gap]; Targets[Gap] = new(Row, Column, GapRegion.RowSpan, GapRegion.ColumnSpan); Column += GapRegion.ColumnSpan; }
         }
     }
 
     /// <summary>Identifies declared triggering edges without inferring ordering from association or aggregation links.</summary>
     /// <param name="Edge">Mapped Enterprise relationship.</param>
     /// <returns>Whether this edge supplies a timeline constraint.</returns>
-    private static bool IsTriggering(EdgeContract Edge) => Edge.Metadata.TryGetValue("enterpriseRelationshipKind", out var Value)
+    private static bool IsTriggering(EdgeContract Edge) => Edge.Metadata.TryGetValue("enterpriseRelationshipKind", out MermaidMetadataValue? Value)
         && Value is RawMetadata { RawValue: nameof(EnterpriseRelationshipKind.Triggering) };
 }

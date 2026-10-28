@@ -19,23 +19,28 @@ public sealed class EnterpriseRoundedPortTests
     [TestCase("LR", true, 16)]
     public void CrowdedRoundedBoxPorts_MeetTheDrawnFlatSides(string Direction, bool Incoming, int Count)
     {
-        var Source = new StringBuilder($"enterprise\n direction {Direction}\n application-service hub \"Shared service\"\n");
+        StringBuilder Source = new StringBuilder($"enterprise\n direction {Direction}\n application-service hub \"Shared service\"\n");
         for (int Index = 0; Index < Count; Index++)
+        {
             Source.AppendLine($"application-component n{Index} \"Peer {Index}\"");
+        }
+
         for (int Index = 0; Index < Count; Index++)
+        {
             Source.AppendLine(Incoming ? $"n{Index} -association-> hub" : $"hub -association-> n{Index}");
+        }
+
         XDocument Svg = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(Source.ToString()));
         XElement Box = Svg.Descendants().Single(Element => (string?)Element.Attribute("data-id") == "hub")
             .Elements().First(Element => Element.Name.LocalName == "rect");
         double Left = Number(Box, "x"), Top = Number(Box, "y");
         double Right = Left + Number(Box, "width"), Bottom = Top + Number(Box, "height");
         double Radius = Number(Box, "rx");
-        var Ports = new List<(double X, double Y)>();
+        List<(double X, double Y)> Ports = [];
         foreach (XElement Edge in Svg.Descendants().Where(Element => Element.Attribute("data-source") != null))
         {
             string Path = (string)Edge.Elements().First(Element => Element.Name.LocalName == "path").Attribute("d")!;
-            double[] Points = Regex.Matches(Path, @"-?\d+(?:\.\d+)?")
-                .Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture)).ToArray();
+            double[] Points = [.. Regex.Matches(Path, @"-?\d+(?:\.\d+)?").Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))];
             double X = Incoming ? Points[^2] : Points[0], Y = Incoming ? Points[^1] : Points[1];
             double NextX = Incoming ? Points[^4] : Points[2], NextY = Incoming ? Points[^3] : Points[3];
             bool Side = (Math.Abs(X - Left) < 0.01 || Math.Abs(X - Right) < 0.01)

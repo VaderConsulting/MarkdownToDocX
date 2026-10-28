@@ -118,7 +118,11 @@ public static partial class DiagramGridLayout
             // obstacle-aware route with a midpoint track through another node
             // or a protected frame title.
             if (!DiagramGridRouteBuilder.PathIsValid(LayoutPoints, BoundsById,
-                    Route.SourceId, Route.TargetId, Contract, MaxCorners: int.MaxValue)) continue;
+                    Route.SourceId, Route.TargetId, Contract, MaxCorners: int.MaxValue))
+            {
+                continue;
+            }
+
             Route.Points.Clear();
             foreach ((double PointX, double PointY) in LayoutPoints)
             {
@@ -139,7 +143,11 @@ public static partial class DiagramGridLayout
         Dictionary<string, NodeContract> Nodes,
         FlowchartDirection Direction)
     {
-        if (Direction is not (FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop)) return;
+        if (Direction is not (FlowchartDirection.TopToBottom or FlowchartDirection.BottomToTop))
+        {
+            return;
+        }
+
         Dictionary<string, FlowchartLayoutNodeBounds> Bounds = BuildPlacedBounds(Placed, Frames);
         bool Eligible(EdgeContract Edge) => string.IsNullOrWhiteSpace(Edge.Label)
             && Edge.RoutingHint?.IsActive != true
@@ -148,14 +156,26 @@ public static partial class DiagramGridLayout
             && FlowchartSubgraphMembershipHelper.FindInnermostGroupId(Edge.TargetId, Contract) == null;
         bool AlignedAndSymmetric(IReadOnlyList<EdgeContract> Edges, bool Outgoing)
         {
-            if (Edges.Count != 3) return false;
+            if (Edges.Count != 3)
+            {
+                return false;
+            }
+
             string HubId = Outgoing ? Edges[0].SourceId : Edges[0].TargetId;
-            if (!Bounds.TryGetValue(HubId, out FlowchartLayoutNodeBounds Hub)) return false;
+            if (!Bounds.TryGetValue(HubId, out FlowchartLayoutNodeBounds Hub))
+            {
+                return false;
+            }
+
             List<FlowchartLayoutNodeBounds> Leaves = [];
             foreach (EdgeContract Edge in Edges)
             {
                 string Id = Outgoing ? Edge.TargetId : Edge.SourceId;
-                if (!Bounds.TryGetValue(Id, out FlowchartLayoutNodeBounds Leaf)) return false;
+                if (!Bounds.TryGetValue(Id, out FlowchartLayoutNodeBounds Leaf))
+                {
+                    return false;
+                }
+
                 Leaves.Add(Leaf);
             }
             return Leaves.All(Leaf => Math.Abs(Leaf.CenterY - Leaves[0].CenterY) < 0.5)
@@ -167,12 +187,16 @@ public static partial class DiagramGridLayout
 
         foreach (IGrouping<string, EdgeContract> Group in Contract.Edges.Where(Eligible).GroupBy(Edge => Edge.SourceId))
         {
-            List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
+            List<EdgeContract> Edges = [.. Group.OrderBy(Edge => Edge.CreationIndex)];
             if (!AlignedAndSymmetric(Edges, Outgoing: true)
                 || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
                 || string.Equals(Hub.Shape, "circle", StringComparison.OrdinalIgnoreCase)
                 || !FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(
-                    Contract, Group.Key, Hub.Shape, Direction, Bounds)) continue;
+                    Contract, Group.Key, Hub.Shape, Direction, Bounds))
+            {
+                continue;
+            }
+
             foreach (EdgeContract Edge in Edges)
             {
                 FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Edge.SourceId
@@ -180,20 +204,30 @@ public static partial class DiagramGridLayout
                 if (Route == null || !FlowchartOrdinaryFanOutRouteBuilder.TryBuildEdgeRoute(
                         Edge, Contract, Bounds, Hub.Shape,
                         Nodes.TryGetValue(Edge.TargetId, out NodeContract? Target) ? Target.Shape : null,
-                        Direction, out List<(double X, double Y)> Points)) continue;
+                        Direction, out List<(double X, double Y)> Points))
+                {
+                    continue;
+                }
+
                 Route.Points.Clear();
                 foreach ((double X, double Y) in Points)
+                {
                     Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
+                }
             }
         }
 
         foreach (IGrouping<string, EdgeContract> Group in Contract.Edges.Where(Eligible).GroupBy(Edge => Edge.TargetId))
         {
-            List<EdgeContract> Edges = Group.OrderBy(Edge => Edge.CreationIndex).ToList();
+            List<EdgeContract> Edges = [.. Group.OrderBy(Edge => Edge.CreationIndex)];
             if (!AlignedAndSymmetric(Edges, Outgoing: false)
                 || !Nodes.TryGetValue(Group.Key, out NodeContract? Hub)
                 || string.Equals(Hub.Shape, "circle", StringComparison.OrdinalIgnoreCase)
-                || FlowchartSharedPortAllocator.IsDecisionShape(Hub.Shape)) continue;
+                || FlowchartSharedPortAllocator.IsDecisionShape(Hub.Shape))
+            {
+                continue;
+            }
+
             foreach (EdgeContract Edge in Edges)
             {
                 FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Edge.SourceId
@@ -201,10 +235,16 @@ public static partial class DiagramGridLayout
                 if (Route == null || !FlowchartFanInPortAllocator.TryResolveEdgeRoute(
                         Edge, Contract, Bounds,
                         Nodes.TryGetValue(Edge.SourceId, out NodeContract? Source) ? Source.Shape : null,
-                        Hub.Shape, Direction, out List<(double X, double Y)> Points)) continue;
+                        Hub.Shape, Direction, out List<(double X, double Y)> Points))
+                {
+                    continue;
+                }
+
                 Route.Points.Clear();
                 foreach ((double X, double Y) in Points)
+                {
                     Route.Points.Add(new FlowchartLayoutPoint { X = Math.Round(X), Y = Math.Round(Y) });
+                }
             }
         }
     }
@@ -461,8 +501,8 @@ public static partial class DiagramGridLayout
             string? SourceShape = Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode) ? SourceNode.Shape : null;
             string? TargetShape = Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode) ? TargetNode.Shape : null;
             if (!HorizontalFlow && Route.ExitSide is "left" or "right" && Route.EntrySide == Route.ExitSide
-                && BoundsById.TryGetValue(Route.SourceId, out var AlignedSource)
-                && BoundsById.TryGetValue(Route.TargetId, out var AlignedTarget)
+                && BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? AlignedSource)
+                && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? AlignedTarget)
                 && Math.Abs(HorizontalFlow ? AlignedSource.CenterY - AlignedTarget.CenterY
                     : AlignedSource.CenterX - AlignedTarget.CenterX) <= DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX
                 && Route.Points.Count is >= 4 and <= 5
@@ -479,21 +519,21 @@ public static partial class DiagramGridLayout
             bool Resolved = false;
 
             if (HorizontalFlow
-                && BoundsById.TryGetValue(Route.SourceId, out var RetryBounds)
-                && BoundsById.TryGetValue(Route.TargetId, out var InputBounds)
+                && BoundsById.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? RetryBounds)
+                && BoundsById.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? InputBounds)
                 && RetryBounds.CenterY < InputBounds.CenterY
                 && Contract.Edges.Any(ParentEdge => ParentEdge.TargetId == Route.SourceId
-                    && Nodes.TryGetValue(ParentEdge.SourceId, out var ParentNode)
+                    && Nodes.TryGetValue(ParentEdge.SourceId, out NodeContract? ParentNode)
                     && FlowchartDagrePresentation.IsDiamondShape(ParentNode.Shape)
-                    && BoundsById.TryGetValue(ParentEdge.SourceId, out var ParentBounds)
+                    && BoundsById.TryGetValue(ParentEdge.SourceId, out FlowchartLayoutNodeBounds? ParentBounds)
                     && Math.Abs(ParentBounds.CenterX - RetryBounds.CenterX) < 0.5))
             {
-                double StartY = RetryBounds.CenterY - RetryBounds.Height / 2
+                double StartY = RetryBounds.CenterY - (RetryBounds.Height / 2)
                     - FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart);
-                double EndY = InputBounds.CenterY - InputBounds.Height / 2
+                double EndY = InputBounds.CenterY - (InputBounds.Height / 2)
                     - FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd);
-                double LaneY = BoundsById.Values.Min(Bounds => Bounds.CenterY - Bounds.Height / 2)
-                    - 2 * DiagramGridMetrics.GRID_UNIT_PX;
+                double LaneY = BoundsById.Values.Min(Bounds => Bounds.CenterY - (Bounds.Height / 2))
+                    - (2 * DiagramGridMetrics.GRID_UNIT_PX);
                 LayoutPoints = [(RetryBounds.CenterX, StartY), (RetryBounds.CenterX, LaneY),
                     (InputBounds.CenterX, LaneY), (InputBounds.CenterX, EndY)];
                 Resolved = true;
@@ -682,28 +722,28 @@ public static partial class DiagramGridLayout
                             (Inbound.Points[^1].X, Inbound.Points[^1].Y)).ToList());
 
             bool Horizontal = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.RightToLeft;
-            var Source = BoundsById[Route.SourceId];
-            var Target = BoundsById[Route.TargetId];
+            FlowchartLayoutNodeBounds Source = BoundsById[Route.SourceId];
+            FlowchartLayoutNodeBounds Target = BoundsById[Route.TargetId];
             double Main(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterX : Node.CenterY;
             double Cross(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterY : Node.CenterX;
             double Side = Math.Sign(Cross(Target) - Cross(Source));
             double Flow = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.BottomToTop ? 1 : -1;
-            double SourceCross = Cross(Source) + Side * (Horizontal ? Source.Height : Source.Width) / 2;
-            double TargetMain = Main(Target) - Flow * (Horizontal ? Target.Width : Target.Height) / 2;
+            double SourceCross = Cross(Source) + (Side * (Horizontal ? Source.Height : Source.Width) / 2);
+            double TargetMain = Main(Target) - (Flow * (Horizontal ? Target.Width : Target.Height) / 2);
             (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
-            var Vertex = Map(Main(Source), SourceCross);
+            (double X, double Y) Vertex = Map(Main(Source), SourceCross);
             bool Occupied = Copy.EdgeRoutes.Any(Inbound => Inbound.TargetId == Route.SourceId
                 && Inbound.Points.Count >= 2 && Math.Abs(Inbound.Points[^1].X - Vertex.X) < 1
                 && Math.Abs(Inbound.Points[^1].Y - Vertex.Y) < 1);
             int SameSide = Contract.Edges.Count(Candidate => Candidate.SourceId == Route.SourceId
-                && !BackEdges.Contains(Candidate) && BoundsById.TryGetValue(Candidate.TargetId, out var Other)
+                && !BackEdges.Contains(Candidate) && BoundsById.TryGetValue(Candidate.TargetId, out FlowchartLayoutNodeBounds? Other)
                 && Math.Sign(Cross(Other) - Cross(Source)) == Side);
             if (Side != 0 && !Occupied && SameSide == 1
                 && !FlowchartDagrePresentation.IsDiamondShape(TargetShape)
                 && Math.Abs(Cross(Target) - SourceCross) >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX
                 && (TargetMain - Main(Source)) * Flow >= 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
             {
-                var Direct = new List<(double X, double Y)> { Vertex, Map(Main(Source), Cross(Target)), Map(TargetMain, Cross(Target)) };
+                List<(double X, double Y)> Direct = [Vertex, Map(Main(Source), Cross(Target)), Map(TargetMain, Cross(Target))];
                 if (!Direct.Zip(Direct.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                     Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, BoundsById.Where(Pair => !Frames.Any(Frame => Frame.Id == Pair.Key
                         && IsInsideGroup(Contract, Route.SourceId, Frame.Id) && IsInsideGroup(Contract, Route.TargetId, Frame.Id)))
@@ -713,7 +753,10 @@ public static partial class DiagramGridLayout
                     SetRouteEndpointSides(Route, Source, Target, Direct, Horizontal);
                 }
             }
-            if (LayoutPoints.Count < 2) continue;
+            if (LayoutPoints.Count < 2)
+            {
+                continue;
+            }
 
             Route.Points.Clear();
             foreach ((double PointX, double PointY) in LayoutPoints)

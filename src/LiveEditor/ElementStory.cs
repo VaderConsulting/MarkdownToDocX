@@ -93,8 +93,8 @@ internal static class ElementStory
 
     private static string Compose(EnterpriseDocument Document, string Id, string Opening)
     {
-        List<StoryGroup> Leading = new List<StoryGroup>();
-        List<StoryGroup> Following = new List<StoryGroup>();
+        List<StoryGroup> Leading = [];
+        List<StoryGroup> Following = [];
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
             if (Relationship.HiddenByNesting)
@@ -739,6 +739,6 @@ internal static class ElementStory
 
         public int Rank;
 
-        public List<string> Names = new List<string>();
+        public List<string> Names = [];
     }
 }

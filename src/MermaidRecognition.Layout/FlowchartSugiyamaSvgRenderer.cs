@@ -143,18 +143,18 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartCompoundEndpointHelper.AddGroupBounds(Contract, BoundsById);
         List<FlowchartResolvedGuide> ResolvedGuides = Layout.ResolvedEdgeGuides ?? [];
         Dictionary<EdgeContract, FlowchartResolvedGuide> GuideByEdge =
-            new Dictionary<EdgeContract, FlowchartResolvedGuide>();
+            [];
         foreach (FlowchartResolvedGuide Guide in ResolvedGuides)
         {
             GuideByEdge[Guide.Edge] = Guide;
         }
         if (!string.Equals(Environment.GetEnvironmentVariable("MD2DOCX_USE_LEGACY_LABEL_ROUTES"), "1", StringComparison.Ordinal))
         {
-            Layout.RenderContext.CachedSvgRenderGuides = ResolvedGuides.Select(Guide =>
+            Layout.RenderContext.CachedSvgRenderGuides = [.. ResolvedGuides.Select(Guide =>
             {
-                List<(double X, double Y)> RenderPoints = Guide.Points.Select(Point => (Point.X, -Point.Y)).ToList();
+                List<(double X, double Y)> RenderPoints = [.. Guide.Points.Select(Point => (Point.X, -Point.Y))];
                 return (Guide.Edge, (IReadOnlyList<(double X, double Y)>)RenderPoints);
-            }).ToList();
+            })];
             Layout.RenderContext.CachedLabelSpatialIndex = BuildLabelSpatialIndex(ResolvedGuides, BoundsById, NodeById);
         }
 
@@ -250,10 +250,9 @@ public static class FlowchartSugiyamaSvgRenderer
         Dictionary<string, (double Left, double Top, double Width, double Height)> NodeLayoutById =
             new Dictionary<string, (double Left, double Top, double Width, double Height)>(StringComparer.Ordinal);
 
-        List<NodeContract> NodesInPaintOrder = Contract.Nodes
+        List<NodeContract> NodesInPaintOrder = [.. Contract.Nodes
             .OrderByDescending(Node => BoundsById.TryGetValue(Node.Id, out FlowchartLayoutNodeBounds Bounds) ? Bounds.CenterY : double.MinValue)
-            .ThenBy(Node => Node.Id, StringComparer.Ordinal)
-            .ToList();
+            .ThenBy(Node => Node.Id, StringComparer.Ordinal)];
 
         foreach (NodeContract Node in NodesInPaintOrder)
         {
@@ -880,7 +879,11 @@ public static class FlowchartSugiyamaSvgRenderer
     private static T Measure<T>(string Name, Func<T> Operation)
     {
         Action<string, double>? Observer = StageTimingObserver;
-        if (Observer == null) return Operation();
+        if (Observer == null)
+        {
+            return Operation();
+        }
+
         Observer(Name, -1);
         Stopwatch Timer = Stopwatch.StartNew();
         try { return Operation(); }
@@ -901,9 +904,11 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartSvgSpatialIndex Index = new();
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
-            List<(double X, double Y)> RenderPoints = Guide.Points.Select(Point => (Point.X, -Point.Y)).ToList();
+            List<(double X, double Y)> RenderPoints = [.. Guide.Points.Select(Point => (Point.X, -Point.Y))];
             foreach ((double X, double Y) Point in FlowchartEdgeLabelClearanceHelper.SampleConnector(RenderPoints))
+            {
                 Index.AddPoint(Point.X, Point.Y);
+            }
         }
 
         List<FlowchartSvgRect> NodeRects = [];
@@ -919,7 +924,11 @@ public static class FlowchartSugiyamaSvgRenderer
                 Bounds.CenterX - (Bounds.Width / 2.0), -(Bounds.CenterY + (Bounds.Height / 2.0)),
                 Bounds.CenterX + (Bounds.Width / 2.0), -(Bounds.CenterY - (Bounds.Height / 2.0))));
         }
-        foreach (FlowchartSvgRect Rect in NodeRects) Index.AddRectangle(Rect);
+        foreach (FlowchartSvgRect Rect in NodeRects)
+        {
+            Index.AddRectangle(Rect);
+        }
+
         return Index;
     }
 
@@ -1901,7 +1910,13 @@ public static class FlowchartSugiyamaSvgRenderer
         if (Cached != null)
         {
             foreach ((EdgeContract CachedEdge, IReadOnlyList<(double X, double Y)> Points) in Cached)
-                if (!ReferenceEquals(CachedEdge, Edge)) Result.Add(Points);
+            {
+                if (!ReferenceEquals(CachedEdge, Edge))
+                {
+                    Result.Add(Points);
+                }
+            }
+
             FlowchartRenderContext.ReportOperationCount("label-other-edge-collect-calls", 1);
             FlowchartRenderContext.ReportOperationCount("label-other-edge-visits", Cached.Count);
             FlowchartRenderContext.ReportOperationCount("label-other-guide-resolver-calls", 0);
@@ -2085,19 +2100,19 @@ public static class FlowchartSugiyamaSvgRenderer
         bool HasPrefix = SegmentBreak.SegmentStartIndex > 0;
         bool HasSuffix = SegmentBreak.SegmentEndIndex < GuideSvgPoints.Count - 1;
         (double X, double Y) BeforeStart = HasPrefix
-            ? (StartX + DirX * Radius, StartY + DirY * Radius) : (StartX, StartY);
+            ? (StartX + (DirX * Radius), StartY + (DirY * Radius)) : (StartX, StartY);
         (double X, double Y) AfterEnd = HasSuffix
-            ? (EndX - DirX * Radius, EndY - DirY * Radius) : (EndX, EndY);
+            ? (EndX - (DirX * Radius), EndY - (DirY * Radius)) : (EndX, EndY);
         (double X, double Y) GapStart =
-            (SegmentBreak.CentreX - DirX * SegmentBreak.HalfGapWidthPx,
-             SegmentBreak.CentreY - DirY * SegmentBreak.HalfGapWidthPx);
+            (SegmentBreak.CentreX - (DirX * SegmentBreak.HalfGapWidthPx),
+             SegmentBreak.CentreY - (DirY * SegmentBreak.HalfGapWidthPx));
         (double X, double Y) GapEnd =
-            (SegmentBreak.CentreX + DirX * SegmentBreak.HalfGapWidthPx,
-             SegmentBreak.CentreY + DirY * SegmentBreak.HalfGapWidthPx);
+            (SegmentBreak.CentreX + (DirX * SegmentBreak.HalfGapWidthPx),
+             SegmentBreak.CentreY + (DirY * SegmentBreak.HalfGapWidthPx));
 
         if (HasPrefix)
         {
-            List<(double X, double Y)> Prefix = GuideSvgPoints.Take(SegmentBreak.SegmentStartIndex + 1).ToList();
+            List<(double X, double Y)> Prefix = [.. GuideSvgPoints.Take(SegmentBreak.SegmentStartIndex + 1)];
             Prefix.Add(BeforeStart);
             AppendStyledEdgePath(Builder,
                 FlowchartCurvePathBuilder.BuildRoundedCornerPathData(Prefix, Radius),
@@ -2822,7 +2837,7 @@ public static class FlowchartSugiyamaSvgRenderer
         FlowchartResolvedStyle EdgeStyle,
         FlowchartRenderOptions RenderOptions)
     {
-        List<(double X, double Y)> LayoutPoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> LayoutPoints = [];
         foreach (FlowchartLayoutPoint Point in Route.Points)
         {
             LayoutPoints.Add((Point.X, Point.Y));
@@ -2900,7 +2915,7 @@ public static class FlowchartSugiyamaSvgRenderer
             return;
         }
 
-        List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+        List<(double X, double Y)> SvgPoints = [];
         foreach ((double LayoutX, double LayoutY) in LayoutPoints)
         {
             SvgPoints.Add(LayoutToSvgPoint(LayoutX, LayoutY, MinLeft, MaxTop, DiagramPaddingPx));
@@ -3044,7 +3059,7 @@ public static class FlowchartSugiyamaSvgRenderer
             Depth[Group.Id] = Level;
         }
 
-        List<FlowchartSubgraphLayoutRect> Rects = new List<FlowchartSubgraphLayoutRect>();
+        List<FlowchartSubgraphLayoutRect> Rects = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Layout.ClusterBounds)
         {
             Rects.Add(new FlowchartSubgraphLayoutRect

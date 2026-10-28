@@ -266,7 +266,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <param name="layerToSort"></param>
         /// <param name="medianValues"></param>
         void Sort(int layerToSort, float[] medianValues) {
-            SortedDictionary<float, object> s = new SortedDictionary<float, object>();
+            SortedDictionary<float, object> s = [];
             int[] vertices = layers[layerToSort];
             int i = 0;
 
@@ -397,7 +397,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             float right = parray[p - 1] - parray[m];
 
-            return ((float) parray[m - 1]*left + (float) parray[m]*right)/(left + right);
+            return (((float) parray[m - 1]*left) + ((float) parray[m]*right))/(left + right);
         }
 
 
@@ -525,7 +525,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
             //init the accumulator tree
 
-            int[] tree = new int[2*n - 1];
+            int[] tree = new int[(2*n) - 1];
 
             n--; // the first bottom node starts from n now
 
@@ -561,7 +561,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
             //init accumulator
 
-            int[] tree = new int[2*n - 1];
+            int[] tree = new int[(2*n) - 1];
 
             n--; // the first bottom node starts from n now
 
@@ -585,9 +585,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         static LayerEdge[] EdgesOfStrip(int[] bottomVerts, ProperLayeredGraph properLayeredGraph) {
-            LayerEdge[] edges = (from v in bottomVerts
+            LayerEdge[] edges = [.. (from v in bottomVerts
                                  from e in properLayeredGraph.InEdges(v)
-                                 select e).ToArray();
+                                 select e)];
 
             return edges;
         }

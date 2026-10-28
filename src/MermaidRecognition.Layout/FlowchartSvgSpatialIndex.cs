@@ -15,9 +15,12 @@ internal sealed class FlowchartSvgSpatialIndex
 
     public void AddPoint(double X, double Y)
     {
-        var Cell = CellAt(X, Y);
+        (int X, int Y) Cell = CellAt(X, Y);
         if (!_points.TryGetValue(Cell, out List<(double X, double Y)>? Items))
+        {
             _points[Cell] = Items = [];
+        }
+
         Items.Add((X, Y));
         PointCount++;
     }
@@ -28,7 +31,10 @@ internal sealed class FlowchartSvgSpatialIndex
         ForCells(Rect, Cell =>
         {
             if (!_rectangles.TryGetValue(Cell, out List<(int Id, FlowchartSvgRect Rect)>? Items))
+            {
                 _rectangles[Cell] = Items = [];
+            }
+
             Items.Add((Id, Rect));
         });
     }
@@ -38,7 +44,11 @@ internal sealed class FlowchartSvgSpatialIndex
         bool Found = false;
         ForCells(Query, Cell =>
         {
-            if (Found || !_points.TryGetValue(Cell, out List<(double X, double Y)>? Items)) return;
+            if (Found || !_points.TryGetValue(Cell, out List<(double X, double Y)>? Items))
+            {
+                return;
+            }
+
             foreach ((double X, double Y) Point in Items)
             {
                 if (Query.Contains(Point.X, Point.Y)) { Found = true; return; }
@@ -53,10 +63,18 @@ internal sealed class FlowchartSvgSpatialIndex
         HashSet<int> Seen = [];
         ForCells(Query, Cell =>
         {
-            if (Found || !_rectangles.TryGetValue(Cell, out List<(int Id, FlowchartSvgRect Rect)>? Items)) return;
+            if (Found || !_rectangles.TryGetValue(Cell, out List<(int Id, FlowchartSvgRect Rect)>? Items))
+            {
+                return;
+            }
+
             foreach ((int Id, FlowchartSvgRect Rect) Item in Items)
             {
-                if (!Seen.Add(Item.Id)) continue;
+                if (!Seen.Add(Item.Id))
+                {
+                    continue;
+                }
+
                 if (Query.Intersects(Item.Rect)) { Found = true; return; }
             }
         });
@@ -71,7 +89,11 @@ internal sealed class FlowchartSvgSpatialIndex
         (int MinX, int MinY) = CellAt(Rect.Left, Rect.Top);
         (int MaxX, int MaxY) = CellAt(Rect.Right, Rect.Bottom);
         for (int X = MinX; X <= MaxX; X++)
+        {
             for (int Y = MinY; Y <= MaxY; Y++)
+            {
                 Visit((X, Y));
+            }
+        }
     }
 }

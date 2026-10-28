@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using LiveEditor.Archi;
+using LiveEditor.Azure;
 using LiveEditor.Completion;
 using LiveEditor.Editor;
 using MDConverter;
@@ -41,11 +42,17 @@ public partial class MainForm : Form
 
     private readonly bool _CapturePreviewOnShown;
     private readonly bool _PersistSession;
-    private readonly List<EnterpriseDiagnostic> _Diagnostics = new List<EnterpriseDiagnostic>();
-    private readonly List<int> _SelectedOccurrences = new List<int>();
+    private readonly List<EnterpriseDiagnostic> _Diagnostics = [];
+    private readonly List<int> _SelectedOccurrences = [];
     private SessionSettings _Settings;
     private FileSystemWatcher? _Watcher;
     private CancellationTokenSource? _RenderCancellation;
+
+    private readonly object _RenderWorkerGate = new object();
+
+    private bool _RenderWorkerRunning;
+
+    private string? _PendingRenderSource;
     private byte[]? _LastPngBytes;
     private string? _LastSvg;
     private readonly PreviewHoverWindow _PreviewHoverWindow = new PreviewHoverWindow();
@@ -351,6 +358,7 @@ public partial class MainForm : Form
         ExportPngMenuItem.Enabled = LiveEditorFeatureGate.M_ExportPngSvg;
         ExportSvgMenuItem.Enabled = LiveEditorFeatureGate.M_ExportPngSvg;
         RecentFilesMenuItem.Enabled = LiveEditorFeatureGate.U_RecentFiles;
+        AzureMenuItem.Enabled = LiveEditorFeatureGate.AE_AzureResourceGraphImport;
         SamplesMenu.Enabled = LiveEditorFeatureGate.K_SampleGallery;
     }
 
@@ -454,7 +462,7 @@ public partial class MainForm : Form
             _IgnorePreviewSelection = true;
             try
             {
-                Preview.SelectedItems = new PreviewObject[] { AtCaret };
+                Preview.SelectedItems = [AtCaret];
             }
             finally
             {
@@ -562,7 +570,7 @@ public partial class MainForm : Form
 
         if (LiveEditorFeatureGate.E_InlineDiagnostics)
         {
-            List<int> ErrorLines = new List<int>();
+            List<int> ErrorLines = [];
             foreach (EnterpriseDiagnostic Diagnostic in _Diagnostics)
             {
                 if (Diagnostic.Severity == MermaidDiagnosticSeverity.Error && Diagnostic.LineNumber > 0)
@@ -629,6 +637,11 @@ public partial class MainForm : Form
 
     private void StartRender(string Source)
     {
+        lock (_RenderWorkerGate)
+        {
+            _PendingRenderSource = Source;
+        }
+
         _RenderCancellation?.Cancel();
         _RenderCancellation?.Dispose();
         _RenderCancellation = new CancellationTokenSource();
@@ -637,24 +650,93 @@ public partial class MainForm : Form
         _RenderTextVersion = _EditorTextVersion;
         if (string.IsNullOrWhiteSpace(Source) || IsCommentOnly(Source))
         {
+            lock (_RenderWorkerGate)
+            {
+                _RenderWorkerRunning = false;
+                _PendingRenderSource = null;
+            }
+
             _DiagramMetadata = DiagramMetadata.Empty(Generation);
             _DiagramMetadata.ReportProgress(0, "Idle");
             SetStatus("Idle");
             return;
         }
 
+        lock (_RenderWorkerGate)
+        {
+            if (_RenderWorkerRunning)
+            {
+                return;
+            }
+
+            _RenderWorkerRunning = true;
+        }
+
         SetStatus(CaretStatusOr("Rendering..."));
         bool LegacyPreview = LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview;
-        Task.Run(() => RenderWorker(Source, Generation, LegacyPreview, Token), Token);
+        Task.Run(() => RenderWorkerLoop(Generation, LegacyPreview, Token), Token);
     }
 
-    private void RenderWorker(string Source, int Generation, bool LegacyPreview, CancellationToken Token)
+    private void RenderWorkerLoop(int InitialGeneration, bool LegacyPreview, CancellationToken Token)
+    {
+        int Generation = InitialGeneration;
+        try
+        {
+            while (true)
+            {
+                string Source;
+                lock (_RenderWorkerGate)
+                {
+                    Source = _PendingRenderSource ?? string.Empty;
+                    _PendingRenderSource = null;
+                }
+
+                RenderWorkerPass(Source, Generation, LegacyPreview, Token);
+
+                lock (_RenderWorkerGate)
+                {
+                    if (_PendingRenderSource == null)
+                    {
+                        _RenderWorkerRunning = false;
+                        break;
+                    }
+
+                    Generation = _RenderGeneration;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            lock (_RenderWorkerGate)
+            {
+                _RenderWorkerRunning = false;
+                string? Pending = _PendingRenderSource;
+                if (Pending != null)
+                {
+                    BeginInvoke(() => StartRender(Pending));
+                }
+            }
+        }
+    }
+
+    private void RenderWorkerPass(string Source, int Generation, bool LegacyPreview, CancellationToken Token)
     {
         Stopwatch Timer = Stopwatch.StartNew();
         try
         {
             Token.ThrowIfCancellationRequested();
-            DiagramMetadata Metadata = DiagramMetadata.Build(Source, Generation);
+            EnterpriseAnalysisResult? EnterpriseAnalysis = null;
+            DiagramMetadata Metadata;
+            if (EnterpriseParser.IsEnterpriseSource(Source))
+            {
+                EnterpriseAnalysis = EnterpriseValidator.Analyze(Source);
+                Metadata = DiagramMetadata.BuildFromAnalysis(EnterpriseAnalysis, Generation);
+            }
+            else
+            {
+                Metadata = DiagramMetadata.Build(Source, Generation);
+            }
+
             BeginInvoke(() => PublishDiagramMetadata(Metadata));
             Token.ThrowIfCancellationRequested();
             ReportRenderProgress(Generation, 10, "Laying out");
@@ -672,7 +754,7 @@ public partial class MainForm : Form
             }
 
             Preview.UseLegacyRenderer = LegacyPreview;
-            Preview.Load(Source);
+            Preview.Load(Source, EnterpriseAnalysis);
             Token.ThrowIfCancellationRequested();
             Timer.Stop();
             ReportRenderProgress(Generation, 95, "Showing picture");
@@ -680,6 +762,7 @@ public partial class MainForm : Form
         }
         catch (OperationCanceledException)
         {
+            throw;
         }
         catch (Exception Ex)
         {
@@ -697,13 +780,13 @@ public partial class MainForm : Form
 
         if (Preview.Image == null)
         {
-            ApplyRenderFailure(Generation, string.IsNullOrWhiteSpace(Preview.RenderFailure) ? "Incomplete diagram" : Preview.RenderFailure, ElapsedMilliseconds);
+            ApplyRenderFailure(Generation, string.IsNullOrWhiteSpace(Preview.RenderFailure) ? "Diagram preview failed with no detail." : Preview.RenderFailure, ElapsedMilliseconds);
             return;
         }
 
         try
         {
-            _LastPngBytes = CopyPng(Preview.Image);
+            _LastPngBytes = Preview.LastPreviewPngBytes ?? CopyPng(Preview.Image);
             _LastSvg = Preview.RenderedSvg;
             _PreviewIndexTextVersion = _RenderTextVersion;
             if (_ClearPreviewSelectionOnNextRender)
@@ -731,6 +814,10 @@ public partial class MainForm : Form
             if (LegacyPreview)
             {
                 Preview.ShowBanner("Legacy Naiad preview", 28);
+            }
+            else if (!string.IsNullOrWhiteSpace(Preview.PreviewAdvisory))
+            {
+                Preview.ShowBanner(Preview.PreviewAdvisory, 36);
             }
             else
             {
@@ -790,8 +877,13 @@ public partial class MainForm : Form
         }
 
         string Time = _BrokenSince.Value.ToString("T", CultureInfo.CurrentCulture);
-        Preview.ShowBanner($"Broken since {Time}: {TruncateStatus(Message)}", 32);
-        SetStatus(CaretStatusOr(TruncateStatus(Message)));
+        bool SourceReady = Message.Contains("editor is complete", StringComparison.OrdinalIgnoreCase)
+            || Message.Contains("Mermaid source in the editor", StringComparison.OrdinalIgnoreCase);
+        string BannerText = SourceReady
+            ? TruncateStatus(Message)
+            : $"Broken since {Time}: {TruncateStatus(Message)}";
+        Preview.ShowBanner(BannerText, SourceReady ? 40 : 32);
+        SetStatus(CaretStatusOr(SourceReady ? "Source ready; preview could not be shown." : TruncateStatus(Message)));
         UpdateRenderTiming(ElapsedMilliseconds);
         UpdateCaretDiagnosticStatus();
     }
@@ -1091,7 +1183,7 @@ public partial class MainForm : Form
             }
             else
             {
-                Preview.SelectedItems = new PreviewObject[] { Selected };
+                Preview.SelectedItems = [Selected];
             }
         }
         finally
@@ -1225,7 +1317,7 @@ public partial class MainForm : Form
             _IgnorePreviewSelection = true;
             try
             {
-                Preview.SelectedItems = new PreviewObject[] { AtCaret };
+                Preview.SelectedItems = [AtCaret];
             }
             finally
             {
@@ -1266,7 +1358,7 @@ public partial class MainForm : Form
 
     private void RestorePreviewSelection()
     {
-        List<PreviewObject> Restored = new List<PreviewObject>();
+        List<PreviewObject> Restored = [];
         if (Preview.SelectedItems != null)
         {
             foreach (PreviewObject Item in Preview.SelectedItems)
@@ -1636,10 +1728,7 @@ public partial class MainForm : Form
             PreviewParent.Controls.SetChildIndex(ElementToolbar, PreviewParent.Controls.Count - 1);
         }
 
-        if (_FloatingSelectionHost != null)
-        {
-            _FloatingSelectionHost.Resize -= PreviewHost_Resize;
-        }
+        _FloatingSelectionHost?.Resize -= PreviewHost_Resize;
 
         _FloatingSelectionHost = Preview;
         _FloatingSelectionHost.Resize += PreviewHost_Resize;
@@ -1681,7 +1770,7 @@ public partial class MainForm : Form
             return;
         }
 
-        int MaxWidth = HostWidth - FLOATING_SELECTION_MARGIN_PX * 2;
+        int MaxWidth = HostWidth - (FLOATING_SELECTION_MARGIN_PX * 2);
         int Width = Math.Min(FLOATING_SELECTION_WIDTH_PX, MaxWidth);
         Width = Math.Max(Width, SelectionDetails.MinimumSize.Width);
         int Height = SelectionDetails.PreferredFloatingHeight;
@@ -2709,6 +2798,72 @@ public partial class MainForm : Form
         CodeView.Editor.SelectedText = MermaidSource;
         CodeView.Editor.SelectionStart = Math.Min(CodeView.Editor.TextLength, InsertAt + MermaidSource.Length);
         SetStatus(string.IsNullOrWhiteSpace(WarningSummary) ? "Inserted Archi source" : TruncateStatus(WarningSummary));
+    }
+
+    private void AzureResourceGraphMenuItem_Click(object? Sender, EventArgs E)
+    {
+        if (!LiveEditorFeatureGate.AE_AzureResourceGraphImport || !ConfirmDiscardChanges())
+        {
+            return;
+        }
+
+        using AzureResourceGraphConnectionForm Connection = new AzureResourceGraphConnectionForm(_Settings.AzureTenantId, _Settings.AzureClientId);
+        if (Connection.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        _Settings.AzureTenantId = Connection.TenantId;
+        _Settings.AzureClientId = Connection.ClientId;
+        if (!AzureResourceGraphImportForm.TryShow(this, Connection.Records, "Azure resources", out AzureResourceGraphImportOptions? Options) || Options == null)
+        {
+            return;
+        }
+
+        if (!AzureResourceGraphInterop.TryImportRecords(Connection.Records, Options, out string Source, out string Warnings, out string Error))
+        {
+            MessageBox.Show(this, Error, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        ApplyImportedSource(Source, null, null, Warnings, $"Imported Azure Resource Graph ({Connection.Records.Count:N0} resources retrieved)");
+    }
+
+    private void ImportAzureResourceGraphMenuItem_Click(object? Sender, EventArgs E)
+    {
+        if (!LiveEditorFeatureGate.AE_AzureResourceGraphImport)
+        {
+            return;
+        }
+
+        if (!ConfirmDiscardChanges())
+        {
+            return;
+        }
+
+        using OpenFileDialog Dialog = new OpenFileDialog
+        {
+            Filter = "Azure Resource Graph CSV (*.csv)|*.csv|All files (*.*)|*.*",
+            Title = "Import Azure Resource Graph export"
+        };
+        if (Dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        if (!AzureResourceGraphImportForm.TryShow(this, Dialog.FileName, out AzureResourceGraphImportOptions? ImportOptions) || ImportOptions == null)
+        {
+            return;
+        }
+
+        ClearPreviewSelectionForNewContent();
+        if (!AzureResourceGraphInterop.TryImportFile(Dialog.FileName, ImportOptions, out string MermaidSource, out string WarningSummary, out string ErrorMessage))
+        {
+            MessageBox.Show(this, ErrorMessage, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        ApplyImportedSource(MermaidSource, Dialog.FileName, null, WarningSummary, "Imported Azure Resource Graph");
     }
 
     private void ImportArchimateMenuItem_Click(object? Sender, EventArgs E)

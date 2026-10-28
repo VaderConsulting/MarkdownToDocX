@@ -196,7 +196,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         #region debugging
 #if TEST_MSAGL
         internal static ICurve[] GetCurvesForShow(IEnumerable<Path> paths, IEnumerable<Polyline> obstacles) {
-            List<ICurve> ret = new List<ICurve>();
+            List<ICurve> ret = [];
             foreach (Path path in paths) {
                 Polyline poly = new Polyline();
                 foreach (Point point in path.PathPoints)
@@ -207,7 +207,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 ret.Add(poly);
             }
             ret.AddRange(obstacles.Cast<ICurve>());
-            return ret.ToArray();
+            return [.. ret];
         }
 #endif
         #endregion
@@ -339,7 +339,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         #region debug
 #if TEST_MSAGL
         internal static void ShowPathsFromPoints(IEnumerable<Path> paths, IEnumerable<Polyline> enumerable) {
-            List<DebugCurve> dd = new List<DebugCurve>();
+            List<DebugCurve> dd = [];
             if (enumerable != null)
             {
                 dd.AddRange(GetObstacleBoundaries(enumerable, "grey"));
@@ -358,11 +358,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             const double startWidth = 0.01;
             const double endWidth = 3;
 
-            Point[] pts = path.PathPoints.ToArray();
+            Point[] pts = [.. path.PathPoints];
             double delta = (endWidth - startWidth) / (pts.Length - 1);
             for (int i = 0; i < pts.Length - 1; i++)
             {
-                yield return new DebugCurve(startWidth + delta * i, color, new LineSegment(pts[i], pts[i + 1]));
+                yield return new DebugCurve(startWidth + (delta * i), color, new LineSegment(pts[i], pts[i + 1]));
             }
         }
 
@@ -371,11 +371,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         //         ReSharper disable UnusedMember.Local
         internal static void ShowOrderedPaths(IEnumerable<Polyline> obstacles, IEnumerable<Path> paths, Point s, Point e) {
             //           ReSharper restore UnusedMember.Local
-            string[] colors = { "red", "green", "blue", "violet", "rose", "black" };
+            string[] colors = ["red", "green", "blue", "violet", "rose", "black"];
 
             const double startWidth = 0.001;
             const double endWidth = 0.1;
-            List<DebugCurve> dd = new List<DebugCurve>();
+            List<DebugCurve> dd = [];
             if (obstacles != null)
             {
                 dd.AddRange(GetObstacleBoundaries(obstacles, "grey"));
@@ -403,18 +403,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 foreach (PathEdge e in path.PathEdges)
                 {
                     yield return
-                        new DebugCurve(150, startWidth + deltaW*(i++), color, new LineSegment(e.Source, e.Target));
+                        new DebugCurve(150, startWidth + (deltaW*(i++)), color, new LineSegment(e.Source, e.Target));
                 }
             }
             else {
                 int count = path.PathPoints.Count();
-                Point[] pts = path.PathPoints.ToArray();
+                Point[] pts = [.. path.PathPoints];
 
                 double deltaW = count > 1 ? (endWidth - startWidth) / (count - 1) : 1;
                 //if count ==1 the value of deltaW does not matter
                 for (int i = 0; i < count - 1;i++ )
                 {
-                    yield return new DebugCurve(150, startWidth+deltaW*i, color, new LineSegment(pts[i], pts[i+1]));
+                    yield return new DebugCurve(150, startWidth+(deltaW*i), color, new LineSegment(pts[i], pts[i+1]));
                 }
             }
         }
@@ -423,22 +423,22 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             int count = path.PathPoints.Count();
 
             double deltaW = count > 1 ? (endWidth - startWidth) / (count - 1) : 1; //if count ==1 the value of deltaW does not matter
-            Point[] points = path.PathPoints.ToArray();
+            Point[] points = [.. path.PathPoints];
             for (int i = 0; i < points.Length - 1; i++)
             {
-                yield return new DebugCurve(125, startWidth + deltaW * i, color, new LineSegment(points[i], points[i + 1]));
+                yield return new DebugCurve(125, startWidth + (deltaW * i), color, new LineSegment(points[i], points[i + 1]));
             }
         }
 
         static IEnumerable<DebugCurve> GetEdgePathFromPathEdgesAsDebugCurves(double startWidth, double endWidth, string color, Path path) {
-            Point[] points = path.PathPoints.ToArray();
+            Point[] points = [.. path.PathPoints];
 
             int count = points.Length;
 
             double deltaW = count > 1 ? (endWidth - startWidth) / (count - 1) : 1; //if count ==1 the value of deltaW does not matter
             for (int i = 0; i < points.Length - 1; i++)
             {
-                yield return new DebugCurve(120, startWidth + deltaW * i, color, new LineSegment(points[i], points[i + 1]));
+                yield return new DebugCurve(120, startWidth + (deltaW * i), color, new LineSegment(points[i], points[i + 1]));
             }
         }
          // ReSharper disable UnusedMember.Local
@@ -577,7 +577,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         internal static List<DebugCurve> GetObstacleBoundaries(IEnumerable<Polyline> obstacles, string color) {
-            List<DebugCurve> debugCurves = new List<DebugCurve>();
+            List<DebugCurve> debugCurves = [];
             if (obstacles != null)
             {
                 debugCurves.AddRange(obstacles.Select(poly => new DebugCurve(50, 0.3, color, poly)));
@@ -596,7 +596,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         }
 
         void CreateConstraintsBetweenLongestSegmentsForSegment(LongestNudgedSegment segment) {
-            Set<LongestNudgedSegment> rightNeighbors = new Set<LongestNudgedSegment>();
+            Set<LongestNudgedSegment> rightNeighbors = [];
             foreach (PathEdge pathEdge in segment.Edges) {
                 AxisEdge axisEdge = pathEdge.AxisEdge;
                 if (axisEdge != null)
@@ -701,7 +701,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                                                                            new Point(segment.GetLeftBound(), segtop)));
             DebugCurve rightbound = new DebugCurve(80, 1, "green", new LineSegment(new Point(segment.GetRightBound(), segbottom),
                             new Point(segment.GetRightBound(), segtop)));
-            LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd.Concat(new[] { seg, leftbound, rightbound }));
+            LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd.Concat([seg, leftbound, rightbound]));
         }
 
         // ReSharper disable UnusedMember.Local
@@ -713,7 +713,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             double segx = segment.Start.X;
             DebugCurve seg = new DebugCurve(80, 1, "brown", new LineSegment(new Point(segx, segbottom), new Point(segx, segtop)));
 
-            LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd.Concat(new[] { seg }));
+            LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd.Concat([seg]));
 
         }
 #endif
@@ -893,9 +893,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             {
                 SetIdealPositionForSeg(ret, projectionToPerp(ret.Start), prevOffset, projectionToPerp(path.End));
             }
-            else if (currentLongSeg != null)
+            else
             {
-                currentLongSeg.IdealPosition = projectionToPerp(currentLongSeg.Start);
+                currentLongSeg?.IdealPosition = projectionToPerp(currentLongSeg.Start);
             }
         }
 
@@ -959,7 +959,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 #if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=369
             var points = path.PathPoints.Select(p=>p.Clone()).ToArray();
 #else
-            Point[] points = path.PathPoints.ToArray();
+            Point[] points = [.. path.PathPoints];
 #endif
             ExtendPolylineToPorts(ref points, path);
             for(int i=0;i<points.Length-1;i++)
@@ -990,7 +990,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             if (ProjectionsAreClose(points[n-1], dir, location)) {
                 //it might be that the last point on polyline is at the port already
                 //then we just drop the last point
-                points = points.Take(n).ToArray();
+                points = [.. points.Take(n)];
                 return;
             }
             if (dir == Directions.East || dir == Directions.West)
@@ -1017,7 +1017,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             if (ProjectionsAreClose(points[1], dir, location)) {
                 //it might be that the second point on polyline is at the port already
                 //then we just drop the first point
-                points = points.Skip(1).ToArray();
+                points = [.. points.Skip(1)];
                 return;
             }
             if (dir == Directions.East || dir == Directions.West)
@@ -1141,7 +1141,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
          */
 
         internal static Dictionary<Port, Shape> MapPortsToShapes(IEnumerable<Shape> listOfShapes) {
-            Dictionary<Port, Shape> portToShapes = new Dictionary<Port, Shape>();
+            Dictionary<Port, Shape> portToShapes = [];
             foreach (Shape shape in listOfShapes)
             {
                 foreach (Port port in shape.Ports)

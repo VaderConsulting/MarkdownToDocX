@@ -168,10 +168,9 @@ public static class FlowchartRoutingIntentValidator
             ActualEdge.InvalidBehaviours,
             "InvalidBehaviours");
 
-        List<string> ForbiddenInvalidBehaviours = EdgeExpectation.MustNotIncludeInvalidBehaviours
+        List<string> ForbiddenInvalidBehaviours = [.. EdgeExpectation.MustNotIncludeInvalidBehaviours
             .Concat(GlobalInvalidBehaviours)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+            .Distinct(StringComparer.Ordinal)];
         foreach (string ForbiddenBehaviour in ForbiddenInvalidBehaviours)
         {
             if (ActualEdge.InvalidBehaviours.Contains(ForbiddenBehaviour, StringComparer.Ordinal))

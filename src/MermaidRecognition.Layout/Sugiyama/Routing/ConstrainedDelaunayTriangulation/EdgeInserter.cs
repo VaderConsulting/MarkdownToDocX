@@ -26,7 +26,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         }
 
         void UpdateFront() {
-            Set<CdtEdge> newFrontEdges = new Set<CdtEdge>();
+            Set<CdtEdge> newFrontEdges = [];
             foreach (CdtTriangle t in addedTriangles)
             {
                 foreach (CdtEdge e in t.Edges)

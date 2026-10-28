@@ -26,17 +26,19 @@ internal static partial class FlowchartLayoutScore
         internal CellMovementContext(DiagramContract Contract, FlowchartLayoutResult Layout)
         {
             this.Contract = Contract; this.Layout = Layout;
-            Routes = Layout.EdgeRoutes.ToArray(); Points = Routes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
-            Bends = Routes.Select(Route => CountCorners(Route.Points)).ToArray();
-            var Indexes = DisconnectionIndexes(Contract, Layout);
-            Disconnections = Routes.Select(Route => CountRouteDisconnections(Route, Indexes.Bounds, Indexes.Shapes, Indexes.Edges)).ToArray();
+            Routes = [.. Layout.EdgeRoutes]; Points = [.. Routes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())];
+            Bends = [.. Routes.Select(Route => CountCorners(Route.Points))];
+            (Dictionary<string, FlowchartLayoutNodeBounds> Bounds, Dictionary<string, string?> Shapes, Dictionary<string, EdgeContract> Edges) Indexes = DisconnectionIndexes(Contract, Layout);
+            Disconnections = [.. Routes.Select(Route => CountRouteDisconnections(Route, Indexes.Bounds, Indexes.Shapes, Indexes.Edges))];
             Crossings = new int[Routes.Length, Routes.Length]; SharedCrossings = new int[Routes.Length, Routes.Length];
-            Faults = Routes.Select(Route => { var Values = new List<FlowchartLayoutQualityFailure>(); DiagramGridQuality.CollectRouteFailures(Layout, Route, Values); return Values; }).ToArray();
+            Faults = [.. Routes.Select(Route => { List<FlowchartLayoutQualityFailure> Values = []; DiagramGridQuality.CollectRouteFailures(Layout, Route, Values); return Values; })];
             for (int A = 0; A < Routes.Length; A++)
-            for (int B = A + 1; B < Routes.Length; B++)
+            {
+                for (int B = A + 1; B < Routes.Length; B++)
             {
                 Crossings[A, B] = PairCrossings(Routes[A], Points[A], Routes[B], Points[B]);
                 SharedCrossings[A, B] = PairSharedEndpointCrossings(Routes[A], Points[A], Routes[B], Points[B]);
+            }
             }
         }
 
@@ -45,12 +47,12 @@ internal static partial class FlowchartLayoutScore
         /// <returns>The same complete weighted measurement as the reference scorer for this fixed candidate.</returns>
         internal Result Measure(IReadOnlySet<FlowchartLayoutEdgeRoute> Affected)
         {
-            var Geometry = new FlowchartLayoutResult { UsesGridRoutes = Layout.UsesGridRoutes };
+            FlowchartLayoutResult Geometry = new FlowchartLayoutResult { UsesGridRoutes = Layout.UsesGridRoutes };
             Geometry.NodeBoundsMutable.AddRange(Layout.NodeBounds); Geometry.ClusterBoundsMutable.AddRange(Layout.ClusterBounds);
-            var Violations = new List<FlowchartLayoutQualityFailure>(); DiagramGridQuality.Collect(Contract, Geometry, Violations, false);
-            var Indexes = DisconnectionIndexes(Contract, Layout);
+            List<FlowchartLayoutQualityFailure> Violations = []; DiagramGridQuality.Collect(Contract, Geometry, Violations, false);
+            (Dictionary<string, FlowchartLayoutNodeBounds> Bounds, Dictionary<string, string?> Shapes, Dictionary<string, EdgeContract> Edges) Indexes = DisconnectionIndexes(Contract, Layout);
             int Corners = 0, Disconnected = 0, Cross = 0, Shared = 0;
-            var Current = Routes.Select((Route, Index) => Affected.Contains(Route) ? Route.Points.Select(Point => (Point.X, Point.Y)).ToArray() : Points[Index]).ToArray();
+            (double X, double Y)[][] Current = [.. Routes.Select((Route, Index) => Affected.Contains(Route) ? [.. Route.Points.Select(Point => (Point.X, Point.Y))] : Points[Index])];
             for (int A = 0; A < Routes.Length; A++)
             {
                 if (Affected.Contains(Routes[A]))

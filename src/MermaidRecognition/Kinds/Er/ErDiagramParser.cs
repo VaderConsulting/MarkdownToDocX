@@ -10,7 +10,7 @@ namespace MermaidRecognition.Kinds.Er;
 /// </summary>
 public sealed class ErDiagramParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "erDiagram" };
+    private static readonly string[] Headers = ["erDiagram"];
 
     private static readonly Regex RelationshipRegex = new Regex(
         @"^(?<src>\S+)\s+(?<card>[|\}o]{1,2}\-\-?[|\{o]{1,2})\s+(?<tgt>\S+)(?:\s*:\s*(?<label>.*))?$",

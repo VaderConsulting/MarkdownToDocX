@@ -1,7 +1,10 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using MDConverter;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -17,13 +20,13 @@ public sealed class ProductionBendRenderPathTests
     [Test, Explicit("Writes immediate production-render stage evidence for the A115 timeout investigation.")]
     public void ProfileA115ActualDocxRasterStages()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A115");
         string Destination = Path.Combine(FindRoot(), "out", "markup-review", "overnight-a115-raster.profile");
         File.WriteAllText(Destination, "START|" + DateTimeOffset.UtcNow + Environment.NewLine);
         AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool Previous);
-        var PreviousTiming = DiagramGridLayout.LayoutStageTimingObserver;
-        var PreviousPublished = DiagramGridLayout.PublishedLayoutObserver;
+        Action<string, double>? PreviousTiming = DiagramGridLayout.LayoutStageTimingObserver;
+        Action<DiagramContract, FlowchartLayoutResult>? PreviousPublished = DiagramGridLayout.PublishedLayoutObserver;
         DiagramGridLayout.LayoutStageTimingObserver = (Stage, Milliseconds) =>
             File.AppendAllText(Destination, Stage + "|" + Milliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture) + Environment.NewLine);
         DiagramGridLayout.PublishedLayoutObserver = (_, Layout) =>
@@ -31,7 +34,7 @@ public sealed class ProductionBendRenderPathTests
         try
         {
             AppContext.SetSwitch(FlowchartRenderContext.CellRegionsSwitch, true);
-            var Clock = System.Diagnostics.Stopwatch.StartNew();
+            Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
             byte[]? Png = MermaidDiagramExport.TryRenderPng(Scenario.Source);
             File.AppendAllText(Destination, "RETURN|" + Clock.Elapsed.TotalSeconds + Environment.NewLine);
             Assert.That(Png, Is.Not.Null.And.Not.Empty);
@@ -50,21 +53,24 @@ public sealed class ProductionBendRenderPathTests
     [TestCase("A113"), TestCase("A115"), TestCase("A116"), TestCase("A117")]
     public void BendCatalogueGeometryMatchesDocxRasterizer(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Catalogue), Is.True);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Catalogue), Is.True);
         string Expected = GeometryHash(Catalogue);
         AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool Previous);
         string? Actual = null;
         DiagramGridLayout.PublishedLayoutObserver = (PublishedContract, Layout) =>
         {
-            if (PublishedContract.Nodes.Count == Contract.Nodes.Count) Actual = GeometryHash(Layout);
+            if (PublishedContract.Nodes.Count == Contract.Nodes.Count)
+            {
+                Actual = GeometryHash(Layout);
+            }
         };
         try
         {
             AppContext.SetSwitch(FlowchartRenderContext.CellRegionsSwitch, true);
-            var Timer = System.Diagnostics.Stopwatch.StartNew();
+            Stopwatch Timer = System.Diagnostics.Stopwatch.StartNew();
             byte[]? Png = MermaidDiagramExport.TryRenderPng(Scenario.Source);
             Assert.That(Png, Is.Not.Null.And.Not.Empty);
             Assert.That(Actual, Is.EqualTo(Expected), "The checked catalogue must be the exact completed DOCX geometry.");
@@ -97,8 +103,14 @@ public sealed class ProductionBendRenderPathTests
     private static string FindRoot()
     {
         for (DirectoryInfo? Directory = new(AppContext.BaseDirectory); Directory != null; Directory = Directory.Parent)
+        {
             if (File.Exists(Path.Combine(Directory.FullName, "enterprise.md"))
-                && File.Exists(Path.Combine(Directory.FullName, "src", "MDConverter", "MDConverter.csproj"))) return Directory.FullName;
+                && File.Exists(Path.Combine(Directory.FullName, "src", "MDConverter", "MDConverter.csproj")))
+            {
+                return Directory.FullName;
+            }
+        }
+
         throw new DirectoryNotFoundException("Cannot locate the catalogue repository root.");
     }
 }

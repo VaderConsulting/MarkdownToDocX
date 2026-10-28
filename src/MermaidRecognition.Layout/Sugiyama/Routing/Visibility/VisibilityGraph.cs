@@ -71,7 +71,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                                                                           out VisibilityVertex targetVertex) {
             List<Polyline> holes = new List<Polyline>(OrientHolesClockwise(obstacles));
             VisibilityGraph visibilityGraph = CalculateGraphOfBoundaries(holes);
-            List<Polygon> polygons = holes.Select(hole => new Polygon(hole)).ToList();
+            List<Polygon> polygons = [.. holes.Select(hole => new Polygon(hole))];
 
             TangentVisibilityGraphCalculator.AddTangentVisibilityEdgesToGraph(polygons, visibilityGraph);
             PointVisibilityCalculator.CalculatePointVisibilityGraph(holes, visibilityGraph, pathStart,
@@ -91,7 +91,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             List<Polyline> holes = new List<Polyline>(OrientHolesClockwise(obstacles));
             VisibilityGraph visibilityGraph = CalculateGraphOfBoundaries(holes);
 
-            List<Polygon> polygons = holes.Select(hole => new Polygon(hole)).ToList();
+            List<Polygon> polygons = [.. holes.Select(hole => new Polygon(hole))];
 
             TangentVisibilityGraphCalculator.AddTangentVisibilityEdgesToGraph(polygons, visibilityGraph);
             return visibilityGraph;

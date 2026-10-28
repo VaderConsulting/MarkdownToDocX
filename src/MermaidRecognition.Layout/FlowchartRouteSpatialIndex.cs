@@ -21,9 +21,14 @@ internal sealed class FlowchartRouteSpatialIndex
     internal FlowchartRouteSpatialIndex(FlowchartLayoutResult Layout)
     {
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds)
+        {
             AddBox(Box);
+        }
+
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
             AddRoute(Route);
+        }
     }
 
     internal IReadOnlyCollection<FlowchartLayoutNodeBounds> QueryBoxes(
@@ -31,8 +36,13 @@ internal sealed class FlowchartRouteSpatialIndex
     {
         HashSet<FlowchartLayoutNodeBounds> Found = [];
         foreach (Cell Cell in CellsForPath(Path))
+        {
             if (_boxes.TryGetValue(Cell, out HashSet<FlowchartLayoutNodeBounds>? Items))
+            {
                 Found.UnionWith(Items);
+            }
+        }
+
         return Found;
     }
 
@@ -42,9 +52,16 @@ internal sealed class FlowchartRouteSpatialIndex
         HashSet<FlowchartLayoutNodeBounds> Found = [];
         (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Top, Right, Bottom);
         for (int X = MinX; X <= MaxX; X++)
-        for (int Y = MinY; Y <= MaxY; Y++)
-            if (_boxes.TryGetValue(new Cell(X, Y), out HashSet<FlowchartLayoutNodeBounds>? Items))
-                Found.UnionWith(Items);
+        {
+            for (int Y = MinY; Y <= MaxY; Y++)
+            {
+                if (_boxes.TryGetValue(new Cell(X, Y), out HashSet<FlowchartLayoutNodeBounds>? Items))
+                {
+                    Found.UnionWith(Items);
+                }
+            }
+        }
+
         return Found;
     }
 
@@ -53,9 +70,18 @@ internal sealed class FlowchartRouteSpatialIndex
     {
         HashSet<FlowchartLayoutEdgeRoute> Found = [];
         foreach (Cell Cell in CellsForPath(Path))
+        {
             if (_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Items))
+            {
                 Found.UnionWith(Items);
-        if (Exclude != null) Found.Remove(Exclude);
+            }
+        }
+
+        if (Exclude != null)
+        {
+            Found.Remove(Exclude);
+        }
+
         return Found;
     }
 
@@ -73,24 +99,41 @@ internal sealed class FlowchartRouteSpatialIndex
 
     internal string DependencySignature(IReadOnlyList<FlowchartLayoutPoint> Path)
     {
-        List<Cell> Cells = CellsForPath(Path).OrderBy(Cell => Cell.X).ThenBy(Cell => Cell.Y).ToList();
+        List<Cell> Cells = [.. CellsForPath(Path).OrderBy(Cell => Cell.X).ThenBy(Cell => Cell.Y)];
         StringBuilder Signature = new();
         foreach (Cell Cell in Cells)
+        {
             Signature.Append(Cell.X).Append(',').Append(Cell.Y).Append(':')
                 .Append(GetCellSignature(Cell)).Append('|');
+        }
+
         return Signature.ToString();
     }
 
     private string GetCellSignature(Cell Cell)
     {
-        if (_cellSignatures.TryGetValue(Cell, out string? Cached)) return Cached;
+        if (_cellSignatures.TryGetValue(Cell, out string? Cached))
+        {
+            return Cached;
+        }
+
         StringBuilder Signature = new();
         if (_boxes.TryGetValue(Cell, out HashSet<FlowchartLayoutNodeBounds>? Boxes))
+        {
             foreach (string Box in Boxes.Select(BoxKey).OrderBy(Key => Key, StringComparer.Ordinal))
+            {
                 Signature.Append('B').Append(Box).Append(';');
+            }
+        }
+
         if (_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Routes))
+        {
             foreach (string Route in Routes.Select(RouteKey).OrderBy(Key => Key, StringComparer.Ordinal))
+            {
                 Signature.Append('R').Append(Route).Append(';');
+            }
+        }
+
         Cached = Signature.ToString();
         _cellSignatures[Cell] = Cached;
         return Cached;
@@ -108,15 +151,18 @@ internal sealed class FlowchartRouteSpatialIndex
     private void AddBox(FlowchartLayoutNodeBounds Box)
     {
         double Padding = DiagramGridMetrics.GRID_UNIT_PX / 5.0;
-        HashSet<Cell> Occupied = BoxCells(Box, Box.CenterX - Box.Width / 2.0 - Padding,
-            Box.CenterY - Box.Height / 2.0 - Padding,
-            Box.CenterX + Box.Width / 2.0 + Padding,
-            Box.CenterY + Box.Height / 2.0 + Padding);
+        HashSet<Cell> Occupied = BoxCells(Box, Box.CenterX - (Box.Width / 2.0) - Padding,
+            Box.CenterY - (Box.Height / 2.0) - Padding,
+            Box.CenterX + (Box.Width / 2.0) + Padding,
+            Box.CenterY + (Box.Height / 2.0) + Padding);
         _boxCells[Box] = Occupied;
         foreach (Cell Key in Occupied)
         {
             if (!_boxes.TryGetValue(Key, out HashSet<FlowchartLayoutNodeBounds>? Items))
+            {
                 _boxes[Key] = Items = [];
+            }
+
             Items.Add(Box);
             _cellSignatures.Remove(Key);
         }
@@ -124,12 +170,24 @@ internal sealed class FlowchartRouteSpatialIndex
 
     private void RemoveBox(FlowchartLayoutNodeBounds Box)
     {
-        if (!_boxCells.Remove(Box, out HashSet<Cell>? Occupied)) return;
+        if (!_boxCells.Remove(Box, out HashSet<Cell>? Occupied))
+        {
+            return;
+        }
+
         foreach (Cell Key in Occupied)
         {
-            if (!_boxes.TryGetValue(Key, out HashSet<FlowchartLayoutNodeBounds>? Items)) continue;
+            if (!_boxes.TryGetValue(Key, out HashSet<FlowchartLayoutNodeBounds>? Items))
+            {
+                continue;
+            }
+
             Items.Remove(Box);
-            if (Items.Count == 0) _boxes.Remove(Key);
+            if (Items.Count == 0)
+            {
+                _boxes.Remove(Key);
+            }
+
             _cellSignatures.Remove(Key);
         }
     }
@@ -137,11 +195,16 @@ internal sealed class FlowchartRouteSpatialIndex
     private static HashSet<Cell> BoxCells(FlowchartLayoutNodeBounds Box, double Left, double Top,
         double Right, double Bottom)
     {
-        var Cells = new HashSet<Cell>();
+        HashSet<Cell> Cells = [];
         (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Left, Top, Right, Bottom);
         for (int X = MinX; X <= MaxX; X++)
-        for (int Y = MinY; Y <= MaxY; Y++)
-            Cells.Add(new Cell(X, Y));
+        {
+            for (int Y = MinY; Y <= MaxY; Y++)
+            {
+                Cells.Add(new Cell(X, Y));
+            }
+        }
+
         return Cells;
     }
 
@@ -152,7 +215,10 @@ internal sealed class FlowchartRouteSpatialIndex
         foreach (Cell Cell in Occupied)
         {
             if (!_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Items))
+            {
                 _routes[Cell] = Items = [];
+            }
+
             Items.Add(Route);
             _cellSignatures.Remove(Cell);
         }
@@ -160,12 +226,24 @@ internal sealed class FlowchartRouteSpatialIndex
 
     private void RemoveRoute(FlowchartLayoutEdgeRoute Route)
     {
-        if (!_routeCells.Remove(Route, out HashSet<Cell>? Occupied)) return;
+        if (!_routeCells.Remove(Route, out HashSet<Cell>? Occupied))
+        {
+            return;
+        }
+
         foreach (Cell Cell in Occupied)
         {
-            if (!_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Items)) continue;
+            if (!_routes.TryGetValue(Cell, out HashSet<FlowchartLayoutEdgeRoute>? Items))
+            {
+                continue;
+            }
+
             Items.Remove(Route);
-            if (Items.Count == 0) _routes.Remove(Cell);
+            if (Items.Count == 0)
+            {
+                _routes.Remove(Cell);
+            }
+
             _cellSignatures.Remove(Cell);
         }
     }
@@ -174,9 +252,15 @@ internal sealed class FlowchartRouteSpatialIndex
     {
         HashSet<Cell> Result = [];
         if (Points.Count == 1)
+        {
             AddSegment(Result, Points[0].X, Points[0].Y, Points[0].X, Points[0].Y);
+        }
+
         for (int Index = 1; Index < Points.Count; Index++)
+        {
             AddSegment(Result, Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y);
+        }
+
         return Result;
     }
 
@@ -184,8 +268,12 @@ internal sealed class FlowchartRouteSpatialIndex
     {
         (int MinX, int MinY, int MaxX, int MaxY) = CellRange(X1, Y1, X2, Y2);
         for (int X = MinX; X <= MaxX; X++)
-        for (int Y = MinY; Y <= MaxY; Y++)
-            Cells.Add(new Cell(X, Y));
+        {
+            for (int Y = MinY; Y <= MaxY; Y++)
+            {
+                Cells.Add(new Cell(X, Y));
+            }
+        }
     }
 
     private static (int MinX, int MinY, int MaxX, int MaxY) CellRange(

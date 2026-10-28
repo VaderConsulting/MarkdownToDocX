@@ -186,7 +186,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
         void SetGluedEdgesWeights() {
-            Dictionary<IntPair, IntEdge> gluedPairsToGluedEdge = new Dictionary<IntPair, IntEdge>();
+            Dictionary<IntPair, IntEdge> gluedPairsToGluedEdge = [];
             foreach (IntEdge ie in GluedDagSkeletonForLayering.Edges)
             {
                 gluedPairsToGluedEdge[new IntPair(ie.Source, ie.Target)] = ie;
@@ -536,7 +536,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             double left = node.BoundingBox.Left;
             int k = (int)(left / gridSize);
-            double delta = left - k * gridSize;
+            double delta = left - (k * gridSize);
 
             if (Math.Abs(delta) < 0.001)
             {
@@ -582,7 +582,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             RealNumberSpan desiredSpan = new RealNumberSpan();
             foreach (Node node in originalGraph.Nodes) {
                 desiredSpan.AddValue(node.BoundingBox.Width/2);
-                desiredSpan.AddValue(sugiyamaSettings.MinimalWidth - node.BoundingBox.Width/2);
+                desiredSpan.AddValue(sugiyamaSettings.MinimalWidth - (node.BoundingBox.Width/2));
             }
 
             RealNumberSpan currentSpan = new RealNumberSpan();
@@ -629,7 +629,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             RealNumberSpan desiredSpan = new RealNumberSpan();
             foreach (Node node in originalGraph.Nodes) {
                 desiredSpan.AddValue(node.BoundingBox.Height/2);
-                desiredSpan.AddValue(sugiyamaSettings.MinimalHeight - node.BoundingBox.Height/2);
+                desiredSpan.AddValue(sugiyamaSettings.MinimalHeight - (node.BoundingBox.Height/2));
             }
 
             RealNumberSpan currentSpan = new RealNumberSpan();
@@ -678,11 +678,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             foreach (Anchor a in Database.Anchors) {
                 a.BottomAnchor *= scaleFactor;
                 a.TopAnchor *= scaleFactor;
-                a.Y = center + scaleFactor*(a.Y - center);
+                a.Y = center + (scaleFactor*(a.Y - center));
             }
             double h = originalGraph.Height*scaleFactor;
-            originalGraph.BoundingBox = new Rectangle(originalGraph.BoundingBox.Left, center + h/2,
-                                                      originalGraph.BoundingBox.Right, center - h/2);
+            originalGraph.BoundingBox = new Rectangle(originalGraph.BoundingBox.Left, center + (h/2),
+                                                      originalGraph.BoundingBox.Right, center - (h/2));
         }
 
         void StretchInXDirection(double scaleFactor) {
@@ -690,10 +690,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             foreach (Anchor a in Database.Anchors) {
                 a.LeftAnchor *= scaleFactor;
                 a.RightAnchor *= scaleFactor;
-                a.X = center + scaleFactor*(a.X - center);
+                a.X = center + (scaleFactor*(a.X - center));
             }
             double w = originalGraph.Width*scaleFactor;
-            originalGraph.BoundingBox = new Rectangle(center - w/2, originalGraph.BoundingBox.Top, center + w/2,
+            originalGraph.BoundingBox = new Rectangle(center - (w/2), originalGraph.BoundingBox.Top, center + (w/2),
                                                       originalGraph.BoundingBox.Bottom);
         }
 
@@ -811,7 +811,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             //calculate the ideal x position for i
             // (x- upper.x)/(iAnchor.y-upper.y)=(lower.x-upper.x)/(lower.y-upper.y)
 
-            double x = (iAnchor.Y - upper.Y)*(lower.X - upper.X)/(lower.Y - upper.Y) + upper.X;
+            double x = ((iAnchor.Y - upper.Y)*(lower.X - upper.X)/(lower.Y - upper.Y)) + upper.X;
             const double eps = 0.0001;
             if (x > iAnchor.X + eps)
             {
@@ -1270,7 +1270,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         
 
         void RecreateIntGraphFromDataBase() {
-            List<IntEdge> edges = new List<IntEdge>();
+            List<IntEdge> edges = [];
             foreach (List<IntEdge> list in database.Multiedges.Values)
             {
                 edges.AddRange(list);
@@ -1449,7 +1449,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                                                          bool layersAreDoubled) {
             Anchor[] anchors = database.Anchors;
             double ymax = originalGraph.Margins + spaceBeforeMargins; //setting up y coord - going up by y-layers
-            List<bool> LayerIsVirtualOnly = new List<bool>();
+            List<bool> LayerIsVirtualOnly = [];
             foreach (int[] LayerNodes in layerArrays.Layers)
             {
                 bool VirtualOnly = true;
@@ -1544,7 +1544,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             }
             // how much to snap?
             int k =(int) (y / gridSize);
-            double delta = y - k * gridSize;
+            double delta = y - (k * gridSize);
             Debug.Assert(delta >= 0 && delta < gridSize);
             if (Math.Abs(delta) < 0.0001) // ??? 
             {
@@ -1567,7 +1567,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             // for each layer we need the maximum node height and the sum of all node widths
             // in order to calculate the total width and height of the graph
-            Dictionary<int, Point> layerMap = new Dictionary<int, Point>();
+            Dictionary<int, Point> layerMap = [];
             double width, height;
 
             Directions layoutDirection = GetLayoutDirection(sugiyamaSettings);
@@ -1643,7 +1643,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 height += dy;
                 Label label = edge.Edge.Label;
                 if (label != null) {
-                    label.Center = new Point(label.Center.X, ymax + height + label.Height/2);
+                    label.Center = new Point(label.Center.X, ymax + height + (label.Height/2));
                     height += label.Height;
                 }
             }
@@ -1796,7 +1796,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             int nOfVerts = properLayeredGraph.NodeCount;
 
             //create edges of XLayoutGraph
-            List<IntEdge> edges = new List<IntEdge>();
+            List<IntEdge> edges = [];
 
             foreach (LayerEdge e in properLayeredGraph.Edges) {
                 IntEdge n1 = new IntEdge(nOfVerts, e.Source);
@@ -1833,10 +1833,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
 #if REPORTING
         ~LayeredLayoutEngine() {
-            if (SugiyamaLayoutLogger != null)
-            {
-                SugiyamaLayoutLogger.Dispose();
-            }
+            SugiyamaLayoutLogger?.Dispose();
         }
 #endif
 

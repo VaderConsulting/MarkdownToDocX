@@ -65,7 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
 
 
         void DrawNodesOnLevel(double gridSize) {
-            Dictionary<Tuple<int, int>, int> tileTable = new Dictionary<Tuple<int, int>, int>();
+            Dictionary<Tuple<int, int>, int> tileTable = [];
             for (int i = 0; i < sortedLgNodeInfos.Count; i++) {
                 LgNodeInfo ni = sortedLgNodeInfos[i];
                 Tuple<int, int> tuple = PointToTuple(Graph.LeftBottom, ni.Center, gridSize);
@@ -128,7 +128,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
 
         List<LgNodeInfo> GetSortedLgNodeInfos()
         {
-            List<LgNodeInfo> ret = Graph.Nodes.Select(n => NodeToLgNodeInfo(n)).ToList();
+            List<LgNodeInfo> ret = [.. Graph.Nodes.Select(n => NodeToLgNodeInfo(n))];
             ret.Sort((a, b) => b.Rank.CompareTo(a.Rank));
             return ret;
         }

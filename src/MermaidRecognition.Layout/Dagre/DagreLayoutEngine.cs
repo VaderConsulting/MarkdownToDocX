@@ -220,7 +220,7 @@ internal static partial class DagreLayoutEngine
 
             if (Node.SelfEdges == null)
             {
-                Node.SelfEdges = new List<DagreSelfEdge>();
+                Node.SelfEdges = [];
             }
 
             DagreEdgeLabel Label = Graph.Edge(Edge) ?? new DagreEdgeLabel();
@@ -360,10 +360,7 @@ internal static partial class DagreLayoutEngine
             }
 
             DagreEdgeLabel? Edge = Graph.Edge(Node.EdgeObj);
-            if (Edge != null)
-            {
-                Edge.LabelRank = Node.Rank;
-            }
+            Edge?.LabelRank = Node.Rank;
 
             Graph.RemoveNode(NodeId);
         }
@@ -711,10 +708,10 @@ internal static partial class DagreLayoutEngine
     internal static List<List<string>> BuildLayerMatrix(DagreGraph Graph)
     {
         int Max = MaxRank(Graph);
-        List<List<string>> Layering = new List<List<string>>();
+        List<List<string>> Layering = [];
         for (int Rank = 0; Rank <= Max; Rank++)
         {
-            Layering.Add(new List<string>());
+            Layering.Add([]);
         }
 
         foreach (string NodeId in Graph.Nodes())
@@ -798,7 +795,7 @@ internal static partial class DagreLayoutEngine
         }
 
         int Span = MaxSeen - Offset.Value;
-        List<List<string>?> Layers = new List<List<string>?>();
+        List<List<string>?> Layers = [];
         for (int Index = 0; Index <= Span; Index++)
         {
             Layers.Add(null);
@@ -815,7 +812,7 @@ internal static partial class DagreLayoutEngine
             int Rank = Node.Rank.Value - Offset.Value;
             if (Layers[Rank] == null)
             {
-                Layers[Rank] = new List<string>();
+                Layers[Rank] = [];
             }
 
             Layers[Rank]!.Add(NodeId);
@@ -867,7 +864,7 @@ internal static partial class DagreLayoutEngine
 
     internal static List<string> Walk(DagreGraph Graph, IReadOnlyList<string> Starts, bool Postorder)
     {
-        List<string> Acc = new List<string>();
+        List<string> Acc = [];
         HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal);
         foreach (string Start in Starts)
         {

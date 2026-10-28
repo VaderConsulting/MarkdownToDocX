@@ -79,7 +79,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
         // We bundle up the constraints first, so we can use Array rather than List iteration for speed. 
         // To make the code cleaner (not having to check for NULL all over the place) use an empty List/Array
         // for Variables' constraint Lists/Arrays, and to help memory efficiency, use a single object.
-        private readonly Constraint[] emptyConstraintList = new Constraint[0];         // For long-lived Variable objects
+        private readonly Constraint[] emptyConstraintList = [];         // For long-lived Variable objects
 
         // For UpdateConstraint(), we want to buffer up the changes so variable values are not changed
         // by doing an immediate Block.Split which updates the Block's ReferencePos.
@@ -844,7 +844,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // For Qpsc we want to discard the previous block structure, because it did not consider
             // neighbors, and the gradient may want to pull things in an entirely different way.
             // We must also do this for a re-Solve that updated the gap of an equality constraint.
-            Block[] oldBlocks = allBlocks.Vector.ToArray();
+            Block[] oldBlocks = [.. allBlocks.Vector];
             allBlocks.Vector.Clear();
 #if VERIFY || VERBOSE
             this.nextNewBlockOrdinal = 0;
@@ -1097,7 +1097,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // First enumerate all blocks and accumulate any new ones that we form by splitting off
             // from an existing block.  Then add those to our block list in a second pass (to avoid
             // a "collection modified during enumeration" exception).
-            List<Block> newBlocks = new List<Block>();
+            List<Block> newBlocks = [];
             int numBlocks = allBlocks.Count;        // Cache for perf
             for (int ii = 0; ii < numBlocks; ++ii)
             {

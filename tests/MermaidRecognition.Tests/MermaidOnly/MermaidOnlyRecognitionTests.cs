@@ -7,7 +7,7 @@ namespace MermaidRecognition.Tests.MermaidOnly;
 public sealed class MermaidOnlyRecognitionTests
 {
     private static readonly MermaidOnlyCase[] Cases =
-    {
+    [
         new MermaidOnlyCase("eventmodeling", "eventmodeling", "recognition.unsupported-native"),
         new MermaidOnlyCase("treeview", "treeview", "recognition.unsupported-native"),
         new MermaidOnlyCase("ishikawa", "ishikawa", "recognition.unsupported-native"),
@@ -15,7 +15,7 @@ public sealed class MermaidOnlyRecognitionTests
         new MermaidOnlyCase("wardley", "wardley", "recognition.unsupported-native"),
         new MermaidOnlyCase("info", "info", "recognition.unsupported-native"),
         new MermaidOnlyCase("yaml-front-matter", "yaml-front-matter", "recognition.yaml-front-matter"),
-    };
+    ];
 
     [TestCaseSource(nameof(MermaidOnlyCases))]
     public void Fixture_Passes_L1_Gates(MermaidOnlyCase Case)

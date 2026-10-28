@@ -11,7 +11,7 @@ public sealed class FlowchartCellSpinePlacementTests
     [Test]
     public void KeepsLabelledSideOrderingWithoutSpineOrCollectorAlignment()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Assert.That(FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom), Is.True);
         Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(3));
         Assert.That(Grid.RegionOf("T").StartColumn, Is.EqualTo(6));
@@ -23,10 +23,10 @@ public sealed class FlowchartCellSpinePlacementTests
     [Test]
     public void OccupiedSpineTargetRejectsAllMembers()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Assert.That(Grid.TryPlace("obstacle", new(4, 0, 1, 1)), Is.True);
-        var Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode Obstacle = new DiagramGridLayout.GridNode { Id = "obstacle" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -35,9 +35,9 @@ public sealed class FlowchartCellSpinePlacementTests
     [Test]
     public void HintedBranchRemainsFixed()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Nodes.Single(Node => Node.Id == "B").PlacementHintLocked = true;
-        var Before = Grid.RegionOf("B");
+        FlowchartCellRegion Before = Grid.RegionOf("B");
         FlowchartSpineColumnPostProcessor.ApplyCells(Contract, Nodes, FlowchartDirection.TopToBottom);
         Assert.That(Grid.RegionOf("B"), Is.SameAs(Before));
     }
@@ -46,19 +46,22 @@ public sealed class FlowchartCellSpinePlacementTests
     /// <returns>Graph, bound nodes and their shared ownership.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract();
+        DiagramContract Contract = new DiagramContract();
         foreach (string Id in new[] { "D", "A", "B", "C", "T" })
+        {
             Contract.NodesMutable.Add(new NodeContract { Id = Id, Shape = Id == "D" ? "diamond" : "rect" });
+        }
+
         Contract.EdgesMutable.AddRange([new() { SourceId = "D", TargetId = "A", Label = "Yes" },
             new() { SourceId = "D", TargetId = "B", Label = "No" }, new() { SourceId = "A", TargetId = "T" },
             new() { SourceId = "B", TargetId = "T" }, new() { SourceId = "C", TargetId = "T" }]);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
         int Index = 0;
-        foreach (var Node in Contract.Nodes)
+        foreach (NodeContract Node in Contract.Nodes)
         {
             Assert.That(Grid.TryPlace(Node.Id, new(Index * 2, Index + 2, 1, 1)), Is.True);
-            var Bound = new DiagramGridLayout.GridNode { Id = Node.Id }; Bound.BindCells(Grid); Nodes.Add(Bound); Index++;
+            DiagramGridLayout.GridNode Bound = new DiagramGridLayout.GridNode { Id = Node.Id }; Bound.BindCells(Grid); Nodes.Add(Bound); Index++;
         }
         return (Contract, Nodes, Grid);
     }

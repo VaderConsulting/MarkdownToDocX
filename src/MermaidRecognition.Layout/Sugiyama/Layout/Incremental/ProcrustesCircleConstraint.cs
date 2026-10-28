@@ -20,7 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// </summary>
         /// <param name="nodes"></param>
         public ProcrustesCircleConstraint(IEnumerable<Node> nodes) {
-            V = nodes.ToArray();
+            V = [.. nodes];
             n = V.Length;
             X = new Point[n];
             Y = new Point[n];
@@ -40,7 +40,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         {
             ValidateArg.IsNotNull(nodes, "nodes");
             ValidateArg.IsNotNull(targetConfiguration, "targetConfiguration");
-            V = nodes.ToArray();
+            V = [.. nodes];
             n = V.Length;
             X = new Point[n];
             Y = new Point[n];
@@ -84,14 +84,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <param name="B"></param>
         /// <returns>2X2 matrix</returns>
         private static Point[] matrixProductNoTranspose(Point[] A, Point[] B) {
-            Point[] R = new Point[2];
-            R[0] = new Point(A[0].X*B[0].X+A[0].Y*B[1].X, A[0].X*B[0].Y + A[0].Y*B[1].Y);
-            R[1] = new Point(A[1].X*B[0].X+A[1].Y*B[1].X, A[1].X*B[0].Y + A[1].Y*B[1].Y);
+            Point[] R =
+            [
+                new Point((A[0].X*B[0].X)+(A[0].Y*B[1].X), (A[0].X*B[0].Y) + (A[0].Y*B[1].Y)),
+                new Point((A[1].X*B[0].X)+(A[1].Y*B[1].X), (A[1].X*B[0].Y) + (A[1].Y*B[1].Y)),
+            ];
             return R;
         }
         private static Point MatrixTimesVector(Point[] A, Point v) {
             double a = A[0].X, b = A[0].Y, c = A[1].X, d = A[1].Y;
-            return new Point(a * v.X + b * v.Y, c * v.X + d * v.Y);
+            return new Point((a * v.X) + (b * v.Y), (c * v.X) + (d * v.Y));
         }
         private static Point eigenSystem2(Point[] B, out Point[] Q) {
             double[][] b = new double[B.Length][];
@@ -101,17 +103,17 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 b[i][1] = B[i].Y;
             }
             MultidimensionalScaling.SpectralDecomposition(b, out double[]? q1, out double lambda1, out double[]? q2, out double lambda2, 300, 1e-8);
-            Q = new Point[] { new Point(q1[0], q1[1]), new Point(q2[0], q2[1]) };
+            Q = [new Point(q1[0], q1[1]), new Point(q2[0], q2[1])];
             return new Point(lambda1, lambda2);
         }
 
         private static Point eigenSystem3(Point[] A, out Point[] Q) {
             double a = A[0].X, b = A[0].Y, c = A[1].X, d = A[1].Y;
             double T = a + d;
-            double D = a*d - b*c;
+            double D = (a*d) - (b*c);
             double l1, l2;
             {
-                double t = Math.Sqrt(T * T / 4.0 - D);
+                double t = Math.Sqrt((T * T / 4.0) - D);
                 l1 = l2 = T / 2.0;
                 l1 -= t;
                 l2 += t;
@@ -127,7 +129,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 q1 = new Point(1,0);
                 q2 = new Point(0,1);
             }
-            Q = new Point[] { q1.Normalize(), q2.Normalize() };
+            Q = [q1.Normalize(), q2.Normalize()];
             return new Point(l1, l2);
         }
 
@@ -179,7 +181,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
              */
             Point s = new Point(Math.Sqrt(l.X), Math.Sqrt(l.Y));
             P = matrixProductNoTranspose(X, Q);
-            P = matrixProductNoTranspose(P,new Point[]{new Point(1.0/s.X,0), new Point(0,1.0/s.Y)});
+            P = matrixProductNoTranspose(P,[new Point(1.0/s.X,0), new Point(0,1.0/s.Y)]);
             return s;
         }
 #if OLDPROJECT
@@ -251,7 +253,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             for (int i = 0; i < n; ++i)
             {
                 Node v = V[i];
-                v.Center = double.IsNaN(s) ? Y[i] : s * MatrixTimesVector(TT, Y[i]) + t;
+                v.Center = double.IsNaN(s) ? Y[i] : (s * MatrixTimesVector(TT, Y[i])) + t;
                 displacement += (v.Center - X[i]).Length;
             }
             return displacement;
@@ -271,7 +273,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             }
             System.Console.WriteLine("};");
         }
-        private static Point[] Transpose(Point[] X) => new Point[] { new Point(X[0].X, X[1].X), new Point(X[0].Y, X[1].Y) };
+        private static Point[] Transpose(Point[] X) => [new Point(X[0].X, X[1].X), new Point(X[0].Y, X[1].Y)];
 
         //// <summary>
         //// 
@@ -345,7 +347,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             s /= Y2[0].X + Y2[1].Y;
             t = new Point();
             for (int i = 0; i < ni; ++i) {
-                t += X[i] - s * MatrixTimesVector(T, Y[i]);
+                t += X[i] - (s * MatrixTimesVector(T, Y[i]));
             }
             t /= ni;
         }

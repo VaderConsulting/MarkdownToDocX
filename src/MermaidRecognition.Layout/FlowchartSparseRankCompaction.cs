@@ -12,7 +12,11 @@ internal static partial class FlowchartSparseRankCompaction
     {
         // Decisions and junctions already own deliberate branch/detour columns.
         if (Contract.Groups.Count > 0 || Nodes.Count == 0 || Nodes.Any(Node => Node.IsDiamond
-            || Node.Shape is not (null or "" or "rect" or "rounded" or "round"))) return;
+            || Node.Shape is not (null or "" or "rect" or "rounded" or "round")))
+        {
+            return;
+        }
+
         if (Nodes.Any(Node => Node.CellNode != null))
         {
             ApplyCells(Contract, Nodes, Horizontal);
@@ -22,30 +26,49 @@ internal static partial class FlowchartSparseRankCompaction
         double Main(DiagramGridLayout.GridNode Node) => Horizontal ? Node.X : Node.Y;
         double HalfCross(DiagramGridLayout.GridNode Node) => (Horizontal ? Node.Height : Node.Width) / 2.0;
         double HalfMain(DiagramGridLayout.GridNode Node) => (Horizontal ? Node.Width : Node.Height) / 2.0;
-        var Bands = Nodes.GroupBy(Cross).OrderBy(Band => Band.Key).Select(Band => Band.ToList()).ToList();
+        List<List<DiagramGridLayout.GridNode>> Bands = [.. Nodes.GroupBy(Cross).OrderBy(Band => Band.Key).Select(Band => Band.ToList())];
         int OccupiedColumns = Nodes.GroupBy(Node => Node.Rank).Max(Rank => Rank.Count());
-        if (Bands.Count <= 2 * OccupiedColumns) return;
+        if (Bands.Count <= 2 * OccupiedColumns)
+        {
+            return;
+        }
+
         double Origin = Bands[0].Max(HalfCross);
-        var ById = Nodes.ToDictionary(Node => Node.Id);
+        Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id);
         // A rank-skipping connector needs its existing side corridor. Adjacent
         // ranks can reuse columns and use normal upstream/downstream ports.
-        var Related = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .Where(Edge => ById.TryGetValue(Edge.SourceId, out var Source) && ById.TryGetValue(Edge.TargetId, out var Target)
+        HashSet<(string, string)> Related = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            .Where(Edge => ById.TryGetValue(Edge.SourceId, out DiagramGridLayout.GridNode? Source) && ById.TryGetValue(Edge.TargetId, out DiagramGridLayout.GridNode? Target)
                 && Math.Abs(Source.Rank - Target.Rank) > 1)
-            .SelectMany(Edge => new[] { (Edge.SourceId, Edge.TargetId), (Edge.TargetId, Edge.SourceId) }).ToHashSet();
-        var Placed = new List<DiagramGridLayout.GridNode>();
-        foreach (var Band in Bands)
+            .SelectMany(Edge => new[] { (Edge.SourceId, Edge.TargetId), (Edge.TargetId, Edge.SourceId) })];
+        List<DiagramGridLayout.GridNode> Placed = [];
+        foreach (List<DiagramGridLayout.GridNode>? Band in Bands)
         {
             double Candidate = Origin;
-            foreach (var Node in Band)
-            foreach (var Other in Placed)
-                if (Related.Contains((Node.Id, Other.Id))
-                    || Math.Abs(Main(Node) - Main(Other)) < HalfMain(Node) + HalfMain(Other) + DiagramGridMetrics.NODE_GAP_PX)
-                    Candidate = Math.Max(Candidate, Cross(Other) + HalfCross(Other) + HalfCross(Node) + 2 * DiagramGridMetrics.NODE_GAP_PX);
-            Candidate = Origin + Math.Ceiling((Candidate - Origin) / DiagramGridMetrics.GRID_UNIT_PX) * DiagramGridMetrics.GRID_UNIT_PX;
-            foreach (var Node in Band)
+            foreach (DiagramGridLayout.GridNode? Node in Band)
             {
-                if (Horizontal) Node.Y = Candidate; else Node.X = Candidate;
+                foreach (DiagramGridLayout.GridNode Other in Placed)
+                {
+                    if (Related.Contains((Node.Id, Other.Id))
+                    || Math.Abs(Main(Node) - Main(Other)) < HalfMain(Node) + HalfMain(Other) + DiagramGridMetrics.NODE_GAP_PX)
+                    {
+                        Candidate = Math.Max(Candidate, Cross(Other) + HalfCross(Other) + HalfCross(Node) + (2 * DiagramGridMetrics.NODE_GAP_PX));
+                    }
+                }
+            }
+
+            Candidate = Origin + (Math.Ceiling((Candidate - Origin) / DiagramGridMetrics.GRID_UNIT_PX) * DiagramGridMetrics.GRID_UNIT_PX);
+            foreach (DiagramGridLayout.GridNode? Node in Band)
+            {
+                if (Horizontal)
+                {
+                    Node.Y = Candidate;
+                }
+                else
+                {
+                    Node.X = Candidate;
+                }
+
                 Placed.Add(Node);
             }
         }

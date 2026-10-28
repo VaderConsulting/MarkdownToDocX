@@ -137,7 +137,7 @@ public sealed class EnterpriseParser : Parser
     public EnterpriseParseResult ParseDocumentCore(string? Source)
     {
         EnterpriseDocument Document = new EnterpriseDocument();
-        List<EnterpriseDiagnostic> Diagnostics = new List<EnterpriseDiagnostic>();
+        List<EnterpriseDiagnostic> Diagnostics = [];
         if (string.IsNullOrWhiteSpace(Source))
         {
             Diagnostics.Add(CreateError(1, "empty diagram"));
@@ -150,7 +150,7 @@ public sealed class EnterpriseParser : Parser
         string[] Lines = Normalised.Split('\n');
         bool SeenHeader = false;
         bool InDescription = false;
-        List<string> DescriptionLines = new();
+        List<string> DescriptionLines = [];
         Stack<string> GroupScope = new();
 
         foreach ((string RawLine, int LineNumber) in EnterpriseStatements.Read(Normalised))
@@ -162,7 +162,11 @@ public sealed class EnterpriseParser : Parser
                     Document.AccessibilityDescription = string.Join("\n", DescriptionLines).Trim();
                     InDescription = false;
                 }
-                else DescriptionLines.Add(RawLine.Trim());
+                else
+                {
+                    DescriptionLines.Add(RawLine.Trim());
+                }
+
                 continue;
             }
             string WithoutComment = StripTrailingComment(RawLine);
@@ -189,7 +193,10 @@ public sealed class EnterpriseParser : Parser
                 SeenHeader = true;
                 Match HeaderMatch = HeaderRegex.Match(Line);
                 if (HeaderMatch.Groups[2].Success)
+                {
                     Document.Direction = ParseDirection(HeaderMatch.Groups[2].Value);
+                }
+
                 continue;
             }
 
@@ -227,17 +234,32 @@ public sealed class EnterpriseParser : Parser
             Match DirectionMatch = DirectionRegex.Match(Line);
             if (DirectionMatch.Success)
             {
-                var Direction = ParseDirection(DirectionMatch.Groups[1].Value);
-                if (GroupScope.TryPeek(out string? GroupId)) Document.Groups[GroupId].Direction = Direction;
-                else Document.Direction = Direction;
+                EnterpriseDiagramDirection Direction = ParseDirection(DirectionMatch.Groups[1].Value);
+                if (GroupScope.TryPeek(out string? GroupId))
+                {
+                    Document.Groups[GroupId].Direction = Direction;
+                }
+                else
+                {
+                    Document.Direction = Direction;
+                }
+
                 continue;
             }
 
-            if (Document.Styles.Read(Line, LineNumber)) continue;
+            if (Document.Styles.Read(Line, LineNumber))
+            {
+                continue;
+            }
+
             string? TrailingClass = null;
             Line = Regex.Replace(Line, STRING_PATTERN + @"|(?<id>" + ID_PATTERN + @"):::(?<class>[\w-]+)", Match =>
             {
-                if (!Match.Groups["id"].Success) return Match.Value;
+                if (!Match.Groups["id"].Success)
+                {
+                    return Match.Value;
+                }
+
                 Document.Styles.AddInlineClass(Match.Groups["id"].Value, Match.Groups["class"].Value);
                 return Match.Groups["id"].Value;
             }, RegexOptions.Singleline);
@@ -254,13 +276,17 @@ public sealed class EnterpriseParser : Parser
             {
                 AddGroup(Document, Diagnostics, GroupMatch, LineNumber);
                 string GroupId = GroupMatch.Groups["id"].Value;
-                if (GroupScope.TryPeek(out string? ParentId) && Document.Groups.TryGetValue(GroupId, out var Group)
+                if (GroupScope.TryPeek(out string? ParentId) && Document.Groups.TryGetValue(GroupId, out EnterpriseGroup? Group)
                     && Group.ParentId == null)
                 {
                     Group.ParentId = ParentId;
                     Document.Elements[GroupId].ParentId = ParentId;
                 }
-                if (OpensGroup && Document.Groups.ContainsKey(GroupId)) GroupScope.Push(GroupId);
+                if (OpensGroup && Document.Groups.ContainsKey(GroupId))
+                {
+                    GroupScope.Push(GroupId);
+                }
+
                 continue;
             }
 
@@ -282,10 +308,17 @@ public sealed class EnterpriseParser : Parser
             if (NoteMatch.Success)
             {
                 AddNote(Document, Diagnostics, NoteMatch, LineNumber);
-                if (TrailingClass != null) Document.Styles.AddInlineClass(NoteMatch.Groups["id"].Value, TrailingClass);
+                if (TrailingClass != null)
+                {
+                    Document.Styles.AddInlineClass(NoteMatch.Groups["id"].Value, TrailingClass);
+                }
+
                 if (GroupScope.TryPeek(out string? ParentId)
                     && Document.Notes.TryGetValue(NoteMatch.Groups["id"].Value, out EnterpriseNote? Note) && Note.ParentId == null)
+                {
                     Note.ParentId = ParentId;
+                }
+
                 continue;
             }
 
@@ -293,10 +326,17 @@ public sealed class EnterpriseParser : Parser
             if (ElementMatch.Success)
             {
                 AddElement(Document, Diagnostics, ElementMatch, LineNumber);
-                if (TrailingClass != null) Document.Styles.AddInlineClass(ElementMatch.Groups["id"].Value, TrailingClass);
+                if (TrailingClass != null)
+                {
+                    Document.Styles.AddInlineClass(ElementMatch.Groups["id"].Value, TrailingClass);
+                }
+
                 if (GroupScope.TryPeek(out string? ParentId)
-                    && Document.Elements.TryGetValue(ElementMatch.Groups["id"].Value, out var Element) && Element.ParentId == null)
+                    && Document.Elements.TryGetValue(ElementMatch.Groups["id"].Value, out EnterpriseElement? Element) && Element.ParentId == null)
+                {
                     Element.ParentId = ParentId;
+                }
+
                 continue;
             }
 
@@ -714,9 +754,18 @@ public sealed class EnterpriseParser : Parser
             }
 
             LayoutHintDirection Direction = ParseHintDirection(Part.Groups[2].Value);
-            if (Name == "leave") Hint.Leave = Direction;
-            else if (Name == "enter") Hint.Enter = Direction;
-            else Hint.Travel = Direction;
+            if (Name == "leave")
+            {
+                Hint.Leave = Direction;
+            }
+            else if (Name == "enter")
+            {
+                Hint.Enter = Direction;
+            }
+            else
+            {
+                Hint.Travel = Direction;
+            }
         }
 
         if (!Hint.IsActive)
@@ -738,28 +787,36 @@ public sealed class EnterpriseParser : Parser
         EnterpriseDocument Document,
         List<EnterpriseDiagnostic> Diagnostics)
     {
-        List<(string Id, string? ParentId, PlacementHintContract Hint)> Hints = new();
+        List<(string Id, string? ParentId, PlacementHintContract Hint)> Hints = [];
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
             if (Element.PlacementHint != null && !Document.Groups.ContainsKey(Element.Id))
+            {
                 Hints.Add((Element.Id, Element.ParentId, Element.PlacementHint));
+            }
         }
         foreach (EnterpriseGroup Group in Document.Groups.Values)
         {
             if (Group.PlacementHint != null)
+            {
                 Hints.Add((Group.Id, Group.ParentId, Group.PlacementHint));
+            }
         }
         foreach (EnterpriseNote Note in Document.Notes.Values)
         {
             if (Note.PlacementHint != null)
+            {
                 Hints.Add((Note.Id, Note.ParentId, Note.PlacementHint));
+            }
         }
 
         Dictionary<string, string> AcceptedPeers = new(StringComparer.Ordinal);
         foreach ((string Id, string? ParentId, PlacementHintContract Hint) in Hints.OrderBy(Item => Item.Hint.SourceLine))
         {
             if (!Hint.IsActive || Hint.Kind == PlacementHintKind.Push)
+            {
                 continue;
+            }
 
             string PeerId = Hint.PeerId ?? string.Empty;
             if (!Document.HasDrawingItem(PeerId))
@@ -778,7 +835,10 @@ public sealed class EnterpriseParser : Parser
             string Cursor = PeerId;
             HashSet<string> Visited = new(StringComparer.Ordinal);
             while (AcceptedPeers.TryGetValue(Cursor, out string? Next) && Visited.Add(Cursor))
+            {
                 Cursor = Next;
+            }
+
             if (string.Equals(Cursor, Id, StringComparison.Ordinal))
             {
                 RejectPlacementHint(Hint, Diagnostics, "placement hint conflicts with earlier hints by closing a peer circle");
@@ -791,8 +851,16 @@ public sealed class EnterpriseParser : Parser
 
     private static string? ParentOf(EnterpriseDocument Document, string Id)
     {
-        if (Document.Groups.TryGetValue(Id, out EnterpriseGroup? Group)) return Group.ParentId;
-        if (Document.Elements.TryGetValue(Id, out EnterpriseElement? Element)) return Element.ParentId;
+        if (Document.Groups.TryGetValue(Id, out EnterpriseGroup? Group))
+        {
+            return Group.ParentId;
+        }
+
+        if (Document.Elements.TryGetValue(Id, out EnterpriseElement? Element))
+        {
+            return Element.ParentId;
+        }
+
         return Document.Notes.TryGetValue(Id, out EnterpriseNote? Note) ? Note.ParentId : null;
     }
 
@@ -844,13 +912,21 @@ public sealed class EnterpriseParser : Parser
             bool SourceExists = Document.HasDrawingItem(Connection.SourceId);
             bool TargetExists = Document.HasDrawingItem(Connection.TargetId);
             if (!SourceExists)
+            {
                 Diagnostics.Add(CreateError(Connection.LineNumber, "plain connection source \"" + Connection.SourceId + "\" is not declared"));
+            }
+
             if (!TargetExists)
+            {
                 Diagnostics.Add(CreateError(Connection.LineNumber, "plain connection target \"" + Connection.TargetId + "\" is not declared"));
+            }
+
             if (SourceExists && TargetExists
                 && !Document.Notes.ContainsKey(Connection.SourceId)
                 && !Document.Notes.ContainsKey(Connection.TargetId))
+            {
                 Diagnostics.Add(CreateError(Connection.LineNumber, "a plain connection must have a note at one or both ends"));
+            }
         }
 
         foreach (EnterpriseElement Element in Document.Elements.Values)
@@ -900,11 +976,19 @@ public sealed class EnterpriseParser : Parser
             }
             if (!IsTitle && (Line[Index] == '"' || Line[Index] == '\''))
             {
-                if (Quote == '\0') Quote = Line[Index];
-                else if (Quote == Line[Index]) Quote = '\0';
+                if (Quote == '\0')
+                {
+                    Quote = Line[Index];
+                }
+                else if (Quote == Line[Index])
+                {
+                    Quote = '\0';
+                }
             }
             if (Quote == '\0' && Line[Index] == '%' && Index + 1 < Line.Length && Line[Index + 1] == '%')
+            {
                 return Line.Substring(0, Index);
+            }
         }
         return Line;
     }
@@ -912,7 +996,11 @@ public sealed class EnterpriseParser : Parser
     private static string Unquote(string Value)
     {
         string Body = Value[1..^1];
-        if (IsMarkdown(Value)) Body = Body[1..^1];
+        if (IsMarkdown(Value))
+        {
+            Body = Body[1..^1];
+        }
+
         return EnterpriseLabelText.DecodeQuoted(Body);
     }
 
@@ -951,7 +1039,7 @@ public sealed class EnterpriseParser : Parser
 
     private static DiagramParseResult ToDiagramResult(EnterpriseParseResult Parsed)
     {
-        List<DiagramItem> Items = new List<DiagramItem>();
+        List<DiagramItem> Items = [];
         EnterpriseDocument Document = Parsed.Document;
         foreach (EnterpriseElement Element in Document.Elements.Values)
         {
@@ -1024,7 +1112,7 @@ public sealed class EnterpriseParser : Parser
                 Connection.TargetId));
         }
 
-        List<string> Messages = new List<string>();
+        List<string> Messages = [];
         foreach (EnterpriseDiagnostic Diagnostic in Parsed.Diagnostics)
         {
             Messages.Add(Diagnostic.Message);

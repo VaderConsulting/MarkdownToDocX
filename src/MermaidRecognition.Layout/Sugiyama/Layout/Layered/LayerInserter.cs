@@ -106,7 +106,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                             UpdateOldLayer(curVNode++, le.Target);
                         }
                     }
-                    curVNode += (span - 1) * (list.Count - 1) + 1;
+                    curVNode += ((span - 1) * (list.Count - 1)) + 1;
                 }
             }
         }
@@ -317,7 +317,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 }
             }
 
-            int[][] newLayers = new int[2 * la.Layers.Length - 1][];
+            int[][] newLayers = new int[(2 * la.Layers.Length) - 1][];
 
             //count new layer widths
             int[] counts = new int[newLayers.Length];

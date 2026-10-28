@@ -80,13 +80,12 @@ public static class FlowchartNestedSubgraphDirectMemberGapHelper
 
             List<string> FlowOrderedMemberNodeIds = OrderNodesByInternalFlow(
                 Contract,
-                NestedDescendantNodeIds.Union(DirectMemberNodeIds).ToList());
+                [.. NestedDescendantNodeIds.Union(DirectMemberNodeIds)]);
             if (FlowOrderedMemberNodeIds.Count == 0)
             {
-                FlowOrderedMemberNodeIds = DirectMemberNodeIds
+                FlowOrderedMemberNodeIds = [.. DirectMemberNodeIds
                     .Concat(NestedDescendantNodeIds)
-                    .Distinct(StringComparer.Ordinal)
-                    .ToList();
+                    .Distinct(StringComparer.Ordinal)];
             }
 
             int FirstNestedFlowIndex = int.MaxValue;

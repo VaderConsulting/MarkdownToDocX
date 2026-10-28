@@ -47,13 +47,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
             internal OverlapRemovalNode NextLeft(OverlapRemovalNode node)
             {
                 RBNode<OverlapRemovalNode> pred = nodeTree.Previous(nodeTree.Find(node));
-                return (null != pred) ? pred.Item : null;
+                return pred?.Item;
             }
 
             internal OverlapRemovalNode NextRight(OverlapRemovalNode node)
             {
                 RBNode<OverlapRemovalNode> succ = nodeTree.Next(nodeTree.Find(node));
-                return (null != succ) ? succ.Item : null;
+                return succ?.Item;
             }
         } // end class ScanLine
     }

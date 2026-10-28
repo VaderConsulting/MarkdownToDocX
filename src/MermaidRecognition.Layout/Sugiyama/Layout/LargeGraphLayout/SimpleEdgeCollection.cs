@@ -7,7 +7,7 @@ using MermaidRecognition.Layout.Sugiyama.Core.Layout;
 namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
     internal class SimpleEdgeCollection(IEnumerable<Edge> collectionEdges) : EdgeCollection(null) {
         readonly List<Edge> edges = collectionEdges as List<Edge> ??
-                collectionEdges.ToList();
+                [.. collectionEdges];
 
         public override IEnumerator<Edge> GetEnumerator() => edges.GetEnumerator();
 

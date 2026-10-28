@@ -238,7 +238,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 return;
             }
 
-            List<Cone> conesToRemove = new List<Cone>();
+            List<Cone> conesToRemove = [];
             do {
                 conesToRemove.Add(node.Item.Cone);
                 node = tree.Next(node);
@@ -350,9 +350,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         ICurve ExtendSegmentToZ(ConeSide segment) {
             double den = segment.Direction * SweepDirection;
             Debug.Assert(Math.Abs(den) > ApproximateComparer.DistanceEpsilon);
-            double t = (Z - segment.Start * SweepDirection) / den;
+            double t = (Z - (segment.Start * SweepDirection)) / den;
 
-            return new LineSegment(segment.Start, segment.Start + segment.Direction * t);
+            return new LineSegment(segment.Start, segment.Start + (segment.Direction * t));
         }
 
         // ReSharper disable UnusedMember.Global
@@ -360,9 +360,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             // ReSharper restore UnusedMember.Global
             double den = segment.Direction * SweepDirection;
             Debug.Assert(Math.Abs(den) > ApproximateComparer.DistanceEpsilon);
-            double t = (Z + 1 - segment.Start * SweepDirection) / den;
+            double t = (Z + 1 - (segment.Start * SweepDirection)) / den;
 
-            return new LineSegment(segment.Start, segment.Start + segment.Direction * t);
+            return new LineSegment(segment.Start, segment.Start + (segment.Direction * t));
         }
 #endif
 
@@ -809,7 +809,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
                 return;
             }
 
-            List<Cone> visibleCones = new List<Cone> {cone};
+            List<Cone> visibleCones = [cone];
             coneSideComparer.SetOperand(leftConeSide);
             rbNode = leftConeSides.Find(leftConeSide);
 
@@ -869,7 +869,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
             Debug.Assert(av.Point == a && ab.TargetPoint == b);
             //all edges adjacent to a which are different from ab
             VisibilityEdge[] edgesToFix =
-                av.InEdges.Where(e => e != ab).Concat(av.OutEdges.Where(e => e != ab)).ToArray();
+                [.. av.InEdges.Where(e => e != ab), .. av.OutEdges.Where(e => e != ab)];
             foreach (VisibilityEdge edge in edgesToFix) {
                 Point c = (edge.Target == av ? edge.Source : edge.Target).Point;
                 VisibilityGraph.RemoveEdge(edge);

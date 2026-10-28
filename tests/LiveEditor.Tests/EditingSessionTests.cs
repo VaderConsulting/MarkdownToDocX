@@ -15,7 +15,7 @@ namespace LiveEditor.Tests;
 /// </summary>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
-public sealed class EditingSessionTests
+public sealed partial class EditingSessionTests
 {
     [Test]
     public void CreatingADiagramByTypingKeepsTheEditorFocused()
@@ -258,7 +258,7 @@ public sealed class EditingSessionTests
             throw new InvalidOperationException("Control.OnClick is missing.");
         }
 
-        OnClick.Invoke(Control, new object[] { EventArgs.Empty });
+        OnClick.Invoke(Control, [EventArgs.Empty]);
     }
 
     private const int WM_KEYDOWN = 0x0100;
@@ -267,8 +267,8 @@ public sealed class EditingSessionTests
     private const int VK_RETURN = 0x0D;
     private const int VK_ESCAPE = 0x1B;
 
-    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
-    private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 
     private static void WaitUntil(Func<bool> Ready, int Milliseconds)
     {

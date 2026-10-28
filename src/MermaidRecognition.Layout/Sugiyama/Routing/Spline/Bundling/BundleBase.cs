@@ -155,7 +155,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         Point RotatePoint(int rotation, double t, double parameterChange) {
             double change = ParameterSpan * parameterChange;
 
-            t = t + rotation * change;
+            t = t + (rotation * change);
             t = AdjustParam(t);
 
             return Curve[t];
@@ -178,12 +178,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double change = ParameterSpan * parameterChange;
             if (rotationOfRightPoint != 0)
             {
-                ParRight = AdjustParam(ParRight + rotationOfRightPoint * change);
+                ParRight = AdjustParam(ParRight + (rotationOfRightPoint * change));
             }
 
             if (rotationOfLeftPoint != 0)
             {
-                ParLeft = AdjustParam(ParLeft + rotationOfLeftPoint * change);
+                ParLeft = AdjustParam(ParLeft + (rotationOfLeftPoint * change));
             }
         }
 
@@ -219,8 +219,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double change = ParameterSpan * parameterChange;
 
             //we do not swap parRight and parLeft
-            double rnew = parRight + rotationOfRightPoint * change;
-            double lnew = (parRight < parLeft ? parLeft + rotationOfLeftPoint * change : parLeft + ParameterSpan + rotationOfLeftPoint * change);
+            double rnew = parRight + (rotationOfRightPoint * change);
+            double lnew = (parRight < parLeft ? parLeft + (rotationOfLeftPoint * change) : parLeft + ParameterSpan + (rotationOfLeftPoint * change));
             if (rnew > lnew)
             {
                 return false;

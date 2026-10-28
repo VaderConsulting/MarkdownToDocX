@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -10,15 +11,15 @@ public sealed class FlowchartReturnSlotTests
     [Test]
     public void ReturnFromDecisionKeepsTheFinalEdgeSlots()
     {
-        var Contract = MermaidRecognizer.Parse("""
+        DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TD
                 A["Incoming message"] --> B["Determine next destination"] --> C["Send"] --> D{"More routing?"}
                 D -- Yes --> B
                 D -- No --> E["Complete"]
             """);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Model), Is.True);
-        var Box = Model.NodeBounds.Single(Node => Node.NodeId == "D");
-        var Return = Model.EdgeRoutes.Single(Route => Route.SourceId == "D" && Route.TargetId == "B");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Model), Is.True);
+        FlowchartLayoutNodeBounds Box = Model.NodeBounds.Single(Node => Node.NodeId == "D");
+        FlowchartLayoutEdgeRoute Return = Model.EdgeRoutes.Single(Route => Route.SourceId == "D" && Route.TargetId == "B");
         double X = (Return.Points[0].X - Box.CenterX) / (Box.Width / 2);
         double Y = (Return.Points[0].Y - Box.CenterY) / (Box.Height / 2);
         Assert.That(Math.Abs(X), Is.EqualTo(0.5).Within(0.001));

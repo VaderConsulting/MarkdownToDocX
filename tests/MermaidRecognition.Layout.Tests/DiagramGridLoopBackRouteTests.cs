@@ -102,7 +102,7 @@ public sealed class DiagramGridLoopBackRouteTests
             double PreviousY = Points[Index - 1].Y - Points[Index - 2].Y;
             double NextX = Points[Index].X - Points[Index - 1].X;
             double NextY = Points[Index].Y - Points[Index - 1].Y;
-            if (Math.Abs(PreviousX * NextY - PreviousY * NextX) > 0.5)
+            if (Math.Abs((PreviousX * NextY) - (PreviousY * NextX)) > 0.5)
             {
                 Corners++;
             }
@@ -134,10 +134,10 @@ public sealed class DiagramGridLoopBackRouteTests
         double NormalX = IsSource ? Route.ExitNormalX : Route.EntryNormalX;
         double NormalY = IsSource ? Route.ExitNormalY : Route.EntryNormalY;
         double Vx = Adjacent.X - Port.X, Vy = Adjacent.Y - Port.Y;
-        double Magnitude = Math.Sqrt(NormalX * NormalX + NormalY * NormalY);
+        double Magnitude = Math.Sqrt((NormalX * NormalX) + (NormalY * NormalY));
         Assert.That(Magnitude, Is.GreaterThan(0));
-        Assert.That(Math.Abs(Vx * NormalY - Vy * NormalX) / Magnitude, Is.LessThan(1.5), "terminal follows edge normal");
-        Assert.That(Vx * NormalX + Vy * NormalY, Is.GreaterThan(0), "terminal points outward");
+        Assert.That(Math.Abs((Vx * NormalY) - (Vy * NormalX)) / Magnitude, Is.LessThan(1.5), "terminal follows edge normal");
+        Assert.That((Vx * NormalX) + (Vy * NormalY), Is.GreaterThan(0), "terminal points outward");
     }
 
     private static FlowchartLayoutNodeBounds Find(FlowchartLayoutResult Layout, string Id)

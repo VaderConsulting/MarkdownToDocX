@@ -283,8 +283,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         void CreateScanSegments(Obstacle obstacle, NeighborSides neighborSides, BasicVertexEvent vertexEvent) => CreateScanSegments(obstacle, (HighObstacleSide)neighborSides.LowNeighbor.Item
-                                    , (null == neighborSides.LowOverlapEnd) ? null : neighborSides.LowOverlapEnd.Item
-                                    , (null == neighborSides.HighOverlapEnd) ? null : neighborSides.HighOverlapEnd.Item
+                                    , neighborSides.LowOverlapEnd?.Item
+                                    , neighborSides.HighOverlapEnd?.Item
                                     , (LowObstacleSide)neighborSides.HighNeighbor.Item, vertexEvent);
 
         private void CreateScanSegmentFromLowSide(RBNode<BasicObstacleSide> lowSideNode, BasicVertexEvent vertexEvent) =>

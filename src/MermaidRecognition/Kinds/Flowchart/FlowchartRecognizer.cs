@@ -57,7 +57,7 @@ public static class FlowchartRecognizer
 
         MermaidConfigurationPipeline.BuildEffectiveConfiguration(Configuration, "flowchart");
 
-        var Contract = FlowchartContractMapper.ToContract(Database, Configuration);
+        DiagramContract Contract = FlowchartContractMapper.ToContract(Database, Configuration);
         Contract.LayoutMode = DiagramLayoutSettings.Resolve(Configuration.RawDirectiveValues,
             Message => Contract.DiagnosticsMutable.Add(new MermaidDiagnostic(MermaidDiagnosticSeverity.Warning,
                 "configuration.layout.unknown", Message, null, null)));
@@ -77,7 +77,7 @@ public static class FlowchartRecognizer
 
     static void ParseBody(string Body, FlowchartDb Database)
     {
-        string[] Lines = Body.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        string[] Lines = Body.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
         bool HeaderParsed = false;
         AccDescrParseState AccState = AccDescrParseState.None;
         StringBuilder AccDescrBuilder = new StringBuilder();

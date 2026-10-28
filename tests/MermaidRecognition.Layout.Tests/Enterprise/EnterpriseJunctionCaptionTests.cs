@@ -31,13 +31,12 @@ public sealed class EnterpriseJunctionCaptionTests
               e -flow-> f
             """;
         XDocument Document = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(Source));
-        var Captions = Document.Descendants().Where(Element => Element.Name.LocalName == "g"
+        List<XElement> Captions = [.. Document.Descendants().Where(Element => Element.Name.LocalName == "g"
             && ((string?)Element.Attribute("class"))?.Contains("junction", StringComparison.Ordinal) == true)
-            .SelectMany(Element => Element.Elements().Where(Child => Child.Name.LocalName == "text")).ToList();
+            .SelectMany(Element => Element.Elements().Where(Child => Child.Name.LocalName == "text"))];
         Assert.That(Captions, Has.Count.EqualTo(2));
-        var Paths = Document.Descendants().Where(Element => Element.Attribute("data-source") != null)
-            .SelectMany(Element => Element.Elements().Where(Child => Child.Name.LocalName == "path")).ToList();
-        foreach (var Caption in Captions)
+        List<XElement> Paths = [.. Document.Descendants().Where(Element => Element.Attribute("data-source") != null).SelectMany(Element => Element.Elements().Where(Child => Child.Name.LocalName == "path"))];
+        foreach (XElement? Caption in Captions)
         {
             double Left = Number(Caption, "x"), Bottom = Number(Caption, "y");
             double Font = Number(Caption, "font-size");
@@ -47,14 +46,14 @@ public sealed class EnterpriseJunctionCaptionTests
             Assert.That(Top, Is.GreaterThanOrEqualTo(0));
             Assert.That(Right, Is.LessThan(Number(Document.Root!, "width")));
             Assert.That(Bottom, Is.LessThan(Number(Document.Root!, "height")));
-            foreach (var Path in Paths)
+            foreach (XElement? Path in Paths)
             {
-                Assert.That(FlowchartSvgPathGeometryHelper.TryFlattenPathData((string)Path.Attribute("d")!, out var Points), Is.True);
-                foreach (var Point in Points)
+                Assert.That(FlowchartSvgPathGeometryHelper.TryFlattenPathData((string)Path.Attribute("d")!, out List<(double X, double Y)>? Points), Is.True);
+                foreach ((double X, double Y) Point in Points)
                 {
                     double Dx = Math.Max(0, Math.Max(Left - Point.X, Point.X - Right));
                     double Dy = Math.Max(0, Math.Max(Top - Point.Y, Point.Y - Bottom));
-                    Assert.That(Math.Sqrt(Dx * Dx + Dy * Dy), Is.GreaterThanOrEqualTo(4),
+                    Assert.That(Math.Sqrt((Dx * Dx) + (Dy * Dy)), Is.GreaterThanOrEqualTo(4),
                         "Junction captions must remain legible beside every rendered connector and arrowhead.");
                 }
             }

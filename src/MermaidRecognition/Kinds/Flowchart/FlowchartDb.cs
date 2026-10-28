@@ -386,7 +386,7 @@ public sealed class FlowchartDb
 
                 foreach (string NodeId in Subgraph.NodeIdsMutable)
                 {
-                    ApplyClassToTargets(new[] { NodeId }, ClassId);
+                    ApplyClassToTargets([NodeId], ClassId);
                 }
 
                 continue;

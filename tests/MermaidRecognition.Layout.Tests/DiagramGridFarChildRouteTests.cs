@@ -112,15 +112,14 @@ public sealed class DiagramGridFarChildRouteTests
         double[] CornerEnd = ReadCoordinates(Terminal.Groups[1].Value);
         double[] End = ReadCoordinates(Terminal.Groups[2].Value);
         Assert.That(End[0], Is.EqualTo(Target.CenterX + OffsetX).Within(0.5));
-        Assert.That(End[1], Is.EqualTo(-(Target.CenterY + Target.Height / 2) + OffsetY).Within(0.5),
+        Assert.That(End[1], Is.EqualTo(-(Target.CenterY + (Target.Height / 2)) + OffsetY).Within(0.5),
             "The connector must reach the actual child top, independent of diagram translation.");
         Assert.That(CornerEnd[^2], Is.EqualTo(End[0]).Within(0.5), "The terminal run must be vertical.");
         Assert.That(End[1] - CornerEnd[^1], Is.GreaterThanOrEqualTo(10),
             "The arrowhead needs a straight approach to the child top.");
     }
 
-    private static double[] ReadCoordinates(string Text) => Regex.Matches(Text, @"-?\d+(?:\.\d+)?")
-        .Select(Value => double.Parse(Value.Value, CultureInfo.InvariantCulture)).ToArray();
+    private static double[] ReadCoordinates(string Text) => [.. Regex.Matches(Text, @"-?\d+(?:\.\d+)?").Select(Value => double.Parse(Value.Value, CultureInfo.InvariantCulture))];
 
     private static void AssertRouteIsOrthogonal(IReadOnlyList<FlowchartLayoutPoint> Points)
     {

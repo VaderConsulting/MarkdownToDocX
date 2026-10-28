@@ -1,6 +1,6 @@
 # LiveEditor complete-sample render choke points
 
-Measured on 2026-10-25 against the Enterprise "All options" sample (`SampleCatalog` complete source), cold geometry (no style-only cache hit).
+Measured on 2026-10-25 against **Samples → Enterprise → Clauses and relationships (Complete)** in LiveEditor (`SampleCatalog` `FullSource`, diagram title `All options`), cold geometry (no style-only cache hit). Bench: `@liveeditor-enterprise-complete` in `tools/LayoutCatalogueBench`.
 
 | Stage | ms (approx.) | Share |
 |---|---:|---:|

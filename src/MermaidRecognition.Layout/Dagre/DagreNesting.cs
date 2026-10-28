@@ -35,10 +35,7 @@ internal static partial class DagreLayoutEngine
         foreach (DagreEdge Edge in Graph.Edges())
         {
             DagreEdgeLabel? Label = Graph.Edge(Edge);
-            if (Label != null)
-            {
-                Label.Minlen *= NodeSep;
-            }
+            Label?.Minlen *= NodeSep;
         }
 
         double Weight = 1;
@@ -89,16 +86,10 @@ internal static partial class DagreLayoutEngine
         string Bottom = AddBorderNode(Graph, Context, "_bb", null, null);
         DagreNodeLabel? Label = Graph.Node(NodeId);
         Graph.SetParent(Top, NodeId);
-        if (Label != null)
-        {
-            Label.BorderTop = Top;
-        }
+        Label?.BorderTop = Top;
 
         Graph.SetParent(Bottom, NodeId);
-        if (Label != null)
-        {
-            Label.BorderBottom = Bottom;
-        }
+        Label?.BorderBottom = Bottom;
 
         foreach (string Child in Children)
         {
@@ -222,8 +213,8 @@ internal static partial class DagreLayoutEngine
             return;
         }
 
-        Node.BorderLeftByRank = new Dictionary<int, string>();
-        Node.BorderRightByRank = new Dictionary<int, string>();
+        Node.BorderLeftByRank = [];
+        Node.BorderRightByRank = [];
         for (int Rank = Node.MinRank.Value; Rank < Node.MaxRank.Value + 1; Rank++)
         {
             AddBorderSegmentNode(Graph, Context, Node, "borderLeft", "_bl", Rank);
@@ -474,8 +465,8 @@ internal static partial class DagreLayoutEngine
         string Source,
         string Target)
     {
-        List<string?> SourcePath = new List<string?>();
-        List<string?> TargetPath = new List<string?>();
+        List<string?> SourcePath = [];
+        List<string?> TargetPath = [];
         int Low = 0;
         int Lim = 0;
         if (Postorder.TryGetValue(Source, out (int Low, int Lim) SourceSpan) && Postorder.TryGetValue(Target, out (int Low, int Lim) TargetSpan))
@@ -593,10 +584,7 @@ internal static partial class DagreLayoutEngine
         foreach (string NodeId in Graph.Nodes())
         {
             DagreNodeLabel? Node = Graph.Node(NodeId);
-            if (Node != null)
-            {
-                Node.Y = -Node.Y;
-            }
+            Node?.Y = -Node.Y;
         }
 
         foreach (DagreEdge Edge in Graph.Edges())

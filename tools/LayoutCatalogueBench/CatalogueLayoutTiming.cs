@@ -1,12 +1,15 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 
 namespace LayoutCatalogueBench;
 
-/// <summary>Accumulates top-level layout stage milliseconds during one catalogue render.</summary>
+/// <summary>Accumulates layout stage milliseconds during one catalogue render.</summary>
 internal sealed class CatalogueLayoutTiming : IDisposable
 {
+    private static readonly JsonSerializerOptions StagesJsonOptions = new JsonSerializerOptions { WriteIndented = true };
+
     private static readonly HashSet<string> FlowchartTopLevelStages = new(StringComparer.Ordinal)
     {
         "grid-and-measured-geometry",
@@ -28,6 +31,7 @@ internal sealed class CatalogueLayoutTiming : IDisposable
     private readonly Action<string, double>? _PreviousGrid;
     private readonly Action<string, double>? _PreviousEnterprise;
     private readonly Action<string, double>? _PreviousEnterpriseBridge;
+    private readonly Dictionary<string, long> _StageMilliseconds = new Dictionary<string, long>(StringComparer.Ordinal);
 
     public CatalogueLayoutTiming()
     {
@@ -40,6 +44,29 @@ internal sealed class CatalogueLayoutTiming : IDisposable
     }
 
     public long LayoutMilliseconds { get; private set; }
+
+    public IReadOnlyDictionary<string, long> StageMilliseconds
+    {
+        get
+        {
+            return _StageMilliseconds;
+        }
+    }
+
+    public void WriteStagesJson(string Path)
+    {
+        List<KeyValuePair<string, long>> Ordered = new List<KeyValuePair<string, long>>(_StageMilliseconds);
+        Ordered.Sort((Left, Right) => Right.Value.CompareTo(Left.Value));
+        Dictionary<string, long> Payload = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, long> Entry in Ordered)
+        {
+            Payload[Entry.Key] = Entry.Value;
+        }
+
+        Payload["layout-sum"] = LayoutMilliseconds;
+        string Json = JsonSerializer.Serialize(Payload, StagesJsonOptions);
+        File.WriteAllText(Path, Json, System.Text.Encoding.UTF8);
+    }
 
     public void Dispose()
     {
@@ -55,10 +82,22 @@ internal sealed class CatalogueLayoutTiming : IDisposable
             return;
         }
 
-        if (FlowchartTopLevelStages.Contains(Stage)
-            || Stage is "enterprise-layout" or "enterprise-edge-routing" or "enterprise-analysis")
+        long Rounded = (long)Math.Round(Milliseconds, MidpointRounding.AwayFromZero);
+        if (_StageMilliseconds.TryGetValue(Stage, out long Existing))
         {
-            LayoutMilliseconds += (long)Math.Round(Milliseconds, MidpointRounding.AwayFromZero);
+            _StageMilliseconds[Stage] = Existing + Rounded;
+        }
+        else
+        {
+            _StageMilliseconds[Stage] = Rounded;
+        }
+
+        if (FlowchartTopLevelStages.Contains(Stage)
+            || Stage is "enterprise-layout" or "enterprise-edge-routing" or "enterprise-analysis"
+            or "enterprise-contract-map" or "enterprise-coordinate-frame" or "enterprise-subgraph-rectangles"
+            or "enterprise-shared-flowchart-layout" or "enterprise-svg-build" or "enterprise-svg-postprocess")
+        {
+            LayoutMilliseconds += Rounded;
         }
     }
 }

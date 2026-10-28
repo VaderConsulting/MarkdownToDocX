@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -10,14 +11,14 @@ public sealed class WideFanPortTests
     public void Layout_WideParallelFan_UsesFacingCrossAxisPorts(string Direction)
     {
         string Branches = string.Join("\n", Enumerable.Range(0, 8).Select(Index => $"Root --> n{Index}[Branch] --> Sink"));
-        var Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nRoot[Root]\nSink[Sink]\n{Branches}");
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        var Root = Layout.NodeBounds.Single(Node => Node.NodeId == "Root");
-        var Sink = Layout.NodeBounds.Single(Node => Node.NodeId == "Sink");
-        foreach (var Child in Layout.NodeBounds.Where(Node => Node.NodeId != "Root" && Node.NodeId != "Sink"))
+        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nRoot[Root]\nSink[Sink]\n{Branches}");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutNodeBounds Root = Layout.NodeBounds.Single(Node => Node.NodeId == "Root");
+        FlowchartLayoutNodeBounds Sink = Layout.NodeBounds.Single(Node => Node.NodeId == "Sink");
+        foreach (FlowchartLayoutNodeBounds? Child in Layout.NodeBounds.Where(Node => Node.NodeId != "Root" && Node.NodeId != "Sink"))
         {
-            var Outward = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == "Root" && Edge.TargetId == Child.NodeId);
-            var Inward = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Child.NodeId && Edge.TargetId == "Sink");
+            FlowchartLayoutEdgeRoute Outward = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == "Root" && Edge.TargetId == Child.NodeId);
+            FlowchartLayoutEdgeRoute Inward = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Child.NodeId && Edge.TargetId == "Sink");
             string Facing = Child.CenterY > Root.CenterY ? "top" : "bottom";
             Assert.That(Outward.ExitSide, Is.EqualTo(Facing));
             Assert.That(Inward.EntrySide, Is.EqualTo(Child.CenterY > Sink.CenterY ? "top" : "bottom"));

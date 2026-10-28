@@ -319,8 +319,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                                 inv = 1 / inv;
                             }
 
-                            xNew += w[i][j] * (x[j] + d[i][j] * (x[index[i]] - x[j]) * inv);
-                            yNew += w[i][j] * (y[j] + d[i][j] * (y[index[i]] - y[j]) * inv);
+                            xNew += w[i][j] * (x[j] + (d[i][j] * (x[index[i]] - x[j]) * inv));
+                            yNew += w[i][j] * (y[j] + (d[i][j] * (y[index[i]] - y[j]) * inv));
                         }
                     }
                     x[index[i]] = xNew / wSum[i];
@@ -368,8 +368,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
                                 inv =1/inv;
                             }
 
-                            xNew += w[i][j] * (x[j] + d[i][j] * (x[i] - x[j]) * inv);
-                            yNew += w[i][j] * (y[j] + d[i][j] * (y[i] - y[j]) * inv);
+                            xNew += w[i][j] * (x[j] + (d[i][j] * (x[i] - x[j]) * inv));
+                            yNew += w[i][j] * (y[j] + (d[i][j] * (y[i] - y[j]) * inv));
                         }
                     }
                     x[i] = xNew/wSum[i];

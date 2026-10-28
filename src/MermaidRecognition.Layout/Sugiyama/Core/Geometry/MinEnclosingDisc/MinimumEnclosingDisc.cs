@@ -143,12 +143,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.MinEnclosingDisc
                     if (i != j)
                     {
                         Disc c = new Disc(points[i], points[j]);
-                        if (c.Contains(points, new int[] { i, j }))
+                        if (c.Contains(points, [i, j]))
                         {
                             if (mc == null || mc.Radius > c.Radius)
                             {
                                 mc = c;
-                                b = new int[] { i, j };
+                                b = [i, j];
                             }
                         }
                     }
@@ -157,12 +157,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.MinEnclosingDisc
                         if (k != i && k != j && !Disc.Collinear(points[i],points[j],points[k]))
                         {
                             Disc c3 = new Disc(points[i], points[j], points[k]);
-                            if (c3.Contains(points, new int[]{i,j,k}))
+                            if (c3.Contains(points, [i,j,k]))
                             {
                                 if (mc == null || mc.Radius > c3.Radius)
                                 {
                                     mc = c3;
-                                    b = new int[] { i, j, k };
+                                    b = [i, j, k];
                                 }
                             }
                         }

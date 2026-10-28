@@ -1,4 +1,6 @@
 using MDConverter;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 using NUnit.Framework;
@@ -15,22 +17,22 @@ public sealed class OvernightRouteRenderTests : ProductionCatalogueTestFixture
     [Explicit("Writes PNG review artifacts only when explicitly requested.")]
     public void CaptureBeforeAndAfterMarginRepair(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
         string Root = FindRoot();
         string DirectoryPath = Path.Combine(Root, "out", "markup-review", "overnight-routes");
         Directory.CreateDirectory(DirectoryPath);
-        var Contract = MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true, DisableFinishedBendRepairsForTests = true }, out var Before), Is.True);
+        DiagramContract Contract = MermaidRecognizer.Parse(Scenario.Source);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true, DisableFinishedBendRepairsForTests = true }, out FlowchartLayoutResult? Before), Is.True);
         string Svg = FlowchartLegendRenderer.Apply(Contract, FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract, Before));
         byte[]? BeforePng = MermaidDiagramExport.TryRasterizeSvg(Svg);
         Assert.That(BeforePng, Is.Not.Null.And.Not.Empty);
         File.WriteAllText(Path.Combine(DirectoryPath, Id + "-before.svg"), Svg);
         File.WriteAllBytes(Path.Combine(DirectoryPath, Id + "-before.png"), BeforePng!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var After), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? After), Is.True);
         string Expected = ProductionBendRenderPathTests.GeometryHash(After);
         string? Published = null;
-        var Previous = DiagramGridLayout.PublishedLayoutObserver;
+        Action<DiagramContract, FlowchartLayoutResult>? Previous = DiagramGridLayout.PublishedLayoutObserver;
         DiagramGridLayout.PublishedLayoutObserver = (Source, Layout) =>
         {
             Previous?.Invoke(Source, Layout);
@@ -52,7 +54,13 @@ public sealed class OvernightRouteRenderTests : ProductionCatalogueTestFixture
     private static string FindRoot()
     {
         for (DirectoryInfo? Current = new(AppContext.BaseDirectory); Current != null; Current = Current.Parent)
-            if (File.Exists(Path.Combine(Current.FullName, "enterprise.md"))) return Current.FullName;
+        {
+            if (File.Exists(Path.Combine(Current.FullName, "enterprise.md")))
+            {
+                return Current.FullName;
+            }
+        }
+
         throw new DirectoryNotFoundException("Cannot locate the source catalogues.");
     }
 }

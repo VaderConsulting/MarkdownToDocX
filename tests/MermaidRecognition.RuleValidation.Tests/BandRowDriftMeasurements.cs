@@ -6,6 +6,8 @@ using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 using NUnit.Framework;
+using MermaidRecognition.Contract;
+using System.Diagnostics;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
@@ -20,18 +22,18 @@ public sealed class BandRowDriftMeasurements
     public void RenderSharedColumnView(string Id)
     {
         string Output = Environment.GetEnvironmentVariable("BAND_DRIFT_OUTPUT") ?? throw new InvalidOperationException("Set BAND_DRIFT_OUTPUT.");
-        using var Reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(Output, Id + ".json")));
+        using JsonDocument Reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(Output, Id + ".json")));
         string Expected = Reference.RootElement.GetProperty("Hash").GetString()!;
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
         AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool Previous);
-        var PreviousObserver = DiagramGridLayout.PublishedLayoutObserver;
+        Action<DiagramContract, FlowchartLayoutResult>? PreviousObserver = DiagramGridLayout.PublishedLayoutObserver;
         string? Actual = null;
         DiagramGridLayout.PublishedLayoutObserver = (_, Layout) => Actual = ProductionBendRenderPathTests.GeometryHash(Layout);
         try
         {
             AppContext.SetSwitch(FlowchartRenderContext.CellRegionsSwitch, true);
-            var Clock = System.Diagnostics.Stopwatch.StartNew();
+            Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
             byte[]? Png = MermaidDiagramExport.TryRenderPng(Scenario.Source);
             Assert.That(Png, Is.Not.Null.And.Not.Empty);
             Assert.That(Actual, Is.EqualTo(Expected));
@@ -51,17 +53,17 @@ public sealed class BandRowDriftMeasurements
     [Test, Explicit("Diagnostic candidate only; does not enable another production repair pass.")]
     public void MeasureExistingTrackSeparationOnA115()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A115");
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         string Before = CellProductionParityTests.Snapshot(Contract, Layout);
-        var Candidate = FlowchartLayoutAlternatives.Copy(Layout);
-        DiagramGridLayout.SeparateTracks(Candidate, Layout.CellNodes!.ToList(), Contract);
-        var OriginalFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
-        var CandidateFindings = FlowchartRouteRuleChecker.Check(Contract, Candidate);
-        var OriginalRoutes = Layout.EdgeRoutes.ToDictionary(Route => Route.EdgeId);
-        var Changed = Candidate.EdgeRoutes.Where(Route => JsonSerializer.Serialize(Route) != JsonSerializer.Serialize(OriginalRoutes[Route.EdgeId])).ToArray();
+        FlowchartLayoutResult Candidate = FlowchartLayoutAlternatives.Copy(Layout);
+        DiagramGridLayout.SeparateTracks(Candidate, [.. Layout.CellNodes!], Contract);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> OriginalFindings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> CandidateFindings = FlowchartRouteRuleChecker.Check(Contract, Candidate);
+        Dictionary<string, FlowchartLayoutEdgeRoute> OriginalRoutes = Layout.EdgeRoutes.ToDictionary(Route => Route.EdgeId);
+        FlowchartLayoutEdgeRoute[] Changed = [.. Candidate.EdgeRoutes.Where(Route => JsonSerializer.Serialize(Route) != JsonSerializer.Serialize(OriginalRoutes[Route.EdgeId]))];
         TestContext.Out.WriteLine("ROW_TRACK_TRIAL|" + JsonSerializer.Serialize(new
         {
             Changed = Changed.Select(Route => Route.EdgeId),
@@ -84,10 +86,15 @@ public sealed class BandRowDriftMeasurements
     {
         int Count = 0;
         for (int A = 0; A < Layout.EdgeRoutes.Count; A++)
-        for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
-            Count += FlowchartBranchRouteOrder.Intersections(
+        {
+            for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+            {
+                Count += FlowchartBranchRouteOrder.Intersections(
                 Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                 Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray()).Crossings;
+            }
+        }
+
         return Count;
     }
 
@@ -96,12 +103,12 @@ public sealed class BandRowDriftMeasurements
     public void CaptureA115NativeSvgPreview()
     {
         string Output = Environment.GetEnvironmentVariable("BAND_DRIFT_OUTPUT") ?? throw new InvalidOperationException("Set BAND_DRIFT_OUTPUT.");
-        using var Reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(Output, "A115.json")));
+        using JsonDocument Reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(Output, "A115.json")));
         string Expected = Reference.RootElement.GetProperty("Hash").GetString()!;
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A115");
         AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool Previous);
-        var PreviousObserver = DiagramGridLayout.PublishedLayoutObserver;
+        Action<DiagramContract, FlowchartLayoutResult>? PreviousObserver = DiagramGridLayout.PublishedLayoutObserver;
         string? Actual = null;
         DiagramGridLayout.PublishedLayoutObserver = (_, Layout) => Actual = ProductionBendRenderPathTests.GeometryHash(Layout);
         try
@@ -112,8 +119,8 @@ public sealed class BandRowDriftMeasurements
             string Destination = Path.GetFullPath(Path.Combine(Output, "..", "..", "band-views"));
             string Version = Environment.GetEnvironmentVariable("BAND_REVIEW_VERSION") ?? "v2";
             File.WriteAllText(Path.Combine(Destination, "A115-after-" + Version + ".svg"), Svg);
-            var Document = XDocument.Parse(Svg);
-            var Root = Document.Root!;
+            XDocument Document = XDocument.Parse(Svg);
+            XElement Root = Document.Root!;
             var ViewBox = Root.Attribute("viewBox")!.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(Value => double.Parse(Value, CultureInfo.InvariantCulture)).ToArray();
             // This changes only the display viewport. Every original node and
@@ -141,35 +148,35 @@ public sealed class BandRowDriftMeasurements
         string DirectoryPath = Environment.GetEnvironmentVariable("BAND_DRIFT_OUTPUT")
             ?? throw new InvalidOperationException("Set BAND_DRIFT_OUTPUT.");
         Directory.CreateDirectory(DirectoryPath);
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        var Records = new List<EnterpriseBandPlacement.ElementPlacement>();
-        var Previous = EnterpriseBandPlacement.PlacementObserver;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        List<EnterpriseBandPlacement.ElementPlacement> Records = [];
+        Action<EnterpriseBandPlacement.ElementPlacement>? Previous = EnterpriseBandPlacement.PlacementObserver;
         EnterpriseBandPlacement.PlacementObserver = Records.Add;
         FlowchartLayoutResult Layout;
-        var Clock = System.Diagnostics.Stopwatch.StartNew();
+        Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out Layout!), Is.True);
         }
         finally { EnterpriseBandPlacement.PlacementObserver = Previous; }
         int Wrap = Layout.RenderContext.EnterpriseBandWrapWidth ?? int.MaxValue;
-        var Selected = Records.Where(Record => Record.Wrap == Wrap && Record.Stage == "final-band-plan")
+        Dictionary<string, EnterpriseBandPlacement.ElementPlacement> Selected = Records.Where(Record => Record.Wrap == Wrap && Record.Stage == "final-band-plan")
             .GroupBy(Record => Record.Id).ToDictionary(Group => Group.Key, Group => Group.Last());
-        var Grid = Layout.CellNodes![0].CellNode!.Grid;
+        FlowchartLogicalGrid Grid = Layout.CellNodes![0].CellNode!.Grid;
         var Final = Layout.CellNodes.Select(Node =>
         {
-            var Region = Node.CellNode!.Region;
-            var Origin = Grid.Origin(Region);
-            var Plan = Selected.GetValueOrDefault(Node.Id);
+            FlowchartCellRegion Region = Node.CellNode!.Region;
+            (double X, double Y) Origin = Grid.Origin(Region);
+            EnterpriseBandPlacement.ElementPlacement? Plan = Selected.GetValueOrDefault(Node.Id);
             var Starts = Layout.CellNodes.Where(Peer => Selected.GetValueOrDefault(Peer.Id)?.Band == Plan?.Band)
                 .Select(Peer => Peer.CellNode!.Region.StartRow).Distinct().Order().ToArray();
             return new { Node.Id, Plan?.Band, Plan?.Rank, Plan?.Order, Row = Array.IndexOf(Starts, Region.StartRow),
                 Region.StartRow, Region.StartColumn, Region.RowSpan, Region.ColumnSpan, X = Origin.X, Y = Origin.Y,
                 PlannedRow = Plan?.Row, PlannedColumn = Plan?.Region.StartColumn };
         }).ToArray();
-        var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
         int Crossings = PhysicalCrossings(Layout);
         File.WriteAllText(Path.Combine(DirectoryPath, Id + ".json"), JsonSerializer.Serialize(new
         {

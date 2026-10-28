@@ -14,9 +14,7 @@ internal static class FlowchartChainPlacementTie
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = NodeBounds
             .GroupBy(Bounds => Bounds.NodeId, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First(), StringComparer.Ordinal);
-        List<EdgeContract> VisibleEdges = Contract.Edges
-            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        List<EdgeContract> VisibleEdges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         double Cost = 0.0;
         Cost += ChainColumnSpreadCost(Contract, BoundsById);
         Cost += LonelyNeighbourDistanceCost(VisibleEdges, BoundsById);
@@ -40,10 +38,9 @@ internal static class FlowchartChainPlacementTie
                 continue;
             }
 
-            List<double> Columns = Chain
+            List<double> Columns = [.. Chain
                 .Where(BoundsById.ContainsKey)
-                .Select(NodeId => BoundsById[NodeId].CenterX)
-                .ToList();
+                .Select(NodeId => BoundsById[NodeId].CenterX)];
             if (Columns.Count < 2)
             {
                 continue;

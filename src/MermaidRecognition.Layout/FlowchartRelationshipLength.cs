@@ -32,7 +32,7 @@ internal static class FlowchartRelationshipLength
             ById[Node.Id] = Node;
         }
 
-        Dictionary<int, double> ExtraByGap = new Dictionary<int, double>();
+        Dictionary<int, double> ExtraByGap = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
@@ -76,7 +76,7 @@ internal static class FlowchartRelationshipLength
             return;
         }
 
-        List<FlowchartCellGapGrowth> Growth = new List<FlowchartCellGapGrowth>();
+        List<FlowchartCellGapGrowth> Growth = [];
         foreach (KeyValuePair<int, double> Pair in ExtraByGap)
         {
             Growth.Add(new FlowchartCellGapGrowth(Horizontal, Pair.Key, Pair.Value, DiagramGridMetrics.GRID_UNIT_PX));

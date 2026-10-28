@@ -25,9 +25,20 @@ public sealed class FlowchartLayoutResult
 
     internal List<FlowchartLayoutNodeBounds> NodeBoundsMutable => _NodeBounds;
 
-    public double GraphWidth { get; init; }
+    private double _GraphWidth;
 
-    public double GraphHeight { get; init; }
+    public double GraphWidth { get => _GraphWidth; init => _GraphWidth = value; }
+
+    private double _GraphHeight;
+
+    public double GraphHeight { get => _GraphHeight; init => _GraphHeight = value; }
+
+    /// <summary>Updates the accepted drawing envelope without translating model geometry.</summary>
+    internal void SetGraphSize(double Width, double Height)
+    {
+        _GraphWidth = Width;
+        _GraphHeight = Height;
+    }
 
     private readonly GeometryTrackingList<FlowchartLayoutEdgeRoute> _EdgeRoutes;
 
@@ -157,7 +168,7 @@ public sealed class FlowchartLayoutResult
     /// <returns>True when a stored route matches <paramref name="Edge"/>.</returns>
     public bool TryCopyDrawnRoutePoints(EdgeContract Edge, out List<(double X, double Y)> Points)
     {
-        Points = new List<(double X, double Y)>();
+        Points = [];
         FlowchartLayoutEdgeRoute? Match = null;
         foreach (FlowchartLayoutEdgeRoute Route in _EdgeRoutes)
         {

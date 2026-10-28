@@ -14,7 +14,7 @@ public sealed class StateRecognitionFixtureTests
 
     private static readonly string[] FixtureNames =
 
-    {
+    [
 
         "simple",
 
@@ -62,17 +62,17 @@ public sealed class StateRecognitionFixtureTests
 
         "complex-smoke",
 
-    };
+    ];
 
 
 
     private static readonly string[] FixturesAllowingBody =
 
-    {
+    [
 
         "accDescr-block",
 
-    };
+    ];
 
 
 

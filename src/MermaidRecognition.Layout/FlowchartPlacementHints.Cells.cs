@@ -16,10 +16,10 @@ internal static partial class FlowchartPlacementHints
     internal static bool CellHintsMatch(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
     {
-        using var CostTiming = FlowchartCellCostTiming.Begin("hint-checks");
-        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
-        var Items = Contract.Nodes.Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
+        using IDisposable? CostTiming = FlowchartCellCostTiming.Begin("hint-checks");
+        Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
+        IEnumerable<HintItem> Items = Contract.Nodes.Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
             .Select(Node => new HintItem(Node.Id, Node.ParentGroupId, Node.PlacementHint!, false))
             .Concat(Contract.Groups.Where(Group => Group.PlacementHint?.IsActive == true)
                 .Select(Group => new HintItem(Group.Id, Group.ParentGroupId, Group.PlacementHint!, true)));
@@ -33,36 +33,44 @@ internal static partial class FlowchartPlacementHints
     /// <returns>Whether the accepted plan changes any reservation.</returns>
     private static bool ApplyCells(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
     {
-        var Before = FlowchartCellRepair.Capture(Nodes);
-        var Grid = Nodes[0].CellNode!.Grid;
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
-        var Hints = Contract.Nodes.Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes);
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
+        HintItem[] Hints = [.. Contract.Nodes.Where(Node => Node.PlacementHint?.IsActive == true && ById.ContainsKey(Node.Id))
             .Select(Node => new HintItem(Node.Id, Node.ParentGroupId, Node.PlacementHint!, false))
             .Concat(Contract.Groups.Where(Group => Group.PlacementHint?.IsActive == true)
                 .Select(Group => new HintItem(Group.Id, Group.ParentGroupId, Group.PlacementHint!, true)))
-            .OrderBy(Item => Item.Hint.SourceLine).ToArray();
-        var Attached = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        var Rejections = new List<(PlacementHintContract Hint, string Reason)>();
-        var Accepted = new List<HintItem>();
-        foreach (var Item in Hints)
+            .OrderBy(Item => Item.Hint.SourceLine)];
+        Dictionary<string, List<string>> Attached = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        List<(PlacementHintContract Hint, string Reason)> Rejections = [];
+        List<HintItem> Accepted = [];
+        foreach (HintItem? Item in Hints)
         {
-            var Owner = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
+            List<DiagramGridLayout.GridNode> Owner = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
             // Empty group frames have no node occupancy. Their existing frame
             // placement remains responsible for the declared relationship.
-            if (Owner.Count == 0) continue;
-            var Moving = AttachedUnitNodes(Item.Id, Item.IsGroup, Attached, Nodes, ById, Groups);
-            var MovingIds = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-            var OwnerRegion = CellEnvelope(Owner, Targets);
-            var Others = Nodes.Where(Node => !MovingIds.Contains(Node.Id)).ToArray();
+            if (Owner.Count == 0)
+            {
+                continue;
+            }
+
+            List<DiagramGridLayout.GridNode> Moving = AttachedUnitNodes(Item.Id, Item.IsGroup, Attached, Nodes, ById, Groups);
+            HashSet<string> MovingIds = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+            FlowchartCellRegion OwnerRegion = CellEnvelope(Owner, Targets);
+            DiagramGridLayout.GridNode[] Others = [.. Nodes.Where(Node => !MovingIds.Contains(Node.Id))];
             int Rows = 0, Columns = 0, RowDirection = 0, ColumnDirection = 0;
             string? PeerId = Item.Hint.PeerId;
             if (Item.Hint.Kind == PlacementHintKind.Push)
             {
-                var Siblings = Others.Where(Node => string.Equals(Node.GroupId, Item.ParentId, StringComparison.Ordinal)).ToArray();
-                if (Siblings.Length == 0) continue;
-                var Boundary = CellEnvelope(Siblings, Targets);
+                DiagramGridLayout.GridNode[] Siblings = [.. Others.Where(Node => string.Equals(Node.GroupId, Item.ParentId, StringComparison.Ordinal))];
+                if (Siblings.Length == 0)
+                {
+                    continue;
+                }
+
+                FlowchartCellRegion Boundary = CellEnvelope(Siblings, Targets);
                 switch (Item.Hint.Direction)
                 {
                     case LayoutHintDirection.North: Rows = Boundary.StartRow - OwnerRegion.EndRow; RowDirection = -1; break;
@@ -74,13 +82,13 @@ internal static partial class FlowchartPlacementHints
             }
             else
             {
-                var Peer = UnitNodes(PeerId ?? string.Empty, Groups.ContainsKey(PeerId ?? string.Empty), Nodes, ById, Groups);
+                List<DiagramGridLayout.GridNode> Peer = UnitNodes(PeerId ?? string.Empty, Groups.ContainsKey(PeerId ?? string.Empty), Nodes, ById, Groups);
                 if (Peer.Count == 0 || Peer.Any(Node => MovingIds.Contains(Node.Id)))
                 {
                     Rejections.Add((Item.Hint, "placement peer has no independent cell region"));
                     continue;
                 }
-                var Anchor = CellEnvelope(Peer, Targets);
+                FlowchartCellRegion Anchor = CellEnvelope(Peer, Targets);
                 // Relative hints align starting rows/columns, even when the
                 // two units have different spans. +n reserves n whole cells.
                 switch (Item.Hint.Kind)
@@ -104,17 +112,24 @@ internal static partial class FlowchartPlacementHints
             {
                 Changes = Moving.ToDictionary(Node => Node.Id, Node =>
                 {
-                    var Region = Targets[Node.Id];
+                    FlowchartCellRegion Region = Targets[Node.Id];
                     return new FlowchartCellRegion(checked(Region.StartRow + Rows), checked(Region.StartColumn + Columns),
                         Region.RowSpan, Region.ColumnSpan);
                 }, StringComparer.Ordinal);
-                if (!Changes.Values.Any(Region => Others.Any(Node => Region.Overlaps(Targets[Node.Id])))) break;
+                if (!Changes.Values.Any(Region => Others.Any(Node => Region.Overlaps(Targets[Node.Id]))))
+                {
+                    break;
+                }
                 // Each rejection advances along the requested direction. The
                 // finite set of occupied regions bounds this monotone search.
                 Rows = checked(Rows + RowDirection); Columns = checked(Columns + ColumnDirection);
             }
-            var Previous = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
-            foreach (var Change in Changes) Targets[Change.Key] = Change.Value;
+            Dictionary<string, FlowchartCellRegion> Previous = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
+            foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
+            {
+                Targets[Change.Key] = Change.Value;
+            }
+
             if (Grid.RegionConvention?.Invoke(Targets) == false)
             {
                 Targets = Previous;
@@ -137,15 +152,26 @@ internal static partial class FlowchartPlacementHints
             Accepted.Add(Item);
             if (Item.Hint.Kind != PlacementHintKind.Push && PeerId != null)
             {
-                if (!Attached.TryGetValue(PeerId, out var Dependents)) Attached[PeerId] = Dependents = [];
+                if (!Attached.TryGetValue(PeerId, out List<string>? Dependents))
+                {
+                    Attached[PeerId] = Dependents = [];
+                }
+
                 Dependents.Add(Item.Id);
             }
         }
         // Commit all nodes together, deliberately bypassing automatic repair
         // locks: these are explicit hints, not speculative unhinted moves.
-        if (!Grid.TryPrepare(Targets, [], out var After) || !Grid.TryCommit(Before, After!))
+        if (!Grid.TryPrepare(Targets, [], out FlowchartLogicalGrid.Snapshot? After) || !Grid.TryCommit(Before, After!))
+        {
             throw new InvalidOperationException("The complete hinted cell assignment could not be applied; original regions and gaps remain unchanged.");
-        foreach (var Rejection in Rejections) Reject(Rejection.Hint, Rejection.Reason);
+        }
+
+        foreach ((PlacementHintContract Hint, string Reason) Rejection in Rejections)
+        {
+            Reject(Rejection.Hint, Rejection.Reason);
+        }
+
         return Targets.Any(Pair => Pair.Value != Before.Regions[Pair.Key]);
     }
 
@@ -160,14 +186,20 @@ internal static partial class FlowchartPlacementHints
         IReadOnlyDictionary<string, DiagramGridLayout.GridNode> ById, IReadOnlyDictionary<string, GroupContract> Groups,
         IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
     {
-        var Members = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
-        var Owner = CellEnvelope(Members, Regions);
-        var Peers = Item.Hint.Kind == PlacementHintKind.Push
-            ? Nodes.Where(Node => !Members.Contains(Node) && string.Equals(Node.GroupId, Item.ParentId, StringComparison.Ordinal)).ToList()
+        List<DiagramGridLayout.GridNode> Members = UnitNodes(Item.Id, Item.IsGroup, Nodes, ById, Groups);
+        FlowchartCellRegion Owner = CellEnvelope(Members, Regions);
+        List<DiagramGridLayout.GridNode> Peers = Item.Hint.Kind == PlacementHintKind.Push
+            ? [.. Nodes.Where(Node => !Members.Contains(Node) && string.Equals(Node.GroupId, Item.ParentId, StringComparison.Ordinal))]
             : UnitNodes(Item.Hint.PeerId!, Groups.ContainsKey(Item.Hint.PeerId!), Nodes, ById, Groups);
-        if (Peers.Count == 0) return true;
-        var Peer = CellEnvelope(Peers, Regions);
-        if (Item.Hint.Kind == PlacementHintKind.Push) return Item.Hint.Direction switch
+        if (Peers.Count == 0)
+        {
+            return true;
+        }
+
+        FlowchartCellRegion Peer = CellEnvelope(Peers, Regions);
+        if (Item.Hint.Kind == PlacementHintKind.Push)
+        {
+            return Item.Hint.Direction switch
         {
             LayoutHintDirection.North => Owner.EndRow <= Peer.StartRow,
             LayoutHintDirection.South => Owner.StartRow >= Peer.EndRow,
@@ -175,6 +207,8 @@ internal static partial class FlowchartPlacementHints
             LayoutHintDirection.East => Owner.StartColumn >= Peer.EndColumn,
             _ => false
         };
+        }
+
         return Item.Hint.Kind switch
         {
             PlacementHintKind.Above => Owner.StartColumn == Peer.StartColumn && Owner.EndRow <= Peer.StartRow - Item.Hint.Offset,

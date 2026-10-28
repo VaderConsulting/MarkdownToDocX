@@ -1,4 +1,7 @@
+using System.Xml.Linq;
+
 using MermaidRecognition.Config;
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout.Enterprise;
 
@@ -30,16 +33,26 @@ public sealed class LayoutModeTests
     [TestCase("open")]
     public void BothModes_KeepOrthogonalRoutesAndNonoverlappingBoxes(string Mode)
     {
-        var Contract = MermaidRecognizer.Parse(WithMode(Flow, Mode));
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        foreach (var Route in Layout.EdgeRoutes)
+        DiagramContract Contract = MermaidRecognizer.Parse(WithMode(Flow, Mode));
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
             for (int Index = 1; Index < Route.Points.Count; Index++)
+            {
                 Assert.That(Math.Abs(Route.Points[Index].X - Route.Points[Index - 1].X) < 0.01
                     || Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y) < 0.01, Is.True);
-        foreach (var First in Layout.NodeBounds)
-        foreach (var Second in Layout.NodeBounds.Where(Item => string.CompareOrdinal(Item.NodeId, First.NodeId) > 0))
-            Assert.That(Math.Abs(First.CenterX - Second.CenterX) >= (First.Width + Second.Width) / 2
+            }
+        }
+
+        foreach (FlowchartLayoutNodeBounds First in Layout.NodeBounds)
+        {
+            foreach (FlowchartLayoutNodeBounds? Second in Layout.NodeBounds.Where(Item => string.CompareOrdinal(Item.NodeId, First.NodeId) > 0))
+            {
+                Assert.That(Math.Abs(First.CenterX - Second.CenterX) >= (First.Width + Second.Width) / 2
                 || Math.Abs(First.CenterY - Second.CenterY) >= (First.Height + Second.Height) / 2, Is.True);
+            }
+        }
+
         Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(WithMode(Flow, Mode), out var Svg), Is.True);
         Assert.That(Svg, Does.Contain("<svg"));
         Assert.That(EnterpriseRenderBridge.TryRenderEnterpriseSvg(WithMode(Enterprise, Mode), out var EnterpriseSvg), Is.True);
@@ -50,11 +63,11 @@ public sealed class LayoutModeTests
     public void OpenNestedFrames_StayInsideTheViewport()
     {
         string Source = "enterprise\ngroup outer 'Outer'\ngroup inner 'Inner' in outer\napplication-component first in outer\napplication-component second in inner\napplication-component third in inner\nfirst -flow-> second\nthird -flow-> second";
-        var Svg = System.Xml.Linq.XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(WithMode(Source, "open")));
-        var Root = Svg.Root!;
+        XDocument Svg = System.Xml.Linq.XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(WithMode(Source, "open")));
+        XElement Root = Svg.Root!;
         double Width = double.Parse(Root.Attribute("width")!.Value, System.Globalization.CultureInfo.InvariantCulture);
         double Height = double.Parse(Root.Attribute("height")!.Value, System.Globalization.CultureInfo.InvariantCulture);
-        foreach (var Rect in Root.Descendants().Where(Item => Item.Name.LocalName == "rect"
+        foreach (XElement? Rect in Root.Descendants().Where(Item => Item.Name.LocalName == "rect"
             && Item.Parent?.Attribute("class")?.Value == "group"))
         {
             double Value(string Name) => double.Parse(Rect.Attribute(Name)!.Value, System.Globalization.CultureInfo.InvariantCulture);

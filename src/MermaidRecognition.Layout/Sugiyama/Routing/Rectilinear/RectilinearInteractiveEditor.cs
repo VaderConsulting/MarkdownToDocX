@@ -75,7 +75,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
             Debug.Assert((EdgeRoutingMode.Rectilinear == edgeRoutingMode) || (EdgeRoutingMode.RectilinearToCenter == edgeRoutingMode)
                         , "Non-rectilinear edgeRoutingMode");
 
-            Dictionary<Node, Shape> nodeShapeMap = new Dictionary<Node, Shape>();
+            Dictionary<Node, Shape> nodeShapeMap = [];
             foreach (Node node in obstacleNodes)
             {
                 Shape shape = CreateShapeWithRelativeNodeAtCenter(node);
@@ -128,7 +128,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
             }
             else
             {
-                edge.UnderlyingPolyline = SmoothedPolyline.FromPoints(new[] { a, b });
+                edge.UnderlyingPolyline = SmoothedPolyline.FromPoints([a, b]);
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
 
@@ -159,7 +159,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear{
             }
             else
             {
-                edge.UnderlyingPolyline = SmoothedPolyline.FromPoints(new[] { a, b });
+                edge.UnderlyingPolyline = SmoothedPolyline.FromPoints([a, b]);
                 edge.Curve = edge.UnderlyingPolyline.CreateCurve();
             }
 

@@ -75,7 +75,7 @@ public static class MindmapContractMapper
             Contract.NodesMutable.Add(Node);
 
             NodeIdByDepth[Depth] = NodeId;
-            List<int> DepthKeys = NodeIdByDepth.Keys.OrderBy(Key => Key).ToList();
+            List<int> DepthKeys = [.. NodeIdByDepth.Keys.OrderBy(Key => Key)];
             foreach (int Key in DepthKeys)
             {
                 if (Key > Depth)

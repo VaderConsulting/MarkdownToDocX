@@ -235,7 +235,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         internal IEnumerable<int> NodesOfConnectedGraph() {
             if (edges.Count > 0) {
-                Set<int> enqueed = new Set<int>();
+                Set<int> enqueed = [];
                 Queue<int> q = new Queue<int>();
                 int i = edges[0].Source;
                 Enqueue(enqueed, q, i);

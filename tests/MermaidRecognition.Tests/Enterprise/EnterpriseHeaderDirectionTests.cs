@@ -14,7 +14,7 @@ public sealed class EnterpriseHeaderDirectionTests
     {
         string Source = $"enterprise {Direction}; application-component first; application-service second; first -realization-> second;";
         Assert.That(EnterpriseParser.IsEnterpriseSource(Source), Is.True);
-        var Result = EnterpriseParser.ParseDocument(Source);
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(Source);
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Direction, Is.EqualTo(Expected));
         Assert.That(Result.Document.Elements.Values.All(Item => Item.LineNumber == 1), Is.True);

@@ -6,7 +6,7 @@ namespace MermaidRecognition.Tests.Gantt;
 public sealed class GanttRecognitionFixtureTests
 {
     private static readonly string[] FixtureNames =
-    {
+    [
         "simple",
         "section",
         "dateFormat",
@@ -16,7 +16,7 @@ public sealed class GanttRecognitionFixtureTests
         "milestone",
         "accessibility",
         "inclusive-end",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)

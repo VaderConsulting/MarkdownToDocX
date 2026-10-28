@@ -80,7 +80,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         private void CreateObstacleListAndOrdinals(IEnumerable<Obstacle> obstacles) {
-            allObstacles = obstacles.ToList();
+            allObstacles = [.. obstacles];
             int scanlineOrdinal = Obstacle.FirstNonSentinelOrdinal;
             foreach (Obstacle obstacle in allObstacles) {
                 obstacle.Ordinal = scanlineOrdinal++;
@@ -174,7 +174,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal static RectangleNode<Obstacle> CalculateHierarchy(IEnumerable<Obstacle> obstacles) {
-            List<RectangleNode<Obstacle>> rectNodes = obstacles.Select(obs => new RectangleNode<Obstacle>(obs, obs.VisibilityBoundingBox)).ToList();
+            List<RectangleNode<Obstacle>> rectNodes = [.. obstacles.Select(obs => new RectangleNode<Obstacle>(obs, obs.VisibilityBoundingBox))];
             return RectangleNode<Obstacle>.CreateRectangleNodeOnListOfNodes(rectNodes);
         }
 
@@ -396,7 +396,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private static void GrowGroupAroundLoosePolyline(Obstacle group, Polyline loosePolyline) {
             IEnumerable<Point> points = group.VisibilityPolyline.Select(p => p).Concat(loosePolyline.Select(p => p));
-            group.SetConvexHull(new OverlapConvexHull(ConvexHull.CreateConvexHullAsClosedPolyline(points), new[] { group }));
+            group.SetConvexHull(new OverlapConvexHull(ConvexHull.CreateConvexHullAsClosedPolyline(points), [group]));
         }
 
         internal static bool ObstaclesIntersect(Obstacle a, Obstacle b, out bool aIsInsideB, out bool bIsInsideA) {
@@ -475,7 +475,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             // crossing the boundary the first time and will always go to the full "activate all groups" path.  By
             // removing them here we not only get a better graph (avoiding some spurious crossings) but we're faster
             // both in path generation and Nudging.
-            List<Shape> nonSpatialGroups = new List<Shape>();
+            List<Shape> nonSpatialGroups = [];
             foreach (Obstacle child in Root.GetAllLeaves()) {
                 Rectangle childBox = child.VisibilityBoundingBox;
 

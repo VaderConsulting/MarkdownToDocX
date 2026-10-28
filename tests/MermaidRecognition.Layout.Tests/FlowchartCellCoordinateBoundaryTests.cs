@@ -13,13 +13,13 @@ public sealed class FlowchartCellCoordinateBoundaryTests
     [TestCase(230, 240)]
     public void IgnoresNonfiniteNativeGuideCoordinates(double NativeY, double ExpectedFlip)
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1));
-        var Node = new DiagramGridLayout.GridNode { Id = "A" }; Node.BindCells(Grid);
-        var Before = Grid.Capture();
-        var Frames = new List<DiagramGridLayout.GridFrame> { new() { Id = "G", Left = -30, Right = 180, Top = -30, Bottom = 120 } };
-        var Layout = new FlowchartLayoutResult();
-        var Route = new FlowchartLayoutEdgeRoute { EdgeId = "native-placeholder" };
+        DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = "A" }; Node.BindCells(Grid);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        List<DiagramGridLayout.GridFrame> Frames = [new() { Id = "G", Left = -30, Right = 180, Top = -30, Bottom = 120 }];
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
+        FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = "native-placeholder" };
         Route.Points.Add(new() { X = 0, Y = double.NaN }); Route.Points.Add(new() { X = 0, Y = NativeY });
         Layout.EdgeRoutesMutable.Add(Route);
         typeof(DiagramGridLayout).GetMethod("FlipToYUp", BindingFlags.NonPublic | BindingFlags.Static)!

@@ -149,7 +149,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         /// <returns></returns>
         public override int GetHashCode() {
             uint hc = (uint) source.GetHashCode();
-            return (int) ((hc << 5 | hc >> 27) + (uint) target);
+            return (int) (((hc << 5) | (hc >> 27)) + (uint) target);
         }
 
         /// <summary>
@@ -280,7 +280,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             Stack<int> sv = new Stack<int>();
             Stack<IEnumerator<int>> se = new Stack<IEnumerator<int>>();
 
-            List<int> order = new List<int>();
+            List<int> order = [];
 
             IEnumerator<int> en;
             for (int u = 0; u < graph.NodeCount; u++){
@@ -320,7 +320,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             order.Reverse();
 
-            return order.ToArray();
+            return [.. order];
         }
         }
 }

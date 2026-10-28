@@ -23,9 +23,14 @@ public sealed class SymmetricPortDistributionTests
         Assert.That(Slots, Is.Ordered.Ascending);
         Assert.That(Slots[0] + Slots[^1], Is.EqualTo(SlotCount - 1));
         for (int Index = 0; Index < Slots.Length / 2; Index++)
+        {
             Assert.That(Slots[Index] + Slots[^(Index + 1)], Is.EqualTo(SlotCount - 1));
+        }
+
         if (LineCount % 2 == 1)
+        {
             Assert.That(Slots[LineCount / 2], Is.EqualTo(SlotCount / 2));
+        }
     }
 
     [Test]
@@ -40,11 +45,9 @@ public sealed class SymmetricPortDistributionTests
         int End = Source.IndexOf("```", Body, StringComparison.Ordinal);
         string Diagram = Source[Body..End];
 
-        var Document = EnterpriseValidator.Analyze(Diagram).Document;
-        var Layout = EnterpriseLayoutEngine.Layout(Document);
-        var Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
-            .Where(Route => Route.Relationship.SourceId == "appServer")
-            .ToArray();
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(Diagram).Document;
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        EnterpriseRoutedEdge[] Routes = [.. EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes).Where(Route => Route.Relationship.SourceId == "appServer")];
         Assert.That(Routes, Has.Length.EqualTo(3));
 
         EnterpriseLayoutNode SourceNode = Layout.Nodes["appServer"];
@@ -63,11 +66,11 @@ public sealed class SymmetricPortDistributionTests
         int Fence = Source.IndexOf("```mermaid", Heading, StringComparison.Ordinal);
         int Body = Source.IndexOf('\n', Fence) + 1;
         int End = Source.IndexOf("```", Body, StringComparison.Ordinal);
-        var Document = EnterpriseValidator.Analyze(Source[Body..End]).Document;
-        var Layout = EnterpriseLayoutEngine.Layout(Document);
-        var Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(Source[Body..End]).Document;
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
         EnterpriseLayoutNode Referral = Layout.Nodes["referral"];
-        EnterpriseRoutedEdge[] ReferralRoutes = Routes.Where(Route => Route.Relationship.TargetId == "referral").ToArray();
+        EnterpriseRoutedEdge[] ReferralRoutes = [.. Routes.Where(Route => Route.Relationship.TargetId == "referral")];
         Assert.That(ReferralRoutes, Has.Length.EqualTo(3));
         foreach (EnterpriseRoutedEdge Route in ReferralRoutes)
         {
@@ -82,9 +85,9 @@ public sealed class SymmetricPortDistributionTests
 
         foreach (string SourceId in new[] { "water", "westernPower" })
         {
-            var Route = Routes.Single(Route => Route.Relationship.SourceId == SourceId
+            EnterpriseRoutedEdge Route = Routes.Single(Route => Route.Relationship.SourceId == SourceId
                 && Route.Relationship.TargetId == "collaborator");
-            var SourceNode = Layout.Nodes[SourceId];
+            EnterpriseLayoutNode SourceNode = Layout.Nodes[SourceId];
             Assert.That(Route.SvgPoints[0].Y,
                 Is.EqualTo(SourceNode.AbsoluteY + SourceNode.Height).Within(1.0),
                 $"The {SourceId} leave-S hint must remain on the source's bottom side.");
@@ -132,7 +135,11 @@ public sealed class SymmetricPortDistributionTests
         while (Current != null)
         {
             string Candidate = Path.Combine(Current.FullName, RelativePath);
-            if (File.Exists(Candidate)) return Candidate;
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+
             Current = Current.Parent;
         }
         throw new FileNotFoundException(RelativePath);

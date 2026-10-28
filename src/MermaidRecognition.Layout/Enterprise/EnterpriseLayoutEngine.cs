@@ -83,7 +83,7 @@ internal static class EnterpriseLayoutEngine
             Nodes[Note.Id] = Node;
         }
 
-        List<EnterpriseLayoutNode> Roots = new List<EnterpriseLayoutNode>();
+        List<EnterpriseLayoutNode> Roots = [];
         foreach (EnterpriseLayoutNode Node in Nodes.Values)
         {
             if (!string.IsNullOrEmpty(Node.ParentId) && Nodes.TryGetValue(Node.ParentId, out EnterpriseLayoutNode? Parent))
@@ -96,14 +96,16 @@ internal static class EnterpriseLayoutEngine
             }
         }
 
-        if (TryApplyFlowchartLayout(
-                Document,
-                Nodes,
-                out double FlowchartWidth,
-                out double FlowchartHeight,
-                out EnterpriseFlowchartRoutingContext? RoutingContext))
+        EnterpriseFlowchartRoutingContext? RoutingContext = null;
+        bool HasRoutingContext = EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(Document, Nodes, out RoutingContext);
+        if (HasRoutingContext && RoutingContext != null && RoutingContext.SvgRects.Count > 0)
         {
-            return new EnterpriseLayoutResult(Nodes, FlowchartWidth, FlowchartHeight, RoutingContext);
+            ApplyFlowchartSvgRects(Nodes, RoutingContext);
+            return new EnterpriseLayoutResult(
+                Nodes,
+                Math.Max(40, RoutingContext.SvgWidth),
+                Math.Max(40, RoutingContext.SvgHeight),
+                RoutingContext);
         }
 
         LayoutChildren(null, Roots, Document, Nodes);
@@ -117,27 +119,13 @@ internal static class EnterpriseLayoutEngine
             Height = Math.Max(Height, Node.AbsoluteY + Node.Height + 20);
         }
 
-        return new EnterpriseLayoutResult(Nodes, Width, Height, null);
+        return new EnterpriseLayoutResult(Nodes, Width, Height, HasRoutingContext ? RoutingContext : null);
     }
 
-    private static bool TryApplyFlowchartLayout(
-        EnterpriseDocument Document,
+    private static void ApplyFlowchartSvgRects(
         Dictionary<string, EnterpriseLayoutNode> Nodes,
-        out double Width,
-        out double Height,
-        out EnterpriseFlowchartRoutingContext? RoutingContext)
+        EnterpriseFlowchartRoutingContext Context)
     {
-        Width = 40;
-        Height = 40;
-        RoutingContext = null;
-        if (!EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(
-                Document,
-                Nodes,
-                out EnterpriseFlowchartRoutingContext Context))
-        {
-            return false;
-        }
-
         foreach (KeyValuePair<string, EnterpriseSvgRect> Entry in Context.SvgRects)
         {
             if (!Nodes.TryGetValue(Entry.Key, out EnterpriseLayoutNode? Node))
@@ -151,11 +139,6 @@ internal static class EnterpriseLayoutEngine
             Node.Width = Rect.Width;
             Node.Height = Rect.Height;
         }
-
-        Width = Math.Max(Width, Context.SvgWidth);
-        Height = Math.Max(Height, Context.SvgHeight);
-        RoutingContext = Context;
-        return Context.SvgRects.Count > 0;
     }
 
     private static void LayoutChildren(

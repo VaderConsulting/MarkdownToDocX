@@ -13,7 +13,7 @@ public sealed class FlowchartL3AxisGateTests
     public void G4_EntityModel_Fixtures_Produce_Nodes_Or_Label_Variants()
     {
         AssertAxis(
-            new[] { "node-bracket-shapes", "label-types", "label-html", "metadata-shape-data" },
+            ["node-bracket-shapes", "label-types", "label-html", "metadata-shape-data"],
             Contract => Contract.Nodes.Count > 0);
     }
 
@@ -21,7 +21,7 @@ public sealed class FlowchartL3AxisGateTests
     public void G5_Containment_Fixtures_Produce_Groups()
     {
         AssertAxis(
-            new[] { "subgraph-membership", "subgraph-nested", "subgraph-direction" },
+            ["subgraph-membership", "subgraph-nested", "subgraph-direction"],
             Contract => Contract.Groups.Count > 0);
     }
 
@@ -29,7 +29,7 @@ public sealed class FlowchartL3AxisGateTests
     public void G6_Styles_Fixtures_Produce_ClassDefs_Or_LinkStyles()
     {
         AssertAxis(
-            new[] { "class-def-style", "linkStyle-interpolate" },
+            ["class-def-style", "linkStyle-interpolate"],
             Contract => Contract.ClassDefs.Count > 0 || Contract.LinkStyles.Count > 0);
     }
 
@@ -37,7 +37,7 @@ public sealed class FlowchartL3AxisGateTests
     public void G7_Metadata_Fixtures_Produce_Node_Or_Edge_Metadata()
     {
         AssertAxis(
-            new[] { "metadata-shape-data", "edge-metadata" },
+            ["metadata-shape-data", "edge-metadata"],
             Contract =>
                 Contract.Nodes.Any(Node => Node.Metadata.Count > 0)
                 || Contract.Edges.Any(Edge => Edge.Metadata.Count > 0));
@@ -47,7 +47,7 @@ public sealed class FlowchartL3AxisGateTests
     public void G8_Interactions_Fixtures_Produce_Interactions()
     {
         AssertAxis(
-            new[] { "interactions", "unsupported-diagnostics" },
+            ["interactions", "unsupported-diagnostics"],
             Contract => Contract.Interactions.Count > 0);
     }
 
@@ -55,7 +55,7 @@ public sealed class FlowchartL3AxisGateTests
     public void G9_Accessibility_Fixtures_Produce_Accessibility_Fields()
     {
         AssertAxis(
-            new[] { "flowchart-accessibility", "accDescr-block" },
+            ["flowchart-accessibility", "accDescr-block"],
             Contract =>
                 !string.IsNullOrEmpty(Contract.Accessibility.Title)
                 || !string.IsNullOrEmpty(Contract.Accessibility.Description));
@@ -90,7 +90,7 @@ public sealed class FlowchartL3AxisGateTests
     {
         string FixtureRoot = RecognitionFixturePaths.GetFlowchartFixtureDirectory();
         bool AnyPassed = false;
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
 
         foreach (string FixtureName in FixtureNames)
         {
@@ -117,6 +117,6 @@ public sealed class FlowchartL3AxisGateTests
 
     sealed class FlowchartGateManifest
     {
-        public List<string> Fixtures { get; set; } = new List<string>();
+        public List<string> Fixtures { get; set; } = [];
     }
 }

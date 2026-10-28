@@ -45,7 +45,7 @@ public sealed class ErKindRecognizer : IKindRecognizer
         ApplyInit(Source, Contract);
 
         string Body = StripLeadingInitBlocks(Source);
-        string[] Lines = Body.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        string[] Lines = Body.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
         bool HeaderRecorded = false;
         bool AccDescrBlockOpen = false;
 

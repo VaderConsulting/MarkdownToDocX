@@ -8,12 +8,12 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void RejectedGroupMoveLeavesEveryRegionAndGapUnchanged()
     {
-        var (Grid, Nodes) = Create();
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
         Grid.GrowGap(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX);
         Grid.GrowGap(false, -1, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX);
-        var Before = Grid.Capture();
-        var Pixels = PixelsOf(Nodes);
-        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        (double X, double Y, int Width, int Height)[] Pixels = PixelsOf(Nodes);
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>
         {
             ["A"] = new(0, 2, 1, 1), ["B"] = new(0, 3, 1, 1)
         }, [new(true, 1, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX)]);
@@ -29,12 +29,12 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void SwapPublishesBothNodesInOneState()
     {
-        var (Grid, Nodes) = Create();
-        var Before = Grid.Capture();
-        var A = Grid.RegionOf("A"); var B = Grid.RegionOf("B");
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        FlowchartCellRegion A = Grid.RegionOf("A"); FlowchartCellRegion B = Grid.RegionOf("B");
         Assert.That(FlowchartCellRepair.TryAssign([Nodes[0]], new Dictionary<string, FlowchartCellRegion> { ["A"] = B }), Is.False);
         Assert.That(FlowchartCellRepair.TryAssign([Nodes[1]], new Dictionary<string, FlowchartCellRegion> { ["B"] = A }), Is.False);
-        var Plan = FlowchartCellRepair.PlanAssignment([Nodes[0], Nodes[1]],
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment([Nodes[0], Nodes[1]],
             new Dictionary<string, FlowchartCellRegion> { ["A"] = B, ["B"] = A });
         Assert.That(Plan, Is.Not.Null);
         Assert.That(Grid.Capture(), Is.SameAs(Before), "Planning cannot move either member.");
@@ -49,10 +49,10 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void RollbackAfterGapGrowthRestoresRegionsGapsAndPixelsTogether()
     {
-        var (Grid, Nodes) = Create();
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
         Grid.GrowGap(true, -1, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX);
-        var Before = Grid.Capture(); var Pixels = PixelsOf(Nodes);
-        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); (double X, double Y, int Width, int Height)[] Pixels = PixelsOf(Nodes);
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>
             { ["A"] = new(1, 0, 1, 1), ["B"] = new(1, 1, 1, 1) },
             [new(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX),
              new(false, 0, 2 * DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX)]);
@@ -71,9 +71,9 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void PreparedTargetsAreFrozenBeforeAnyApplication()
     {
-        var (Grid, Nodes) = Create();
-        var Targets = new Dictionary<string, FlowchartCellRegion> { ["A"] = new(1, 0, 1, 1) };
-        var Plan = FlowchartCellRepair.PlanAssignment([Nodes[0]], Targets)!;
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion> { ["A"] = new(1, 0, 1, 1) };
+        FlowchartCellRepair.Assignment Plan = FlowchartCellRepair.PlanAssignment([Nodes[0]], Targets)!;
         Targets["A"] = Grid.RegionOf("B");
         Targets["B"] = Grid.RegionOf("C");
         Assert.That(Plan.TryApply(), Is.True);
@@ -86,10 +86,10 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void StalePlanCannotOverwriteAnotherAcceptedGapChange()
     {
-        var (Grid, Nodes) = Create();
-        var Plan = FlowchartCellRepair.PlanMove([Nodes[0], Nodes[1]], 1, 0)!;
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
+        FlowchartCellRepair.Assignment Plan = FlowchartCellRepair.PlanMove([Nodes[0], Nodes[1]], 1, 0)!;
         Grid.GrowGap(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX);
-        var Newer = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Newer = Grid.Capture();
         Assert.That(Plan.TryApply(), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Newer));
     }
@@ -98,9 +98,9 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void PinningAMemberAfterPlanningRejectsTheWholeAssignment()
     {
-        var (Grid, Nodes) = Create();
-        var Before = Grid.Capture();
-        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        FlowchartCellRepair.Assignment Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>
             { ["A"] = new(1, 0, 1, 1), ["B"] = new(1, 1, 1, 1) },
             [new(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX)])!;
         Nodes[1].PlacementHintLocked = true;
@@ -114,16 +114,19 @@ public sealed class FlowchartAtomicRegionRepairTests
     [TestCase(true)]
     public void DisplacementPlansAllNeighboursOrNone(bool Pinned)
     {
-        var (Grid, Nodes) = Create();
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
         Nodes[1].PlacementHintLocked = Pinned;
-        var Before = Grid.Capture();
-        var Plan = FlowchartCellRepair.PlanDisplacement(Nodes, [Nodes[0]], 0, 1);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanDisplacement(Nodes, [Nodes[0]], 0, 1);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
-        if (Pinned) Assert.That(Plan, Is.Null);
+        if (Pinned)
+        {
+            Assert.That(Plan, Is.Null);
+        }
         else
         {
             Assert.That(Plan, Is.Not.Null);
-            Assert.That(Plan!.Nodes.Select(Node => Node.Id), Is.EquivalentTo(new[] { "A", "B" }));
+            Assert.That(Plan!.Nodes.Select(Node => Node.Id), Is.EquivalentTo(["A", "B"]));
             Assert.That(Plan.TryApply(), Is.True);
             Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(1));
             Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(2));
@@ -137,17 +140,20 @@ public sealed class FlowchartAtomicRegionRepairTests
     [TestCase(true)]
     public void RecursiveDisplacementCannotPublishAPartialChain(bool PinnedTail)
     {
-        var (Grid, Nodes) = Create();
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
         Assert.That(Grid.TryPlace("C", new(0, 2, 1, 1)), Is.True);
         Nodes[2].PlacementHintLocked = PinnedTail;
-        var Before = Grid.Capture();
-        var Plan = FlowchartCellRepair.PlanDisplacement(Nodes, [Nodes[0]], 0, 1);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanDisplacement(Nodes, [Nodes[0]], 0, 1);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
-        if (PinnedTail) Assert.That(Plan, Is.Null);
+        if (PinnedTail)
+        {
+            Assert.That(Plan, Is.Null);
+        }
         else
         {
             Assert.That(Plan, Is.Not.Null);
-            Assert.That(Plan!.Nodes.Select(Node => Node.Id), Is.EquivalentTo(new[] { "A", "B", "C" }));
+            Assert.That(Plan!.Nodes.Select(Node => Node.Id), Is.EquivalentTo(["A", "B", "C"]));
             Assert.That(Plan.TryApply(), Is.True);
             Assert.That(Grid.RegionOf("A").StartColumn, Is.EqualTo(1));
             Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(2));
@@ -160,8 +166,8 @@ public sealed class FlowchartAtomicRegionRepairTests
     [Test]
     public void InvalidGapBatchHasNoPartialEffects()
     {
-        var (Grid, Nodes) = Create();
-        var Before = Grid.Capture();
+        (FlowchartLogicalGrid? Grid, DiagramGridLayout.GridNode[]? Nodes) = Create();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(() => FlowchartCellRepair.PlanAssignment(Nodes,
             new Dictionary<string, FlowchartCellRegion> { ["A"] = new(1, 0, 1, 1) },
             [new(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX),
@@ -174,10 +180,14 @@ public sealed class FlowchartAtomicRegionRepairTests
     /// <returns>The shared authoritative grid and bound node views.</returns>
     private static (FlowchartLogicalGrid Grid, DiagramGridLayout.GridNode[] Nodes) Create()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1)); Grid.TryPlace("B", new(0, 1, 1, 1)); Grid.TryPlace("C", new(0, 3, 1, 1));
-        var Nodes = new[] { "A", "B", "C" }.Select(Id => new DiagramGridLayout.GridNode { Id = Id }).ToArray();
-        foreach (var Node in Nodes) Node.BindCells(Grid);
+        DiagramGridLayout.GridNode[] Nodes = [.. new[] { "A", "B", "C" }.Select(Id => new DiagramGridLayout.GridNode { Id = Id })];
+        foreach (DiagramGridLayout.GridNode? Node in Nodes)
+        {
+            Node.BindCells(Grid);
+        }
+
         return (Grid, Nodes);
     }
 
@@ -185,22 +195,25 @@ public sealed class FlowchartAtomicRegionRepairTests
     /// <param name="Nodes">All fixture node views.</param>
     /// <returns>Exact centres and extents to compare after rejected or rolled-back assignments.</returns>
     private static (double X, double Y, int Width, int Height)[] PixelsOf(DiagramGridLayout.GridNode[] Nodes) =>
-        Nodes.Select(Node => (Node.X, Node.Y, Node.Width, Node.Height)).ToArray();
+        [.. Nodes.Select(Node => (Node.X, Node.Y, Node.Width, Node.Height))];
 
     /// <summary>Enumerates the cells of each complete rectangle to detect shared or missing occupancy independently.</summary>
     /// <param name="Grid">Current authoritative grid.</param>
     private static void AssertExclusiveRectangles(FlowchartLogicalGrid Grid)
     {
-        var Used = new HashSet<(int Row, int Column)>();
-        foreach (var Region in Grid.Capture().Regions.Values)
+        HashSet<(int Row, int Column)> Used = [];
+        foreach (FlowchartCellRegion Region in Grid.Capture().Regions.Values)
         {
             int Count = 0;
             for (int Row = Region.StartRow; Row < Region.EndRow; Row++)
-            for (int Column = Region.StartColumn; Column < Region.EndColumn; Column++)
+            {
+                for (int Column = Region.StartColumn; Column < Region.EndColumn; Column++)
             {
                 Assert.That(Used.Add((Row, Column)), Is.True);
                 Count++;
             }
+            }
+
             Assert.That(Count, Is.EqualTo(Region.RowSpan * Region.ColumnSpan));
         }
     }

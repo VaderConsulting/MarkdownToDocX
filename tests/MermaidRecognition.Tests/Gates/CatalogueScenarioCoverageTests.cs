@@ -69,7 +69,7 @@ public sealed class CatalogueScenarioCoverageTests
 
     private static List<CatalogueScenarioRow> ParseScenarioIndexRows(string Markdown)
     {
-        List<CatalogueScenarioRow> Rows = new List<CatalogueScenarioRow>();
+        List<CatalogueScenarioRow> Rows = [];
         string[] Lines = Markdown.Split('\n');
         bool InScenarioIndex = false;
 

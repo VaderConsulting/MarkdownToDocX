@@ -14,36 +14,51 @@ internal static partial class FlowchartDisconnectedPacking
     /// <returns>Whether a complete improving assignment was published.</returns>
     internal static bool ApplyCells(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
     {
-        if (Nodes.Count < 2) return false;
-        var Before = FlowchartCellRepair.Capture(Nodes);
-        var Grid = Nodes[0].CellNode!.Grid;
-        var Declared = Contract.Nodes.Select((Node, Index) => (Node.Id, Index)).GroupBy(Item => Item.Id, StringComparer.Ordinal)
+        if (Nodes.Count < 2)
+        {
+            return false;
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes);
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        Dictionary<string, int> Declared = Contract.Nodes.Select((Node, Index) => (Node.Id, Index)).GroupBy(Item => Item.Id, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First().Index, StringComparer.Ordinal);
-        var Components = FindComponents(Contract, Nodes).OrderBy(Members => Members.Min(Node => Declared.GetValueOrDefault(Node.Id, int.MaxValue))).ToArray();
-        if (Components.Length < 2) return false;
-        var Envelopes = Components.Select(Members => Envelope(Members, Before.Regions)).ToArray();
+        List<DiagramGridLayout.GridNode>[] Components = [.. FindComponents(Contract, Nodes).OrderBy(Members => Members.Min(Node => Declared.GetValueOrDefault(Node.Id, int.MaxValue)))];
+        if (Components.Length < 2)
+        {
+            return false;
+        }
+
+        FlowchartCellRegion[] Envelopes = [.. Components.Select(Members => Envelope(Members, Before.Regions))];
         double BestScore = CellScore(Before.Regions);
         FlowchartCellRepair.Assignment? Best = null;
         for (int PerRow = 1; PerRow <= Components.Length; PerRow++)
         {
-            var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+            Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
             int Row = 0, Column = 0, RowSpan = 0;
             for (int Index = 0; Index < Components.Length; Index++)
             {
                 if (Index > 0 && Index % PerRow == 0) { Row = checked(Row + RowSpan); Column = 0; RowSpan = 0; }
-                var Region = Envelopes[Index];
+                FlowchartCellRegion Region = Envelopes[Index];
                 bool Fixed = Components[Index].Any(Node => Node.PlacementHintLocked);
-                foreach (var Node in Components[Index])
+                foreach (DiagramGridLayout.GridNode? Node in Components[Index])
                 {
-                    var Original = Before.Regions[Node.Id];
-                    if (!Fixed) Targets[Node.Id] = new(checked(Original.StartRow + Row - Region.StartRow),
+                    FlowchartCellRegion Original = Before.Regions[Node.Id];
+                    if (!Fixed)
+                    {
+                        Targets[Node.Id] = new(checked(Original.StartRow + Row - Region.StartRow),
                         checked(Original.StartColumn + Column - Region.StartColumn), Original.RowSpan, Original.ColumnSpan);
+                    }
                 }
                 Column = checked(Column + Region.ColumnSpan);
                 RowSpan = Math.Max(RowSpan, Region.RowSpan);
             }
-            var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Targets);
-            if (Plan == null) continue;
+            FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, Targets);
+            if (Plan == null)
+            {
+                continue;
+            }
+
             double CandidateScore = CellScore(Targets);
             if (CandidateScore < BestScore - 0.0001) { Best = Plan; BestScore = CandidateScore; }
         }
@@ -53,12 +68,12 @@ internal static partial class FlowchartDisconnectedPacking
         // candidate envelope. None of its pixel measurements become cells.
         double CellScore(IReadOnlyDictionary<string, FlowchartCellRegion> Regions)
         {
-            var Pieces = Components.Select((Members, Index) =>
+            Piece[] Pieces = [.. Components.Select((Members, Index) =>
             {
-                var Region = Envelope(Members, Regions); var Origin = Grid.Origin(Region); var Size = Grid.Measure(Region);
+                FlowchartCellRegion Region = Envelope(Members, Regions); (double X, double Y) Origin = Grid.Origin(Region); (double Width, double Height) Size = Grid.Measure(Region);
                 return new Piece(Members, Origin.X, -Origin.Y, Size.Width, Size.Height, Index);
-            }).ToArray();
-            return Score(Pieces.Select(Piece => new Position(Piece.Left, Piece.Top)).ToArray(), Pieces, DiagramGridMetrics.NODE_GAP_PX);
+            })];
+            return Score([.. Pieces.Select(Piece => new Position(Piece.Left, Piece.Top))], Pieces, DiagramGridMetrics.NODE_GAP_PX);
         }
     }
 

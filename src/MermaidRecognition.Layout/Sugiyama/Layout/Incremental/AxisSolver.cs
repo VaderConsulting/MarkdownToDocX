@@ -34,7 +34,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Do we even need to do a solve?
         /// </summary>
-        internal bool NeedSolve => avoidOverlaps && ConstraintLevel >= 2 || structuralConstraints.Count > 0 && ConstraintLevel >= 1;
+        internal bool NeedSolve => (avoidOverlaps && ConstraintLevel >= 2) || (structuralConstraints.Count > 0 && ConstraintLevel >= 1);
         /// <summary>
         /// Have to reinstantiate if any of these parameters change
         /// </summary>
@@ -385,8 +385,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         [Conditional("VERIFY")]
         static void DebugVerifyRectContains(Rectangle rectOuter, Rectangle rectInner, double dblPaddingX, double dblPaddingY, double dblEpsilon)
         {
-            rectInner.PadWidth(dblPaddingX/2.0 - dblEpsilon);
-            rectInner.PadHeight(dblPaddingY/2.0 - dblEpsilon);
+            rectInner.PadWidth((dblPaddingX/2.0) - dblEpsilon);
+            rectInner.PadHeight((dblPaddingY/2.0) - dblEpsilon);
             Debug.Assert(rectOuter.Contains(rectInner)
                         , "Inner Node/Cluster rectangle is not contained within outer Cluster"
                         );
@@ -395,10 +395,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         [Conditional("VERIFY")]
         static void DebugVerifyRectsDisjoint(Rectangle rect1, Rectangle rect2, double dblPaddingX, double dblPaddingY, double dblEpsilon)
         {
-            rect1.PadWidth(dblPaddingX/2.0 - dblEpsilon);
-            rect1.PadHeight(dblPaddingY/2.0 - dblEpsilon);
-            rect2.PadWidth(dblPaddingX/2.0 - dblEpsilon);
-            rect2.PadHeight(dblPaddingY/2.0 - dblEpsilon);
+            rect1.PadWidth((dblPaddingX/2.0) - dblEpsilon);
+            rect1.PadHeight((dblPaddingY/2.0) - dblEpsilon);
+            rect2.PadWidth((dblPaddingX/2.0) - dblEpsilon);
+            rect2.PadHeight((dblPaddingY/2.0) - dblEpsilon);
             Debug.Assert(!rect1.Intersects(rect2));
         }
     } // end class AxisSolver

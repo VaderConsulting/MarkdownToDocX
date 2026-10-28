@@ -1,5 +1,7 @@
 using System.IO.Compression;
 using System.Xml.Linq;
+
+using DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MDConverter.Options;
@@ -17,7 +19,7 @@ public sealed class EnterpriseDocxTests
         byte[] Bytes = new MarkdownToDocxConverter(new MarkdownToDocxOptions()).ConvertText(Markdown, Environment.CurrentDirectory);
         using MemoryStream Stream = new(Bytes);
         using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
-        var Picture = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties>().Single();
+        DocProperties Picture = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties>().Single();
         Assert.AreEqual("Application view", Picture.Title!.Value);
         Assert.AreEqual("One component.", Picture.Description!.Value);
         string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg("enterprise\n accTitle: Application view\n accDescr: One component.\n application-component a \"Component\"");
@@ -82,7 +84,7 @@ public sealed class EnterpriseDocxTests
             .ConvertText(Markdown, Environment.CurrentDirectory);
         using MemoryStream Stream = new(Bytes);
         using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
-        var Table = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Table>().Single();
+        Table Table = Document.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Table>().Single();
         Assert.AreEqual("SymbolType◇ ─── ▷Business event◇ ─── ▷Business process◇ ─── ▷Triggering", Table.InnerText);
     }
 
@@ -90,7 +92,7 @@ public sealed class EnterpriseDocxTests
     public void ConvertText_RunWideLegendDefault_IsOverriddenByDiagramSetting()
     {
         string Source = "enterprise\n  application-component a \"A\"";
-        var Options = new MarkdownToDocxOptions { Mermaid = new MermaidOptions { DefaultLegend = "table" } };
+        MarkdownToDocxOptions Options = new MarkdownToDocxOptions { Mermaid = new MermaidOptions { DefaultLegend = "table" } };
         byte[] DefaultBytes = new MarkdownToDocxConverter(Options)
             .ConvertText("```mermaid\n" + Source + "\n```", Environment.CurrentDirectory);
         byte[] OverrideBytes = new MarkdownToDocxConverter(Options)
@@ -142,8 +144,7 @@ public sealed class EnterpriseDocxTests
         using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
         Paragraph Fallback = Document.MainDocumentPart!.Document!.Descendants<Paragraph>()
             .Single(Item => Item.InnerText.Contains("Mermaid diagram not rendered", StringComparison.Ordinal));
-        List<Text> Diagnostics = Fallback.Descendants<Text>()
-            .Where(Item => Item.Text.StartsWith("line ", StringComparison.Ordinal)).ToList();
+        List<Text> Diagnostics = [.. Fallback.Descendants<Text>().Where(Item => Item.Text.StartsWith("line ", StringComparison.Ordinal))];
         Assert.HasCount(4, Diagnostics);
         foreach (Text Diagnostic in Diagnostics)
         {
@@ -182,13 +183,12 @@ public sealed class EnterpriseDocxTests
         byte[] Bytes = Converter.ConvertText(Markdown, Environment.CurrentDirectory);
         using MemoryStream Stream = new MemoryStream(Bytes);
         using ZipArchive Archive = new ZipArchive(Stream, ZipArchiveMode.Read);
-        List<ZipArchiveEntry> Media = Archive.Entries
+        List<ZipArchiveEntry> Media = [.. Archive.Entries
             .Where(Entry =>
                 (Entry.FullName.Contains("media/", StringComparison.OrdinalIgnoreCase)
                     || Entry.FullName.StartsWith("word/media/", StringComparison.OrdinalIgnoreCase))
                 && (Entry.FullName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                    || Entry.FullName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
-            .ToList();
+                    || Entry.FullName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))];
         Assert.IsGreaterThan(0, Media.Count, "Expected an embedded diagram image in the DOCX.");
         ZipArchiveEntry Image = Media[0];
         using Stream ImageStream = Image.Open();

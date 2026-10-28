@@ -194,7 +194,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         void CreateTightObstaclesIgnoringTightPadding() {
-            Polyline[] polysWithoutPadding = Obstacles.Select(o => Curve.PolylineAroundClosedCurve(o)).ToArray();
+            Polyline[] polysWithoutPadding = [.. Obstacles.Select(o => Curve.PolylineAroundClosedCurve(o))];
             RectangleNode<Polyline> polylineHierarchy = CalculateHierarchy(polysWithoutPadding);
             Set<Tuple<Polyline, Polyline>> overlappingPairSet = GetOverlappedPairSet(polylineHierarchy);
             TightObstacles = [];
@@ -238,12 +238,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
 
         internal static RectangleNode<Polyline> ReplaceTightObstaclesWithConvexHulls(Set<Polyline> tightObsts, IEnumerable<Tuple<Polyline, Polyline>> overlappingPairSet) {
-            Set<Polyline> overlapping = new Set<Polyline>();
+            Set<Polyline> overlapping = [];
             foreach (Tuple<Polyline, Polyline> pair in overlappingPairSet) {
                 overlapping.Insert(pair.Item1);
                 overlapping.Insert(pair.Item2);
             }
-            Polyline[] intToPoly = overlapping.ToArray();
+            Polyline[] intToPoly = [.. overlapping];
             Dictionary<Polyline, int> polyToInt = MapToInt(intToPoly);
             BasicGraph<IntPair> graph = new BasicGraph<IntPair>(
                     overlappingPairSet.
@@ -264,7 +264,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         internal static Dictionary<T, int> MapToInt<T>(T[] objects) where T : notnull {
-            Dictionary<T, int> ret = new Dictionary<T, int>();
+            Dictionary<T, int> ret = [];
             for (int i = 0; i < objects.Length; i++)
             {
                 ret[objects[i]] = i;
@@ -277,7 +277,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         internal static Set<Tuple<Polyline, Polyline>> GetOverlappedPairSet(RectangleNode<Polyline> rootOfObstacleHierarchy)
         {
-            Set<Tuple<Polyline, Polyline>> overlappingPairSet = new Set<Tuple<Polyline, Polyline>>();
+            Set<Tuple<Polyline, Polyline>> overlappingPairSet = [];
             RectangleNodeUtils.CrossRectangleNodes<Polyline>(rootOfObstacleHierarchy, rootOfObstacleHierarchy,
                                                    (a, b) =>
                                                        {
@@ -298,7 +298,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
 
         internal static RectangleNode<Polyline> CalculateHierarchy(IEnumerable<Polyline> polylines) {
-            List<RectangleNode<Polyline>> rectNodes = polylines.Select(polyline => CreateRectNodeOfPolyline(polyline)).ToList();
+            List<RectangleNode<Polyline>> rectNodes = [.. polylines.Select(polyline => CreateRectNodeOfPolyline(polyline))];
             return RectangleNode<Polyline>.CreateRectangleNodeOnListOfNodes(rectNodes);
         }
 
@@ -406,7 +406,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
             Point l = (v - u).Normalize() + (v - w).Normalize();
             if (l.Length < ApproximateComparer.IntersectionEpsilon) {
-                a = b = v + padding*uvPerp;
+                a = b = v + (padding*uvPerp);
                 return 1;
             }
             Point d = l.Normalize()*padding;
@@ -414,9 +414,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
             //look for a in the form d+x*dp
             //we have:  Padding=(d+x*dp)*uvPerp
-            double xp = (padding - d*uvPerp)/(dp*uvPerp);
-            a = d + xp*dp + v;
-            b = d - xp*dp + v;
+            double xp = (padding - (d*uvPerp))/(dp*uvPerp);
+            a = d + (xp*dp) + v;
+            b = d - (xp*dp) + v;
             return 2; //number of points to add 
         }
 
@@ -487,7 +487,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 skip = false;
                 z /= zLen;
             }
-            return p*z + v;
+            return (p*z) + v;
         }
 
         

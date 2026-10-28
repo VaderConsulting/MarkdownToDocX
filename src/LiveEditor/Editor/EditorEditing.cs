@@ -289,7 +289,7 @@ internal static class EditorEditing
             return Change;
         }
 
-        List<int> Ordered = new List<int>();
+        List<int> Ordered = [];
         foreach (int LineNumber in LineNumbers)
         {
             if (LineNumber > 0 && !Ordered.Contains(LineNumber))
@@ -475,8 +475,7 @@ internal static class EditorEditing
 
     private static List<int> LineStartsOf(string Text)
     {
-        List<int> Starts = new List<int>();
-        Starts.Add(0);
+        List<int> Starts = [0];
         for (int Index = 0; Index < Text.Length; Index++)
         {
             if (Text[Index] == '\n')

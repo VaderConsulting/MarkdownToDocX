@@ -80,7 +80,7 @@ public static partial class DiagramGridLayout
             return Cross(Left, Horizontal, Old: true).CompareTo(Cross(Right, Horizontal, Old: true));
         });
 
-        List<ColumnBand> Bands = new List<ColumnBand>();
+        List<ColumnBand> Bands = [];
         foreach (GridNode Node in Ordered)
         {
             ColumnBand? Match = null;
@@ -244,20 +244,23 @@ public static partial class DiagramGridLayout
         // Both metadata and position writes forced symmetric outcome lanes.
         // Keep initial ordering; let real allocated-port costs select whole
         // cell alternatives rather than imposing the decision's centre line.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         foreach (GridNode Parent in Placed.Where(Node => Node.IsDiamond))
         {
-            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
+            List<EdgeContract> Outgoing = [.. Visible.Where(Edge => Edge.SourceId == Parent.Id)];
             if (Outgoing.Count != 2 || Outgoing[0].TargetId == Outgoing[1].TargetId)
             {
                 continue;
             }
 
-            List<GridNode> Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
-                .Select(Edge => ById[Edge.TargetId]).ToList();
+            List<GridNode> Children = [.. Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId])];
             if (Children.Count != 2 || Children[0].Rank != Children[1].Rank
                 || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
                     || Visible.Any(Edge => Edge.SourceId == Child.Id)
@@ -278,7 +281,7 @@ public static partial class DiagramGridLayout
                         CrossHalf(Parent, Horizontal, Leading: true)
                         + DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridMetrics.GRID_UNIT_PX));
                     SetCross(Children[Index], (int)Math.Round(Cross(Parent, Horizontal, Old: false))
-                        + Side * Pitch, Horizontal);
+                        + (Side * Pitch), Horizontal);
                 }
             }
         }
@@ -294,21 +297,24 @@ public static partial class DiagramGridLayout
         // The whole pass positions a parent/input chain on the median child.
         // Neither its ordering rewrite nor its pixel adjustment is a cell
         // placement rule; legal straightening belongs to candidate scoring.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         foreach (GridNode Parent in Placed.Where(Node => !Node.IsDiamond))
         {
-            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
+            List<EdgeContract> Outgoing = [.. Visible.Where(Edge => Edge.SourceId == Parent.Id)];
             if (Outgoing.Count < 3 || Outgoing.Count % 2 == 0
                 || Outgoing.Select(Edge => Edge.TargetId).Distinct().Count() != Outgoing.Count)
             {
                 continue;
             }
 
-            List<GridNode> Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
-                .Select(Edge => ById[Edge.TargetId]).ToList();
+            List<GridNode> Children = [.. Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId])];
             if (Children.Count != Outgoing.Count || Children.Select(Node => Node.Rank).Distinct().Count() != 1
                 || Children.Any(Child => Child.Rank == Parent.Rank || Child.GroupId != Parent.GroupId
                     || Visible.Any(Edge => Edge.SourceId == Child.Id)
@@ -329,7 +335,7 @@ public static partial class DiagramGridLayout
                     SetCross(Current, (int)Math.Round(Cross(Middle, Horizontal, Old: false)), Horizontal);
                 }
 
-                List<EdgeContract> Incoming = Visible.Where(Edge => Edge.TargetId == Current.Id).ToList();
+                List<EdgeContract> Incoming = [.. Visible.Where(Edge => Edge.TargetId == Current.Id)];
                 if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Previous)
                     || Previous.IsDiamond || Previous.GroupId != Parent.GroupId
                     || Visible.Count(Edge => Edge.SourceId == Previous.Id) != 1)
@@ -352,25 +358,40 @@ public static partial class DiagramGridLayout
         // This legacy pass exists only to straighten parent/child centres.
         // Cell placement has no centre-positioning policy: skip both its
         // pre-placement column rewrite and its later coordinate adjustment.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         foreach (GridNode Parent in Placed)
         {
-            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Parent.Id).ToList();
+            List<EdgeContract> Outgoing = [.. Visible.Where(Edge => Edge.SourceId == Parent.Id)];
             if (Outgoing.Count != 1 || !ById.TryGetValue(Outgoing[0].TargetId, out GridNode? Child)
                 || Child.GroupId != Parent.GroupId || Child.Rank == Parent.Rank
                 || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1
-                || Visible.Any(Edge => Edge.SourceId == Child.Id)) continue;
+                || Visible.Any(Edge => Edge.SourceId == Child.Id))
+            {
+                continue;
+            }
+
             double Desired = CoordinatesPlaced ? Cross(Parent, Horizontal, Old: false) : Parent.Column;
             bool Occupied = Placed.Any(Other => Other != Child && Other.Rank == Child.Rank
                 && Math.Abs((CoordinatesPlaced ? Cross(Other, Horizontal, Old: false) : Other.Column) - Desired)
                     < (CoordinatesPlaced ? (CrossHalf(Other, Horizontal, true) + CrossHalf(Child, Horizontal, true)
                         + DiagramGridMetrics.NODE_GAP_PX) : 1));
-            if (Occupied) continue;
+            if (Occupied)
+            {
+                continue;
+            }
+
             Child.Column = Parent.Column;
-            if (CoordinatesPlaced) SetCross(Child, (int)Math.Round(Desired), Horizontal);
+            if (CoordinatesPlaced)
+            {
+                SetCross(Child, (int)Math.Round(Desired), Horizontal);
+            }
         }
     }
 
@@ -388,11 +409,11 @@ public static partial class DiagramGridLayout
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        List<EdgeContract> Forward = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
-            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Forward = [.. Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         foreach (GridNode Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            List<EdgeContract> Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToList();
+            List<EdgeContract> Incoming = [.. Forward.Where(Edge => Edge.TargetId == Decision.Id)];
             if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Input)
                 || Input.IsDiamond || Input.GroupId != Decision.GroupId
                 || Forward.Count(Edge => Edge.SourceId == Input.Id) != 1)
@@ -404,7 +425,7 @@ public static partial class DiagramGridLayout
             while (Visited.Add(Input.Id))
             {
                 SetCross(Input, (int)Math.Round(Cross(Decision, Horizontal, Old: false)), Horizontal);
-                Incoming = Forward.Where(Edge => Edge.TargetId == Input.Id).ToList();
+                Incoming = [.. Forward.Where(Edge => Edge.TargetId == Input.Id)];
                 if (Incoming.Count != 1 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Previous)
                     || Previous.IsDiamond || Previous.GroupId != Decision.GroupId
                     || Forward.Count(Edge => Edge.SourceId == Previous.Id) != 1)
@@ -432,12 +453,12 @@ public static partial class DiagramGridLayout
             return;
         }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         foreach (GridNode Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            List<EdgeContract> Incoming = Visible.Where(Edge => Edge.TargetId == Decision.Id).ToList();
-            List<EdgeContract> Outgoing = Visible.Where(Edge => Edge.SourceId == Decision.Id).ToList();
+            List<EdgeContract> Incoming = [.. Visible.Where(Edge => Edge.TargetId == Decision.Id)];
+            List<EdgeContract> Outgoing = [.. Visible.Where(Edge => Edge.SourceId == Decision.Id)];
             if (Incoming.Count != 1 || Outgoing.Count != 2
                 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Input)
                 || Input.IsDiamond || Visible.Count(Edge => Edge.SourceId == Input.Id) != 1)
@@ -445,8 +466,8 @@ public static partial class DiagramGridLayout
                 continue;
             }
 
-            List<GridNode> Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
-                .Select(Edge => ById[Edge.TargetId]).Distinct().ToList();
+            List<GridNode> Children = [.. Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId))
+                .Select(Edge => ById[Edge.TargetId]).Distinct()];
             GridNode? Retry = Children.FirstOrDefault(Child =>
                 Visible.Count(Edge => Edge.SourceId == Child.Id) == 1
                 && Visible.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Input.Id));
@@ -467,7 +488,7 @@ public static partial class DiagramGridLayout
             SetMain(Retry, (int)Math.Round(Decision.X), Horizontal);
             Retry.Rank = Decision.Rank;
             int Gap = DiagramGridMetrics.CeilToGrid(
-                Decision.Height / 2 + Retry.Height / 2 + 3 * DiagramGridMetrics.GRID_UNIT_PX);
+                (Decision.Height / 2) + (Retry.Height / 2) + (3 * DiagramGridMetrics.GRID_UNIT_PX));
             SetCross(Retry, (int)Math.Round(Decision.Y) + Gap, Horizontal);
         }
     }
@@ -475,39 +496,55 @@ public static partial class DiagramGridLayout
     private static void AlignVerticalLoopBranches(
         DiagramContract Contract, List<GridNode> Placed, bool Horizontal, int CrossPitch)
     {
-        if (Horizontal) return;
+        if (Horizontal)
+        {
+            return;
+        }
+
         if (Placed.Any(Node => Node.CellNode != null))
         {
             AlignCellVerticalLoopBranches(Contract, Placed);
             return;
         }
-        var ById = IndexPlaced(Placed);
-        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Forward = Contract.Edges.Where(Edge => !Back.Contains(Edge)
-            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        IReadOnlySet<EdgeContract> Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        List<EdgeContract> Forward = [.. Contract.Edges.Where(Edge => !Back.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        foreach (GridNode? Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            var Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToList();
-            var Outgoing = Forward.Where(Edge => Edge.SourceId == Decision.Id).ToList();
-            if (Incoming.Count != 1 || Outgoing.Count != 2) continue;
-            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToList();
-            var Loop = Children.FirstOrDefault(Child => Back.Any(Edge => Edge.SourceId == Child.Id
+            List<EdgeContract> Incoming = [.. Forward.Where(Edge => Edge.TargetId == Decision.Id)];
+            List<EdgeContract> Outgoing = [.. Forward.Where(Edge => Edge.SourceId == Decision.Id)];
+            if (Incoming.Count != 1 || Outgoing.Count != 2)
+            {
+                continue;
+            }
+
+            List<GridNode> Children = [.. Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId])];
+            GridNode? Loop = Children.FirstOrDefault(Child => Back.Any(Edge => Edge.SourceId == Child.Id
                 && Edge.TargetId == Incoming[0].SourceId));
             if (Children.Count != 2 || Children[0] == Children[1] || Loop == null
                 || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId
-                    || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
-            var Continuation = Children.First(Child => Child != Loop);
+                    || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1))
+            {
+                continue;
+            }
+
+            GridNode Continuation = Children.First(Child => Child != Loop);
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
-                (Decision.Width + Math.Max(Loop.Width, Continuation.Width)) / 2 + DiagramGridMetrics.NODE_GAP_PX));
+                ((Decision.Width + Math.Max(Loop.Width, Continuation.Width)) / 2) + DiagramGridMetrics.NODE_GAP_PX));
             SetCross(Loop, (int)Math.Round(Decision.X) + Pitch, Horizontal);
             SetCross(Continuation, (int)Math.Round(Decision.X) - Pitch, Horizontal);
-            var Current = Continuation;
-            var Visited = new HashSet<string>();
+            GridNode Current = Continuation;
+            HashSet<string> Visited = [];
             while (Visited.Add(Current.Id))
             {
-                var Next = Forward.Where(Edge => Edge.SourceId == Current.Id).ToList();
-                if (Next.Count != 1 || !ById.TryGetValue(Next[0].TargetId, out var Child)
-                    || Child.IsDiamond || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1) break;
+                List<EdgeContract> Next = [.. Forward.Where(Edge => Edge.SourceId == Current.Id)];
+                if (Next.Count != 1 || !ById.TryGetValue(Next[0].TargetId, out GridNode? Child)
+                    || Child.IsDiamond || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1)
+                {
+                    break;
+                }
+
                 SetCross(Child, (int)Math.Round(Continuation.X), Horizontal);
                 Current = Child;
             }
@@ -517,24 +554,36 @@ public static partial class DiagramGridLayout
     private static IEnumerable<(GridNode Decision, GridNode Detour, GridNode Merge)>
         DecisionDetours(DiagramContract Contract, List<GridNode> Placed)
     {
-        var ById = IndexPlaced(Placed);
-        var Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        IReadOnlySet<EdgeContract> Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        foreach (GridNode? Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            var Branches = Visible.Where(Edge => Edge.SourceId == Decision.Id && !Back.Contains(Edge)).ToList();
-            if (Branches.Count != 2) continue;
-            foreach (var Branch in Branches)
+            List<EdgeContract> Branches = [.. Visible.Where(Edge => Edge.SourceId == Decision.Id && !Back.Contains(Edge))];
+            if (Branches.Count != 2)
             {
-                if (!ById.TryGetValue(Branch.TargetId, out var Detour) || Detour.IsDiamond
+                continue;
+            }
+
+            foreach (EdgeContract? Branch in Branches)
+            {
+                if (!ById.TryGetValue(Branch.TargetId, out GridNode? Detour) || Detour.IsDiamond
                     || Detour.GroupId != Decision.GroupId
-                    || Visible.Count(Edge => Edge.TargetId == Detour.Id) != 1) continue;
-                var Outputs = Visible.Where(Edge => Edge.SourceId == Detour.Id).ToList();
+                    || Visible.Count(Edge => Edge.TargetId == Detour.Id) != 1)
+                {
+                    continue;
+                }
+
+                List<EdgeContract> Outputs = [.. Visible.Where(Edge => Edge.SourceId == Detour.Id)];
                 if (Outputs.Count != 1 || Back.Contains(Outputs[0])
                     || !Branches.Any(Edge => Edge.TargetId == Outputs[0].TargetId)
-                    || !ById.TryGetValue(Outputs[0].TargetId, out var Merge)
-                    || Merge.IsDiamond || Merge.GroupId != Decision.GroupId) continue;
+                    || !ById.TryGetValue(Outputs[0].TargetId, out GridNode? Merge)
+                    || Merge.IsDiamond || Merge.GroupId != Decision.GroupId)
+                {
+                    continue;
+                }
+
                 yield return (Decision, Detour, Merge);
             }
         }
@@ -548,9 +597,9 @@ public static partial class DiagramGridLayout
             AlignCellDecisionDetours(Contract, Placed, Horizontal);
             return;
         }
-        var Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        foreach ((GridNode? Decision, GridNode? Detour, GridNode? Merge) in DecisionDetours(Contract, Placed))
         {
             int Centre = (int)Math.Round(Cross(Decision, Horizontal, Old: false));
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
@@ -562,17 +611,25 @@ public static partial class DiagramGridLayout
             SetCross(Merge, Centre - (Terminal ? Pitch : 0), Horizontal);
             if (Terminal)
             {
-                foreach (var Incoming in Visible.Where(Edge => Edge.TargetId == Merge.Id
+                foreach (EdgeContract? Incoming in Visible.Where(Edge => Edge.TargetId == Merge.Id
                     && Edge.SourceId != Decision.Id && Edge.SourceId != Detour.Id))
                 {
-                    var EarlyExit = Placed.FirstOrDefault(Node => Node.Id == Incoming.SourceId);
+                    GridNode? EarlyExit = Placed.FirstOrDefault(Node => Node.Id == Incoming.SourceId);
                     if (EarlyExit == null || EarlyExit.IsDiamond || EarlyExit.GroupId != Merge.GroupId
                         || Visible.Count(Edge => Edge.SourceId == EarlyExit.Id) != 1
-                        || Visible.Count(Edge => Edge.TargetId == EarlyExit.Id) != 1) continue;
-                    var ParentEdge = Visible.Single(Edge => Edge.TargetId == EarlyExit.Id);
-                    var Parent = Placed.FirstOrDefault(Node => Node.Id == ParentEdge.SourceId);
-                    if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2) continue;
-                    SetCross(EarlyExit, Centre - 2 * Pitch, Horizontal);
+                        || Visible.Count(Edge => Edge.TargetId == EarlyExit.Id) != 1)
+                    {
+                        continue;
+                    }
+
+                    EdgeContract ParentEdge = Visible.Single(Edge => Edge.TargetId == EarlyExit.Id);
+                    GridNode? Parent = Placed.FirstOrDefault(Node => Node.Id == ParentEdge.SourceId);
+                    if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2)
+                    {
+                        continue;
+                    }
+
+                    SetCross(EarlyExit, Centre - (2 * Pitch), Horizontal);
                     SetMain(EarlyExit, (int)Math.Round(Main(Merge, Horizontal, Old: false)), Horizontal);
                     EarlyExit.Rank = Merge.Rank;
                 }
@@ -584,21 +641,25 @@ public static partial class DiagramGridLayout
         DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed,
         List<GridFrame> Frames, bool Horizontal)
     {
-        var Bounds = BuildPlacedBounds(Placed, Frames);
-        foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = BuildPlacedBounds(Placed, Frames);
+        foreach ((GridNode? Decision, GridNode? Detour, GridNode? Merge) in DecisionDetours(Contract, Placed))
         {
             double Flow = Math.Sign(Main(Merge, Horizontal, Old: false) - Main(Decision, Horizontal, Old: false));
             double Side = Math.Sign(Cross(Detour, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false));
             (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
-            foreach (var Source in new[] { Decision, Detour })
+            foreach (GridNode? Source in new[] { Decision, Detour })
             {
-                var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Source.Id && Route.TargetId == Merge.Id);
-                if (Route == null) continue;
+                FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Source.Id && Route.TargetId == Merge.Id);
+                if (Route == null)
+                {
+                    continue;
+                }
+
                 double StartMain = Main(Source, Horizontal, Old: false);
                 double StartCross = Cross(Source, Horizontal, Old: false);
                 double EndMain = Main(Merge, Horizontal, Old: false);
                 double EndCross = Cross(Merge, Horizontal, Old: false);
-                var Path = new List<(double X, double Y)>();
+                List<(double X, double Y)> Path = [];
                 if (Source == Detour)
                 {
                     StartMain += Flow * MainHalf(Source, Horizontal, Leading: true);
@@ -618,34 +679,60 @@ public static partial class DiagramGridLayout
                     Path = [Map(StartMain, StartCross), Map(StartMain, EndCross), Map(EndMain, EndCross)];
                 }
                 if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
-                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Source.Id, Merge.Id))) continue;
+                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Source.Id, Merge.Id)))
+                {
+                    continue;
+                }
+
                 SetRouteEndpointSides(Route, Bounds[Source.Id], Bounds[Merge.Id], Path, Horizontal);
                 Route.Points.Clear();
-                foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                foreach ((double X, double Y) Point in Path)
+                {
+                    Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                }
             }
-            foreach (var EarlyExit in Placed.Where(Node => Node.Id != Detour.Id
+            foreach (GridNode? EarlyExit in Placed.Where(Node => Node.Id != Detour.Id
                 && Node.GroupId == Merge.GroupId && Node.Rank == Merge.Rank
                 && Contract.Edges.Count(Edge => Edge.SourceId == Node.Id) == 1
                 && Contract.Edges.Any(Edge => Edge.SourceId == Node.Id && Edge.TargetId == Merge.Id)))
             {
-                var Incoming = Contract.Edges.Where(Edge => Edge.TargetId == EarlyExit.Id).ToList();
-                if (Incoming.Count != 1) continue;
-                var Parent = Placed.FirstOrDefault(Node => Node.Id == Incoming[0].SourceId);
-                if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2) continue;
-                var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Parent.Id && Route.TargetId == EarlyExit.Id);
-                if (Route == null) continue;
+                List<EdgeContract> Incoming = [.. Contract.Edges.Where(Edge => Edge.TargetId == EarlyExit.Id)];
+                if (Incoming.Count != 1)
+                {
+                    continue;
+                }
+
+                GridNode? Parent = Placed.FirstOrDefault(Node => Node.Id == Incoming[0].SourceId);
+                if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2)
+                {
+                    continue;
+                }
+
+                FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Parent.Id && Route.TargetId == EarlyExit.Id);
+                if (Route == null)
+                {
+                    continue;
+                }
+
                 double StartMain = Main(Parent, Horizontal, Old: false);
-                double StartCross = Cross(Parent, Horizontal, Old: false) + Math.Sign(
+                double StartCross = Cross(Parent, Horizontal, Old: false) + (Math.Sign(
                     Cross(EarlyExit, Horizontal, Old: false) - Cross(Parent, Horizontal, Old: false))
-                    * CrossHalf(Parent, Horizontal, Leading: true);
-                double EndMain = Main(EarlyExit, Horizontal, Old: false) - Flow * MainHalf(EarlyExit, Horizontal, Leading: true);
+                    * CrossHalf(Parent, Horizontal, Leading: true));
+                double EndMain = Main(EarlyExit, Horizontal, Old: false) - (Flow * MainHalf(EarlyExit, Horizontal, Leading: true));
                 double EndCross = Cross(EarlyExit, Horizontal, Old: false);
-                var Path = new List<(double X, double Y)> { Map(StartMain, StartCross), Map(StartMain, EndCross), Map(EndMain, EndCross) };
+                List<(double X, double Y)> Path = [Map(StartMain, StartCross), Map(StartMain, EndCross), Map(EndMain, EndCross)];
                 if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
-                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Parent.Id, EarlyExit.Id))) continue;
+                    Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Parent.Id, EarlyExit.Id)))
+                {
+                    continue;
+                }
+
                 SetRouteEndpointSides(Route, Bounds[Parent.Id], Bounds[EarlyExit.Id], Path, Horizontal);
                 Route.Points.Clear();
-                foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                foreach ((double X, double Y) Point in Path)
+                {
+                    Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+                }
             }
         }
     }
@@ -653,27 +740,38 @@ public static partial class DiagramGridLayout
     private static IEnumerable<(GridNode Decision, GridNode Left, GridNode Right, GridNode Merge)>
         SimpleDecisionMerges(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        var ById = IndexPlaced(Placed);
-        var Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        foreach (GridNode? Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            var Branches = Visible.Where(Edge => Edge.SourceId == Decision.Id).ToList();
+            List<EdgeContract> Branches = [.. Visible.Where(Edge => Edge.SourceId == Decision.Id)];
             if (Branches.Count != 2 || Branches[0].TargetId == Branches[1].TargetId
-                || Branches.Any(Edge => !ById.ContainsKey(Edge.TargetId))) continue;
-            var Children = Branches.Select(Edge => ById[Edge.TargetId])
-                .OrderBy(Node => Cross(Node, Horizontal, Old: true)).ToArray();
+                || Branches.Any(Edge => !ById.ContainsKey(Edge.TargetId)))
+            {
+                continue;
+            }
+
+            GridNode[] Children = [.. Branches.Select(Edge => ById[Edge.TargetId]).OrderBy(Node => Cross(Node, Horizontal, Old: true))];
             if (Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId
                 || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1
-                || Visible.Count(Edge => Edge.SourceId == Child.Id) != 1)) continue;
-            var Outputs = Children.Select(Child => Visible.Single(Edge => Edge.SourceId == Child.Id)).ToArray();
+                || Visible.Count(Edge => Edge.SourceId == Child.Id) != 1))
+            {
+                continue;
+            }
+
+            EdgeContract[] Outputs = [.. Children.Select(Child => Visible.Single(Edge => Edge.SourceId == Child.Id))];
             if (Outputs[0].TargetId != Outputs[1].TargetId
-                || !ById.TryGetValue(Outputs[0].TargetId, out var Merge)
+                || !ById.TryGetValue(Outputs[0].TargetId, out GridNode? Merge)
                 || Merge.IsDiamond || Merge.GroupId != Decision.GroupId
                 || Visible.Any(Edge => Edge.SourceId == Merge.Id)
                 || Visible.Count(Edge => Edge.TargetId == Merge.Id) != 2
                 || Children[0].Rank != Children[1].Rank
-                || Children[0].Rank == Decision.Rank || Merge.Rank == Decision.Rank) continue;
+                || Children[0].Rank == Decision.Rank || Merge.Rank == Decision.Rank)
+            {
+                continue;
+            }
+
             yield return (Decision, Children[0], Children[1], Merge);
         }
     }
@@ -684,8 +782,12 @@ public static partial class DiagramGridLayout
         // Preserve topology and branch ordering, but do not force symmetric
         // lanes or place the merge on one child's line. Routed whole-cell
         // candidates must earn those positions through lower cost.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
-        foreach (var (Decision, Left, Right, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
+        foreach ((GridNode? Decision, GridNode? Left, GridNode? Right, GridNode? Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
         {
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
                 CrossHalf(Decision, Horizontal, Leading: true)
@@ -702,28 +804,39 @@ public static partial class DiagramGridLayout
         DiagramContract Contract, FlowchartLayoutResult Copy, List<GridNode> Placed,
         List<GridFrame> Frames, bool Horizontal)
     {
-        var Bounds = BuildPlacedBounds(Placed, Frames);
-        foreach (var (_, First, Second, Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = BuildPlacedBounds(Placed, Frames);
+        foreach ((GridNode _, GridNode? First, GridNode? Second, GridNode? Merge) in SimpleDecisionMerges(Contract, Placed, Horizontal))
         {
-            var Left = Math.Abs(Cross(First, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false)) > 0.5 ? First : Second;
-            var Edge = Contract.Edges.First(Edge => Edge.SourceId == Left.Id && Edge.TargetId == Merge.Id);
-            var Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Left.Id && Route.TargetId == Merge.Id);
-            if (Route == null) continue;
+            GridNode Left = Math.Abs(Cross(First, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false)) > 0.5 ? First : Second;
+            EdgeContract Edge = Contract.Edges.First(Edge => Edge.SourceId == Left.Id && Edge.TargetId == Merge.Id);
+            FlowchartLayoutEdgeRoute? Route = Copy.EdgeRoutes.FirstOrDefault(Route => Route.SourceId == Left.Id && Route.TargetId == Merge.Id);
+            if (Route == null)
+            {
+                continue;
+            }
+
             double MainSign = Math.Sign(Main(Merge, Horizontal, Old: false) - Main(Left, Horizontal, Old: false));
             double CrossSign = Math.Sign(Cross(Left, Horizontal, Old: false) - Cross(Merge, Horizontal, Old: false));
-            double StartMain = Main(Left, Horizontal, Old: false) + MainSign
-                * (MainHalf(Left, Horizontal, Leading: true) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart));
+            double StartMain = Main(Left, Horizontal, Old: false) + (MainSign
+                * (MainHalf(Left, Horizontal, Leading: true) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerStart)));
             double StartCross = Cross(Left, Horizontal, Old: false);
             double EndMain = Main(Merge, Horizontal, Old: false);
-            double EndCross = Cross(Merge, Horizontal, Old: false) + CrossSign
-                * (CrossHalf(Merge, Horizontal, Leading: true) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd));
+            double EndCross = Cross(Merge, Horizontal, Old: false) + (CrossSign
+                * (CrossHalf(Merge, Horizontal, Leading: true) + FlowchartEdgeAttachConstants.GetExteriorGapPx(Edge.MarkerEnd)));
             (double X, double Y) Map(double Main, double Cross) => Horizontal ? (Main, Cross) : (Cross, Main);
-            var Path = new List<(double X, double Y)> { Map(StartMain, StartCross), Map(EndMain, StartCross), Map(EndMain, EndCross) };
+            List<(double X, double Y)> Path = [Map(StartMain, StartCross), Map(EndMain, StartCross), Map(EndMain, EndCross)];
             if (Path.Zip(Path.Skip(1)).Any(Pair => FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
-                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Left.Id, Merge.Id))) continue;
+                Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Bounds, Left.Id, Merge.Id)))
+            {
+                continue;
+            }
+
             SetRouteEndpointSides(Route, Bounds[Left.Id], Bounds[Merge.Id], Path, Horizontal);
             Route.Points.Clear();
-            foreach (var Point in Path) Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            foreach ((double X, double Y) Point in Path)
+            {
+                Route.Points.Add(new() { X = Point.X, Y = Point.Y });
+            }
         }
     }
 
@@ -740,18 +853,18 @@ public static partial class DiagramGridLayout
             return;
         }
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         foreach (GridNode Target in Placed)
         {
-            List<EdgeContract> Incoming = Visible.Where(Edge => Edge.TargetId == Target.Id).ToList();
+            List<EdgeContract> Incoming = [.. Visible.Where(Edge => Edge.TargetId == Target.Id)];
             if (Incoming.Count < 3 || Incoming.Count % 2 == 0
                 || Incoming.Select(Edge => Edge.SourceId).Distinct().Count() != Incoming.Count)
             {
                 continue;
             }
-            List<GridNode> Parents = Incoming.Where(Edge => ById.ContainsKey(Edge.SourceId))
-                .Select(Edge => ById[Edge.SourceId]).OrderBy(Node => Cross(Node, Horizontal, Old: false)).ToList();
+            List<GridNode> Parents = [.. Incoming.Where(Edge => ById.ContainsKey(Edge.SourceId))
+                .Select(Edge => ById[Edge.SourceId]).OrderBy(Node => Cross(Node, Horizontal, Old: false))];
             if (Parents.Count != Incoming.Count || Parents.Select(Node => Node.Rank).Distinct().Count() != 1
                 || Parents.Any(Parent => Parent.Rank == Target.Rank || Parent.GroupId != Target.GroupId
                     || Visible.Count(Edge => Edge.SourceId == Parent.Id) != 1)
@@ -761,21 +874,28 @@ public static partial class DiagramGridLayout
             }
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.CeilToGrid(
                 Parents.Max(Node => 2 * CrossHalf(Node, Horizontal, Leading: true)) + DiagramGridMetrics.NODE_GAP_PX));
-            var Anchored = Parents.Where(Parent => Visible.Any(Edge => Edge.TargetId == Parent.Id)).ToList();
-            foreach (var Parent in Anchored)
+            List<GridNode> Anchored = [.. Parents.Where(Parent => Visible.Any(Edge => Edge.TargetId == Parent.Id))];
+            foreach (GridNode? Parent in Anchored)
             {
-                int Offset = Parents.IndexOf(Parent) - Parents.Count / 2;
-                if (Offset != 0) Pitch = Math.Max(Pitch, DiagramGridMetrics.CeilToGrid(
+                int Offset = Parents.IndexOf(Parent) - (Parents.Count / 2);
+                if (Offset != 0)
+                {
+                    Pitch = Math.Max(Pitch, DiagramGridMetrics.CeilToGrid(
                     Math.Abs(Cross(Parent, Horizontal, Old: false) - Cross(Target, Horizontal, Old: false)) / Math.Abs(Offset)));
+                }
             }
             // An upstream chain anchors its parent. Independent inputs may
             // close around that anchor when it already occupies its fan slot.
             if (Anchored.Any(Parent => Math.Abs(Cross(Parent, Horizontal, Old: false)
-                    - (Cross(Target, Horizontal, Old: false) + (Parents.IndexOf(Parent) - Parents.Count / 2) * Pitch)) > 0.5)) continue;
+                    - (Cross(Target, Horizontal, Old: false) + ((Parents.IndexOf(Parent) - (Parents.Count / 2)) * Pitch))) > 0.5))
+            {
+                continue;
+            }
+
             for (int Index = 0; Index < Parents.Count; Index++)
             {
                 SetCross(Parents[Index], (int)Math.Round(Cross(Target, Horizontal, Old: false))
-                    + (Index - Parents.Count / 2) * Pitch, Horizontal);
+                    + ((Index - (Parents.Count / 2)) * Pitch), Horizontal);
             }
         }
     }
@@ -783,45 +903,73 @@ public static partial class DiagramGridLayout
     /// <summary>Centres a shared fan between independent inputs and straightens its unbranched tails.</summary>
     internal static HashSet<string> AlignSharedFanSourcesAndTails(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        if (Placed.Any(Node => Node.CellNode != null)) return SelectCellSharedFanSources(Contract, Placed, Horizontal);
-        var Aligned = new HashSet<string>(StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed);
-        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Visible = Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
-            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
-        foreach (var Source in Placed.Where(Node => !Node.IsDiamond))
+        if (Placed.Any(Node => Node.CellNode != null))
         {
-            if (Visible.Any(Edge => Edge.TargetId == Source.Id)) continue;
-            var Children = Visible.Where(Edge => Edge.SourceId == Source.Id && ById.ContainsKey(Edge.TargetId))
-                .Select(Edge => ById[Edge.TargetId]).Distinct().ToList();
+            return SelectCellSharedFanSources(Contract, Placed, Horizontal);
+        }
+
+        HashSet<string> Aligned = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge => !BackEdges.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        foreach (GridNode? Source in Placed.Where(Node => !Node.IsDiamond))
+        {
+            if (Visible.Any(Edge => Edge.TargetId == Source.Id))
+            {
+                continue;
+            }
+
+            List<GridNode> Children = [.. Visible.Where(Edge => Edge.SourceId == Source.Id && ById.ContainsKey(Edge.TargetId))
+                .Select(Edge => ById[Edge.TargetId]).Distinct()];
             if (Children.Count < 2 || Children.Select(Node => Node.Rank).Distinct().Count() != 1
-                || Children.Any(Node => Node.IsDiamond || Node.Rank == Source.Rank || Node.GroupId != Source.GroupId)) continue;
+                || Children.Any(Node => Node.IsDiamond || Node.Rank == Source.Rank || Node.GroupId != Source.GroupId))
+            {
+                continue;
+            }
+
             bool IndependentInputs = Children.All(Child =>
             {
-                var Others = Visible.Where(Edge => Edge.TargetId == Child.Id && Edge.SourceId != Source.Id).ToList();
-                return Others.Count > 0 && Others.All(Edge => ById.TryGetValue(Edge.SourceId, out var Parent)
+                List<EdgeContract> Others = [.. Visible.Where(Edge => Edge.TargetId == Child.Id && Edge.SourceId != Source.Id)];
+                return Others.Count > 0 && Others.All(Edge => ById.TryGetValue(Edge.SourceId, out GridNode? Parent)
                     && Parent.Rank == Source.Rank && Parent.GroupId == Source.GroupId && !Parent.IsDiamond
                     && !Visible.Any(Incoming => Incoming.TargetId == Parent.Id)
                     && Visible.Count(Outgoing => Outgoing.SourceId == Parent.Id) == 1);
             });
-            if (!IndependentInputs) continue;
+            if (!IndependentInputs)
+            {
+                continue;
+            }
+
             double Centre = (Children.Min(Node => Cross(Node, Horizontal, Old: false))
                 + Children.Max(Node => Cross(Node, Horizontal, Old: false))) / 2;
             double Anchor = Cross(Children[0], Horizontal, Old: false);
-            int Position = (int)(Anchor + Math.Round((Centre - Anchor) / DiagramGridMetrics.GRID_UNIT_PX)
-                * DiagramGridMetrics.GRID_UNIT_PX);
-            if (TryMove(Source, Position)) Aligned.Add(Source.Id);
-            foreach (var Child in Children)
+            int Position = (int)(Anchor + (Math.Round((Centre - Anchor) / DiagramGridMetrics.GRID_UNIT_PX)
+                * DiagramGridMetrics.GRID_UNIT_PX));
+            if (TryMove(Source, Position))
             {
-                var Current = Child;
-                var Seen = new HashSet<string>();
+                Aligned.Add(Source.Id);
+            }
+
+            foreach (GridNode? Child in Children)
+            {
+                GridNode Current = Child;
+                HashSet<string> Seen = [];
                 while (Seen.Add(Current.Id))
                 {
-                    var Outgoing = Visible.Where(Edge => Edge.SourceId == Current.Id).ToList();
-                    if (Outgoing.Count != 1 || !ById.TryGetValue(Outgoing[0].TargetId, out var Next)
+                    List<EdgeContract> Outgoing = [.. Visible.Where(Edge => Edge.SourceId == Current.Id)];
+                    if (Outgoing.Count != 1 || !ById.TryGetValue(Outgoing[0].TargetId, out GridNode? Next)
                         || Next.IsDiamond || Next.Rank == Current.Rank || Next.GroupId != Current.GroupId
-                        || Visible.Count(Edge => Edge.TargetId == Next.Id) != 1) break;
-                    if (!TryMove(Next, (int)Cross(Current, Horizontal, Old: false))) break;
+                        || Visible.Count(Edge => Edge.TargetId == Next.Id) != 1)
+                    {
+                        break;
+                    }
+
+                    if (!TryMove(Next, (int)Cross(Current, Horizontal, Old: false)))
+                    {
+                        break;
+                    }
+
                     Current = Next;
                 }
             }
@@ -834,7 +982,11 @@ public static partial class DiagramGridLayout
             if (Placed.Any(Other => Other != Node && Math.Abs(Main(Other, Horizontal, Old: false) - Main(Node, Horizontal, Old: false))
                 < MainHalf(Other, Horizontal, Leading: true) + MainHalf(Node, Horizontal, Leading: true)
                 && Math.Abs(Cross(Other, Horizontal, Old: false) - Position)
-                < CrossHalf(Other, Horizontal, Leading: true) + CrossHalf(Node, Horizontal, Leading: true) + DiagramGridMetrics.NODE_GAP_PX)) return false;
+                < CrossHalf(Other, Horizontal, Leading: true) + CrossHalf(Node, Horizontal, Leading: true) + DiagramGridMetrics.NODE_GAP_PX))
+            {
+                return false;
+            }
+
             SetCross(Node, Position, Horizontal);
             return true;
         }
@@ -918,7 +1070,11 @@ public static partial class DiagramGridLayout
         bool Horizontal)
     {
         // A median source is an ordering input, never a forced merge position.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         if (Horizontal)
         {
             return;
@@ -1057,7 +1213,10 @@ public static partial class DiagramGridLayout
                 : DecisionParent.Column + 1;
             // Keep detour side order, but do not force a cell merge onto the
             // decision's line before the routed scorer can compare positions.
-            if (Candidate.CellNode == null) Candidate.Column = DecisionParent.Column;
+            if (Candidate.CellNode == null)
+            {
+                Candidate.Column = DecisionParent.Column;
+            }
         }
 
         CascadeColumns(Placed);
@@ -1073,7 +1232,11 @@ public static partial class DiagramGridLayout
     {
         // Native branch order remains available to the region producer. A
         // chosen centre child must not prescribe the parent column for cells.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         if (Horizontal)
         {
             return;
@@ -1184,8 +1347,8 @@ public static partial class DiagramGridLayout
 
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
 
         foreach (GridNode Parent in Placed.Where(Node => Node.IsDiamond))
         {
@@ -1229,7 +1392,7 @@ public static partial class DiagramGridLayout
                 .First()
                 .Key;
 
-            List<GridNode> RankChildren = Children.Where(Child => Child.Rank == TargetRank).ToList();
+            List<GridNode> RankChildren = [.. Children.Where(Child => Child.Rank == TargetRank)];
             double SharedMain = RankChildren.Count > 0
                 ? RankChildren.Average(Child => Main(Child, Horizontal, Old: false))
                 : Children.Average(Child => Main(Child, Horizontal, Old: false));
@@ -1249,16 +1412,14 @@ public static partial class DiagramGridLayout
             GridNode CentreChild = Children
                 .OrderBy(Child => Math.Abs(Cross(Child, Horizontal, Old: true) - ParentCross))
                 .First();
-            List<GridNode> LeftChildren = Children
+            List<GridNode> LeftChildren = [.. Children
                 .Where(Child => Child != CentreChild
                     && Cross(Child, Horizontal, Old: true) < Cross(CentreChild, Horizontal, Old: true) - DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-                .OrderBy(Child => Cross(Child, Horizontal, Old: true))
-                .ToList();
-            List<GridNode> RightChildren = Children
+                .OrderBy(Child => Cross(Child, Horizontal, Old: true))];
+            List<GridNode> RightChildren = [.. Children
                 .Where(Child => Child != CentreChild
                     && Cross(Child, Horizontal, Old: true) > Cross(CentreChild, Horizontal, Old: true) + DiagramGridMetrics.ALIGNMENT_TOLERANCE_PX)
-                .OrderBy(Child => Cross(Child, Horizontal, Old: true))
-                .ToList();
+                .OrderBy(Child => Cross(Child, Horizontal, Old: true))];
 
             SetCross(CentreChild, (int)Math.Round(ParentCross), Horizontal);
             int Pitch = Math.Max(CrossPitch, DiagramGridMetrics.PITCH_X_PX);
@@ -1282,7 +1443,11 @@ public static partial class DiagramGridLayout
     {
         // This swap only prescribes a straight parent/child column. Actual
         // cell occupancy, legality and bend cost decide swaps after routing.
-        if (Placed.Any(Node => Node.CellNode != null)) return;
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return;
+        }
+
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         Dictionary<string, int> ParentCount = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -1353,7 +1518,10 @@ public static partial class DiagramGridLayout
         if (Placed.Any(Node => Node.CellNode != null))
         {
             if (!FlowchartCellInitialPlacement.TryAssign(Placed, Horizontal))
+            {
                 throw new InvalidOperationException("Initial whole-cell placement could not publish its complete region plan.");
+            }
+
             return;
         }
         int RankCount = 0;
@@ -1389,12 +1557,12 @@ public static partial class DiagramGridLayout
                 + Plan.StructuralClearGap + Plan.LabelClearGapBoost);
         }
 
-        SortedDictionary<int, List<GridNode>> ByColumn = new SortedDictionary<int, List<GridNode>>();
+        SortedDictionary<int, List<GridNode>> ByColumn = [];
         foreach (GridNode Node in Placed)
         {
             if (!ByColumn.TryGetValue(Node.Column, out List<GridNode>? Members))
             {
-                Members = new List<GridNode>();
+                Members = [];
                 ByColumn[Node.Column] = Members;
             }
 
@@ -1475,21 +1643,25 @@ public static partial class DiagramGridLayout
 
     private static void GrowParallelRelationshipSides(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        var ById = IndexPlaced(Placed);
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         bool Cells = Placed.Any(Node => Node.CellNode != null);
-        var Minimums = new Dictionary<string, (double Width, double Height)>(StringComparer.Ordinal);
-        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Options = FlowchartRenderOptions.FromContract(Contract);
-        foreach (var Group in Contract.Edges.Where(Edge => Edge.SourceId != Edge.TargetId
+        Dictionary<string, (double Width, double Height)> Minimums = new Dictionary<string, (double Width, double Height)>(StringComparer.Ordinal);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (IGrouping<(string SourceId, string TargetId), EdgeContract>? Group in Contract.Edges.Where(Edge => Edge.SourceId != Edge.TargetId
             && !BackEdges.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
             .GroupBy(Edge => (Edge.SourceId, Edge.TargetId)).Where(Group => Group.Count() > 1))
         {
-            if (!ById.TryGetValue(Group.Key.SourceId, out var Source)
-                || !ById.TryGetValue(Group.Key.TargetId, out var Target)
-                || Source.IsDiamond || Target.IsDiamond) continue;
+            if (!ById.TryGetValue(Group.Key.SourceId, out GridNode? Source)
+                || !ById.TryGetValue(Group.Key.TargetId, out GridNode? Target)
+                || Source.IsDiamond || Target.IsDiamond)
+            {
+                continue;
+            }
+
             double Pitch = Group.Max(Edge =>
             {
-                var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
+                FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
                 double WordWidth = Size.DisplayText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
                     .Select(Word => Word.Length * Options.EdgeLabelFontSizePx * FlowchartEdgeLabelGapHelper.LABEL_CHAR_WIDTH_EM)
                     .DefaultIfEmpty(0).Max();
@@ -1497,29 +1669,38 @@ public static partial class DiagramGridLayout
             });
             int Needed = DiagramGridMetrics.CeilToGrid(Math.Max(
                 DiagramGridMetrics.MinSideLengthForPorts(Group.Count()),
-                (int)Math.Ceiling(Group.Count() * Pitch + 30)));
+                (int)Math.Ceiling((Group.Count() * Pitch) + 30)));
             if (Cells)
             {
-                foreach (var Node in new[] { Source, Target })
+                foreach (GridNode? Node in new[] { Source, Target })
                 {
-                    var Previous = Minimums.GetValueOrDefault(Node.Id, (Width: (double)Node.Width, Height: (double)Node.Height));
+                    (double Width, double Height) Previous = Minimums.GetValueOrDefault(Node.Id, (Width: (double)Node.Width, Height: (double)Node.Height));
                     Minimums[Node.Id] = (Horizontal ? Previous.Width : Math.Max(Previous.Width, Needed),
                         Horizontal ? Math.Max(Previous.Height, Needed) : Previous.Height);
                 }
                 continue;
             }
-            if (Horizontal) Source.Height = Target.Height = Math.Max(Needed, Math.Max(Source.Height, Target.Height));
-            else Source.Width = Target.Width = Math.Max(Needed, Math.Max(Source.Width, Target.Width));
+            if (Horizontal)
+            {
+                Source.Height = Target.Height = Math.Max(Needed, Math.Max(Source.Height, Target.Height));
+            }
+            else
+            {
+                Source.Width = Target.Width = Math.Max(Needed, Math.Max(Source.Width, Target.Width));
+            }
         }
-        if (Cells) GrowCellMinimumExtents(Placed, Minimums);
+        if (Cells)
+        {
+            GrowCellMinimumExtents(Placed, Minimums);
+        }
     }
 
     internal static void SeparateParallelReturnTracks(DiagramContract Contract, FlowchartLayoutResult Layout,
         Dictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
-        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Options = FlowchartRenderOptions.FromContract(Contract);
-        foreach (var Group in Layout.EdgeRoutes.Where(Route => Route.Points.Count == 4
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        foreach (IGrouping<(string SourceId, string TargetId, string ExitSide), FlowchartLayoutEdgeRoute>? Group in Layout.EdgeRoutes.Where(Route => Route.Points.Count == 4
             && Route.ExitSide == Route.EntrySide && Route.ExitSide is "left" or "right" or "top" or "bottom"
             && BackEdges.Any(Edge => Edge.Id == Route.EdgeId))
             .GroupBy(Route => (Route.SourceId, Route.TargetId, Route.ExitSide)).Where(Group => Group.Count() > 1))
@@ -1529,48 +1710,69 @@ public static partial class DiagramGridLayout
             double Across(FlowchartLayoutPoint Point) => Vertical ? Point.X : Point.Y;
             double Along(FlowchartLayoutPoint Point) => Vertical ? Point.Y : Point.X;
             double AlongSign = Math.Sign(Along(Group.First().Points[0]) - Along(Group.First().Points[^1]));
-            if (AlongSign == 0) continue;
-            var Routes = Group.OrderBy(Route => Along(Route.Points[0]) * AlongSign).ToList();
-            var Ends = Routes.Select(Route => Route.Points[^1]).OrderByDescending(Point => Along(Point) * AlongSign).ToList();
+            if (AlongSign == 0)
+            {
+                continue;
+            }
+
+            List<FlowchartLayoutEdgeRoute> Routes = [.. Group.OrderBy(Route => Along(Route.Points[0]) * AlongSign)];
+            List<FlowchartLayoutPoint> Ends = [.. Routes.Select(Route => Route.Points[^1]).OrderByDescending(Point => Along(Point) * AlongSign)];
             double Track = Group.Min(Route => Across(Route.Points[1]) * Sign) * Sign;
             double PreviousHalf = 0;
-            var Candidates = new List<(FlowchartLayoutEdgeRoute Route, double Track, FlowchartLayoutPoint End)>();
-            foreach (var Route in Routes)
+            List<(FlowchartLayoutEdgeRoute Route, double Track, FlowchartLayoutPoint End)> Candidates = [];
+            foreach (FlowchartLayoutEdgeRoute? Route in Routes)
             {
-                var Edge = Contract.Edges.First(Edge => Edge.Id == Route.EdgeId);
-                var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
+                EdgeContract Edge = Contract.Edges.First(Edge => Edge.Id == Route.EdgeId);
+                FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
                 double Half = string.IsNullOrWhiteSpace(Edge.Label) ? 0 : (Vertical ? Size.Width : Size.Height) / 2;
-                if (Route != Routes[0]) Track += Sign * DiagramGridMetrics.CeilToGrid(Math.Max(6, PreviousHalf + Half + 12));
+                if (Route != Routes[0])
+                {
+                    Track += Sign * DiagramGridMetrics.CeilToGrid(Math.Max(6, PreviousHalf + Half + 12));
+                }
+
                 Candidates.Add((Route, Track, Ends[Candidates.Count]));
                 PreviousHalf = Half;
             }
             bool Clear = Candidates.All(Candidate =>
             {
-                var Route = Candidate.Route;
-                var Points = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+                FlowchartLayoutEdgeRoute Route = Candidate.Route;
+                List<(double X, double Y)> Points = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
                 Points[1] = Vertical ? (Candidate.Track, Points[1].Y) : (Points[1].X, Candidate.Track);
                 Points[2] = Vertical ? (Candidate.Track, Candidate.End.Y) : (Candidate.End.X, Candidate.Track);
                 Points[3] = (Candidate.End.X, Candidate.End.Y);
-                foreach (var Other in Layout.EdgeRoutes.Where(Other => !Routes.Contains(Other)))
+                foreach (FlowchartLayoutEdgeRoute? Other in Layout.EdgeRoutes.Where(Other => !Routes.Contains(Other)))
                 {
-                    var Path = Other.Points.Select(Point => (Point.X, Point.Y)).ToList();
-                    var Old = FlowchartBranchRouteOrder.Intersections(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Path);
-                    var New = FlowchartBranchRouteOrder.Intersections(Points, Path);
-                    if (New.Crossings > Old.Crossings || New.Overlap > Old.Overlap + 0.01) return false;
+                    List<(double X, double Y)> Path = [.. Other.Points.Select(Point => (Point.X, Point.Y))];
+                    (int Crossings, double Overlap) Old = FlowchartBranchRouteOrder.Intersections(Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), Path);
+                    (int Crossings, double Overlap) New = FlowchartBranchRouteOrder.Intersections(Points, Path);
+                    if (New.Crossings > Old.Crossings || New.Overlap > Old.Overlap + 0.01)
+                    {
+                        return false;
+                    }
                 }
-                foreach (var Frame in Contract.Groups.Where(Frame => IsInsideGroup(Contract, Route.SourceId, Frame.Id)
+                foreach (GroupContract? Frame in Contract.Groups.Where(Frame => IsInsideGroup(Contract, Route.SourceId, Frame.Id)
                     && IsInsideGroup(Contract, Route.TargetId, Frame.Id)))
-                    if (Bounds.TryGetValue(Frame.Id, out var Box) && Points.Any(Point =>
-                        Point.X < Box.CenterX - Box.Width / 2 || Point.X > Box.CenterX + Box.Width / 2
-                        || Point.Y < Box.CenterY - Box.Height / 2 || Point.Y > Box.CenterY + Box.Height / 2)) return false;
-                var Obstacles = Bounds.Where(Pair => !Contract.Groups.Any(Frame => Frame.Id == Pair.Key
+                {
+                    if (Bounds.TryGetValue(Frame.Id, out FlowchartLayoutNodeBounds? Box) && Points.Any(Point =>
+                        Point.X < Box.CenterX - (Box.Width / 2) || Point.X > Box.CenterX + (Box.Width / 2)
+                        || Point.Y < Box.CenterY - (Box.Height / 2) || Point.Y > Box.CenterY + (Box.Height / 2)))
+                    {
+                        return false;
+                    }
+                }
+
+                Dictionary<string, FlowchartLayoutNodeBounds> Obstacles = Bounds.Where(Pair => !Contract.Groups.Any(Frame => Frame.Id == Pair.Key
                     && (IsInsideGroup(Contract, Route.SourceId, Frame.Id) || IsInsideGroup(Contract, Route.TargetId, Frame.Id))))
                     .ToDictionary(Pair => Pair.Key, Pair => Pair.Value);
                 return Points.Zip(Points.Skip(1)).All(Segment => !FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(
                     Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Obstacles, Route.SourceId, Route.TargetId));
             });
-            if (!Clear) continue;
-            foreach (var Candidate in Candidates)
+            if (!Clear)
+            {
+                continue;
+            }
+
+            foreach ((FlowchartLayoutEdgeRoute Route, double Track, FlowchartLayoutPoint End) Candidate in Candidates)
             {
                 if (Vertical)
                 {

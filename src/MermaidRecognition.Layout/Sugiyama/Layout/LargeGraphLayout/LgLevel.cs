@@ -56,7 +56,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// </summary>
         /// <returns></returns>
         public List<SymmetricSegment> GetAllRailsEndpoints() {
-            List<SymmetricSegment> endpts = new List<SymmetricSegment>();
+            List<SymmetricSegment> endpts = [];
             foreach (Rail rail in _railTree.GetAllLeaves())
             {
                 if (rail.GetStartEnd(out Point p0, out Point p1))
@@ -134,7 +134,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
         
         internal IEnumerable<Rail> GetRailsIntersectingRect(Rectangle visibleRectange) {
-            Set<Rail> ret = new Set<Rail>();
+            Set<Rail> ret = [];
             foreach (Rail rail in _railTree.GetAllIntersecting(visibleRectange))
             {
                 ret.Insert(rail);
@@ -143,7 +143,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             return ret;
         }
 
-        internal List<Edge> GetEdgesPassingThroughRail(Rail rail) => (from kv in _railsOfEdges where kv.Value.Contains(rail) select kv.Key).ToList();
+        internal List<Edge> GetEdgesPassingThroughRail(Rail rail) => [.. (from kv in _railsOfEdges where kv.Value.Contains(rail) select kv.Key)];
 
         public Rail RemoveRailFromRtree(Rail rail) => _railTree.Remove(rail.BoundingBox, rail);
 
@@ -285,13 +285,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         IEnumerable<TileStatistic> GetCurveTiles(ICurve curve) {
-            Set<TileStatistic> tiles = new Set<TileStatistic>();
+            Set<TileStatistic> tiles = [];
             const int n = 64;
             double s = curve.ParStart;
             double e = curve.ParEnd;
             double d = (e - s)/(n - 1);
             for (int i = 0; i < 64; i++) {
-                double t = s + i*d;
+                double t = s + (i*d);
                 TileStatistic ts = GetOrCreateTileStatistic(curve[t]);
                 tiles.Insert(ts);
             }

@@ -12,10 +12,13 @@ public sealed class CellFrameCatalogueRegressionTests
     public static IEnumerable<TestCaseData> Cases()
     {
         HashSet<string> Reviewed = ["F42", "F141", "A162", "A164", "A165", "A167", "A169", "EIP78", "EIP266", "EIP271"];
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Reviewed.Contains(Scenario.Id)) yield return new TestCaseData(Scenario).SetName("CellFrameRegression_" + Scenario.Id);
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Reviewed.Contains(Scenario.Id))
+            {
+                yield return new TestCaseData(Scenario).SetName("CellFrameRegression_" + Scenario.Id);
+            }
         }
     }
 

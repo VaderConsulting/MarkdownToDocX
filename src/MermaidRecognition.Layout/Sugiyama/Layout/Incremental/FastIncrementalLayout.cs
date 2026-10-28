@@ -110,7 +110,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 components.Add(nodes);
             }
 
-            horizontalSolver = new AxisSolver(true, nodes, new[] {geometryGraph.RootCluster}, settings.AvoidOverlaps,
+            horizontalSolver = new AxisSolver(true, nodes, [geometryGraph.RootCluster], settings.AvoidOverlaps,
                                               settings.MinConstraintLevel, clusterSettings) {
                                                   OverlapRemovalParameters =
                                                       new OverlapRemovalParameters {
@@ -120,7 +120,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                                                           ConsiderProportionalOverlap = settings.ApplyForces
                                                       }
                                               };
-            verticalSolver = new AxisSolver(false, nodes, new[] {geometryGraph.RootCluster}, settings.AvoidOverlaps,
+            verticalSolver = new AxisSolver(false, nodes, [geometryGraph.RootCluster], settings.AvoidOverlaps,
                                             settings.MinConstraintLevel, clusterSettings);
 
             SetupConstraints();
@@ -170,7 +170,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 horizontalSolver.ConstraintLevel = value;
                 verticalSolver.ConstraintLevel = value;
                 Feasibility.Enforce(settings, value, nodes, horizontalSolver.structuralConstraints,
-                                    verticalSolver.structuralConstraints, new[] { graph.RootCluster }, clusterSettings);
+                                    verticalSolver.structuralConstraints, [graph.RootCluster], clusterSettings);
                 settings.Unconverge();
             }
         }
@@ -227,7 +227,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 
         void AddSquaredSpringForces(FiEdge e, Point duv, double d) {
             double l = duv.Length,
-                   d2 = d*d + 0.1,
+                   d2 = (d*d) + 0.1,
                    f = settings.AttractiveForceConstant*(l - d)/d2;
             e.source.force += f*duv;
             e.target.force -= f*duv;
@@ -285,7 +285,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                 // the KD-tree to decompose even when some nodes are at exactly the same position
                 double angle = 0, angleDelta = 2.0*Math.PI/n;
                 for (int i = 0; i < n; ++i) {
-                    ps[i] = new KDTree.Particle(vs[i].Center + 1e-5*new Point(Math.Cos(angle), Math.Sin(angle)));
+                    ps[i] = new KDTree.Particle(vs[i].Center + (1e-5*new Point(Math.Cos(angle), Math.Sin(angle))));
                     angle += angleDelta;
                 }
                 KDTree kdTree = new KDTree(ps, 8);
@@ -558,13 +558,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             ComputeDescentDirection(alpha);
             for (int i = 0; i < nodes.Length; ++i) {
                 k1[i] = nodes[i].Center - nodes[i].previousCenter;
-                nodes[i].Center = y0[i] + 0.5*k1[i];
+                nodes[i].Center = y0[i] + (0.5*k1[i]);
             }
             ComputeDescentDirection(alpha);
             for (int i = 0; i < nodes.Length; ++i) {
                 k2[i] = nodes[i].Center - nodes[i].previousCenter;
                 nodes[i].previousCenter = y0[i];
-                nodes[i].Center = y0[i] + 0.5*k2[i];
+                nodes[i].Center = y0[i] + (0.5*k2[i]);
             }
             ComputeDescentDirection(alpha);
             for (int i = 0; i < nodes.Length; ++i) {
@@ -576,7 +576,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
             for (int i = 0; i < nodes.Length; ++i) {
                 k4[i] = nodes[i].Center - nodes[i].previousCenter;
                 nodes[i].previousCenter = y0[i];
-                Point dx = (k1[i] + 2.0*k2[i] + 2.0*k3[i] + k4[i])/6.0;
+                Point dx = (k1[i] + (2.0*k2[i]) + (2.0*k3[i]) + k4[i])/6.0;
                 nodes[i].Center = y0[i] + dx;
             }
             UpdateStepSize(energy0);

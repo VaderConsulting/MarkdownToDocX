@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using MDConverter;
+using MermaidRecognition.Kinds.Enterprise;
 
 namespace LiveEditor;
 
@@ -36,7 +37,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private PreviewHoverIndex? _Index;
 
-    private readonly List<PreviewObject> _SelectedItems = new List<PreviewObject>();
+    private readonly List<PreviewObject> _SelectedItems = [];
 
     private static readonly Color DEFAULT_SELECTION_COLOUR = Color.FromArgb(0, 122, 204);
 
@@ -44,9 +45,9 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private PreviewStyle _SelectionStyle = null!;
 
-    private readonly List<PreviewObject> _NoItems = new List<PreviewObject>();
+    private readonly List<PreviewObject> _NoItems = [];
 
-    private readonly List<PreviewError> _Errors = new List<PreviewError>();
+    private readonly List<PreviewError> _Errors = [];
 
     private bool _UseLegacyRenderer;
 
@@ -57,6 +58,10 @@ internal sealed partial class PreviewCanvas : UserControl
     private string? _RenderedSvg;
 
     private string? _RenderFailure;
+
+    private string? _PreviewAdvisory;
+
+    private byte[]? _LastPreviewPngBytes;
 
     /// <summary>
     /// Creates the preview and wires its picture, wheel, and zoom buttons.
@@ -324,15 +329,41 @@ internal sealed partial class PreviewCanvas : UserControl
         }
     }
 
+    /// <summary>Gets a non-fatal preview notice (for example when the image was scaled to fit).</summary>
+    internal string? PreviewAdvisory
+    {
+        get
+        {
+            return _PreviewAdvisory;
+        }
+    }
+
+    /// <summary>Gets PNG bytes from the last successful preview raster (for export without re-encoding).</summary>
+    internal byte[]? LastPreviewPngBytes
+    {
+        get
+        {
+            return _LastPreviewPngBytes;
+        }
+    }
+
     /// <summary>
     /// Builds the items and errors from a diagram script and renders the image.
     /// </summary>
     /// <param name="Script">Diagram script.</param>
     public new void Load(string? Script)
     {
+        Load(Script, null);
+    }
+
+    /// <summary>
+    /// Renders the preview, optionally reusing a prior enterprise analysis (one parse per render).
+    /// </summary>
+    internal new void Load(string? Script, EnterpriseAnalysisResult? EnterpriseAnalysis)
+    {
         int Sequence = Interlocked.Increment(ref _LoadSequence);
         string Source = Script ?? string.Empty;
-        Prepare(Source, out string? Svg, out byte[]? Png, out string? Failure);
+        Prepare(Source, EnterpriseAnalysis, out string? Svg, out byte[]? Png, out string? Failure, out string? Advisory);
         Action Apply = () =>
         {
             if (Sequence != Volatile.Read(ref _LoadSequence))
@@ -340,7 +371,7 @@ internal sealed partial class PreviewCanvas : UserControl
                 return;
             }
 
-            ApplyPrepared(Source, Svg, Png, Failure);
+            ApplyPrepared(Source, Svg, Png, Failure, Advisory);
         };
         if (IsHandleCreated && InvokeRequired)
         {
@@ -426,21 +457,30 @@ internal sealed partial class PreviewCanvas : UserControl
         ClearBitmap();
         _RenderedSvg = null;
         _RenderFailure = null;
+        _PreviewAdvisory = null;
+        _LastPreviewPngBytes = null;
         _Index = null;
         _Errors.Clear();
         AssignSelectedItems(null);
         ApplyView();
     }
 
-    private void Prepare(string Source, out string? Svg, out byte[]? Png, out string? Failure)
+    private void Prepare(
+        string Source,
+        EnterpriseAnalysisResult? EnterpriseAnalysis,
+        out string? Svg,
+        out byte[]? Png,
+        out string? Failure,
+        out string? Advisory)
     {
-        using var LayoutScope = MermaidRecognition.Layout.FlowchartRenderContext.Activate(new()
+        using IDisposable LayoutScope = MermaidRecognition.Layout.FlowchartRenderContext.Activate(new()
         {
             LayoutOptions = LiveEditorFeatureGate.CaptureLayoutOptions()
         });
         Svg = null;
         Png = null;
         Failure = null;
+        Advisory = null;
         if (string.IsNullOrWhiteSpace(Source))
         {
             return;
@@ -448,46 +488,68 @@ internal sealed partial class PreviewCanvas : UserControl
 
         try
         {
-            bool Rendered;
             if (_UseLegacyRenderer)
             {
                 Svg = MermaidDiagramExport.RenderSvg(Source);
-                Rendered = !string.IsNullOrWhiteSpace(Svg);
-            }
-            else
-            {
-                Rendered = MermaidDiagramExport.TryRenderPreviewSvg(Source, out Svg);
-            }
+                if (string.IsNullOrWhiteSpace(Svg))
+                {
+                    Failure = "Legacy renderer returned no SVG.";
+                    return;
+                }
 
-            if (!Rendered || string.IsNullOrWhiteSpace(Svg))
-            {
-                Svg = null;
-                Failure = "Incomplete diagram";
+                Png = MermaidDiagramExport.TryRasterizeSvg(Svg);
+                if (Png == null || Png.Length == 0)
+                {
+                    Svg = null;
+                    Png = null;
+                    Failure = "Legacy preview image could not be created from SVG.";
+                }
+
                 return;
             }
 
-            Png = MermaidDiagramExport.TryRasterizeSvg(Svg);
-            if (Png == null || Png.Length == 0)
+            if (EnterpriseAnalysis != null)
+            {
+                if (!MermaidPreviewRender.TryRenderAnalyzed(EnterpriseAnalysis, out string AnalyzedSvg, out byte[]? AnalyzedPng, out string AnalyzedFailure, out string? AnalyzedAdvisory))
+                {
+                    Svg = null;
+                    Png = null;
+                    Failure = string.IsNullOrWhiteSpace(AnalyzedFailure) ? "Diagram preview failed." : AnalyzedFailure;
+                    return;
+                }
+
+                Svg = AnalyzedSvg;
+                Png = AnalyzedPng;
+                Advisory = AnalyzedAdvisory;
+                return;
+            }
+
+            if (!MermaidDiagramExport.TryRenderPreviewPng(Source, out string RenderedSvg, out byte[]? RenderedPng, out string FailureMessage, out string? PreviewAdvisory))
             {
                 Svg = null;
                 Png = null;
-                Failure = "Incomplete diagram";
+                Failure = string.IsNullOrWhiteSpace(FailureMessage) ? "Diagram preview failed." : FailureMessage;
+                return;
             }
+
+            Svg = RenderedSvg;
+            Png = RenderedPng;
+            Advisory = PreviewAdvisory;
         }
         catch (Exception Ex)
         {
             Svg = null;
             Png = null;
-            Failure = string.IsNullOrWhiteSpace(Ex.Message) ? "Incomplete diagram" : Ex.Message;
+            Failure = string.IsNullOrWhiteSpace(Ex.Message) ? "Diagram preview failed." : Ex.Message;
         }
     }
 
-    private void ApplyPrepared(string Source, string? Svg, byte[]? Png, string? Failure)
+    private void ApplyPrepared(string Source, string? Svg, byte[]? Png, string? Failure, string? Advisory)
     {
         _Applying = true;
         try
         {
-            List<string> SelectedKeys = new List<string>();
+            List<string> SelectedKeys = [];
             foreach (PreviewObject Selected in _SelectedItems)
             {
                 SelectedKeys.Add(Selected.Key);
@@ -496,9 +558,11 @@ internal sealed partial class PreviewCanvas : UserControl
             DetachItems();
             if (Png != null && Png.Length > 0 && !string.IsNullOrWhiteSpace(Svg))
             {
+                _LastPreviewPngBytes = Png;
                 ShowPng(Png);
                 _RenderedSvg = Svg;
                 _RenderFailure = null;
+                _PreviewAdvisory = Advisory;
                 _Index = PreviewHoverIndex.Build(Svg, Source);
             }
             else
@@ -506,12 +570,14 @@ internal sealed partial class PreviewCanvas : UserControl
                 ClearBitmap();
                 _RenderedSvg = null;
                 _RenderFailure = Failure;
+                _PreviewAdvisory = null;
+                _LastPreviewPngBytes = null;
                 _Index = PreviewHoverIndex.FromScript(Source);
             }
 
             ReplaceErrors(PreviewError.FromScript(_Index.Objects, Source));
             AttachItems();
-            List<PreviewObject> Restored = new List<PreviewObject>();
+            List<PreviewObject> Restored = [];
             foreach (string Key in SelectedKeys)
             {
                 PreviewObject? Found = _Index.FindObject(Key);
@@ -541,7 +607,7 @@ internal sealed partial class PreviewCanvas : UserControl
         string Source = ComposeScript(_Index.Objects);
         try
         {
-            Prepare(Source, out string? Svg, out byte[]? Png, out string? Failure);
+            Prepare(Source, null, out string? Svg, out byte[]? Png, out string? Failure, out string? Advisory);
             Action Apply = () =>
             {
                 if (Sequence != Volatile.Read(ref _LoadSequence) || _Applying)
@@ -554,12 +620,14 @@ internal sealed partial class PreviewCanvas : UserControl
                     ShowPng(Png);
                     _RenderedSvg = Svg;
                     _RenderFailure = null;
+                    _PreviewAdvisory = Advisory;
                 }
                 else
                 {
                     ClearBitmap();
                     _RenderedSvg = null;
                     _RenderFailure = Failure;
+                    _PreviewAdvisory = null;
                 }
 
                 ApplyView();
@@ -697,10 +765,7 @@ internal sealed partial class PreviewCanvas : UserControl
     {
         Image? Previous = DiagramPicture.Image;
         DiagramPicture.Image = null;
-        if (Previous != null)
-        {
-            Previous.Dispose();
-        }
+        Previous?.Dispose();
     }
 
     private void EnsureIndex()
@@ -1227,7 +1292,7 @@ internal sealed partial class PreviewCanvas : UserControl
             return;
         }
 
-        SelectedItems = new PreviewObject[] { Hit };
+        SelectedItems = [Hit];
     }
 
     /// <summary>
@@ -1258,7 +1323,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
     private void AssignSelectedItems(IReadOnlyList<PreviewObject>? Next)
     {
-        List<PreviewObject> Desired = new List<PreviewObject>();
+        List<PreviewObject> Desired = [];
         if (Next != null)
         {
             foreach (PreviewObject Item in Next)

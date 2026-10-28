@@ -34,7 +34,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.MinEnclosingDisc
         public double Distance2(Point point)
         {
             double dx = c.X - point.X, dy = c.Y - point.Y;
-            return dx * dx + dy * dy;
+            return (dx * dx) + (dy * dy);
         }
         /// <summary>
         /// Test if point is contained in this disc
@@ -115,16 +115,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.MinEnclosingDisc
             Debug.Assert(mb != ma); // collinear points not allowed
             Point c = new Point
             {
-                X = ma * mb * (p1.Y - p3.Y) + mb * (p1.X + p2.X) - ma * (p2.X + p3.X)
+                X = (ma * mb * (p1.Y - p3.Y)) + (mb * (p1.X + p2.X)) - (ma * (p2.X + p3.X))
             };
             c.X /= 2.0 * (mb - ma);
             if (Math.Abs(ma) > Math.Abs(mb))
             {
-                c.Y = (p1.Y + p2.Y) / 2.0 - (c.X - (p1.X + p2.X) / 2.0) / ma;
+                c.Y = ((p1.Y + p2.Y) / 2.0) - ((c.X - ((p1.X + p2.X) / 2.0)) / ma);
             }
             else
             {
-                c.Y = (p2.Y + p3.Y) / 2.0 - (c.X - (p2.X + p3.X) / 2.0) / mb;
+                c.Y = ((p2.Y + p3.Y) / 2.0) - ((c.X - ((p2.X + p3.X) / 2.0)) / mb);
             }
             return c;
         }
@@ -136,7 +136,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.MinEnclosingDisc
         /// <param name="p2"></param>
         /// <param name="p3"></param>
         /// <returns></returns>
-        public static bool Collinear(Point p1, Point p2, Point p3) => p1.X * (p2.Y - p3.Y) + p2.X * (p3.Y - p1.Y) + p3.X * (p1.Y - p2.Y) == 0;
+        public static bool Collinear(Point p1, Point p2, Point p3) => (p1.X * (p2.Y - p3.Y)) + (p2.X * (p3.Y - p1.Y)) + (p3.X * (p1.Y - p2.Y)) == 0;
 
         /// <summary>
         /// Create a disc with the specified points on the boundary

@@ -15,18 +15,15 @@ internal static partial class EnterpriseBandPlacement
         internal void PublishCompletedPartnersIncrementally(FlowchartLogicalGrid Grid, IList<string>? Diagnostics)
         {
             HashSet<string> Hinted = HintControlledIds(Contract, Nodes);
-            HashSet<int> TimelineBands = Classes.Values
+            HashSet<int> TimelineBands = [.. Classes.Values
                 .Where(Item => Item.Type == MermaidRecognition.Kinds.Enterprise.EnterpriseElementType.Plateau)
-                .Select(Item => Item.Band)
-                .ToHashSet();
+                .Select(Item => Item.Band)];
             HashSet<int> LoggedBandSkips = [];
             HashSet<string> PublishedNodes = new(StringComparer.Ordinal);
             for (int Sweep = 0; Sweep < 1; Sweep++)
             {
                 bool Changed = false;
-                IGrouping<int, DiagramGridLayout.GridNode>[] Bands = Nodes.GroupBy(Node => Classes[Node.Id].Band)
-                    .OrderBy(Band => Band.Key)
-                    .ToArray();
+                IGrouping<int, DiagramGridLayout.GridNode>[] Bands = [.. Nodes.GroupBy(Node => Classes[Node.Id].Band).OrderBy(Band => Band.Key)];
                 if (Sweep % 2 != 0)
                 {
                     Array.Reverse(Bands);
@@ -65,7 +62,7 @@ internal static partial class EnterpriseBandPlacement
                             continue;
                         }
 
-                        string[] Partners = CrossBandMembers(Node.Id, Targets).ToArray();
+                        string[] Partners = [.. CrossBandMembers(Node.Id, Targets)];
                         double Pull = Band.Count() == 1 && Partners.Length > 0
                             ? MedianColumn(Partners, Targets)
                             : PartnerMedian(Node.Id, Targets);

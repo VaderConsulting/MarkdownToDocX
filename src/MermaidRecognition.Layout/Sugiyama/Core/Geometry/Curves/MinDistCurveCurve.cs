@@ -80,11 +80,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         //we ignore the mulitplier 2 here fore efficiency reasons
         double Fs => a_b * ad;
 
-        double Fss => (a_b * add + ad * ad);
+        double Fss => ((a_b * add) + (ad * ad));
 
         double Fst => - /*2**/bd * ad; //equals to Fts
 
-        double Ftt => (-a_b * bdd + bd * bd);
+        double Ftt => ((-a_b * bdd) + (bd * bd));
 
 
         double Ft => -/*2**/a_b * bd;
@@ -99,7 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="y"></param>
         /// <param name="u"></param>
         /// <param name="w"></param>
-        internal static double Delta(double x, double y, double u, double w) => x * w - u * y;
+        internal static double Delta(double x, double y, double u, double w) => (x * w) - (u * y);
         //Fs + Fss*ds + Fst*dt = 0
         //Ft + Fst*ds + Ftt*dt = 0
         internal void Solve() {

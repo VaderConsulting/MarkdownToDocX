@@ -61,7 +61,7 @@ public sealed class StateContractMapperTests
         Assert.That(Contract.Groups, Has.Count.EqualTo(1));
         GroupContract First = Contract.Groups[0];
         Assert.That(First.Id, Is.EqualTo("First"));
-        Assert.That(First.ChildNodeIds, Is.EquivalentTo(new[] { "First_start", "Second", "First_end" }));
+        Assert.That(First.ChildNodeIds, Is.EquivalentTo(["First_start", "Second", "First_end"]));
 
         NodeContract Second = Contract.Nodes.Single(Node => Node.Id == "Second");
         Assert.That(Second.ParentGroupId, Is.EqualTo("First"));

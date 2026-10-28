@@ -14,11 +14,13 @@ public sealed class CellCompletedCandidateRollbackTests
     /// <returns>Original catalogue declarations, with no hint or source edits.</returns>
     public static IEnumerable<TestCaseData> Cases()
     {
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
             if (Scenario.Id is "A58" or "A138" or "EIP84")
+            {
                 yield return new TestCaseData(Scenario).SetName("CellCompletedRollback_" + Scenario.Id);
+            }
         }
     }
 
@@ -41,32 +43,36 @@ public sealed class CellCompletedCandidateRollbackTests
     {
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, ObserveCompletedState: State =>
         {
-            var Layout = (FlowchartLayoutResult)State.GetType().GetProperty("Copy")!.GetValue(State)!;
+            FlowchartLayoutResult Layout = (FlowchartLayoutResult)State.GetType().GetProperty("Copy")!.GetValue(State)!;
             // This is a fresh test invocation of the same bounded search, not extra
             // production budget. The original full pipeline has already completed.
-            var Budget = Layout.RenderContext.MoveBeforeDetourBudget;
+            FlowchartRenderContext.RepairSearchBudget Budget = Layout.RenderContext.MoveBeforeDetourBudget;
             Budget.CandidateMoves = Recovery ? FlowchartLayoutRules.RepairCandidateMoves : 0; Budget.AcceptedMoves = 0; Budget.AttemptedMoves.Clear();
             State.GetType().GetProperty("CellFinalRoutingReady")!.SetValue(State, true);
-            var Nodes = (List<DiagramGridLayout.GridNode>)State.GetType().GetProperty("Placed")!.GetValue(State)!;
-            var Plan = FlowchartCellRepair.PlanMove(Nodes, 0, 1);
+            List<DiagramGridLayout.GridNode> Nodes = (List<DiagramGridLayout.GridNode>)State.GetType().GetProperty("Placed")!.GetValue(State)!;
+            FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanMove(Nodes, 0, 1);
             Assert.That(Plan, Is.Not.Null);
-            var Repair = typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!;
-            var OptionType = Repair.GetNestedType("CellRepairOption", BindingFlags.NonPublic)!;
+            Type Repair = typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!;
+            Type OptionType = Repair.GetNestedType("CellRepairOption", BindingFlags.NonPublic)!;
             var Option = Activator.CreateInstance(OptionType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null, new object[] { "real-source-rejection", "complete diagram", Plan! }, null)!;
-            var Options = Array.CreateInstance(OptionType, 1); Options.SetValue(Option, 0);
+                null, ["real-source-rejection", "complete diagram", Plan!], null)!;
+            Array Options = Array.CreateInstance(OptionType, 1); Options.SetValue(Option, 0);
             string Before = Snapshot(State);
-            var PreviousCandidate = DiagramGridLayout.RouteRepairCandidateObserver;
+            Action<string, string, double, bool>? PreviousCandidate = DiagramGridLayout.RouteRepairCandidateObserver;
             DiagramGridLayout.RouteRepairCandidateObserver = (Kind, _, _, _) =>
             {
-                if (Kind == "cell-move") throw new InvalidOperationException("reject-real-completed-candidate");
+                if (Kind == "cell-move")
+                {
+                    throw new InvalidOperationException("reject-real-completed-candidate");
+                }
             };
             try
             {
-                var Failure = Assert.Throws<TargetInvocationException>(() => Repair
+                TargetInvocationException? Failure = Assert.Throws<TargetInvocationException>(() => Repair
                     .GetMethod(Recovery ? "SearchCellAssignmentsCore" : "SearchCellAssignments", BindingFlags.NonPublic | BindingFlags.Static)!
-                    .Invoke(null, new object?[] { State, Options, FlowchartLayoutRules.RepairCandidateMoves, 1,
-                        new HashSet<string>(), null, false }.Concat(Recovery ? new object?[] { true } : Array.Empty<object?>()).ToArray()));
+                    .Invoke(null, [ State, Options, FlowchartLayoutRules.RepairCandidateMoves, 1,
+                        new HashSet<string>(), null, false,
+                        .. Recovery ? [true] : Array.Empty<object?>(), ]));
                 Assert.That(Failure!.InnerException!.Message, Is.EqualTo("reject-real-completed-candidate"));
                 Assert.That(Snapshot(State), Is.EqualTo(Before));
                 Assert.That(Budget.CandidateMoves, Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
@@ -80,11 +86,11 @@ public sealed class CellCompletedCandidateRollbackTests
     /// <returns>Exact ordered values, independent of reference identity and the intentionally spent candidate budget.</returns>
     private static string Snapshot(object State)
     {
-        var Type = State.GetType();
-        var Layout = (FlowchartLayoutResult)Type.GetProperty("Copy")!.GetValue(State)!;
-        var Nodes = (List<DiagramGridLayout.GridNode>)Type.GetProperty("Placed")!.GetValue(State)!;
-        var Frames = (List<DiagramGridLayout.GridFrame>)Type.GetProperty("Frames")!.GetValue(State)!;
-        var Cells = FlowchartCellRepair.Capture(Nodes);
+        Type Type = State.GetType();
+        FlowchartLayoutResult Layout = (FlowchartLayoutResult)Type.GetProperty("Copy")!.GetValue(State)!;
+        List<DiagramGridLayout.GridNode> Nodes = (List<DiagramGridLayout.GridNode>)Type.GetProperty("Placed")!.GetValue(State)!;
+        List<DiagramGridLayout.GridFrame> Frames = (List<DiagramGridLayout.GridFrame>)Type.GetProperty("Frames")!.GetValue(State)!;
+        FlowchartLogicalGrid.Snapshot Cells = FlowchartCellRepair.Capture(Nodes);
         return JsonSerializer.Serialize(new
         {
             Regions = Cells.Regions.Select(Pair => new { Pair.Key, Pair.Value.StartRow, Pair.Value.StartColumn, Pair.Value.RowSpan, Pair.Value.ColumnSpan }),

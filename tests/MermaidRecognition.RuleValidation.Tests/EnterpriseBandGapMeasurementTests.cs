@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
@@ -17,26 +18,38 @@ public sealed class EnterpriseBandGapMeasurementTests
     {
         string Capture = Environment.GetEnvironmentVariable("BAND_GAP_CURRENT_CAPTURE") ?? throw new InvalidOperationException("Set BAND_GAP_CURRENT_CAPTURE.");
         string Output = Environment.GetEnvironmentVariable("BAND_GAP_MEASUREMENT") ?? throw new InvalidOperationException("Set BAND_GAP_MEASUREMENT.");
-        var Current = File.ReadLines(Capture).Select(Line => JsonDocument.Parse(Line).RootElement.Clone()).ToDictionary(Row => Row.GetProperty("Id").GetString()!);
-        var Only = Environment.GetEnvironmentVariable("BAND_GAP_MEASURE_IDS")?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        Dictionary<string, JsonElement> Current = File.ReadLines(Capture).Select(Line => JsonDocument.Parse(Line).RootElement.Clone()).ToDictionary(Row => Row.GetProperty("Id").GetString()!);
+        HashSet<string>? Only = Environment.GetEnvironmentVariable("BAND_GAP_MEASURE_IDS")?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
         File.WriteAllText(Output, "");
-        foreach (var Scenario in RouteRuleCatalogueAuditTests.Catalogue().Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Where(Scenario => Scenario.Enterprise))
+        foreach (RouteRuleCatalogueAuditTests.Scenario? Scenario in RouteRuleCatalogueAuditTests.Catalogue().Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Where(Scenario => Scenario.Enterprise))
         {
-            if (Only != null && !Only.Contains(Scenario.Id)) continue;
-            var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+            if (Only != null && !Only.Contains(Scenario.Id))
+            {
+                continue;
+            }
+
+            DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
             if (Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
-                .Select(Node => EnterpriseElementCatalog.Elements[Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)].Layer).Distinct().Count() <= 1) continue;
+                .Select(Node => EnterpriseElementCatalog.Elements[Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)].Layer).Distinct().Count() <= 1)
+            {
+                continue;
+            }
+
             if (!Current.ContainsKey(Scenario.Id))
             {
                 File.AppendAllText(Output, JsonSerializer.Serialize(new { Scenario.Id, Skipped = "No completed normal-gap audit capture after the watchdog stop." }) + Environment.NewLine);
                 continue;
             }
-            var Timer = System.Diagnostics.Stopwatch.StartNew();
+            Stopwatch Timer = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true, UsePreviousEnterpriseBandPaddingForTests = true }, out var Layout)) continue;
-                var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
-                var Row = Current[Scenario.Id];
+                if (!FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true, UsePreviousEnterpriseBandPaddingForTests = true }, out FlowchartLayoutResult? Layout))
+                {
+                    continue;
+                }
+
+                FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+                JsonElement Row = Current[Scenario.Id];
                 File.AppendAllText(Output, JsonSerializer.Serialize(new { Scenario.Id, PreviousPaddingEmpty = Score.EmptyShare,
                     NormalGapEmpty = Row.GetProperty("Score").GetProperty("EmptyShare").GetDouble(), Seconds = Timer.Elapsed.TotalSeconds }) + Environment.NewLine);
             }

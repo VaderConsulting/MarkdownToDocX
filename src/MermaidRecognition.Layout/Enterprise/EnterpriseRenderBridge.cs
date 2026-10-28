@@ -51,16 +51,35 @@ public static class EnterpriseRenderBridge
         AnalysisTimer.Stop();
         StageTimingObserver?.Invoke("enterprise-analysis", AnalysisTimer.Elapsed.TotalMilliseconds);
         if (DefaultLayout.HasValue && !Analysis.Document.Configuration.ContainsKey("layout"))
+        {
             Analysis.Document.LayoutMode = DefaultLayout.Value;
+        }
+
         if (!string.IsNullOrWhiteSpace(DefaultLegend) && !Analysis.Document.Configuration.ContainsKey("legend"))
+        {
             Analysis.Document.Configuration["legend"] = DefaultLegend;
+        }
+
         if (Analysis.HasErrors)
         {
             throw new InvalidOperationException(FormatErrors(Analysis));
         }
 
-        Svg = EnterpriseNotationLegendRenderer.ApplyToDiagram(
-            Analysis.Document, EnterpriseSvgRenderer.Render(Analysis.Document));
+        return TryRenderEnterpriseDocument(Analysis.Document, out Svg);
+    }
+
+    /// <summary>
+    /// Renders a validated enterprise document without parsing source again.
+    /// </summary>
+    public static bool TryRenderEnterpriseDocument(EnterpriseDocument Document, out string Svg)
+    {
+        Svg = string.Empty;
+        if (Document == null)
+        {
+            return false;
+        }
+
+        Svg = EnterpriseNotationLegendRenderer.ApplyToDiagram(Document, EnterpriseSvgRenderer.Render(Document));
         return !string.IsNullOrEmpty(Svg);
     }
 
@@ -82,12 +101,23 @@ public static class EnterpriseRenderBridge
     public static bool TryGetLegendTableEntries(string? Source, string? DefaultLegend, out IReadOnlyList<string> Entries)
     {
         Entries = Array.Empty<string>();
-        if (!IsEnterpriseSource(Source)) return false;
+        if (!IsEnterpriseSource(Source))
+        {
+            return false;
+        }
+
         EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source ?? string.Empty);
         if (!Analysis.Document.Configuration.ContainsKey("legend") && !string.IsNullOrWhiteSpace(DefaultLegend))
+        {
             Analysis.Document.Configuration["legend"] = DefaultLegend;
+        }
+
         if (Analysis.HasErrors || !Analysis.Document.Configuration.TryGetValue("legend", out string? Setting)
-            || !string.Equals(Setting?.Trim(), "table", StringComparison.OrdinalIgnoreCase)) return false;
+            || !string.Equals(Setting?.Trim(), "table", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         Entries = EnterpriseNotationLegendRenderer.EntryNames(Analysis.Document);
         return true;
     }

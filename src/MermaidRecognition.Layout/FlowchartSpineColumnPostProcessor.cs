@@ -51,7 +51,7 @@ public static partial class FlowchartSpineColumnPostProcessor
         List<string> RootNodeIds = FindRootNodeIds(Contract, MutableById.Keys);
         if (RootNodeIds.Count == 0)
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         string PrimaryRootId = RootNodeIds
@@ -60,12 +60,12 @@ public static partial class FlowchartSpineColumnPostProcessor
         HashSet<string> SpineNodeIds = BuildPrimarySpineNodeIds(Contract, PrimaryRootId);
         if (SpineNodeIds.Count == 0)
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         if (!MutableById.TryGetValue(PrimaryRootId, out FlowchartLayoutNodeBounds RootBounds))
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         double SpineCrossAxis = RootBounds.CenterX;
@@ -95,7 +95,7 @@ public static partial class FlowchartSpineColumnPostProcessor
             return new List<FlowchartLayoutNodeBounds>(Source);
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     /// <summary>
@@ -822,7 +822,7 @@ public static partial class FlowchartSpineColumnPostProcessor
 
     private static double GetTypicalNodeHeight(IEnumerable<FlowchartLayoutNodeBounds> Bounds)
     {
-        List<double> Heights = Bounds.Select(Bound => Bound.Height).OrderBy(Height => Height).ToList();
+        List<double> Heights = [.. Bounds.Select(Bound => Bound.Height).OrderBy(Height => Height)];
         if (Heights.Count == 0)
         {
             return 40.0;
@@ -833,7 +833,7 @@ public static partial class FlowchartSpineColumnPostProcessor
 
     private static double GetTypicalNodeWidth(IEnumerable<FlowchartLayoutNodeBounds> Bounds)
     {
-        List<double> Widths = Bounds.Select(Bound => Bound.Width).OrderBy(Width => Width).ToList();
+        List<double> Widths = [.. Bounds.Select(Bound => Bound.Width).OrderBy(Width => Width)];
         if (Widths.Count == 0)
         {
             return 120.0;

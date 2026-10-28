@@ -13,7 +13,7 @@ public sealed class EnterpriseArchiRelationshipParityTests
 
         string[][] Expected31 = EnterpriseArchiRelationshipsXml.BuildMatrix(ReadSnapshot("relationships-3.1.xml"), Types);
         string[][] Expected32 = EnterpriseArchiRelationshipsXml.BuildMatrix(ReadSnapshot("relationships-3.2.xml"), Types);
-        List<string> Mismatches = new List<string>();
+        List<string> Mismatches = [];
         CollectMismatches(Types, "3.1", Expected31, Mismatches);
         CollectMismatches(Types, "3.2", Expected32, Mismatches);
         Assert.That(Mismatches, Is.Empty, string.Join(Environment.NewLine, Mismatches));

@@ -84,9 +84,7 @@ public static class FlowchartOrthogonalPathFactsHelper
             .ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
 
         List<string> EdgePathData = ExtractRenderedEdgePathData(Svg);
-        List<EdgeContract> VisibleEdges = Contract.Edges
-            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        List<EdgeContract> VisibleEdges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
 
         int PathIndex = 0;
         foreach (EdgeContract Edge in VisibleEdges)
@@ -131,9 +129,7 @@ public static class FlowchartOrthogonalPathFactsHelper
                 continue;
             }
 
-            List<(double X, double Y)> LayoutPoints = EdgeResult.Path.Points
-                .Select(Point => (Point.X, Point.Y))
-                .ToList();
+            List<(double X, double Y)> LayoutPoints = [.. EdgeResult.Path.Points.Select(Point => (Point.X, Point.Y))];
             if (IsExteriorObstacleCorridor(LayoutPoints, Direction))
             {
                 continue;
@@ -171,9 +167,7 @@ public static class FlowchartOrthogonalPathFactsHelper
     {
         SmoothIntentViolation = false;
 
-        List<(double X, double Y)> Points = Edge.Path.Points
-            .Select(Point => (Point.X, Point.Y))
-            .ToList();
+        List<(double X, double Y)> Points = [.. Edge.Path.Points.Select(Point => (Point.X, Point.Y))];
 
         if (Points.Count < 2)
         {

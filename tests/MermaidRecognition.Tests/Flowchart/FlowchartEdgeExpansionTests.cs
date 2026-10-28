@@ -109,7 +109,7 @@ public class FlowchartEdgeExpansionTests
     static void AssertEdgeSequence(DiagramContract Contract, params (string Source, string Target)[] Expected)
     {
         Assert.That(Contract.Edges.Count, Is.EqualTo(Expected.Length));
-        List<EdgeContract> Ordered = Contract.Edges.OrderBy(Edge => Edge.CreationIndex).ToList();
+        List<EdgeContract> Ordered = [.. Contract.Edges.OrderBy(Edge => Edge.CreationIndex)];
         for (int Index = 0; Index < Expected.Length; Index++)
         {
             Assert.That(Ordered[Index].SourceId, Is.EqualTo(Expected[Index].Source));

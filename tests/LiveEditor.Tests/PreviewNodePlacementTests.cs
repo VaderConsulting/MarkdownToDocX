@@ -20,7 +20,7 @@ public sealed class PreviewNodePlacementTests
     [TestCase(135, 145, "left-of webShop +2")]
     public void DropCreatesARelativeHintOnTheElementDeclaration(float X, float Y, string Hint)
     {
-        Assert.That(PreviewNodePlacement.TryCreate(Source, "order", Items(), new(X, Y), out var Edit, out var Reason), Is.True, Reason);
+        Assert.That(PreviewNodePlacement.TryCreate(Source, "order", Items(), new(X, Y), out PreviewNodePlacement.Edit? Edit, out var Reason), Is.True, Reason);
         string Updated = Edit!.Apply(Source);
         Assert.That(Updated, Does.Contain("  data-object order \"Order\" " + Hint + "\n"));
         Assert.That(Updated, Does.Contain("  orderApi -access(write)-> order\n"));
@@ -33,7 +33,7 @@ public sealed class PreviewNodePlacementTests
         string Text = Source.Replace("\"Order\"", "\"Order left-of a shelf\" push E:::emphasis")
             .Replace("  title LiveEditor preview\n", "  title LiveEditor preview\n  classDef emphasis fill:#eef\n")
             .Replace("\n", "\r\n");
-        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out var Edit, out var Reason), Is.True, Reason);
+        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out PreviewNodePlacement.Edit? Edit, out var Reason), Is.True, Reason);
         string Updated = Edit!.Apply(Text);
         Assert.That(Updated, Does.Contain("\"Order left-of a shelf\" left-of webShop :::emphasis\r\n"));
         Assert.That(Updated, Does.Not.Contain("push E"));
@@ -46,7 +46,7 @@ public sealed class PreviewNodePlacementTests
     public void DropCannotCreateAHintCycle()
     {
         string Text = Source.Replace("\"Web Shop\"", "\"Web Shop\" left-of order");
-        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out var Edit, out _), Is.False);
+        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out PreviewNodePlacement.Edit? Edit, out _), Is.False);
         Assert.That(Edit, Is.Null);
     }
 
@@ -70,7 +70,7 @@ public sealed class PreviewNodePlacementTests
     {
         string Text = Source.Replace("\"Order\"", "\"Order\" push E; application-component other");
         Assert.That(EnterpriseValidator.Analyze(Text).HasErrors, Is.False);
-        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out var Edit, out _), Is.False);
+        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out PreviewNodePlacement.Edit? Edit, out _), Is.False);
         Assert.That(Edit, Is.Null);
     }
 
@@ -78,7 +78,7 @@ public sealed class PreviewNodePlacementTests
     public void QuotedSemicolonsAndInlineCommentsSurviveTheHintEdit()
     {
         string Text = Source.Replace("\"Order\"", "\"Order; label\" %% keep this ; comment");
-        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out var Edit, out var Reason), Is.True, Reason);
+        Assert.That(PreviewNodePlacement.TryCreate(Text, "order", Items(), new(195, 145), out PreviewNodePlacement.Edit? Edit, out var Reason), Is.True, Reason);
         Assert.That(Edit!.Apply(Text), Does.Contain("\"Order; label\" left-of webShop %% keep this ; comment\n"));
     }
 

@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -20,20 +21,22 @@ public sealed class TerminalTrackRegressionTests
     [TestCase("A117", "g2->legacyPayroll", "g3->rosterApi", 138)]
     public void ProductionTerminalPair_DoesNotOverlapOrAddBends(string Id, string First, string Second, int MaximumBends)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Item => Item.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
         FlowchartTerminalTrackRepair.Observer = (Kind, A, B) =>
         {
-            if (Kind.StartsWith("gap", StringComparison.Ordinal) || Kind != "conflict" && (A.Contains(First, StringComparison.Ordinal) || A.Contains(Second, StringComparison.Ordinal)))
+            if (Kind.StartsWith("gap", StringComparison.Ordinal) || (Kind != "conflict" && (A.Contains(First, StringComparison.Ordinal) || A.Contains(Second, StringComparison.Ordinal))))
+            {
                 TestContext.Out.WriteLine($"TERMINAL_REPAIR|{Id}|{Kind}|{A}|{B}");
+            }
         };
         try
         {
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
-                new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
-            var A = Layout.EdgeRoutes.Single(Route => Route.EdgeId.StartsWith(First + ":", StringComparison.Ordinal));
-            var B = Layout.EdgeRoutes.Single(Route => Route.EdgeId.StartsWith(Second + ":", StringComparison.Ordinal));
+                new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+            FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes.Single(Route => Route.EdgeId.StartsWith(First + ":", StringComparison.Ordinal));
+            FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes.Single(Route => Route.EdgeId.StartsWith(Second + ":", StringComparison.Ordinal));
             Assert.That(Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)), Is.LessThanOrEqualTo(MaximumBends));
             Assert.That(FlowchartBranchRouteOrder.Intersections(
                 A.Points.Select(Point => (Point.X, Point.Y)).ToArray(), B.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Overlap,

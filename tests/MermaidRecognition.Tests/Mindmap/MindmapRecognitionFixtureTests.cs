@@ -6,13 +6,13 @@ namespace MermaidRecognition.Tests.Mindmap;
 public sealed class MindmapRecognitionFixtureTests
 {
     private static readonly string[] FixtureNames =
-    {
+    [
         "simple",
         "init-leading",
         "comment",
         "hierarchy",
         "shapes",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)

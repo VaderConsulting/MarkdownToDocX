@@ -71,14 +71,14 @@ public sealed class DiagramGridBypassObstacleTests
             Contract, Frames, FlowchartDirection.TopToBottom);
         FlowchartLayoutNodeBounds Blocker = new()
         { NodeId = "c", CenterX = Sign * 600, CenterY = 200, Width = 100, Height = 60 };
-        foreach (var Pair in Route.Points.Zip(Route.Points.Skip(1)))
+        foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Pair in Route.Points.Zip(Route.Points.Skip(1)))
         {
             Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
                 Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Blocker), Is.False);
         }
-        List<bool> Axes = Route.Points.Zip(Route.Points.Skip(1))
+        List<bool> Axes = [.. Route.Points.Zip(Route.Points.Skip(1))
             .Where(Pair => Math.Abs(Pair.First.X - Pair.Second.X) + Math.Abs(Pair.First.Y - Pair.Second.Y) > 0.5)
-            .Select(Pair => Math.Abs(Pair.First.X - Pair.Second.X) > 0.5).ToList();
+            .Select(Pair => Math.Abs(Pair.First.X - Pair.Second.X) > 0.5)];
         Assert.That(Axes.Zip(Axes.Skip(1)).Count(Pair => Pair.First != Pair.Second), Is.LessThanOrEqualTo(2));
         Assert.That(Route.Points[^1].X, Is.EqualTo(Sign * 850));
         Assert.That(Route.Points[^1].Y, Is.EqualTo(200));
@@ -109,7 +109,7 @@ public sealed class DiagramGridBypassObstacleTests
             Contract, [], Mirrored ? FlowchartDirection.RightToLeft : FlowchartDirection.LeftToRight);
         FlowchartLayoutNodeBounds Blocker = new()
         { NodeId = "c", CenterX = Sign * 250, CenterY = 0, Width = 100, Height = 120 };
-        foreach (var Pair in Route.Points.Zip(Route.Points.Skip(1)))
+        foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Pair in Route.Points.Zip(Route.Points.Skip(1)))
         {
             Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
                 Pair.First.X, Pair.First.Y, Pair.Second.X, Pair.Second.Y, Blocker), Is.False,

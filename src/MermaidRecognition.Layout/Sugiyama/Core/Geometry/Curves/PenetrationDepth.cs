@@ -108,7 +108,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double span = (bez.ParEnd - bez.ParStart) / numOfTangents;
             for (int i = 0; i < numOfTangents; i++)
             {
-                yield return TangentOnICurve(span / 2 + bez.ParStart + span * i, bez);
+                yield return TangentOnICurve((span / 2) + bez.ParStart + (span * i), bez);
             }
         }
 
@@ -124,7 +124,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double span = (ellipse.ParEnd - ellipse.ParStart) / numOfTangents;
             for (int i = 0; i < numOfTangents; i++)
             {
-                yield return TangentOnICurve(span / 2 + ellipse.ParStart + span * i, ellipse);
+                yield return TangentOnICurve((span / 2) + ellipse.ParStart + (span * i), ellipse);
             }
         }
 
@@ -133,7 +133,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             return x;
         }
 
-        static bool TangentsAreParallel(CurveTangent a, CurveTangent b) => Math.Abs(a.direction.X * b.direction.Y - a.direction.Y * b.direction.X) < ApproximateComparer.DistanceEpsilon;
+        static bool TangentsAreParallel(CurveTangent a, CurveTangent b) => Math.Abs((a.direction.X * b.direction.Y) - (a.direction.Y * b.direction.X)) < ApproximateComparer.DistanceEpsilon;
 
         /// <summary>
         /// Calculates a vector of minimal length by which to move the first polyline to avoid intersection of interiors
@@ -165,7 +165,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 double dist = Point.DistToLineSegment(origin, pp.Point, pn.Point, out double t);
                 if (dist < d) {
                     d = dist;
-                    ret = (1 - t) * pp.Point + t * pn.Point;
+                    ret = ((1 - t) * pp.Point) + (t * pn.Point);
                 }
                 pp = pn;
             } while (pp != minkovski.StartPoint);

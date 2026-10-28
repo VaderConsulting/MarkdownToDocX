@@ -14,37 +14,46 @@ internal static class CellGridAudit
     internal static Dictionary<string, string> Faults(DiagramContract Contract, FlowchartLayoutResult Layout,
         IReadOnlyList<DiagramGridLayout.GridNode> Nodes)
     {
-        var Result = new Dictionary<string, string>(StringComparer.Ordinal);
-        var State = FlowchartCellRepair.Capture(Nodes);
-        var Configuration = State.Owner.Configuration;
+        Dictionary<string, string> Result = new Dictionary<string, string>(StringComparer.Ordinal);
+        FlowchartLogicalGrid.Snapshot State = FlowchartCellRepair.Capture(Nodes);
+        FlowchartLogicalGridConfiguration Configuration = State.Owner.Configuration;
         bool GapsLegal = Configuration.ColumnGap >= FlowchartLayoutRules.BaseColumnGap
             && Configuration.RowGap >= FlowchartLayoutRules.BaseRowGap
             && State.ColumnGaps.Values.All(Gap => double.IsFinite(Gap) && Gap >= Configuration.ColumnGap)
             && State.RowGaps.Values.All(Gap => double.IsFinite(Gap) && Gap >= Configuration.RowGap);
         // Audit ownership independently of the production assignment validator.
-        var Shared = new HashSet<string>(StringComparer.Ordinal);
-        var Regions = State.Regions.ToArray();
+        HashSet<string> Shared = new HashSet<string>(StringComparer.Ordinal);
+        KeyValuePair<string, FlowchartCellRegion>[] Regions = [.. State.Regions];
         for (int First = 0; First < Regions.Length; First++)
-        for (int Second = First + 1; Second < Regions.Length; Second++)
         {
-            var A = Regions[First].Value; var B = Regions[Second].Value;
+            for (int Second = First + 1; Second < Regions.Length; Second++)
+        {
+                FlowchartCellRegion A = Regions[First].Value; FlowchartCellRegion B = Regions[Second].Value;
             if (A.StartRow < (long)B.StartRow + B.RowSpan && B.StartRow < (long)A.StartRow + A.RowSpan
                 && A.StartColumn < (long)B.StartColumn + B.ColumnSpan && B.StartColumn < (long)A.StartColumn + A.ColumnSpan)
             { Shared.Add(Regions[First].Key); Shared.Add(Regions[Second].Key); }
         }
-        foreach (var Extra in Layout.NodeBounds.Where(Box => !State.Regions.ContainsKey(Box.NodeId)))
-            Result["node:" + Extra.NodeId] = "node";
-        foreach (var Extra in State.Regions.Keys.Where(Id => !Nodes.Any(Node => Node.Id == Id)))
-            Result["node:" + Extra] = "node";
-        foreach (var Node in Nodes)
+        }
+
+        foreach (FlowchartLayoutNodeBounds? Extra in Layout.NodeBounds.Where(Box => !State.Regions.ContainsKey(Box.NodeId)))
         {
-            if (!State.Regions.TryGetValue(Node.Id, out var Region))
+            Result["node:" + Extra.NodeId] = "node";
+        }
+
+        foreach (var Extra in State.Regions.Keys.Where(Id => !Nodes.Any(Node => Node.Id == Id)))
+        {
+            Result["node:" + Extra] = "node";
+        }
+
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            if (!State.Regions.TryGetValue(Node.Id, out FlowchartCellRegion? Region))
             {
                 Result["node:" + Node.Id] = "node";
                 continue;
             }
-            var Expected = Node.CellNode!.Bounds(Region, Node.GeometryProvider, State);
-            var Actual = Layout.NodeBounds.FirstOrDefault(Box => Box.NodeId == Node.Id);
+            FlowchartLayoutNodeBounds Expected = Node.CellNode!.Bounds(Region, Node.GeometryProvider, State);
+            FlowchartLayoutNodeBounds? Actual = Layout.NodeBounds.FirstOrDefault(Box => Box.NodeId == Node.Id);
             // Integer rectangles cannot represent fractional or disconnected occupancy.
             if (!GapsLegal || Shared.Contains(Node.Id) || !ReferenceEquals(Node.CellNode!.Grid, State.Owner)
                 || Region.RowSpan <= 0 || Region.ColumnSpan <= 0
@@ -53,25 +62,51 @@ internal static class CellGridAudit
                 || Layout.NodeBounds.Count(Box => Box.NodeId == Node.Id) != 1 || Actual == null
                 || !Same(Expected.CenterX, Actual.CenterX) || !Same(Expected.CenterY, Actual.CenterY)
                 || !Same(Expected.Width, Actual.Width) || !Same(Expected.Height, Actual.Height))
+            {
                 Result["node:" + Node.Id] = "node";
+            }
         }
-        var Frames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes.ToList(), State).ToArray();
-        foreach (var Extra in Layout.ClusterBounds.Where(Box => !Frames.Any(Frame => Frame.Id == Box.NodeId)))
-            Result[$"frame:{Extra.NodeId}:unexpected"] = "frame-edge";
-        foreach (var Frame in Frames)
+        DiagramGridLayout.GridFrame[] Frames = [.. DiagramGridLayout.ProjectCellFrames(Contract, [.. Nodes], State)];
+        foreach (FlowchartLayoutNodeBounds? Extra in Layout.ClusterBounds.Where(Box => !Frames.Any(Frame => Frame.Id == Box.NodeId)))
         {
-            var Actual = Layout.ClusterBounds.FirstOrDefault(Box => Box.NodeId == Frame.Id);
+            Result[$"frame:{Extra.NodeId}:unexpected"] = "frame-edge";
+        }
+
+        foreach (DiagramGridLayout.GridFrame Frame in Frames)
+        {
+            FlowchartLayoutNodeBounds? Actual = Layout.ClusterBounds.FirstOrDefault(Box => Box.NodeId == Frame.Id);
             if (Layout.ClusterBounds.Count(Box => Box.NodeId == Frame.Id) != 1)
+            {
                 Result[$"frame:{Frame.Id}:ownership"] = "frame-edge";
-            if (Actual == null || !Same(Frame.Left, Actual.CenterX - Actual.Width / 2)) Result[$"frame:{Frame.Id}:left"] = "frame-edge";
-            if (Actual == null || !Same(Frame.Right, Actual.CenterX + Actual.Width / 2)) Result[$"frame:{Frame.Id}:right"] = "frame-edge";
-            if (Actual == null || !Same(Math.Min(Frame.Top, Frame.Bottom), Actual.CenterY - Actual.Height / 2)) Result[$"frame:{Frame.Id}:bottom"] = "frame-edge";
-            if (Actual == null || !Same(Math.Max(Frame.Top, Frame.Bottom), Actual.CenterY + Actual.Height / 2)) Result[$"frame:{Frame.Id}:top"] = "frame-edge";
+            }
+
+            if (Actual == null || !Same(Frame.Left, Actual.CenterX - (Actual.Width / 2)))
+            {
+                Result[$"frame:{Frame.Id}:left"] = "frame-edge";
+            }
+
+            if (Actual == null || !Same(Frame.Right, Actual.CenterX + (Actual.Width / 2)))
+            {
+                Result[$"frame:{Frame.Id}:right"] = "frame-edge";
+            }
+
+            if (Actual == null || !Same(Math.Min(Frame.Top, Frame.Bottom), Actual.CenterY - (Actual.Height / 2)))
+            {
+                Result[$"frame:{Frame.Id}:bottom"] = "frame-edge";
+            }
+
+            if (Actual == null || !Same(Math.Max(Frame.Top, Frame.Bottom), Actual.CenterY + (Actual.Height / 2)))
+            {
+                Result[$"frame:{Frame.Id}:top"] = "frame-edge";
+            }
+
             if (Result.Keys.Any(Key => Key.StartsWith("frame:" + Frame.Id + ":", StringComparison.Ordinal)))
+            {
                 NUnit.Framework.TestContext.Out.WriteLine($"CELL_GRID_FRAME|{NUnit.Framework.TestContext.CurrentContext.Test.Name}|{Frame.Id}|"
                     + System.Text.Json.JsonSerializer.Serialize(new { Expected = new { Frame.Left, Frame.Right, Frame.Top, Frame.Bottom },
-                        Actual = Actual == null ? null : new { Left = Actual.CenterX - Actual.Width / 2, Right = Actual.CenterX + Actual.Width / 2,
-                            Top = Actual.CenterY + Actual.Height / 2, Bottom = Actual.CenterY - Actual.Height / 2 } }));
+                        Actual = Actual == null ? null : new { Left = Actual.CenterX - (Actual.Width / 2), Right = Actual.CenterX + (Actual.Width / 2),
+                            Top = Actual.CenterY + (Actual.Height / 2), Bottom = Actual.CenterY - (Actual.Height / 2) } }));
+            }
         }
         return Result;
     }

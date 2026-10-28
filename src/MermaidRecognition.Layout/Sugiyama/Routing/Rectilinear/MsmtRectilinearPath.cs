@@ -38,7 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <returns>An enumeration of each stage's enumeration of path points</returns>
         internal IEnumerable<IEnumerable<Point>> GetPath(IEnumerable<VisibilityVertex> sources, IEnumerable<VisibilityVertex> waypoints,
                                             IEnumerable<VisibilityVertex> targets) {
-            List<WaypointEntry> waypointEntries = new List<WaypointEntry>();
+            List<WaypointEntry> waypointEntries = [];
 
             IEnumerator<VisibilityVertex> waypointEnum = waypoints.GetEnumerator();
             waypointEnum.MoveNext();
@@ -82,7 +82,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         private static IEnumerable<IEnumerable<Point>> RestorePathStages(List<WaypointEntry> waypointEntries, VertexEntry lastEntry) {
             // Back up to restore the path stages back to each waypoint.
-            List<IEnumerable<Point>> paths = new List<IEnumerable<Point>>();
+            List<IEnumerable<Point>> paths = [];
             waypointEntries.Reverse();
             foreach (WaypointEntry waypointEntry in waypointEntries) {
                 paths.Add(SsstRectilinearPath.RestorePath(ref lastEntry, waypointEntry.waypointVector[0]));
@@ -167,7 +167,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     continue;
                 }
                 double costRatio = lastEntry.Cost / SsstRectilinearPath.ManhattanDistance(source.Point, target.Point);
-                if ((lastEntry.Cost < bestCost) || ApproximateComparer.Close(lastEntry.Cost, bestCost) && (costRatio < bestPathCostRatio)) {
+                if ((lastEntry.Cost < bestCost) || (ApproximateComparer.Close(lastEntry.Cost, bestCost) && (costRatio < bestPathCostRatio))) {
                     bestCost = lastEntry.Cost;
                     bestEntry = lastEntry;
                     bestPathCostRatio = lastEntry.Cost / SsstRectilinearPath.ManhattanDistance(source.Point, target.Point);

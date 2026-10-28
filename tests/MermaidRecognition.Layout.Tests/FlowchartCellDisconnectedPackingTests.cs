@@ -10,8 +10,8 @@ public sealed class FlowchartCellDisconnectedPackingTests
     [Test]
     public void ComponentPackingPreservesRelativeCellsAndExactRollback()
     {
-        var (Contract, Nodes, Grid) = Fixture();
-        var Before = Grid.Capture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartDisconnectedPacking.ApplyCells(Contract, Nodes), Is.True);
         Assert.That(Grid.RegionOf("B").StartRow - Grid.RegionOf("A").StartRow, Is.EqualTo(1));
         Assert.That(Grid.RegionOf("B").StartColumn - Grid.RegionOf("A").StartColumn, Is.EqualTo(0));
@@ -24,9 +24,9 @@ public sealed class FlowchartCellDisconnectedPackingTests
     [Test]
     public void HintedComponentRemainsFixedAsAWhole()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Nodes[0].PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         FlowchartDisconnectedPacking.ApplyCells(Contract, Nodes);
         Assert.That(Grid.RegionOf("A"), Is.SameAs(Before.Regions["A"]));
         Assert.That(Grid.RegionOf("B"), Is.SameAs(Before.Regions["B"]));
@@ -36,12 +36,12 @@ public sealed class FlowchartCellDisconnectedPackingTests
     /// <returns>Graph, bound nodes and their authoritative grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract(); var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Row, Column) in new[] { ("A", 0, 0), ("B", 1, 0), ("C", 10, 10), ("D", 20, 20) })
+        DiagramContract Contract = new DiagramContract(); FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, int Row, int Column) in new[] { ("A", 0, 0), ("B", 1, 0), ("C", 10, 10), ("D", 20, 20) })
         {
             Contract.NodesMutable.Add(new NodeContract { Id = Id }); Grid.TryPlace(Id, new(Row, Column, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id }; Node.BindCells(Grid); Nodes.Add(Node);
         }
         Contract.EdgesMutable.Add(new EdgeContract { SourceId = "A", TargetId = "B" });
         return (Contract, Nodes, Grid);

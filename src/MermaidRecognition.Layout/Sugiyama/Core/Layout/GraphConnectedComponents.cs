@@ -109,13 +109,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public static IEnumerable<GeometryGraph> CreateComponents(IList<Node> nodes, IEnumerable<Edge> edges) {
             ValidateArg.IsNotNull(nodes, "nodes");
             ValidateArg.IsNotNull(edges, "edges");
-            Dictionary<Node, int> nodeIndex = new Dictionary<Node, int>();
+            Dictionary<Node, int> nodeIndex = [];
             int nodeCount = 0;
             foreach (Node v in nodes) {
                 // Debug.Assert(v.Parent == null, "Node is already in a graph");
                 nodeIndex[v] = nodeCount++;
             }
-            List<SimpleIntEdge> intEdges = new List<SimpleIntEdge>();
+            List<SimpleIntEdge> intEdges = [];
             foreach (Edge e in edges) {
                 // Debug.Assert(e.Parent == null, "Edge is already in a graph");
                 intEdges.Add(new SimpleIntEdge {Source = nodeIndex[e.Source], Target = nodeIndex[e.Target]});
@@ -123,8 +123,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             IEnumerable<IEnumerable<int>> components =
                 ConnectedComponentCalculator<SimpleIntEdge>.GetComponents(new BasicGraph<SimpleIntEdge>(intEdges,
                                                                                                         nodeCount));
-            Dictionary<Node, GeometryGraph> nodeToGraph = new Dictionary<Node, GeometryGraph>();
-            List<GeometryGraph> graphs = new List<GeometryGraph>();
+            Dictionary<Node, GeometryGraph> nodeToGraph = [];
+            List<GeometryGraph> graphs = [];
             foreach (IEnumerable<int> c in components) {
                 GeometryGraph g = new GeometryGraph();
                 foreach (int i in c) {
@@ -156,13 +156,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                 from e in flatGraph.Edges
                 select (AlgorithmDataEdgeWrap) e.AlgorithmData,
                 flatGraph.Nodes.Count);
-            List<Node> nodes = flatGraph.Nodes.ToList();
-            List<GeometryGraph> graphComponents = new List<GeometryGraph>();
+            List<Node> nodes = [.. flatGraph.Nodes];
+            List<GeometryGraph> graphComponents = [];
             foreach (
                 IEnumerable<int> componentNodes in ConnectedComponentCalculator<AlgorithmDataEdgeWrap>.GetComponents(basicFlatGraph)) {
                 GeometryGraph g = new GeometryGraph();
-                List<Cluster> topClusters = new List<Cluster>();
-                List<Node> topNodes = new List<Node>();
+                List<Cluster> topClusters = [];
+                List<Node> topNodes = [];
                 foreach (int i in componentNodes) {
                     Node v = nodes[i];
                     Node original = (Node) v.UserData;
@@ -228,7 +228,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
                                                                               RectangularBoundary =
                                                                                   top.RectangularBoundary,
                                                                               BoundaryCurve = top.BoundaryCurve.Clone(),
-																			  CollapsedBoundary=top.CollapsedBoundary==null?null:top.CollapsedBoundary.Clone()
+																			  CollapsedBoundary=top.CollapsedBoundary?.Clone()
                                                                           };
             top.AlgorithmData = new AlgorithmDataNodeWrap(index++, copy);
             foreach (Cluster c in top.Clusters)

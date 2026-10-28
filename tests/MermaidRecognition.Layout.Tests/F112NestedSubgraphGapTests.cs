@@ -47,12 +47,12 @@ public sealed class F112NestedSubgraphGapTests
             || Direction == FlowchartDirection.RightToLeft;
 
         (string ParentId, string ChildId)[] NestedPairs =
-        {
+        [
             ("L0", "L1"),
             ("L1", "L2"),
             ("L2", "L3"),
             ("L3", "L4")
-        };
+        ];
 
         Assert.That(
             MinimumCrossAxisGap,

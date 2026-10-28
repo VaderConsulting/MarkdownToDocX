@@ -54,7 +54,7 @@ internal static class ElementTypeChange
         }
 
         EnterpriseParseResult Again = EnterpriseParser.ParseDocument(Replaced);
-        List<int> Remove = new List<int>();
+        List<int> Remove = [];
         foreach (EnterpriseRelationship Relationship in Again.Document.Relationships)
         {
             if (!string.Equals(Relationship.SourceId, ElementId, StringComparison.Ordinal)

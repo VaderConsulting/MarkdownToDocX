@@ -330,11 +330,11 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
     private static double[] ParsePolygonTip(string PointToken)
     {
         string[] Coordinates = PointToken.Split(',');
-        return new double[]
-        {
+        return
+        [
             double.Parse(Coordinates[0], CultureInfo.InvariantCulture),
             double.Parse(Coordinates[1], CultureInfo.InvariantCulture)
-        };
+        ];
     }
 
     [Test]
@@ -412,9 +412,7 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
-        List<SvgStraightConnector> HorizontalSpineLines = SvgStraightConnectorReader.Read(Svg)
-            .Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5)
-            .ToList();
+        List<SvgStraightConnector> HorizontalSpineLines = [.. SvgStraightConnectorReader.Read(Svg).Where(Connector => Math.Abs(Connector.Y1 - Connector.Y2) < 0.5)];
         Assert.That(HorizontalSpineLines, Is.Not.Empty, "Expected horizontal connector segments for the labelled edge.");
 
         double SpineMidSvgY = (HorizontalSpineLines[0].Y1 + HorizontalSpineLines[0].Y2) / 2.0;
@@ -495,11 +493,10 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
         double Step1TextX = double.Parse(Step1Text.Groups[1].Value, CultureInfo.InvariantCulture);
         double Step2TextX = double.Parse(Step2Text.Groups[1].Value, CultureInfo.InvariantCulture);
 
-        List<double> VerticalSpineLineXValues = SvgStraightConnectorReader.Read(Svg)
+        List<double> VerticalSpineLineXValues = [.. SvgStraightConnectorReader.Read(Svg)
             .Where(Connector => Math.Abs(Connector.X1 - Connector.X2) < 0.5)
             .Select(Connector => Connector.X1)
-            .Distinct()
-            .ToList();
+            .Distinct()];
 
         Assert.That(VerticalSpineLineXValues, Is.Not.Empty);
         double SpineSvgX = VerticalSpineLineXValues
@@ -562,26 +559,26 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult Layout), Is.True);
 
-        var BoundsById = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
+        Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
         EdgeContract Edge = Contract.Edges.Single(Candidate => Candidate.Label == "Yes");
-        Assert.That(Layout.TryCopyDrawnRoutePoints(Edge, out var Points), Is.True);
-        var Options = FlowchartRenderOptions.FromContract(Contract);
-        var Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Yes", Options, Options.EdgeLabelFontSizePx);
+        Assert.That(Layout.TryCopyDrawnRoutePoints(Edge, out List<(double X, double Y)>? Points), Is.True);
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        FlowchartLabelDimensions Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel("Yes", Options, Options.EdgeLabelFontSizePx);
         double Gap = FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(Options.EdgeLabelFontSizePx);
         double Height = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(Dimensions, Options.EdgeLabelFontSizePx);
         var Runs = Enumerable.Range(0, Points.Count - 1).Select(Index =>
         {
-            var Start = Points[Index];
-            var End = Points[Index + 1];
+            (double X, double Y) Start = Points[Index];
+            (double X, double Y) End = Points[Index + 1];
             bool Horizontal = Math.Abs(Start.Y - End.Y) < 0.5;
             double Length = Math.Abs(End.X - Start.X) + Math.Abs(End.Y - Start.Y);
             double TextExtent = Horizontal ? Dimensions.Width : Height;
             return new { Index, Start, End, Horizontal, Length, TextExtent };
-        }).Where(Run => Run.Length >= Run.TextExtent + 2 * Gap + 40)
+        }).Where(Run => Run.Length >= Run.TextExtent + (2 * Gap) + 40)
           .OrderByDescending(Run => Run.Length).ThenBy(Run => Run.Index).ToArray();
         Assert.That(Runs, Is.Not.Empty, "A branch must provide a fitting straight run.");
         var Longest = Runs[0];
-        var Centre = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
+        (double X, double Y) Centre = FlowchartSugiyamaSvgRenderer.ResolveDrawnEdgeLabelCentre(
             Edge, Contract, BoundsById, BoundsById["Check"], BoundsById["OK"], "diamond",
             Points, FlowchartDirection.TopToBottom, "LocalDecisionBranch", Options, FlowchartEdgeRouteKind.Grid);
         Assert.That(Centre.X, Is.EqualTo((Longest.Start.X + Longest.End.X) / 2).Within(0.5));
@@ -589,12 +586,12 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
         Assert.That(FlowchartEdgeLabelGapHelper.TryComputeBrokenSegmentSpansForLabelCentre(
             Longest.Start.X, Longest.Start.Y, Longest.End.X, Longest.End.Y,
             Centre.X, Centre.Y, Dimensions, Options.EdgeLabelFontSizePx,
-            out var Before, out bool HasBefore, out var After, out bool HasAfter), Is.True);
+            out (double X1, double Y1, double X2, double Y2) Before, out bool HasBefore, out (double X1, double Y1, double X2, double Y2) After, out bool HasAfter), Is.True);
         Assert.That(HasBefore && HasAfter, Is.True, "Both sides retain a straight stroke.");
         double BeforeDistance = Math.Abs(Before.X2 - Centre.X) + Math.Abs(Before.Y2 - Centre.Y);
         double AfterDistance = Math.Abs(After.X1 - Centre.X) + Math.Abs(After.Y1 - Centre.Y);
-        Assert.That(BeforeDistance - Longest.TextExtent / 2, Is.EqualTo(Gap).Within(0.5));
-        Assert.That(AfterDistance - Longest.TextExtent / 2, Is.EqualTo(Gap).Within(0.5));
+        Assert.That(BeforeDistance - (Longest.TextExtent / 2), Is.EqualTo(Gap).Within(0.5));
+        Assert.That(AfterDistance - (Longest.TextExtent / 2), Is.EqualTo(Gap).Within(0.5));
     }
 
     [Test]
@@ -827,9 +824,9 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
             bool Resolved = FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
                 Contract.Edges.Single(Edge => Edge.SourceId == "Hub" && Edge.TargetId == WorkerId),
                 Contract, BoundsById, NodeById, Direction,
-                out var Points, out _, Layout);
+                out List<(double X, double Y)>? Points, out _, Layout);
             Assert.That(Resolved, Is.True);
-            var ExpectedSourceFace = WorkerId switch
+            FlowchartEdgeAttachFace ExpectedSourceFace = WorkerId switch
             {
                 "W1" => FlowchartEdgeAttachFace.Left,
                 "W2" => FlowchartEdgeAttachFace.Bottom,
@@ -910,8 +907,10 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
 
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
         foreach (string Worker in new[] { "W1", "W2", "W3" })
+        {
             OrthogonalRouteTestHelper.AssertEveryBendRounded(
                 OrthogonalRouteTestHelper.ExtractEdgePath(Svg, Worker, "Agg"));
+        }
     }
 
     [Test]
@@ -996,8 +995,8 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
             Assert.That(TargetFace, Is.EqualTo(ExpectedFace), $"{WorkerId} should enter Aggregate on the face that faces it (spec §15.0C.1)");
         }
 
-        double[] TargetPorts = Layout.EdgeRoutes.Where(Route => Route.TargetId == "Agg")
-            .Select(Route => Route.Points[^1].X).OrderBy(X => X).ToArray();
+        double[] TargetPorts = [.. Layout.EdgeRoutes.Where(Route => Route.TargetId == "Agg")
+            .Select(Route => Route.Points[^1].X).OrderBy(X => X)];
         Assert.That(TargetPorts, Has.Length.EqualTo(3));
         Assert.That((TargetPorts[0] + TargetPorts[^1]) / 2.0,
             Is.EqualTo(BoundsById["Agg"].CenterX).Within(1.0));
@@ -1575,22 +1574,28 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
                 Route.EdgeId + " ends on its target outline");
             foreach (FlowchartLayoutNodeBounds Obstacle in Layout.NodeBounds.Where(Box =>
                          Box.NodeId != Route.SourceId && Box.NodeId != Route.TargetId))
-            foreach (var Segment in Route.Points.Zip(Route.Points.Skip(1)))
-                Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+            {
+                foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Segment in Route.Points.Zip(Route.Points.Skip(1)))
+                {
+                    Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
                     Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Obstacle), Is.False,
                     Route.EdgeId + " passes through " + Obstacle.NodeId);
+                }
+            }
         }
 
         for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
-        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+            for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
         {
             FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First];
             FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes[Second];
-            var Interaction = FlowchartBranchRouteOrder.Intersections(
+                (int Crossings, double Overlap) Interaction = FlowchartBranchRouteOrder.Intersections(
                 A.Points.Select(Point => (Point.X, Point.Y)).ToList(),
                 B.Points.Select(Point => (Point.X, Point.Y)).ToList());
             Assert.That(Interaction.Crossings, Is.Zero, $"{A.EdgeId} crosses {B.EdgeId}");
             Assert.That(Interaction.Overlap, Is.LessThanOrEqualTo(0.5), $"{A.EdgeId} overlaps {B.EdgeId}");
+        }
         }
     }
 
@@ -2335,9 +2340,7 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
 
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds.ToDictionary(Bounds => Bounds.NodeId, Bounds => Bounds);
         double SpineX = BoundsById["Start"].CenterX;
-        HashSet<double> DistinctColumns = Layout.NodeBounds
-            .Select(Bounds => Math.Round(Bounds.CenterX / 30.0) * 30.0)
-            .ToHashSet();
+        HashSet<double> DistinctColumns = [.. Layout.NodeBounds.Select(Bounds => Math.Round(Bounds.CenterX / 30.0) * 30.0)];
 
         Assert.That(DistinctColumns.Count, Is.GreaterThanOrEqualTo(3), "Diagram should use several vertical columns");
 
@@ -2363,8 +2366,8 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
             "Optional detour sits opposite the terminal collector");
         Assert.That(BoundsById["Reject"].CenterY, Is.EqualTo(BoundsById["Done"].CenterY).Within(1.5),
             "Early exit sits beside the terminal collector");
-        double EarlyExitRight = BoundsById["Reject"].CenterX + BoundsById["Reject"].Width / 2.0;
-        double CollectorLeft = BoundsById["Done"].CenterX - BoundsById["Done"].Width / 2.0;
+        double EarlyExitRight = BoundsById["Reject"].CenterX + (BoundsById["Reject"].Width / 2.0);
+        double CollectorLeft = BoundsById["Done"].CenterX - (BoundsById["Done"].Width / 2.0);
         Assert.That(CollectorLeft - EarlyExitRight, Is.GreaterThanOrEqualTo(30.0 - 0.01),
             "Early exit and terminal collector retain a grid step of clearance");
         Assert.That(BoundsById["Validate"].CenterY, Is.GreaterThan(BoundsById["Reject"].CenterY + 40.0),
@@ -2587,8 +2590,8 @@ public sealed class FlowchartCatalogueRenderTests : ProductionCatalogueTestFixtu
 
         Assert.That(InnerTop.ParentGroupId, Is.EqualTo("Inner"));
         Assert.That(InnerBottom.ParentGroupId, Is.EqualTo("Inner"));
-        Assert.That(Inner.ChildNodeIds, Is.EquivalentTo(new[] { "InnerTop", "InnerBottom" }));
-        Assert.That(Outer.ChildNodeIds, Is.EquivalentTo(new[] { "Start", "End" }));
+        Assert.That(Inner.ChildNodeIds, Is.EquivalentTo(["InnerTop", "InnerBottom"]));
+        Assert.That(Outer.ChildNodeIds, Is.EquivalentTo(["Start", "End"]));
     }
 
     [Test]

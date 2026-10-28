@@ -22,14 +22,18 @@ internal static class FlowchartAllocatedPortFallback
     internal static PreparedGeometry Prepare(DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds)
     {
-        var Bands = FlowchartFrameTitleBandHelper.Build(Contract, Bounds).ToArray();
-        var Groups = Contract.Groups.Select(Group => Group.Id).ToHashSet(StringComparer.Ordinal);
-        var Bodies = Bounds.Where(Pair => !Groups.Contains(Pair.Key))
+        FlowchartFrameTitleBandHelper.Band[] Bands = [.. FlowchartFrameTitleBandHelper.Build(Contract, Bounds)];
+        HashSet<string> Groups = Contract.Groups.Select(Group => Group.Id).ToHashSet(StringComparer.Ordinal);
+        Dictionary<string, FlowchartLayoutNodeBounds> Bodies = Bounds.Where(Pair => !Groups.Contains(Pair.Key))
             .ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
         // Preserve AddRoutingObstacles order, including replacement of a band
         // already present in the input. No mutable inventory escapes this trial.
-        var Obstacles = FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds, Bands);
-        foreach (string Group in Groups) Obstacles.Remove(Group);
+        Dictionary<string, FlowchartLayoutNodeBounds> Obstacles = FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds, Bands);
+        foreach (string Group in Groups)
+        {
+            Obstacles.Remove(Group);
+        }
+
         return new(Bodies, Obstacles.Values.ToArray(), Bands);
     }
 
@@ -47,23 +51,34 @@ internal static class FlowchartAllocatedPortFallback
         FlowchartLayoutEdgeRoute Route, bool ExtendEnvelope, PreparedGeometry? Prepared = null,
         IReadOnlyList<FlowchartLayoutEdgeRoute>? ExistingRoutes = null)
     {
-        if (Route.Points.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out var Source)
-            || !Bounds.TryGetValue(Route.TargetId, out var Target)) return [];
-        var Saved = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        var WithBands = Prepared == null ? FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds) : null;
-        if (WithBands != null) foreach (var Group in Contract.Groups) WithBands.Remove(Group.Id);
-        Nodes.TryGetValue(Route.SourceId, out var SourceNode);
-        Nodes.TryGetValue(Route.TargetId, out var TargetNode);
+        if (Route.Points.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
+        {
+            return [];
+        }
+
+        (double X, double Y)[] Saved = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
+        Dictionary<string, FlowchartLayoutNodeBounds>? WithBands = Prepared == null ? FlowchartFrameTitleBandHelper.AddRoutingObstacles(Contract, Bounds) : null;
+        if (WithBands != null)
+        {
+            foreach (GroupContract Group in Contract.Groups)
+            {
+                WithBands.Remove(Group.Id);
+            }
+        }
+
+        Nodes.TryGetValue(Route.SourceId, out NodeContract? SourceNode);
+        Nodes.TryGetValue(Route.TargetId, out NodeContract? TargetNode);
         // Preserve the established diamond fallback policy. All candidates are
         // independently checked against their actual endpoint bodies before use.
         IEnumerable<FlowchartLayoutNodeBounds> Inventory = Prepared != null ? Prepared.Obstacles : WithBands!.Values;
-        var Obstacles = Inventory.Where(Box =>
+        FlowchartLayoutNodeBounds[] Obstacles = [.. Inventory.Where(Box =>
             !(Box.NodeId == Route.SourceId && FlowchartDiamondAttachHelper.IsDiamondShape(SourceNode?.Shape))
-            && !(Box.NodeId == Route.TargetId && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape))).ToArray();
+            && !(Box.NodeId == Route.TargetId && FlowchartDiamondAttachHelper.IsDiamondShape(TargetNode?.Shape)))];
         double Stub = DiagramGridRouteBuilder.CORNER_RADIUS_PX;
-        var SourceStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[0].X, Saved[0].Y,
+        (double X, double Y) SourceStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[0].X, Saved[0].Y,
             Source, SourceNode?.Shape, Route.ExitSide, Stub, Route.ExitNormalX, Route.ExitNormalY);
-        var TargetStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[^1].X, Saved[^1].Y,
+        (double X, double Y) TargetStub = DiagramGridRouteBuilder.ResolvePortStub(Saved[^1].X, Saved[^1].Y,
             Target, TargetNode?.Shape, Route.EntrySide, Stub, Route.EntryNormalX, Route.EntryNormalY);
         if (ExtendEnvelope)
         {
@@ -71,10 +86,14 @@ internal static class FlowchartAllocatedPortFallback
             TargetStub = ExtendStub(Target, Saved[^1], TargetStub);
         }
         if (!FlowchartPaddedVisibilityRouter.TryRoute(SourceStub.X, SourceStub.Y,
-            TargetStub.X, TargetStub.Y, Obstacles, null, null, out var Body,
-            PortStubPx: 0, ObstaclePaddingPx: 0)) return [];
-        var Path = DiagramGridRouteBuilder.SimplifyCollinear(
-            new List<(double X, double Y)> { Saved[0] }.Concat(Body).Append(Saved[^1]).ToList());
+            TargetStub.X, TargetStub.Y, Obstacles, null, null, out List<(double X, double Y)>? Body,
+            PortStubPx: 0, ObstaclePaddingPx: 0))
+        {
+            return [];
+        }
+
+        List<(double X, double Y)> Path = DiagramGridRouteBuilder.SimplifyCollinear(
+            [Saved[0], .. Body, Saved[^1]]);
         return ExistingRoutes == null ? Path : FlowchartFallbackCorridorTracks.Allocate(Contract, Bounds, Route, Path, ExistingRoutes, Prepared);
     }
 
@@ -88,21 +107,40 @@ internal static class FlowchartAllocatedPortFallback
     internal static bool IsLegal(DiagramContract Contract, IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         FlowchartLayoutEdgeRoute Route, IReadOnlyList<(double X, double Y)> Path, PreparedGeometry? Prepared = null)
     {
-        if (Path.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out var Source)
-            || !Bounds.TryGetValue(Route.TargetId, out var Target)) return false;
+        if (Path.Count < 2 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
+        {
+            return false;
+        }
+
         if (!AlongNormal(Path[0], Path[1], Route.ExitNormalX, Route.ExitNormalY)
-            || !AlongNormal(Path[^1], Path[^2], Route.EntryNormalX, Route.EntryNormalY)) return false;
-        var Bodies = Prepared?.Bodies ?? Bounds.Where(Pair => !Contract.Groups.Any(Group => Group.Id == Pair.Key))
+            || !AlongNormal(Path[^1], Path[^2], Route.EntryNormalX, Route.EntryNormalY))
+        {
+            return false;
+        }
+
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bodies = Prepared?.Bodies ?? Bounds.Where(Pair => !Contract.Groups.Any(Group => Group.Id == Pair.Key))
             .ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
         for (int Index = 1; Index < Path.Count; Index++)
         {
-            var A = Path[Index - 1]; var B = Path[Index];
-            if (!double.IsFinite(A.X) || !double.IsFinite(A.Y) || !double.IsFinite(B.X) || !double.IsFinite(B.Y)) return false;
+            (double X, double Y) A = Path[Index - 1]; (double X, double Y) B = Path[Index];
+            if (!double.IsFinite(A.X) || !double.IsFinite(A.Y) || !double.IsFinite(B.X) || !double.IsFinite(B.Y))
+            {
+                return false;
+            }
+
             if (Index > 1 && Index < Path.Count - 1
-                && !FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline(new[] { A, B })) return false;
+                && !FlowchartPerpendicularRouteBuilder.IsOrthogonalPolyline([A, B]))
+            {
+                return false;
+            }
+
             if (FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(A.X, A.Y, B.X, B.Y, Bodies, Route.SourceId, Route.TargetId)
-                || Index > 1 && Bodies.ContainsKey(Route.SourceId) && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Source)
-                || Index < Path.Count - 1 && Bodies.ContainsKey(Route.TargetId) && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Target)) return false;
+                || (Index > 1 && Bodies.ContainsKey(Route.SourceId) && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Source))
+                || (Index < Path.Count - 1 && Bodies.ContainsKey(Route.TargetId) && FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y, Target)))
+            {
+                return false;
+            }
         }
         return !FlowchartFrameTitleBandHelper.RouteEntersAny(Path, Prepared?.Bands ?? FlowchartFrameTitleBandHelper.Build(Contract, Bounds), Route.SourceId, Route.TargetId, Contract);
     }
@@ -115,10 +153,14 @@ internal static class FlowchartAllocatedPortFallback
     /// <returns>Whether the segment follows the outward normal within the existing route tolerance.</returns>
     private static bool AlongNormal((double X, double Y) Port, (double X, double Y) Next, double Nx, double Ny)
     {
-        double Length = Math.Sqrt(Nx * Nx + Ny * Ny);
-        if (Length == 0) return true;
+        double Length = Math.Sqrt((Nx * Nx) + (Ny * Ny));
+        if (Length == 0)
+        {
+            return true;
+        }
+
         double Dx = Next.X - Port.X, Dy = Next.Y - Port.Y;
-        return Dx * Nx + Dy * Ny > 0 && Math.Abs(Dx * Ny - Dy * Nx) / Length <= DiagramGridRouteBuilder.COLLINEAR_EPSILON_PX;
+        return (Dx * Nx) + (Dy * Ny) > 0 && Math.Abs((Dx * Ny) - (Dy * Nx)) / Length <= DiagramGridRouteBuilder.COLLINEAR_EPSILON_PX;
     }
 
     /// <summary>Extends an outward ray through the empty corner of an enclosing box without crossing the actual endpoint body.</summary>
@@ -128,15 +170,23 @@ internal static class FlowchartAllocatedPortFallback
     /// <returns>A candidate at the enclosing box boundary, or the original stub when extension is unnecessary or unsafe.</returns>
     private static (double X, double Y) ExtendStub(FlowchartLayoutNodeBounds Box, (double X, double Y) Port, (double X, double Y) Stub)
     {
-        double Left = Box.CenterX - Box.Width / 2, Right = Box.CenterX + Box.Width / 2;
-        double Low = Box.CenterY - Box.Height / 2, High = Box.CenterY + Box.Height / 2;
-        if (Stub.X <= Left || Stub.X >= Right || Stub.Y <= Low || Stub.Y >= High) return Stub;
+        double Left = Box.CenterX - (Box.Width / 2), Right = Box.CenterX + (Box.Width / 2);
+        double Low = Box.CenterY - (Box.Height / 2), High = Box.CenterY + (Box.Height / 2);
+        if (Stub.X <= Left || Stub.X >= Right || Stub.Y <= Low || Stub.Y >= High)
+        {
+            return Stub;
+        }
+
         double Dx = Stub.X - Port.X, Dy = Stub.Y - Port.Y;
         double AlongX = Dx == 0 ? double.PositiveInfinity : ((Dx < 0 ? Left : Right) - Port.X) / Dx;
         double AlongY = Dy == 0 ? double.PositiveInfinity : ((Dy < 0 ? Low : High) - Port.Y) / Dy;
         double Scale = Math.Min(AlongX, AlongY);
-        if (!double.IsFinite(Scale) || Scale <= 1) return Stub;
-        var End = (X: Port.X + Scale * Dx, Y: Port.Y + Scale * Dy);
+        if (!double.IsFinite(Scale) || Scale <= 1)
+        {
+            return Stub;
+        }
+
+        (double X, double Y) End = (X: Port.X + (Scale * Dx), Y: Port.Y + (Scale * Dy));
         return Box.Geometry?.ObstacleGeometry.IntersectsSegmentInterior(Port.X - Box.CenterX, Box.CenterY - Port.Y,
             End.X - Box.CenterX, Box.CenterY - End.Y) == true ? Stub : End;
     }

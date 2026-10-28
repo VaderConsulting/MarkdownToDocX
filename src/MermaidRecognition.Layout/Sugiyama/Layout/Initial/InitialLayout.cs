@@ -75,7 +75,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial
                     c.RectangularBoundary.GenerateFixedConstraints = false;
                 }
 
-                List<GeometryGraph> components = graph.GetClusteredConnectedComponents().ToList();
+                List<GeometryGraph> components = [.. graph.GetClusteredConnectedComponents()];
 
                 componentCount = components.Count;
 
@@ -173,7 +173,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial
         /// <returns>0, 1 or 2</returns>
         IEnumerable<int> GetConstraintLevels(GeometryGraph component)
         {
-            List<int> keys = (from c in settings.StructuralConstraints select c.Level).ToList();
+            List<int> keys = [.. (from c in settings.StructuralConstraints select c.Level)];
             keys.Add(0);
             if (settings.IdealEdgeLength.EdgeDirectionConstraints != Directions.None) { 
                 keys.Add(1); 

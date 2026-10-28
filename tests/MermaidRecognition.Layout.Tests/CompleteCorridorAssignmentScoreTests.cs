@@ -8,8 +8,8 @@ public sealed class CompleteCorridorAssignmentScoreTests
     [Test]
     public void CheaperAllocatedCandidateWinsAgainstOrdinaryFallback()
     {
-        var Allocated = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
-        var Fallback = new FlowchartLayoutScore.ComparisonCost(3814, 0, 98, 1460);
+        FlowchartLayoutScore.ComparisonCost Allocated = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
+        FlowchartLayoutScore.ComparisonCost Fallback = new FlowchartLayoutScore.ComparisonCost(3814, 0, 98, 1460);
         Assert.That(DiagramGridLayout.LowestCostCompleteAssignment([(true, Allocated), (true, Fallback)]), Is.Zero);
     }
 
@@ -17,9 +17,9 @@ public sealed class CompleteCorridorAssignmentScoreTests
     [Test]
     public void LowerScoringLegalBaselineIsKept()
     {
-        var Allocated = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
-        var Fallback = new FlowchartLayoutScore.ComparisonCost(3814, 0, 98, 1460);
-        var Baseline = new FlowchartLayoutScore.ComparisonCost(3320, 0, 97, 1000);
+        FlowchartLayoutScore.ComparisonCost Allocated = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
+        FlowchartLayoutScore.ComparisonCost Fallback = new FlowchartLayoutScore.ComparisonCost(3814, 0, 98, 1460);
+        FlowchartLayoutScore.ComparisonCost Baseline = new FlowchartLayoutScore.ComparisonCost(3320, 0, 97, 1000);
         Assert.That(DiagramGridLayout.LowestCostCompleteAssignment([(true, Allocated), (true, Fallback), (true, Baseline)]), Is.EqualTo(2));
     }
 
@@ -27,9 +27,9 @@ public sealed class CompleteCorridorAssignmentScoreTests
     [Test]
     public void InvalidBaselineDoesNotForceMoreExpensiveFallback()
     {
-        var Allocated = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
-        var Fallback = new FlowchartLayoutScore.ComparisonCost(3814, 0, 98, 1460);
-        var Baseline = new FlowchartLayoutScore.ComparisonCost(3320, 0, 97, 1000);
+        FlowchartLayoutScore.ComparisonCost Allocated = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
+        FlowchartLayoutScore.ComparisonCost Fallback = new FlowchartLayoutScore.ComparisonCost(3814, 0, 98, 1460);
+        FlowchartLayoutScore.ComparisonCost Baseline = new FlowchartLayoutScore.ComparisonCost(3320, 0, 97, 1000);
         Assert.That(DiagramGridLayout.LowestCostCompleteAssignment([(true, Allocated), (true, Fallback), (false, Baseline)]), Is.Zero);
     }
 
@@ -37,7 +37,7 @@ public sealed class CompleteCorridorAssignmentScoreTests
     [Test]
     public void CandidateOrderIsStableAndInvalidInventoryHasNoWinner()
     {
-        var Cost = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
+        FlowchartLayoutScore.ComparisonCost Cost = new FlowchartLayoutScore.ComparisonCost(3363, 0, 98, 1020);
         Assert.Multiple(() =>
         {
             Assert.That(DiagramGridLayout.LowestCostCompleteAssignment([(true, Cost), (true, Cost)]), Is.Zero);

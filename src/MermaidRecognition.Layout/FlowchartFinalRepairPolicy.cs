@@ -37,14 +37,23 @@ internal static class FlowchartFinalRepairPolicy
     {
         if (After.Count > Before.Count || Candidate.Bends > Original.Bends || Candidate.Crossings() > Original.Crossings()
             || Candidate.Overlaps > Original.Overlaps || Candidate.HintsHonoured < Original.HintsHonoured
-            || Candidate.Cost >= Original.Cost) return false;
+            || Candidate.Cost >= Original.Cost)
+        {
+            return false;
+        }
         // A raw 5.9 entry is a geometric crossing report, not a proof of an
         // avoidable fault. Its identities may change under the exact complete
         // crossing and total-finding checks above. All other reported routing
         // and legality categories retain their established fault counts.
         foreach (string Rule in After.Select(Finding => Finding.Rule).Where(Rule => Rule != "5.9").Distinct(StringComparer.Ordinal))
-            if (After.Count(Finding => Finding.Rule == Rule) > Before.Count(Finding => Finding.Rule == Rule)) return false;
-        var FaultCounts = Original.Faults.Where(Fault => Fault.Kind != "ArrangementKept")
+        {
+            if (After.Count(Finding => Finding.Rule == Rule) > Before.Count(Finding => Finding.Rule == Rule))
+            {
+                return false;
+            }
+        }
+
+        Dictionary<string, int> FaultCounts = Original.Faults.Where(Fault => Fault.Kind != "ArrangementKept")
             .GroupBy(Fault => Fault.Kind).ToDictionary(Group => Group.Key, Group => Group.Count(), StringComparer.Ordinal);
         return !Candidate.Faults.Where(Fault => Fault.Kind != "ArrangementKept").GroupBy(Fault => Fault.Kind)
             .Any(Group => Group.Count() > FaultCounts.GetValueOrDefault(Group.Key));

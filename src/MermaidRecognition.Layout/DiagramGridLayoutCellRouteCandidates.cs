@@ -31,9 +31,13 @@ public static partial class DiagramGridLayout
     /// <returns>An ordering key, never a placement coordinate.</returns>
     internal static double CellSourceOrder(DiagramContract Contract, IReadOnlyDictionary<string, FlowchartCellRegion> Regions, string Target, bool Horizontal)
     {
-        var Sources = Contract.Edges.Where(Edge => Edge.TargetId == Target && Regions.ContainsKey(Edge.SourceId)
-            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).GroupBy(Edge => Edge.SourceId).ToArray();
-        if (Sources.Length == 0) return CellSourceRepresentative(Regions[Target], Horizontal);
+        IGrouping<string, EdgeContract>[] Sources = [.. Contract.Edges.Where(Edge => Edge.TargetId == Target && Regions.ContainsKey(Edge.SourceId)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).GroupBy(Edge => Edge.SourceId)];
+        if (Sources.Length == 0)
+        {
+            return CellSourceRepresentative(Regions[Target], Horizontal);
+        }
+
         int Most = Sources.Max(Source => Source.Count());
         return Sources.Where(Source => Source.Count() == Most).Average(Source => CellSourceRepresentative(Regions[Source.Key], Horizontal));
     }
@@ -46,51 +50,76 @@ public static partial class DiagramGridLayout
     /// <returns>Unpublished translations, bounded and interleaved using the existing move limit.</returns>
     internal static IEnumerable<CellRouteMoveTarget> CellRouteMoveCandidates(DiagramContract Contract, List<GridNode> Placed, bool Horizontal, IEnumerable<string> Ids)
     {
-        var Regions = new Dictionary<string, FlowchartCellRegion>(FlowchartCellRepair.Capture(Placed).Regions, StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed);
-        var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        foreach (var Group in Contract.Groups)
+        Dictionary<string, FlowchartCellRegion> Regions = new Dictionary<string, FlowchartCellRegion>(FlowchartCellRepair.Capture(Placed).Regions, StringComparer.Ordinal);
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        EdgeContract[] Edges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        foreach (GroupContract Group in Contract.Groups)
         {
-            var Members = Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Group.Id)).Select(Node => Regions[Node.Id]).ToArray();
-            if (Members.Length > 0) Regions.TryAdd(Group.Id, CellRouteEnvelope(Members));
+            FlowchartCellRegion[] Members = [.. Placed.Where(Node => IsInsideGroup(Contract, Node.Id, Group.Id)).Select(Node => Regions[Node.Id])];
+            if (Members.Length > 0)
+            {
+                Regions.TryAdd(Group.Id, CellRouteEnvelope(Members));
+            }
         }
-        var Declared = Contract.Nodes.Select((Node, Index) => (Node.Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index);
-        var Options = new List<List<CellRouteMoveTarget>>(); var Seen = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, int> Declared = Contract.Nodes.Select((Node, Index) => (Node.Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index);
+        List<List<CellRouteMoveTarget>> Options = []; HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (string Id in Ids.Distinct(StringComparer.Ordinal).Where(Regions.ContainsKey)
             .OrderBy(Id => CellSourceOrder(Contract, Regions, Id, Horizontal)).ThenBy(Id => Declared.GetValueOrDefault(Id, int.MaxValue)))
         {
-            var Units = new List<IReadOnlyList<GridNode>> { Placed.Where(Node => Node.Id == Id || IsInsideGroup(Contract, Node.Id, Id)).ToArray() };
-            if (ById.TryGetValue(Id, out var Start))
+            List<IReadOnlyList<GridNode>> Units = [Placed.Where(Node => Node.Id == Id || IsInsideGroup(Contract, Node.Id, Id)).ToArray()];
+            if (ById.TryGetValue(Id, out GridNode? Start))
             {
-                var Tail = CellOutputChain(Start, ById, Edges);
-                if (Tail.Count > 1) Units.Add(Tail);
+                IReadOnlyList<GridNode> Tail = CellOutputChain(Start, ById, Edges);
+                if (Tail.Count > 1)
+                {
+                    Units.Add(Tail);
+                }
             }
-            foreach (var Moving in Units)
+            foreach (IReadOnlyList<GridNode> Moving in Units)
             {
-                if (Moving.Count == 0 || Moving.Any(Node => Node.PlacementHintLocked)) continue;
+                if (Moving.Count == 0 || Moving.Any(Node => Node.PlacementHintLocked))
+                {
+                    continue;
+                }
+
                 string Key = string.Join("|", Moving.Select(Node => Node.Id).Order(StringComparer.Ordinal));
-                if (!Seen.Add(Key)) continue;
-                var Bounds = CellRouteEnvelope(Moving.Select(Node => Regions[Node.Id]).ToArray());
+                if (!Seen.Add(Key))
+                {
+                    continue;
+                }
+
+                FlowchartCellRegion Bounds = CellRouteEnvelope(Moving.Select(Node => Regions[Node.Id]).ToArray());
                 int Cross = Horizontal ? Bounds.StartRow : Bounds.StartColumn, Span = Horizontal ? Bounds.RowSpan : Bounds.ColumnSpan;
-                var Members = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-                var Deltas = new List<(int Rows, int Columns)>();
+                HashSet<string> Members = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+                List<(int Rows, int Columns)> Deltas = [];
                 foreach (string Peer in Edges.Where(Edge => Members.Contains(Edge.SourceId) != Members.Contains(Edge.TargetId))
                     .Select(Edge => Members.Contains(Edge.SourceId) ? Edge.TargetId : Edge.SourceId).Distinct().Where(Regions.ContainsKey))
                 {
-                    var Other = Regions[Peer];
+                    FlowchartCellRegion Other = Regions[Peer];
                     foreach (int Target in new[] { Horizontal ? Other.StartRow : Other.StartColumn,
                         checked((Horizontal ? Other.EndRow : Other.EndColumn) - Span) })
+                    {
                         Deltas.Add(Horizontal ? (checked(Target - Cross), 0) : (0, checked(Target - Cross)));
+                    }
                 }
                 for (int Distance = 1; Distance <= FlowchartLayoutRules.RepairCandidateMoves; Distance++)
+                {
                     Deltas.AddRange([(-Distance, 0), (Distance, 0), (0, -Distance), (0, Distance)]);
-                Options.Add(Deltas.Where(Delta => Delta != (0, 0)).Distinct().Take(FlowchartLayoutRules.RepairCandidateMoves)
-                    .Select(Delta => new CellRouteMoveTarget(Key + "|" + Delta.Rows + "," + Delta.Columns, Id, Moving, Delta.Rows, Delta.Columns)).ToList());
+                }
+
+                Options.Add([.. Deltas.Where(Delta => Delta != (0, 0)).Distinct().Take(FlowchartLayoutRules.RepairCandidateMoves).Select(Delta => new CellRouteMoveTarget(Key + "|" + Delta.Rows + "," + Delta.Columns, Id, Moving, Delta.Rows, Delta.Columns))]);
             }
         }
         for (int Index = 0; Index < FlowchartLayoutRules.RepairCandidateMoves; Index++)
-        foreach (var Unit in Options) if (Index < Unit.Count) yield return Unit[Index];
-
+        {
+            foreach (List<CellRouteMoveTarget> Unit in Options)
+            {
+                if (Index < Unit.Count)
+                {
+                    yield return Unit[Index];
+                }
+            }
+        }
     }
 
     /// <summary>Measures a complete integer envelope without a rendered midpoint.</summary>

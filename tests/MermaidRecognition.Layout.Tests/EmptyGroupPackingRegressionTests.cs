@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
 
@@ -13,17 +14,17 @@ public sealed class EmptyGroupPackingRegressionTests
     [CancelAfter(10000)]
     public void HintedEmptyFrameRetainsItsGap()
     {
-        var Analysis = EnterpriseValidator.Analyze("""
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze("""
             enterprise LR
             group box "Box"
             application-component peer "Peer" in box
             group empty "Empty" right-of box
             """);
-        var Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        var Peer = Layout.ClusterBounds.Single(Box => Box.NodeId == "box");
-        var Empty = Layout.ClusterBounds.Single(Box => Box.NodeId == "empty");
-        Assert.That(Empty.CenterX - Empty.Width / 2 - Peer.CenterX - Peer.Width / 2,
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutNodeBounds Peer = Layout.ClusterBounds.Single(Box => Box.NodeId == "box");
+        FlowchartLayoutNodeBounds Empty = Layout.ClusterBounds.Single(Box => Box.NodeId == "empty");
+        Assert.That(Empty.CenterX - (Empty.Width / 2) - Peer.CenterX - (Peer.Width / 2),
             Is.EqualTo(DiagramGridMetrics.NODE_GAP_PX));
         Assert.That(Contract.Groups.Single(Group => Group.Id == "empty").PlacementHint!.IsActive, Is.True);
     }
@@ -37,7 +38,7 @@ public sealed class EmptyGroupPackingRegressionTests
     [CancelAfter(10000)]
     public void EmptyGroupBesideNestedHintedMembersSettles(string Direction)
     {
-        var Analysis = EnterpriseValidator.Analyze($"""
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze($"""
             enterprise
             direction {Direction}
             group outer "Outer title"
@@ -51,8 +52,8 @@ public sealed class EmptyGroupPackingRegressionTests
             b -flow-> d
             """);
         Assert.That(Analysis.Document, Is.Not.Null);
-        var Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document!);
-        var Previous = DiagramGridLayout.LayoutStageTimingObserver;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document!);
+        Action<string, double>? Previous = DiagramGridLayout.LayoutStageTimingObserver;
         // Observe cancellation at the actual iterative frame-fit boundary, so
         // a recurrence fails this test rather than leaving a runaway worker.
         DiagramGridLayout.LayoutStageTimingObserver = (_, _) =>
@@ -60,10 +61,10 @@ public sealed class EmptyGroupPackingRegressionTests
         FlowchartLayoutResult Layout;
         try { Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out Layout!), Is.True); }
         finally { DiagramGridLayout.LayoutStageTimingObserver = Previous; }
-        var A = Layout.NodeBounds.Single(Box => Box.NodeId == "a");
-        var B = Layout.NodeBounds.Single(Box => Box.NodeId == "b");
+        FlowchartLayoutNodeBounds A = Layout.NodeBounds.Single(Box => Box.NodeId == "a");
+        FlowchartLayoutNodeBounds B = Layout.NodeBounds.Single(Box => Box.NodeId == "b");
         Assert.That(B.CenterY, Is.EqualTo(A.CenterY));
-        Assert.That(B.CenterX - A.CenterX, Is.EqualTo((A.Width + B.Width) / 2 + DiagramGridMetrics.NODE_GAP_PX));
+        Assert.That(B.CenterX - A.CenterX, Is.EqualTo(((A.Width + B.Width) / 2) + DiagramGridMetrics.NODE_GAP_PX));
         Assert.That(Contract.Nodes.Single(Node => Node.Id == "b").PlacementHint!.IsActive, Is.True);
         Assert.That(Layout.ClusterBounds, Has.Count.EqualTo(3));
         Assert.That(Layout.ClusterBounds.All(Box => double.IsFinite(Box.Width) && Box.Width > 0

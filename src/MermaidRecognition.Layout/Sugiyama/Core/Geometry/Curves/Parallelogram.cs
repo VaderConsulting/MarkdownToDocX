@@ -162,7 +162,7 @@ Serializable
         /// <summary>
         /// return the area of the parallelogram
         /// </summary>
-        public double Area => Math.Abs(a.X * b.Y - a.Y * b.X);
+        public double Area => Math.Abs((a.X * b.Y) - (a.Y * b.X));
 
         /// <summary>
         /// Return the correspoingin vertex of the parallelogram
@@ -252,7 +252,7 @@ Serializable
 
         }
 
-        static double mult(ref Point a, ref Point b) => a.X * b.X + a.Y * b.Y;
+        static double mult(ref Point a, ref Point b) => (a.X * b.X) + (a.Y * b.Y);
 
         static bool separByA(ref Parallelogram p0, ref Parallelogram p1) {
 

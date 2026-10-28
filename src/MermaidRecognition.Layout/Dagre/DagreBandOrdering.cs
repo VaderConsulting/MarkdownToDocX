@@ -16,40 +16,50 @@ internal static partial class DagreLayoutEngine
         IReadOnlyDictionary<int, IReadOnlyList<string>> Bands,
         IReadOnlyList<(int SourceBand, string Source, int TargetBand, string Target)> Connections)
     {
-        var Order = Initial.ToList();
+        List<string> Order = [.. Initial];
         int Best = CountBandCrossings(Order, Connections);
         for (int Round = 0; Round < OrderSweepPatience; Round++)
         {
             int Before = Best;
             foreach (bool Down in new[] { true, false })
-            foreach (int Band in Down ? Bands.Keys.Order() : Bands.Keys.OrderDescending())
+            {
+                foreach (int Band in Down ? Bands.Keys.Order() : Bands.Keys.OrderDescending())
             {
                 var Movable = Order.Where(Bands[Band].Contains).ToArray();
-                var Links = Connections.SelectMany(Edge => new[] {
+                    (int ReferenceBand, string Reference, int MovableBand, string Movable)[] Links = [.. Connections.SelectMany(Edge => new[] {
                     (ReferenceBand: Edge.SourceBand, Reference: Edge.Source, MovableBand: Edge.TargetBand, Movable: Edge.Target),
                     (ReferenceBand: Edge.TargetBand, Reference: Edge.Target, MovableBand: Edge.SourceBand, Movable: Edge.Source) })
-                    .Where(Edge => Edge.MovableBand == Band && (Down ? Edge.ReferenceBand < Band : Edge.ReferenceBand > Band)).ToArray();
+                    .Where(Edge => Edge.MovableBand == Band && (Down ? Edge.ReferenceBand < Band : Edge.ReferenceBand > Band))];
                 var References = Order.Where(Id => Links.Any(Link => Link.Reference == Id)).ToArray();
-                var Sorted = OrderBand(Movable, References, Links.Select(Link => (Link.Reference, Link.Movable)));
-                var Trial = ReplaceBandOrder(Order, Movable, Sorted);
+                    IReadOnlyList<string> Sorted = OrderBand(Movable, References, Links.Select(Link => (Link.Reference, Link.Movable)));
+                    List<string> Trial = ReplaceBandOrder(Order, Movable, Sorted);
                 int Count = CountBandCrossings(Trial, Connections);
                 if (Count < Best) { Order = Trial; Best = Count; }
             }
+            }
+
             foreach (int Band in Bands.Keys.Order())
             {
                 var Members = Order.Where(Bands[Band].Contains).ToArray();
                 for (int Index = 1; Index < Members.Length; Index++)
                 {
-                    var Trial = Order.ToList();
+                    List<string> Trial = [.. Order];
                     int Left = Trial.IndexOf(Members[Index - 1]), Right = Trial.IndexOf(Members[Index]);
                     (Trial[Left], Trial[Right]) = (Trial[Right], Trial[Left]);
                     int Count = CountBandCrossings(Trial, Connections);
-                    if (Count >= Best) continue;
+                    if (Count >= Best)
+                    {
+                        continue;
+                    }
+
                     Order = Trial; Best = Count;
                     (Members[Index - 1], Members[Index]) = (Members[Index], Members[Index - 1]);
                 }
             }
-            if (Best >= Before) break;
+            if (Best >= Before)
+            {
+                break;
+            }
         }
         return Order;
     }
@@ -62,7 +72,7 @@ internal static partial class DagreLayoutEngine
     private static List<string> ReplaceBandOrder(IReadOnlyList<string> Order, IReadOnlyList<string> Members, IReadOnlyList<string> Sorted)
     {
         int Index = 0;
-        return Order.Select(Id => Members.Contains(Id) ? Sorted[Index++] : Id).ToList();
+        return [.. Order.Select(Id => Members.Contains(Id) ? Sorted[Index++] : Id)];
     }
 
     /// <summary>Measures all connected band pairs with Dagre's original two-layer crossing counter.</summary>
@@ -73,18 +83,25 @@ internal static partial class DagreLayoutEngine
         IReadOnlyList<(int SourceBand, string Source, int TargetBand, string Target)> Connections)
     {
         int Count = 0;
-        foreach (var Pair in Connections.Where(Edge => Edge.SourceBand != Edge.TargetBand && Edge.Source != Edge.Target)
+        foreach (IGrouping<(int Low, int High), (int SourceBand, string Source, int TargetBand, string Target)> Pair in Connections.Where(Edge => Edge.SourceBand != Edge.TargetBand && Edge.Source != Edge.Target)
             .GroupBy(Edge => (Low: Math.Min(Edge.SourceBand, Edge.TargetBand), High: Math.Max(Edge.SourceBand, Edge.TargetBand))))
         {
-            var Graph = new DagreGraph(Multigraph: true);
-            var North = Order.Select(Id => "north:" + Id).ToList();
-            var South = Order.Select(Id => "south:" + Id).ToList();
-            foreach (string Id in North.Concat(South)) Graph.SetNode(Id, new(), true);
+            DagreGraph Graph = new DagreGraph(Multigraph: true);
+            List<string> North = [.. Order.Select(Id => "north:" + Id)];
+            List<string> South = [.. Order.Select(Id => "south:" + Id)];
+            foreach (string Id in North.Concat(South))
+            {
+                Graph.SetNode(Id, new(), true);
+            }
+
             int Index = 0;
-            foreach (var Edge in Pair)
+            foreach ((int SourceBand, string Source, int TargetBand, string Target) Edge in Pair)
+            {
                 Graph.SetEdge("north:" + (Edge.SourceBand == Pair.Key.Low ? Edge.Source : Edge.Target),
                     "south:" + (Edge.SourceBand == Pair.Key.High ? Edge.Source : Edge.Target), new() { Weight = 1 }, true,
                     (Index++).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+
             Count += TwoLayerCrossCount(Graph, North, South);
         }
         return Count;
@@ -98,22 +115,32 @@ internal static partial class DagreLayoutEngine
     internal static IReadOnlyList<string> OrderBand(IReadOnlyList<string> Movable, IReadOnlyList<string> References,
         IEnumerable<(string Reference, string Movable)> Connections)
     {
-        if (Movable.Count < 2 || References.Count == 0) return Movable;
+        if (Movable.Count < 2 || References.Count == 0)
+        {
+            return Movable;
+        }
+
         const string Root = "band-root";
-        var Graph = new DagreGraph(Compound: true, Multigraph: true);
-        var Constraints = new DagreGraph();
+        DagreGraph Graph = new DagreGraph(Compound: true, Multigraph: true);
+        DagreGraph Constraints = new DagreGraph();
         Graph.SetNode(Root, new(), true);
-        var North = References.Select(Id => "reference:" + Id).ToList();
-        var South = Movable.Select(Id => "movable:" + Id).ToList();
-        for (int Index = 0; Index < North.Count; Index++) Graph.SetNode(North[Index], new() { Order = Index }, true);
+        List<string> North = [.. References.Select(Id => "reference:" + Id)];
+        List<string> South = [.. Movable.Select(Id => "movable:" + Id)];
+        for (int Index = 0; Index < North.Count; Index++)
+        {
+            Graph.SetNode(North[Index], new() { Order = Index }, true);
+        }
+
         foreach (string Id in South) { Graph.SetNode(Id, new(), true); Graph.SetParent(Id, Root); }
         int EdgeIndex = 0;
-        foreach (var Connection in Connections)
+        foreach ((string Reference, string Movable) Connection in Connections)
+        {
             Graph.SetEdge("reference:" + Connection.Reference, "movable:" + Connection.Movable,
                 new() { Weight = 1 }, true, (EdgeIndex++).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
         // SortSubgraph invokes Barycenter and ResolveConflicts; the same crossing
         // counter used by the original sweep decides whether to publish its order.
-        var Sorted = SortSubgraph(Graph, Root, Constraints, false).Vs;
+        List<string> Sorted = SortSubgraph(Graph, Root, Constraints, false).Vs;
         return TwoLayerCrossCount(Graph, North, Sorted) < TwoLayerCrossCount(Graph, North, South)
             ? Sorted.Select(Id => Id["movable:".Length..]).ToArray() : Movable;
     }

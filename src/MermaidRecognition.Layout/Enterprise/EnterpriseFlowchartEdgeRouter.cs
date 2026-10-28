@@ -42,7 +42,7 @@ internal static class EnterpriseFlowchartEdgeRouter
     {
         if (!TryBuildRoutingContext(Document, Nodes, out EnterpriseFlowchartRoutingContext Context))
         {
-            return new List<EnterpriseRoutedEdge>();
+            return [];
         }
         return Route(Document, Nodes, Context);
     }
@@ -53,8 +53,8 @@ internal static class EnterpriseFlowchartEdgeRouter
         EnterpriseFlowchartRoutingContext Context)
     {
         HashSet<string> UsedEdgeIds = new HashSet<string>(StringComparer.Ordinal);
-        var CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
-        List<EnterpriseRoutedEdge> Routed = new List<EnterpriseRoutedEdge>();
+        Dictionary<string, List<(double X, double Y)>> CompoundPorts = new Dictionary<string, List<(double X, double Y)>>(StringComparer.Ordinal);
+        List<EnterpriseRoutedEdge> Routed = [];
         foreach ((EnterpriseRelationship Relationship, bool IsPlainConnection) in DrawingLines(Document))
         {
             if (Relationship.HiddenByNesting)
@@ -85,7 +85,7 @@ internal static class EnterpriseFlowchartEdgeRouter
 
             FlowchartCompoundEndpointHelper.ReattachVisiblePorts(Edge, Context.Contract, Context.Layout,
                 Context.BoundsById, Context.NodeById, Context.Direction, LayoutPoints, CompoundPorts);
-            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> SvgPoints = [];
             foreach ((double LayoutX, double LayoutY) in LayoutPoints)
             {
                 SvgPoints.Add(Context.Frame.LayoutToSvg(LayoutX, LayoutY));
@@ -141,7 +141,7 @@ internal static class EnterpriseFlowchartEdgeRouter
             }
 
             if (Label.Length > 0 && FlowchartEdgeLabelGapHelper.TryResolveLabelSegmentBreak(
-                SvgPoints, MeasureRelationshipLabel(Label), RELATIONSHIP_LABEL_FONT_SIZE_PX, out var LabelBreak))
+                SvgPoints, MeasureRelationshipLabel(Label), RELATIONSHIP_LABEL_FONT_SIZE_PX, out FlowchartEdgeLabelGapHelper.LabelSegmentBreak? LabelBreak))
             {
                 LabelX = LabelBreak.CentreX;
                 LabelY = LabelBreak.CentreY;
@@ -149,7 +149,11 @@ internal static class EnterpriseFlowchartEdgeRouter
 
             string? StartMarker = null;
             string? EndMarker = null;
-            if (!IsPlainConnection) ResolveEnterpriseMarkers(Relationship, out StartMarker, out EndMarker);
+            if (!IsPlainConnection)
+            {
+                ResolveEnterpriseMarkers(Relationship, out StartMarker, out EndMarker);
+            }
+
             Routed.Add(new EnterpriseRoutedEdge(
                 Relationship,
                 IsPlainConnection,
@@ -176,7 +180,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         EnterpriseDocument Document,
         Dictionary<string, EnterpriseLayoutNode> Nodes)
     {
-        List<EnterpriseFlowchartPathFact> Facts = new List<EnterpriseFlowchartPathFact>();
+        List<EnterpriseFlowchartPathFact> Facts = [];
         if (!TryBuildRoutingContext(Document, Nodes, out EnterpriseFlowchartRoutingContext Context))
         {
             return Facts;
@@ -198,7 +202,7 @@ internal static class EnterpriseFlowchartEdgeRouter
                 continue;
             }
 
-            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> SvgPoints = [];
             foreach ((double LayoutX, double LayoutY) in LayoutPoints)
             {
                 SvgPoints.Add(Context.Frame.LayoutToSvg(LayoutX, LayoutY));
@@ -261,7 +265,7 @@ internal static class EnterpriseFlowchartEdgeRouter
             Builder.Append("<text x=\"")
                 .Append(EnterpriseSvgFormat.Number(Routed.LabelX))
                 .Append("\" y=\"")
-                .Append(EnterpriseSvgFormat.Number(Routed.LabelY - (Routed.LabelLines.Count - 1) * 7.5 + 4))
+                .Append(EnterpriseSvgFormat.Number(Routed.LabelY - ((Routed.LabelLines.Count - 1) * 7.5) + 4))
                 .Append("\" text-anchor=\"middle\" font-size=\"12\" font-family=\"&quot;trebuchet ms&quot;, verdana, arial, sans-serif\" fill=\"#333\">");
             for (int Index = 0; Index < Routed.LabelLines.Count; Index++)
             {
@@ -281,41 +285,62 @@ internal static class EnterpriseFlowchartEdgeRouter
         bool ParentSource = FlowchartCompoundEndpointHelper.Contains(Contract, Edge.SourceId, Edge.TargetId);
         bool ParentTarget = FlowchartCompoundEndpointHelper.Contains(Contract, Edge.TargetId, Edge.SourceId);
         if ((!ParentSource && !ParentTarget)
-            || !Nodes.TryGetValue(ParentSource ? Edge.SourceId : Edge.TargetId, out var Parent)
-            || !Nodes.TryGetValue(ParentSource ? Edge.TargetId : Edge.SourceId, out var Child)) return false;
+            || !Nodes.TryGetValue(ParentSource ? Edge.SourceId : Edge.TargetId, out EnterpriseLayoutNode? Parent)
+            || !Nodes.TryGetValue(ParentSource ? Edge.TargetId : Edge.SourceId, out EnterpriseLayoutNode? Child))
+        {
+            return false;
+        }
         // Prefer a direct normal into the reserved lower corridor. When a
         // sibling blocks it, use a side corridor with one rounded bend.
-        double X = Child.AbsoluteX + Child.Width / 2;
+        double X = Child.AbsoluteX + (Child.Width / 2);
         double StartY = Child.AbsoluteY + Child.Height;
         double EndY = Parent.AbsoluteY + Parent.Height;
-        if (EndY - StartY < 60) return false;
-        var Candidates = new List<List<(double X, double Y)>>
+        if (EndY - StartY < 60)
         {
+            return false;
+        }
+
+        List<List<(double X, double Y)>> Candidates =
+        [
             new() { (X, StartY), (X, EndY) },
-            new() { (Child.AbsoluteX, Child.AbsoluteY + Child.Height / 2),
-                (Parent.AbsoluteX + 40, Child.AbsoluteY + Child.Height / 2), (Parent.AbsoluteX + 40, EndY) },
-            new() { (Child.AbsoluteX + Child.Width, Child.AbsoluteY + Child.Height / 2),
-                (Parent.AbsoluteX + Parent.Width - 40, Child.AbsoluteY + Child.Height / 2),
+            new() { (Child.AbsoluteX, Child.AbsoluteY + (Child.Height / 2)),
+                (Parent.AbsoluteX + 40, Child.AbsoluteY + (Child.Height / 2)), (Parent.AbsoluteX + 40, EndY) },
+            new() { (Child.AbsoluteX + Child.Width, Child.AbsoluteY + (Child.Height / 2)),
+                (Parent.AbsoluteX + Parent.Width - 40, Child.AbsoluteY + (Child.Height / 2)),
                 (Parent.AbsoluteX + Parent.Width - 40, EndY) }
-        };
-        foreach (var Candidate in Candidates)
+        ];
+        foreach (List<(double X, double Y)> Candidate in Candidates)
         {
             bool Clear = true;
-            foreach (var Other in Nodes.Values)
+            foreach (EnterpriseLayoutNode Other in Nodes.Values)
             {
                 if (Other.Id == Child.Id || Other.Id == Parent.Id
-                    || FlowchartCompoundEndpointHelper.Contains(Contract, Other.Id, Child.Id)) continue;
+                    || FlowchartCompoundEndpointHelper.Contains(Contract, Other.Id, Child.Id))
+                {
+                    continue;
+                }
+
                 for (int Index = 1; Index < Candidate.Count; Index++)
                 {
-                    var A = Candidate[Index - 1]; var B = Candidate[Index];
+                    (double X, double Y) A = Candidate[Index - 1]; (double X, double Y) B = Candidate[Index];
                     if (Math.Max(A.X, B.X) > Other.AbsoluteX - 6 && Math.Min(A.X, B.X) < Other.AbsoluteX + Other.Width + 6
                         && Math.Max(A.Y, B.Y) > Other.AbsoluteY - 6 && Math.Min(A.Y, B.Y) < Other.AbsoluteY + Other.Height + 6)
+                    {
                         Clear = false;
+                    }
                 }
             }
-            if (!Clear) continue;
+            if (!Clear)
+            {
+                continue;
+            }
+
             Points.Clear();
-            if (ParentSource) Candidate.Reverse();
+            if (ParentSource)
+            {
+                Candidate.Reverse();
+            }
+
             Points.AddRange(Candidate);
             return true;
         }
@@ -329,32 +354,47 @@ internal static class EnterpriseFlowchartEdgeRouter
             || Node.IsGroup || Node.Element is null
             || EnterpriseElementCatalog.Elements[Node.Element.ElementType].BoxKind
                 is not (EnterpriseBoxKind.Rectangle or EnterpriseBoxKind.Object))
+        {
             return;
+        }
+
         int Index = AtStart ? 0 : Points.Count - 1;
-        var End = Points[Index];
-        var Next = Points[AtStart ? 1 : Points.Count - 2];
+        (double X, double Y) End = Points[Index];
+        (double X, double Y) Next = Points[AtStart ? 1 : Points.Count - 2];
         // The shared frame includes its title band. The drawn compound box
         // can be smaller, so extend a normal terminal run to its visible edge.
         if (Math.Abs(End.X - Next.X) < 0.01
             && End.X >= Node.AbsoluteX + 10 && End.X <= Node.AbsoluteX + Node.Width - 10)
+        {
             Points[Index] = (End.X, Next.Y < End.Y ? Node.AbsoluteY : Node.AbsoluteY + Node.Height);
+        }
         else if (Math.Abs(End.Y - Next.Y) < 0.01
             && End.Y >= Node.AbsoluteY + 10 && End.Y <= Node.AbsoluteY + Node.Height - 10)
+        {
             Points[Index] = (Next.X < End.X ? Node.AbsoluteX : Node.AbsoluteX + Node.Width, End.Y);
+        }
     }
 
     private static string VisiblePath(EnterpriseRoutedEdge Routed)
     {
-        if (string.IsNullOrWhiteSpace(Routed.Label)) return Routed.PathData;
-        var Gap = Routed.LabelBreak;
-        if (Gap == null) return Routed.PathData;
-        var Start = Routed.SvgPoints[Gap.SegmentStartIndex];
-        var End = Routed.SvgPoints[Gap.SegmentEndIndex];
+        if (string.IsNullOrWhiteSpace(Routed.Label))
+        {
+            return Routed.PathData;
+        }
+
+        FlowchartEdgeLabelGapHelper.LabelSegmentBreak? Gap = Routed.LabelBreak;
+        if (Gap == null)
+        {
+            return Routed.PathData;
+        }
+
+        (double X, double Y) Start = Routed.SvgPoints[Gap.SegmentStartIndex];
+        (double X, double Y) End = Routed.SvgPoints[Gap.SegmentEndIndex];
         double Dx = Math.Sign(End.X - Start.X), Dy = Math.Sign(End.Y - Start.Y);
-        var Prefix = Routed.SvgPoints.GetRange(0, Gap.SegmentStartIndex + 1);
-        Prefix.Add((Gap.CentreX - Dx * Gap.HalfGapWidthPx, Gap.CentreY - Dy * Gap.HalfGapWidthPx));
-        var Suffix = Routed.SvgPoints.GetRange(Gap.SegmentEndIndex, Routed.SvgPoints.Count - Gap.SegmentEndIndex);
-        Suffix.Insert(0, (Gap.CentreX + Dx * Gap.HalfGapWidthPx, Gap.CentreY + Dy * Gap.HalfGapWidthPx));
+        List<(double X, double Y)> Prefix = Routed.SvgPoints.GetRange(0, Gap.SegmentStartIndex + 1);
+        Prefix.Add((Gap.CentreX - (Dx * Gap.HalfGapWidthPx), Gap.CentreY - (Dy * Gap.HalfGapWidthPx)));
+        List<(double X, double Y)> Suffix = Routed.SvgPoints.GetRange(Gap.SegmentEndIndex, Routed.SvgPoints.Count - Gap.SegmentEndIndex);
+        Suffix.Insert(0, (Gap.CentreX + (Dx * Gap.HalfGapWidthPx), Gap.CentreY + (Dy * Gap.HalfGapWidthPx)));
         return FlowchartCurvePathBuilder.BuildRoundedCornerPathData(Prefix, DiagramGridRouteBuilder.CORNER_RADIUS_PX)
             + " " + FlowchartCurvePathBuilder.BuildRoundedCornerPathData(Suffix, DiagramGridRouteBuilder.CORNER_RADIUS_PX);
     }
@@ -372,7 +412,7 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         FlowchartLayoutResult Layout = new();
-        var RenderContext = new FlowchartRenderContext { LayoutOptions = FlowchartRenderContext.Current.LayoutOptions };
+        FlowchartRenderContext RenderContext = new FlowchartRenderContext { LayoutOptions = FlowchartRenderContext.Current.LayoutOptions };
         if (!Measure("enterprise-shared-flowchart-layout", () => FlowchartSugiyamaLayoutEngine.TryLayout(Contract, RenderContext, out Layout)))
         {
             return false;
@@ -455,7 +495,11 @@ internal static class EnterpriseFlowchartEdgeRouter
     private static T Measure<T>(string Name, Func<T> Operation)
     {
         Action<string, double>? Observer = StageTimingObserver;
-        if (Observer == null) return Operation();
+        if (Observer == null)
+        {
+            return Operation();
+        }
+
         Observer(Name, -1);
         Stopwatch Timer = Stopwatch.StartNew();
         try { return Operation(); }
@@ -488,7 +532,10 @@ internal static class EnterpriseFlowchartEdgeRouter
         EnterpriseDocument Document)
     {
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
+        {
             yield return (Relationship, false);
+        }
+
         foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
         {
             yield return (new EnterpriseRelationship
@@ -707,7 +754,7 @@ internal sealed class EnterpriseRoutedEdge
 
     internal double LabelY { get; set; }
 
-    internal List<string> LabelLines { get; set; } = new();
+    internal List<string> LabelLines { get; set; } = [];
     internal double LabelWidth { get; set; }
     internal double LabelHeight { get; set; }
     internal FlowchartEdgeLabelGapHelper.LabelSegmentBreak? LabelBreak { get; set; }

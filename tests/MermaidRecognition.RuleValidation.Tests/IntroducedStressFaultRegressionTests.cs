@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -13,11 +14,11 @@ public sealed class IntroducedStressFaultRegressionTests
     [Test]
     public void A116KeepsCheaperCompleteAssignmentWithLineSpacedPorts()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A116");
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
-        var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
         Assert.Multiple(() =>
         {
             Assert.That(BandRowDriftMeasurements.PhysicalCrossings(Layout), Is.LessThanOrEqualTo(51));
@@ -27,17 +28,22 @@ public sealed class IntroducedStressFaultRegressionTests
                 Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
             Assert.That(RouteRuleCatalogueAuditTests.OffSlotPortFaults(Contract, Layout), Is.Empty);
         });
-        var Ports = Layout.EdgeRoutes.SelectMany(Route => new[] {
+        IEnumerable<(string Id, string Side, FlowchartLayoutPoint Point)> Ports = Layout.EdgeRoutes.SelectMany(Route => new[] {
             (Id: Route.SourceId, Side: Route.ExitSide, Point: Route.Points[0]),
             (Id: Route.TargetId, Side: Route.EntrySide, Point: Route.Points[^1]) });
-        foreach (var Group in Ports.GroupBy(Port => (Port.Id, Port.Side)))
+        foreach (IGrouping<(string Id, string Side), (string Id, string Side, FlowchartLayoutPoint Point)> Group in Ports.GroupBy(Port => (Port.Id, Port.Side)))
         {
-            var Ends = Group.ToArray();
-            for (int I = 0; I < Ends.Length; I++) for (int J = I + 1; J < Ends.Length; J++)
-                Assert.That(Math.Sqrt(Math.Pow(Ends[I].Point.X - Ends[J].Point.X, 2)
+            (string Id, string Side, FlowchartLayoutPoint Point)[] Ends = [.. Group];
+            for (int I = 0; I < Ends.Length; I++)
+            {
+                for (int J = I + 1; J < Ends.Length; J++)
+                {
+                    Assert.That(Math.Sqrt(Math.Pow(Ends[I].Point.X - Ends[J].Point.X, 2)
                     + Math.Pow(Ends[I].Point.Y - Ends[J].Point.Y, 2)),
                     Is.GreaterThanOrEqualTo(FlowchartLayoutRules.LineSpacing - 0.001),
                     Group.Key + " still contains under-spaced allocated ports.");
+                }
+            }
         }
     }
 
@@ -49,11 +55,11 @@ public sealed class IntroducedStressFaultRegressionTests
     [TestCase("A117", 114, 61, 8), TestCase("A38", 11, 2, 0)]
     public void CompleteCorridorAssignmentRejectsLocalRegressions(string Id, int MaximumBends, int MaximumCrossings, int MaximumShared)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
         Assert.Multiple(() =>
         {
             Assert.That(Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)), Is.LessThanOrEqualTo(MaximumBends));
@@ -74,10 +80,10 @@ public sealed class IntroducedStressFaultRegressionTests
     [TestCase("A115", 67, 85), TestCase("A46", 0, 12), TestCase("A47", 0, 5)]
     public void InitialCorridorSizingDoesNotAddCrossings(string Id, int MaximumCrossings, int MaximumBends)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         Assert.Multiple(() =>
         {
             Assert.That(BandRowDriftMeasurements.PhysicalCrossings(Layout), Is.LessThanOrEqualTo(MaximumCrossings));
@@ -103,13 +109,13 @@ public sealed class IntroducedStressFaultRegressionTests
     [TestCaseSource(nameof(Cases))]
     public void ProductionFindingsDoNotExceedCommittedEngine(string Id, int Maximum)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
         string[] PortRules = ["3.1", "3.2/4.7", "3.3/5.2", "4.2", "4.11", "5.8"];
-        var Relevant = Findings.Where(Finding => Id == "A110" ? Finding.Rule == "5.1" : PortRules.Contains(Finding.Rule)).ToArray();
+        FlowchartRouteRuleChecker.Finding[] Relevant = [.. Findings.Where(Finding => Id == "A110" ? Finding.Rule == "5.1" : PortRules.Contains(Finding.Rule))];
         Assert.Multiple(() =>
         {
             Assert.That(Relevant.Length, Is.LessThanOrEqualTo(Maximum),

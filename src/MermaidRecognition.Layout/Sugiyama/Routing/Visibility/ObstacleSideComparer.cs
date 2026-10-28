@@ -47,8 +47,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         internal Point IntersectionOfSideAndSweepLine(SegmentBase obstacleSide) {
             double den = obstacleSide.Direction * lineSweeper.SweepDirection;
             Debug.Assert(Math.Abs(den) > ApproximateComparer.DistanceEpsilon);
-            double t = (lineSweeper.Z - obstacleSide.Start * lineSweeper.SweepDirection) / den;
-            return obstacleSide.Start + t * obstacleSide.Direction;
+            double t = (lineSweeper.Z - (obstacleSide.Start * lineSweeper.SweepDirection)) / den;
+            return obstacleSide.Start + (t * obstacleSide.Direction);
         }
 
     }

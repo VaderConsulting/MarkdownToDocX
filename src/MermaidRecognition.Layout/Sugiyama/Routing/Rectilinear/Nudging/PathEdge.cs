@@ -61,7 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         internal Point Target => Reversed ? AxisEdge.SourcePoint : AxisEdge.TargetPoint;
 
 
-        internal static bool VectorsAreParallel(Point a, Point b) => ApproximateComparer.Close(a.X * b.Y - a.Y * b.X, 0);
+        internal static bool VectorsAreParallel(Point a, Point b) => ApproximateComparer.Close((a.X * b.Y) - (a.Y * b.X), 0);
 
         public static bool EdgesAreParallel(PathEdge edge, PathEdge pathEdge) => VectorsAreParallel(edge.AxisEdge.TargetPoint - edge.AxisEdge.SourcePoint,
                                       pathEdge.AxisEdge.TargetPoint - pathEdge.AxisEdge.SourcePoint);

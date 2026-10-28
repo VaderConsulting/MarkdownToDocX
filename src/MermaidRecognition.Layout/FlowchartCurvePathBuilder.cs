@@ -87,7 +87,7 @@ public static class FlowchartCurvePathBuilder
         IReadOnlyList<(double X, double Y)> Points,
         out List<(double X, double Y)> Segment)
     {
-        Segment = new List<(double X, double Y)>();
+        Segment = [];
         if (Points == null || Points.Count < 2)
         {
             return false;
@@ -342,7 +342,7 @@ public static class FlowchartCurvePathBuilder
             OutY /= OutLength;
 
             double Handle = Radius * CIRCLE_CUBIC_HANDLE_RATIO;
-            double Cosine = Math.Clamp(InX * OutX + InY * OutY, -1.0, 1.0);
+            double Cosine = Math.Clamp((InX * OutX) + (InY * OutY), -1.0, 1.0);
             if (Math.Abs(Cosine) > 1e-6 && Cosine > -0.999999)
             {
                 // A surface-normal terminal can meet its axis-aligned track

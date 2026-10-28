@@ -12,19 +12,19 @@ public sealed class FlowchartEnteredTitleBandTests
     {
         DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\n subgraph g[Group]\n A[One] --> B[Two]\n end");
         FlowchartFrameTitleBandHelper.Band Band = new FlowchartFrameTitleBandHelper.Band("g", 0, 80, 200, 100);
-        List<(double X, double Y)> Points = new List<(double X, double Y)>
-        {
+        List<(double X, double Y)> Points =
+        [
             (50, 50),
             (50, 90),
             (150, 90),
             (150, 50)
-        };
+        ];
         IReadOnlyList<string> Entered = FlowchartFrameTitleBandHelper.FindEnteredBandIds(
             Points,
-            new[] { Band },
+            [Band],
             "A",
             "B",
             Contract);
-        Assert.That(Entered, Is.EqualTo(new[] { "g" }));
+        Assert.That(Entered, Is.EqualTo(["g"]));
     }
 }

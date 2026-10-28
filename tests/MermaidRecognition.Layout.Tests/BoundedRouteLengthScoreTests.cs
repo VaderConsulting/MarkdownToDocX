@@ -20,7 +20,7 @@ public sealed class BoundedRouteLengthScoreTests
     [Test]
     public void DifferentRouteCosts_IgnoreLength()
     {
-        var Longer = new FlowchartLayoutScore.ComparisonCost(100, 1000, 0, 0);
+        FlowchartLayoutScore.ComparisonCost Longer = new FlowchartLayoutScore.ComparisonCost(100, 1000, 0, 0);
         Assert.That(new FlowchartLayoutScore.ComparisonCost(101, 0, 1, 0).CompareTo(Longer), Is.Positive);
         Assert.That(new FlowchartLayoutScore.ComparisonCost(101, 0, 0, 20).CompareTo(Longer), Is.Positive);
         Assert.That(new FlowchartLayoutScore.ComparisonCost(101, 0, 0, 0).CompareTo(Longer), Is.Negative);
@@ -30,8 +30,8 @@ public sealed class BoundedRouteLengthScoreTests
     [Test]
     public void TiedRouteCosts_PreserveExactLengthImprovements()
     {
-        var Before = new FlowchartLayoutScore.ComparisonCost(100, 1e100, 0, 0);
-        var After = new FlowchartLayoutScore.ComparisonCost(100, Math.BitDecrement(1e100), 0, 0);
+        FlowchartLayoutScore.ComparisonCost Before = new FlowchartLayoutScore.ComparisonCost(100, 1e100, 0, 0);
+        FlowchartLayoutScore.ComparisonCost After = new FlowchartLayoutScore.ComparisonCost(100, Math.BitDecrement(1e100), 0, 0);
         Assert.That(After < Before - 0.001, Is.True);
         Assert.That(new FlowchartLayoutScore.ComparisonCost(100, 10, 0, 0)
             < new FlowchartLayoutScore.ComparisonCost(100, 10.000001, 0, 0) - 0.001, Is.True);
@@ -41,8 +41,8 @@ public sealed class BoundedRouteLengthScoreTests
     [Test]
     public void CompleteLayout_AddsLengthOnce()
     {
-        var Layout = new FlowchartLayoutResult();
-        var Contract = new DiagramContract { Kind = "flowchart", Direction = "TB" };
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
+        DiagramContract Contract = new DiagramContract { Kind = "flowchart", Direction = "TB" };
         int Column = 0;
         foreach (string Id in new[] { "first", "second" })
         {
@@ -52,11 +52,11 @@ public sealed class BoundedRouteLengthScoreTests
             Contract.EdgesMutable.Add(new() { Id = Id, SourceId = Id, TargetId = Id + "End" });
             Layout.NodeBoundsMutable.Add(new() { NodeId = Id, CenterX = X, CenterY = 300, Width = 150, Height = 90 });
             Layout.NodeBoundsMutable.Add(new() { NodeId = Id + "End", CenterX = X, CenterY = 90, Width = 150, Height = 90 });
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Id, SourceId = Id, TargetId = Id + "End" };
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Id, SourceId = Id, TargetId = Id + "End" };
             Route.Points.Add(new() { X = X, Y = 255 }); Route.Points.Add(new() { X = X, Y = 135 });
             Layout.EdgeRoutesMutable.Add(Route);
         }
-        var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
         double Weighted = 240 / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight;
         Assert.That(Score.Cost.WeightedLength, Is.EqualTo(Weighted));
         Assert.That(Score.OptimizationScore - Score.Cost.Primary,

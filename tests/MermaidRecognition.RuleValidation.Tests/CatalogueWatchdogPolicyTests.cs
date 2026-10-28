@@ -14,7 +14,7 @@ public sealed class CatalogueWatchdogPolicyTests
         foreach (string Id in CatalogueScenarioPolicy.StressScenarios)
         {
             Assert.That(CatalogueScenarioPolicy.WatchdogSeconds(Id), Is.EqualTo(180));
-            var Case = CatalogueScenarioPolicy.Apply(new TestCaseData(Id), Id);
+            TestCaseData Case = CatalogueScenarioPolicy.Apply(new TestCaseData(Id), Id);
             Assert.That(Case.Properties.Get("CatalogueWatchdogSeconds"), Is.EqualTo(180));
             Assert.That(Case.Properties.Get("Description"), Does.Contain("Stress watchdog: 180 seconds"));
         }

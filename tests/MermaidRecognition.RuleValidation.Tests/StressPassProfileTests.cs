@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -17,22 +19,22 @@ public sealed class StressPassProfileTests
     {
         string Path = Environment.GetEnvironmentVariable("STRESS_PASS_PROFILE")
             ?? throw new InvalidOperationException("Set STRESS_PASS_PROFILE to the output file.");
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A142");
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
-        var Clock = Stopwatch.StartNew();
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        Stopwatch Clock = Stopwatch.StartNew();
         File.WriteAllText(Path, "");
-        var Previous = DiagramGridLayout.LayoutStageTimingObserver;
+        Action<string, double>? Previous = DiagramGridLayout.LayoutStageTimingObserver;
         int Sequence = 0;
         DiagramGridLayout.LayoutStageTimingObserver = (Stage, Milliseconds) =>
             File.AppendAllText(Path, JsonSerializer.Serialize(new { Sequence = ++Sequence, Stage,
                 Milliseconds, ElapsedSeconds = Clock.Elapsed.TotalSeconds }) + "\n");
         try
         {
-            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
             File.AppendAllText(Path, JsonSerializer.Serialize(new { Stage = "production-layout-complete", ElapsedSeconds = Clock.Elapsed.TotalSeconds }) + "\n");
-            var MetricsClock = Stopwatch.StartNew();
-            var Score = FlowchartLayoutScore.Measure(Contract, Layout);
+            Stopwatch MetricsClock = Stopwatch.StartNew();
+            FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout);
             File.AppendAllText(Path, JsonSerializer.Serialize(new { Stage = "compact-metric-analysis", Milliseconds = MetricsClock.Elapsed.TotalMilliseconds,
                 ElapsedSeconds = Clock.Elapsed.TotalSeconds, Score.Bends, Score.Crossings }) + "\n");
         }

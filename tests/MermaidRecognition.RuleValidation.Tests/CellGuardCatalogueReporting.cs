@@ -13,7 +13,7 @@ internal static class CellGuardCatalogueReporting
     /// <param name="Status">Completed, rejected or failed stage status.</param>
     internal static void Write(string Id, string Mode, FlowchartLayoutResult? Layout, string Status)
     {
-        var Coverage = Layout?.CellWriteCoverage;
+        FlowchartCellWriteCoverage? Coverage = Layout?.CellWriteCoverage;
         TestContext.Out.WriteLine($"CELL_GUARD_COVERAGE|{Id}|mode={Mode}|nodes={Coverage?.Nodes ?? 0}|bound={Coverage?.BoundNodes ?? 0}"
             + $"|checks={Coverage?.Checks ?? 0}|boundChecks={Coverage?.BoundChecks ?? 0}|rejections={Coverage?.Rejections ?? 0}|status={Status}");
     }

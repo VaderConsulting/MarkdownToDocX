@@ -41,7 +41,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         private bool IntersectionPointBelongsToTheInsertedEdge(PolylinePoint x) {
             Point a = x.Point - IntersectionOfTheRayAndInsertedEdge;
             Point b = x.NextOnPolyline.Point - IntersectionOfTheRayAndInsertedEdge;
-            return Math.Abs(a.X * b.Y - b.X * a.Y) < ApproximateComparer.DistanceEpsilon;
+            return Math.Abs((a.X * b.Y) - (b.X * a.Y)) < ApproximateComparer.DistanceEpsilon;
         }
 
         Point IntersectEdgeWithRay(Point source, Point target, Point ray) {
@@ -57,7 +57,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
                 throw new InvalidOperationException();
             }
 
-            return Pivot + y * ray;
+            return Pivot + (y * ray);
         }
 
         internal Point IntersectEdgeWithRay(PolylinePoint side, Point ray) => IntersectEdgeWithRay(side.Point, side.NextOnPolyline.Point, ray);

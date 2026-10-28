@@ -112,7 +112,7 @@ internal sealed class DagreEdgeLabel
 
     public int? LabelRank { get; set; }
 
-    public List<DagrePoint> Points { get; } = new List<DagrePoint>();
+    public List<DagrePoint> Points { get; } = [];
 
     public bool HasPoints { get; set; }
 
@@ -230,7 +230,7 @@ internal sealed class DagreGraphLabel
 
     public int MaxRank { get; set; }
 
-    public List<string> DummyChains { get; } = new List<string>();
+    public List<string> DummyChains { get; } = [];
 
     public double Width { get; set; }
 
@@ -256,13 +256,13 @@ internal sealed class DagreGraph
 
     private readonly Dictionary<string, DagreNodeLabel?> _Nodes = new Dictionary<string, DagreNodeLabel?>(StringComparer.Ordinal);
 
-    private readonly List<string> _NodeOrder = new List<string>();
+    private readonly List<string> _NodeOrder = [];
 
     private readonly Dictionary<string, DagreEdge> _EdgeObjs = new Dictionary<string, DagreEdge>(StringComparer.Ordinal);
 
     private readonly Dictionary<string, DagreEdgeLabel?> _EdgeLabels = new Dictionary<string, DagreEdgeLabel?>(StringComparer.Ordinal);
 
-    private readonly List<string> _EdgeOrder = new List<string>();
+    private readonly List<string> _EdgeOrder = [];
 
     private readonly Dictionary<string, NodeSlots> _Slots = new Dictionary<string, NodeSlots>(StringComparer.Ordinal);
 
@@ -281,7 +281,7 @@ internal sealed class DagreGraph
         _IsCompound = Compound;
         if (_IsCompound)
         {
-            _Children[GRAPH_NODE] = new List<string>();
+            _Children[GRAPH_NODE] = [];
         }
     }
 
@@ -370,7 +370,7 @@ internal sealed class DagreGraph
         if (_IsCompound)
         {
             _Parent[V] = GRAPH_NODE;
-            _Children[V] = new List<string>();
+            _Children[V] = [];
             _Children[GRAPH_NODE].Add(V);
         }
     }
@@ -398,9 +398,7 @@ internal sealed class DagreGraph
         }
 
         NodeSlots Slots = _Slots[V];
-        List<DagreEdge> Incident = new List<DagreEdge>();
-        Incident.AddRange(Slots.InEdges);
-        Incident.AddRange(Slots.OutEdges);
+        List<DagreEdge> Incident = [.. Slots.InEdges, .. Slots.OutEdges];
         foreach (DagreEdge Edge in Incident)
         {
             RemoveEdge(Edge);
@@ -459,16 +457,16 @@ internal sealed class DagreGraph
 
             if (HasNode(V))
             {
-                return new List<string>();
+                return [];
             }
 
-            return new List<string>();
+            return [];
         }
 
         string Key = V ?? GRAPH_NODE;
         if (!_Children.TryGetValue(Key, out List<string>? Kids))
         {
-            return new List<string>();
+            return [];
         }
 
         return new List<string>(Kids);
@@ -478,7 +476,7 @@ internal sealed class DagreGraph
     {
         if (!_Slots.TryGetValue(V, out NodeSlots? Slots))
         {
-            return new List<string>();
+            return [];
         }
 
         return new List<string>(Slots.PredOrder);
@@ -488,7 +486,7 @@ internal sealed class DagreGraph
     {
         if (!_Slots.TryGetValue(V, out NodeSlots? Slots))
         {
-            return new List<string>();
+            return [];
         }
 
         return new List<string>(Slots.SuccOrder);
@@ -510,7 +508,7 @@ internal sealed class DagreGraph
 
     public List<string> Sources()
     {
-        List<string> Result = new List<string>();
+        List<string> Result = [];
         foreach (string V in _NodeOrder)
         {
             if (_Slots[V].InEdges.Count == 0)
@@ -524,7 +522,7 @@ internal sealed class DagreGraph
 
     public List<DagreEdge> Edges()
     {
-        List<DagreEdge> Result = new List<DagreEdge>();
+        List<DagreEdge> Result = [];
         foreach (string EdgeId in _EdgeOrder)
         {
             Result.Add(_EdgeObjs[EdgeId]);
@@ -537,7 +535,7 @@ internal sealed class DagreGraph
     {
         if (!_Slots.TryGetValue(V, out NodeSlots? Slots))
         {
-            return new List<DagreEdge>();
+            return [];
         }
 
         return new List<DagreEdge>(Slots.InEdges);
@@ -547,7 +545,7 @@ internal sealed class DagreGraph
     {
         if (!_Slots.TryGetValue(V, out NodeSlots? Slots))
         {
-            return new List<DagreEdge>();
+            return [];
         }
 
         return new List<DagreEdge>(Slots.OutEdges);
@@ -555,7 +553,7 @@ internal sealed class DagreGraph
 
     public List<DagreEdge> OutEdgesTo(string V, string W)
     {
-        List<DagreEdge> Result = new List<DagreEdge>();
+        List<DagreEdge> Result = [];
         foreach (DagreEdge Edge in OutEdges(V))
         {
             if (Edge.W == W)
@@ -731,16 +729,16 @@ internal sealed class DagreGraph
 
     private sealed class NodeSlots
     {
-        public List<string> PredOrder { get; } = new List<string>();
+        public List<string> PredOrder { get; } = [];
 
         public Dictionary<string, int> PredCount { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        public List<string> SuccOrder { get; } = new List<string>();
+        public List<string> SuccOrder { get; } = [];
 
         public Dictionary<string, int> SuccCount { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        public List<DagreEdge> InEdges { get; } = new List<DagreEdge>();
+        public List<DagreEdge> InEdges { get; } = [];
 
-        public List<DagreEdge> OutEdges { get; } = new List<DagreEdge>();
+        public List<DagreEdge> OutEdges { get; } = [];
     }
 }

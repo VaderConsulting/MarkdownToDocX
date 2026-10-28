@@ -15,13 +15,17 @@ public static partial class DiagramGridLayout
     /// <returns>Whether a complete improving plan was accepted.</returns>
     internal static bool PackCellRootGroups(DiagramContract Contract, List<GridNode> Placed, List<GridFrame> Frames)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var OriginalFrames = Frames.ToArray();
-        var Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
-        var Units = Placed.GroupBy(Node => CellRootUnit(Node, Groups), StringComparer.Ordinal).Select(Group => Group.ToArray()).ToArray();
-        if (Units.Length < 2) return false;
-        var Compact = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        foreach (var Unit in Units.Where(Unit => !Unit.Any(Node => Node.PlacementHintLocked)))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed);
+        GridFrame[] OriginalFrames = [.. Frames];
+        Dictionary<string, GroupContract> Groups = Contract.Groups.ToDictionary(Group => Group.Id, StringComparer.Ordinal);
+        GridNode[][] Units = [.. Placed.GroupBy(Node => CellRootUnit(Node, Groups), StringComparer.Ordinal).Select(Group => Group.ToArray())];
+        if (Units.Length < 2)
+        {
+            return false;
+        }
+
+        Dictionary<string, FlowchartCellRegion> Compact = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        foreach (GridNode[]? Unit in Units.Where(Unit => !Unit.Any(Node => Node.PlacementHintLocked)))
         {
             CompressCellRoot(Unit, false, Compact); CompressCellRoot(Unit, true, Compact);
         }
@@ -30,42 +34,55 @@ public static partial class DiagramGridLayout
         FlowchartLogicalGrid.Snapshot? Best = null;
         int Candidates = 0;
         for (int Padding = 0; Padding <= FlowchartLayoutRules.RepairChainDepth; Padding++)
-        for (int PerRow = 1; PerRow <= Units.Length && Candidates < FlowchartLayoutRules.RepairCandidateMoves; PerRow++)
+        {
+            for (int PerRow = 1; PerRow <= Units.Length && Candidates < FlowchartLayoutRules.RepairCandidateMoves; PerRow++)
         {
             Candidates++;
-            var Targets = new Dictionary<string, FlowchartCellRegion>(Compact, StringComparer.Ordinal);
+                Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Compact, StringComparer.Ordinal);
             int Row = 0, Column = 0, Height = 0;
             for (int Index = 0; Index < Units.Length; Index++)
             {
                 if (Index > 0 && Index % PerRow == 0) { Row = checked(Row + Height + Padding); Column = 0; Height = 0; }
-                var Unit = Units[Index];
+                    GridNode[] Unit = Units[Index];
                 int Top = Unit.Min(Node => Compact[Node.Id].StartRow), Left = Unit.Min(Node => Compact[Node.Id].StartColumn);
                 int Rows = Unit.Max(Node => Compact[Node.Id].EndRow) - Top, Columns = Unit.Max(Node => Compact[Node.Id].EndColumn) - Left;
-                foreach (var Node in Unit)
+                foreach (GridNode? Node in Unit)
                 {
-                    var Region = Compact[Node.Id];
-                    if (!Unit.Any(Member => Member.PlacementHintLocked)) Targets[Node.Id] = new(
+                        FlowchartCellRegion Region = Compact[Node.Id];
+                    if (!Unit.Any(Member => Member.PlacementHintLocked))
+                        {
+                            Targets[Node.Id] = new(
                         checked(Region.StartRow + Row - Top), checked(Region.StartColumn + Column - Left), Region.RowSpan, Region.ColumnSpan);
-                }
+                        }
+                    }
                 Column = checked(Column + Columns + Padding); Height = Math.Max(Height, Rows);
             }
-            var Plan = FlowchartCellRepair.PlanAssignment(Placed, Targets);
-            if (Plan?.TryApply() != true) continue;
-            try
+                FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Placed, Targets);
+            if (Plan?.TryApply() != true)
+                {
+                    continue;
+                }
+
+                try
             {
-                var TrialFrames = FramesForCells(Contract, Placed);
+                    List<GridFrame> TrialFrames = FramesForCells(Contract, Placed);
                 int Conflicts = CellFrameConflicts(Contract, Placed, TrialFrames, DiagramGridMetrics.GRID_UNIT_PX).Count;
-                double Width = Placed.Max(Node => Node.X + Node.Width / 2d) - Placed.Min(Node => Node.X - Node.Width / 2d);
-                double HeightPx = Placed.Max(Node => Node.Y + Node.Height / 2d) - Placed.Min(Node => Node.Y - Node.Height / 2d);
+                double Width = Placed.Max(Node => Node.X + (Node.Width / 2d)) - Placed.Min(Node => Node.X - (Node.Width / 2d));
+                double HeightPx = Placed.Max(Node => Node.Y + (Node.Height / 2d)) - Placed.Min(Node => Node.Y - (Node.Height / 2d));
                 double Score = FlowchartLayoutScore.Calculate(Width, HeightPx, 0, 0);
-                if (Conflicts < BestConflicts || Conflicts == BestConflicts && Best != null && Score < BestScore)
+                if (Conflicts < BestConflicts || (Conflicts == BestConflicts && Best != null && Score < BestScore))
                 {
                     BestConflicts = Conflicts; BestScore = Score; Best = FlowchartCellRepair.Capture(Placed);
                 }
             }
             finally { Plan.Rollback(); }
         }
-        if (Best == null) return false;
+        }
+
+        if (Best == null)
+        {
+            return false;
+        }
         // Publish once after every rejected trial has restored the exact parent
         // regions and gaps. Frames are a derived cache of this accepted state.
         FlowchartCellRepair.Restore(Placed, Best);
@@ -84,10 +101,13 @@ public static partial class DiagramGridLayout
     private static string CellRootUnit(GridNode Node, IReadOnlyDictionary<string, GroupContract> Groups)
         {
             string? Current = Node.GroupId;
-            var Seen = new HashSet<string>(StringComparer.Ordinal);
-            while (Current != null && Seen.Add(Current) && Groups.TryGetValue(Current, out var Group) && Group.ParentGroupId != null)
-                Current = Group.ParentGroupId;
-            return Current == null ? "node:" + Node.Id : "group:" + Current;
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
+            while (Current != null && Seen.Add(Current) && Groups.TryGetValue(Current, out GroupContract? Group) && Group.ParentGroupId != null)
+        {
+            Current = Group.ParentGroupId;
+        }
+
+        return Current == null ? "node:" + Node.Id : "group:" + Current;
         }
 
     /// <summary>Removes only wholly empty logical strips inside one private unhinted container plan.</summary>
@@ -97,13 +117,17 @@ public static partial class DiagramGridLayout
     private static void CompressCellRoot(GridNode[] Unit, bool Rows, Dictionary<string, FlowchartCellRegion> Compact)
         {
             int? End = null; int Removed = 0;
-            foreach (var Band in Unit.GroupBy(Node => Rows ? Compact[Node.Id].StartRow : Compact[Node.Id].StartColumn).OrderBy(Band => Band.Key).ToArray())
+            foreach (IGrouping<int, GridNode>? Band in Unit.GroupBy(Node => Rows ? Compact[Node.Id].StartRow : Compact[Node.Id].StartColumn).OrderBy(Band => Band.Key).ToArray())
             {
-                if (End.HasValue) Removed = checked(Removed + Math.Max(0, Band.Key - End.Value));
-                int BandEnd = Band.Max(Node => Rows ? Compact[Node.Id].EndRow : Compact[Node.Id].EndColumn);
-                foreach (var Node in Band)
+                if (End.HasValue)
+            {
+                Removed = checked(Removed + Math.Max(0, Band.Key - End.Value));
+            }
+
+            int BandEnd = Band.Max(Node => Rows ? Compact[Node.Id].EndRow : Compact[Node.Id].EndColumn);
+                foreach (GridNode? Node in Band)
                 {
-                    var Region = Compact[Node.Id];
+                FlowchartCellRegion Region = Compact[Node.Id];
                     Compact[Node.Id] = new(Rows ? checked(Region.StartRow - Removed) : Region.StartRow,
                         Rows ? Region.StartColumn : checked(Region.StartColumn - Removed), Region.RowSpan, Region.ColumnSpan);
                 }

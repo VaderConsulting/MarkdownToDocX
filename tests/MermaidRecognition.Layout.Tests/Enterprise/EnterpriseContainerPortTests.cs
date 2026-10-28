@@ -31,7 +31,7 @@ public sealed class EnterpriseContainerPortTests
               c -serving-> a
             """;
         XDocument Svg = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(Source));
-        var Edges = Svg.Descendants().Where(Element => Element.Attribute("data-source") != null).ToList();
+        List<XElement> Edges = [.. Svg.Descendants().Where(Element => Element.Attribute("data-source") != null)];
         XElement Return = Edges.Single(Element => (string?)Element.Attribute("data-source") == "c");
         string Path = (string)Return.Elements().First(Element => Element.Name.LocalName == "path").Attribute("d")!;
         Assert.That(Path, Does.Not.Contain("C"), "Free facing ports should not introduce a backstep.");
@@ -84,6 +84,5 @@ public sealed class EnterpriseContainerPortTests
     }
 
     private static double Number(XElement Element, string Name) => double.Parse((string)Element.Attribute(Name)!, CultureInfo.InvariantCulture);
-    private static double[] Coordinates(string Path) => Regex.Matches(Path, @"-?\d+(?:\.\d+)?")
-        .Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture)).ToArray();
+    private static double[] Coordinates(string Path) => [.. Regex.Matches(Path, @"-?\d+(?:\.\d+)?").Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))];
 }

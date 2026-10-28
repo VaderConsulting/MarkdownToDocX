@@ -16,29 +16,44 @@ public static partial class DiagramGridLayout
     /// <returns>Whether the complete legal branch/tail assignment was accepted.</returns>
     internal static bool AlignCellVerticalLoopBranches(DiagramContract Contract, List<GridNode> Placed)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed); var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Forward = Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed);
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed); IReadOnlySet<EdgeContract> Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        EdgeContract[] Forward = [.. Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        foreach (GridNode? Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            var Incoming = Forward.Where(Edge => Edge.TargetId == Decision.Id).ToArray();
-            var Outgoing = Forward.Where(Edge => Edge.SourceId == Decision.Id).ToArray();
-            if (Incoming.Length != 1 || Outgoing.Length != 2) continue;
-            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).ToArray();
-            var Loop = Children.FirstOrDefault(Child => Back.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Incoming[0].SourceId));
+            EdgeContract[] Incoming = [.. Forward.Where(Edge => Edge.TargetId == Decision.Id)];
+            EdgeContract[] Outgoing = [.. Forward.Where(Edge => Edge.SourceId == Decision.Id)];
+            if (Incoming.Length != 1 || Outgoing.Length != 2)
+            {
+                continue;
+            }
+
+            GridNode[] Children = [.. Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId])];
+            GridNode? Loop = Children.FirstOrDefault(Child => Back.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Incoming[0].SourceId));
             if (Children.Length != 2 || Children[0] == Children[1] || Loop == null || Loop.PlacementHintLocked
-                || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1)) continue;
-            var Continuation = Children.First(Child => Child != Loop);
-            var Tail = CellOutputChain(Continuation, ById, Forward, RequireRankChange: false);
-            if (Tail.Any(Node => Node.PlacementHintLocked)) continue;
+                || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Forward.Count(Edge => Edge.TargetId == Child.Id) != 1))
+            {
+                continue;
+            }
+
+            GridNode Continuation = Children.First(Child => Child != Loop);
+            IReadOnlyList<GridNode> Tail = CellOutputChain(Continuation, ById, Forward, RequireRankChange: false);
+            if (Tail.Any(Node => Node.PlacementHintLocked))
+            {
+                continue;
+            }
+
             int Centre = Targets[Decision.Id].StartColumn;
             int Pitch = Tail.Append(Loop).Append(Decision).Max(Node => Targets[Node.Id].ColumnSpan);
             Targets[Loop.Id] = WithCellCross(Targets[Loop.Id], checked(Centre + Pitch), false);
             int Shift = checked(Centre - Pitch - Targets[Continuation.Id].StartColumn);
             // Keep the return/continuation side order, but preserve every
             // existing tail offset. Only routed scoring may straighten it.
-            foreach (var Node in Tail) Targets[Node.Id] = WithCellCross(Targets[Node.Id], checked(Targets[Node.Id].StartColumn + Shift), false);
+            foreach (GridNode Node in Tail)
+            {
+                Targets[Node.Id] = WithCellCross(Targets[Node.Id], checked(Targets[Node.Id].StartColumn + Shift), false);
+            }
         }
         return FlowchartCellRepair.TryAssign(Placed, Targets);
     }
@@ -49,32 +64,40 @@ public static partial class DiagramGridLayout
     /// <returns>Whether the complete legal region, gap and rank plan was accepted.</returns>
     internal static bool AlignCellHorizontalRetryOutcomes(DiagramContract Contract, List<GridNode> Placed)
     {
-        var Before = FlowchartCellRepair.Capture(Placed); var Grid = Placed[0].CellNode!.Grid;
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = IndexPlaced(Placed);
-        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var Ranks = new Dictionary<GridNode, int>(); var Gaps = new Dictionary<int, double>();
-        var Selected = new List<(GridNode Decision, GridNode Retry)>();
-        foreach (var Decision in Placed.Where(Node => Node.IsDiamond))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed); FlowchartLogicalGrid Grid = Placed[0].CellNode!.Grid;
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        Dictionary<string, GridNode> ById = IndexPlaced(Placed);
+        EdgeContract[] Visible = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        Dictionary<GridNode, int> Ranks = []; Dictionary<int, double> Gaps = [];
+        List<(GridNode Decision, GridNode Retry)> Selected = [];
+        foreach (GridNode? Decision in Placed.Where(Node => Node.IsDiamond))
         {
-            var Incoming = Visible.Where(Edge => Edge.TargetId == Decision.Id).ToArray();
-            var Outgoing = Visible.Where(Edge => Edge.SourceId == Decision.Id).ToArray();
-            if (Incoming.Length != 1 || Outgoing.Length != 2 || !ById.TryGetValue(Incoming[0].SourceId, out var Input)
-                || Input.IsDiamond || Visible.Count(Edge => Edge.SourceId == Input.Id) != 1) continue;
-            var Children = Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).Distinct().ToArray();
-            var Retry = Children.FirstOrDefault(Child => Visible.Count(Edge => Edge.SourceId == Child.Id) == 1
+            EdgeContract[] Incoming = [.. Visible.Where(Edge => Edge.TargetId == Decision.Id)];
+            EdgeContract[] Outgoing = [.. Visible.Where(Edge => Edge.SourceId == Decision.Id)];
+            if (Incoming.Length != 1 || Outgoing.Length != 2 || !ById.TryGetValue(Incoming[0].SourceId, out GridNode? Input)
+                || Input.IsDiamond || Visible.Count(Edge => Edge.SourceId == Input.Id) != 1)
+            {
+                continue;
+            }
+
+            GridNode[] Children = [.. Outgoing.Where(Edge => ById.ContainsKey(Edge.TargetId)).Select(Edge => ById[Edge.TargetId]).Distinct()];
+            GridNode? Retry = Children.FirstOrDefault(Child => Visible.Count(Edge => Edge.SourceId == Child.Id) == 1
                 && Visible.Any(Edge => Edge.SourceId == Child.Id && Edge.TargetId == Input.Id));
-            var Finish = Children.FirstOrDefault(Child => !Visible.Any(Edge => Edge.SourceId == Child.Id));
+            GridNode? Finish = Children.FirstOrDefault(Child => !Visible.Any(Edge => Edge.SourceId == Child.Id));
             if (Children.Length != 2 || Retry == null || Finish == null || Retry.PlacementHintLocked || Finish.PlacementHintLocked
                 || Children.Any(Child => Child.IsDiamond || Child.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Child.Id) != 1)
-                || Input.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Input.Id) != 1) continue;
-            var Anchor = Targets[Decision.Id]; var RetryBefore = Targets[Retry.Id];
+                || Input.GroupId != Decision.GroupId || Visible.Count(Edge => Edge.TargetId == Input.Id) != 1)
+            {
+                continue;
+            }
+
+            FlowchartCellRegion Anchor = Targets[Decision.Id]; FlowchartCellRegion RetryBefore = Targets[Retry.Id];
             // Success keeps its existing region. This plan only provides the
             // retry corridor; straightening competes after routes are built.
             Targets[Retry.Id] = new(Anchor.EndRow, Anchor.StartColumn, RetryBefore.RowSpan, RetryBefore.ColumnSpan);
-            var D = Decision.CellNode!.Bounds(Anchor, Decision.GeometryProvider);
-            var R = Retry.CellNode!.Bounds(Targets[Retry.Id], Retry.GeometryProvider);
-            double Missing = 3 * DiagramGridMetrics.GRID_UNIT_PX - (R.CenterY - R.Height / 2 - D.CenterY - D.Height / 2);
+            FlowchartLayoutNodeBounds D = Decision.CellNode!.Bounds(Anchor, Decision.GeometryProvider);
+            FlowchartLayoutNodeBounds R = Retry.CellNode!.Bounds(Targets[Retry.Id], Retry.GeometryProvider);
+            double Missing = (3 * DiagramGridMetrics.GRID_UNIT_PX) - (R.CenterY - (R.Height / 2) - D.CenterY - (D.Height / 2));
             if (Missing > 0)
             {
                 int After = Anchor.EndRow - 1;
@@ -82,29 +105,44 @@ public static partial class DiagramGridLayout
                 {
                     // A routing corridor cannot be created inside another
                     // node's region. Offer a whole-cell move instead.
-                    var Region = Targets[Retry.Id];
+                    FlowchartCellRegion Region = Targets[Retry.Id];
                     for (int Step = 1; Step <= FlowchartLayoutRules.RepairChainDepth; Step++)
                     {
-                        var Candidate = new FlowchartCellRegion(checked(Region.StartRow + Step), Region.StartColumn, Region.RowSpan, Region.ColumnSpan);
-                        var Bounds = Retry.CellNode.Bounds(Candidate, Retry.GeometryProvider);
-                        if (Bounds.CenterY - Bounds.Height / 2 - D.CenterY - D.Height / 2 < 3 * DiagramGridMetrics.GRID_UNIT_PX) continue;
+                        FlowchartCellRegion Candidate = new FlowchartCellRegion(checked(Region.StartRow + Step), Region.StartColumn, Region.RowSpan, Region.ColumnSpan);
+                        FlowchartLayoutNodeBounds Bounds = Retry.CellNode.Bounds(Candidate, Retry.GeometryProvider);
+                        if (Bounds.CenterY - (Bounds.Height / 2) - D.CenterY - (D.Height / 2) < 3 * DiagramGridMetrics.GRID_UNIT_PX)
+                        {
+                            continue;
+                        }
+
                         Targets[Retry.Id] = Candidate; break;
                     }
                 }
-                else Gaps[After] = Math.Max(Gaps.GetValueOrDefault(After), Missing);
+                else
+                {
+                    Gaps[After] = Math.Max(Gaps.GetValueOrDefault(After), Missing);
+                }
             }
             Ranks[Retry] = Decision.Rank;
             Selected.Add((Decision, Retry));
         }
-        var Plan = FlowchartCellRepair.PlanAssignment(Placed, Targets,
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Placed, Targets,
             Gaps.Select(Pair => new FlowchartCellGapGrowth(false, Pair.Key, Pair.Value, DiagramGridMetrics.GRID_UNIT_PX)).ToArray());
         if (Plan == null || Selected.Any(Pair =>
             {
-                var D = Pair.Decision.CellNode!.Bounds(Plan.After.Regions[Pair.Decision.Id], Pair.Decision.GeometryProvider, Plan.After);
-                var R = Pair.Retry.CellNode!.Bounds(Plan.After.Regions[Pair.Retry.Id], Pair.Retry.GeometryProvider, Plan.After);
-                return R.CenterY - R.Height / 2 - D.CenterY - D.Height / 2 < 3 * DiagramGridMetrics.GRID_UNIT_PX;
-            }) || !Plan.TryApply()) return false;
-        foreach (var Pair in Ranks) Pair.Key.Rank = Pair.Value;
+                FlowchartLayoutNodeBounds D = Pair.Decision.CellNode!.Bounds(Plan.After.Regions[Pair.Decision.Id], Pair.Decision.GeometryProvider, Plan.After);
+                FlowchartLayoutNodeBounds R = Pair.Retry.CellNode!.Bounds(Plan.After.Regions[Pair.Retry.Id], Pair.Retry.GeometryProvider, Plan.After);
+                return R.CenterY - (R.Height / 2) - D.CenterY - (D.Height / 2) < 3 * DiagramGridMetrics.GRID_UNIT_PX;
+            }) || !Plan.TryApply())
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<GridNode, int> Pair in Ranks)
+        {
+            Pair.Key.Rank = Pair.Value;
+        }
+
         return true;
     }
 
@@ -115,38 +153,66 @@ public static partial class DiagramGridLayout
     /// <returns>Whether the complete legal assignment was accepted.</returns>
     internal static bool AlignCellDecisionDetours(DiagramContract Contract, List<GridNode> Placed, bool Horizontal)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var Visible = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var Ranks = new Dictionary<GridNode, int>();
-        foreach (var (Decision, Detour, Merge) in DecisionDetours(Contract, Placed))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed);
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        EdgeContract[] Visible = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        Dictionary<GridNode, int> Ranks = [];
+        foreach ((GridNode? Decision, GridNode? Detour, GridNode? Merge) in DecisionDetours(Contract, Placed))
         {
-            if (Detour.PlacementHintLocked || Merge.PlacementHintLocked) continue;
-            var Anchor = Targets[Decision.Id];
+            if (Detour.PlacementHintLocked || Merge.PlacementHintLocked)
+            {
+                continue;
+            }
+
+            FlowchartCellRegion Anchor = Targets[Decision.Id];
             int Centre = Horizontal ? Anchor.StartRow : Anchor.StartColumn;
             int Pitch = new[] { Decision, Detour, Merge }.Max(Node => Horizontal ? Targets[Node.Id].RowSpan : Targets[Node.Id].ColumnSpan);
             bool Terminal = !Visible.Any(Edge => Edge.SourceId == Merge.Id) && Visible.Count(Edge => Edge.TargetId == Merge.Id) > 2;
             Targets[Detour.Id] = WithCellCross(Targets[Detour.Id], checked(Centre + (Terminal ? Pitch : -Pitch)), Horizontal);
             // Terminal multi-input placement reserves a separate collecting
             // lane. A continuing merge keeps its independently chosen start.
-            if (Terminal) Targets[Merge.Id] = WithCellCross(Targets[Merge.Id], checked(Centre - Pitch), Horizontal);
-            if (!Terminal) continue;
-            foreach (var Incoming in Visible.Where(Edge => Edge.TargetId == Merge.Id && Edge.SourceId != Decision.Id && Edge.SourceId != Detour.Id))
+            if (Terminal)
             {
-                var Exit = Placed.FirstOrDefault(Node => Node.Id == Incoming.SourceId);
+                Targets[Merge.Id] = WithCellCross(Targets[Merge.Id], checked(Centre - Pitch), Horizontal);
+            }
+
+            if (!Terminal)
+            {
+                continue;
+            }
+
+            foreach (EdgeContract? Incoming in Visible.Where(Edge => Edge.TargetId == Merge.Id && Edge.SourceId != Decision.Id && Edge.SourceId != Detour.Id))
+            {
+                GridNode? Exit = Placed.FirstOrDefault(Node => Node.Id == Incoming.SourceId);
                 if (Exit == null || Exit.IsDiamond || Exit.PlacementHintLocked || Exit.GroupId != Merge.GroupId
-                    || Visible.Count(Edge => Edge.SourceId == Exit.Id) != 1 || Visible.Count(Edge => Edge.TargetId == Exit.Id) != 1) continue;
-                var ParentEdge = Visible.Single(Edge => Edge.TargetId == Exit.Id);
-                var Parent = Placed.FirstOrDefault(Node => Node.Id == ParentEdge.SourceId);
-                if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2) continue;
-                var Region = WithCellCross(Targets[Exit.Id], checked(Centre - 2 * Pitch), Horizontal);
+                    || Visible.Count(Edge => Edge.SourceId == Exit.Id) != 1 || Visible.Count(Edge => Edge.TargetId == Exit.Id) != 1)
+                {
+                    continue;
+                }
+
+                EdgeContract ParentEdge = Visible.Single(Edge => Edge.TargetId == Exit.Id);
+                GridNode? Parent = Placed.FirstOrDefault(Node => Node.Id == ParentEdge.SourceId);
+                if (Parent == null || !Parent.IsDiamond || Math.Abs(Parent.Rank - Decision.Rank) < 2)
+                {
+                    continue;
+                }
+
+                FlowchartCellRegion Region = WithCellCross(Targets[Exit.Id], checked(Centre - (2 * Pitch)), Horizontal);
                 Targets[Exit.Id] = new(Horizontal ? Region.StartRow : Targets[Merge.Id].StartRow,
                     Horizontal ? Targets[Merge.Id].StartColumn : Region.StartColumn, Region.RowSpan, Region.ColumnSpan);
                 Ranks[Exit] = Merge.Rank;
             }
         }
-        if (!FlowchartCellRepair.TryAssign(Placed, Targets)) return false;
-        foreach (var Pair in Ranks) Pair.Key.Rank = Pair.Value;
+        if (!FlowchartCellRepair.TryAssign(Placed, Targets))
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<GridNode, int> Pair in Ranks)
+        {
+            Pair.Key.Rank = Pair.Value;
+        }
+
         return true;
     }
 
@@ -171,8 +237,8 @@ public static partial class DiagramGridLayout
             new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
         IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        List<EdgeContract> Visible = Contract.Edges.Where(Edge =>
-            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToList();
+        List<EdgeContract> Visible = [.. Contract.Edges.Where(Edge =>
+            !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         bool Changed = false;
 
         foreach (GridNode Parent in Placed.Where(Node => Node.IsDiamond))

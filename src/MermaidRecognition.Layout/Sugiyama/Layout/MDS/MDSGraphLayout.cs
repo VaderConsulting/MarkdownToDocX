@@ -80,7 +80,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         /// <param name="x">Coordinates.</param>
         /// <param name="y">Coordinates.</param>
         static void ScaleToAverageEdgeLength(GeometryGraph g, double[] x, double[] y) {
-            Dictionary<Node, int> index = new Dictionary<Node, int>();
+            Dictionary<Node, int> index = [];
             int c=0;
             foreach(Node node in g.Nodes) {
                 index.Add(node, c);
@@ -162,7 +162,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         /// the layouts for connected components together.
         /// </summary>
         internal void LayoutConnectedComponents() {           
-            GeometryGraph[] graphs = GraphConnectedComponents.CreateComponents(graph.Nodes, graph.Edges).ToArray();
+            GeometryGraph[] graphs = [.. GraphConnectedComponents.CreateComponents(graph.Nodes, graph.Edges)];
             // layout components, compute bounding boxes
 
             if (settings.RunInParallel) {
@@ -231,7 +231,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
                         ProximityOverlapRemoval.RemoveOverlaps(compGraph, settings.NodeSeparation);
                         break;
                     case OverlapRemovalMethod.MinimalSpanningTree:
-                        OverlapRemoval.RemoveOverlaps(compGraph.Nodes.ToArray(), settings.NodeSeparation);
+                        OverlapRemoval.RemoveOverlaps([.. compGraph.Nodes], settings.NodeSeparation);
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -344,7 +344,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         static Point RandomPointFromBox(Random random, ref Rectangle boundingBox) {
             double x =random.NextDouble();
             double y =random.NextDouble();
-            Point p = new Point(boundingBox.Left + boundingBox.Width * x, boundingBox.Bottom + boundingBox.Height * y);
+            Point p = new Point(boundingBox.Left + (boundingBox.Width * x), boundingBox.Bottom + (boundingBox.Height * y));
             return p;
         }
 
@@ -356,7 +356,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
         /// <returns>Bounding box of the packed components</returns>
         public static Rectangle PackGraphs(IEnumerable<GeometryGraph> components, LayoutAlgorithmSettings settings) {
             List<RectangleToPack<GeometryGraph>> rectangles =
-                (from c in components select new RectangleToPack<GeometryGraph>(c.BoundingBox, c)).ToList();
+                [.. (from c in components select new RectangleToPack<GeometryGraph>(c.BoundingBox, c))];
             if (rectangles.Count > 1) {
                 OptimalPacking<GeometryGraph> packing = settings.PackingMethod == PackingMethod.Compact
                     ? new OptimalRectanglePacking<GeometryGraph>(rectangles, settings.PackingAspectRatio)

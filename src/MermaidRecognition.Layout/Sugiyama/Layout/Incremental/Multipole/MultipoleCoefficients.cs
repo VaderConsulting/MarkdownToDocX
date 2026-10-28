@@ -80,7 +80,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
             for (int l = 1; l < p; ++l)
             {
                 Complex lz = new Complex(l);
-                b[l] = -a0 * Complex.Pow(z0_minus_z1, l) / lz + sum(l, z0_minus_z1);
+                b[l] = (-a0 * Complex.Pow(z0_minus_z1, l) / lz) + sum(l, z0_minus_z1);
             }
             return b;
         }
@@ -170,18 +170,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
             public static Complex operator +(Complex a, Complex b) => (new Complex(a.re + b.re, a.im + b.im));
             public static Complex operator -(Complex a) => (new Complex(-a.re, -a.im));
             public static Complex operator -(Complex a, Complex b) => (new Complex(a.re - b.re, a.im - b.im));
-            public static Complex operator *(Complex a, Complex b) => (new Complex(a.re * b.re - a.im * b.im, a.re * b.im + b.re * a.im));
+            public static Complex operator *(Complex a, Complex b) => (new Complex((a.re * b.re) - (a.im * b.im), (a.re * b.im) + (b.re * a.im)));
             public static Complex operator *(Complex a, double b) => (new Complex(a.re * b, b * a.im));
             public static Complex operator /(Complex a, Complex b)
             {
                 double c1, c2, d;
-                d = b.re * b.re + b.im * b.im;
+                d = (b.re * b.re) + (b.im * b.im);
                 if (d == 0)
                 {
                     return (new Complex(0.0));
                 }
-                c1 = a.re * b.re + a.im * b.im;
-                c2 = a.im * b.re - a.re * b.im;
+                c1 = (a.re * b.re) + (a.im * b.im);
+                c2 = (a.im * b.re) - (a.re * b.im);
                 return (new Complex(c1 / d, c2 / d));
             }
             public void divideBy(double r) {
@@ -201,7 +201,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
 #if SHARPKIT //https://github.com/SharpKit/SharpKit/issues/4 integer rounding issue
                     default: return Pow(a, k / 2) * Pow(a, (k / 2) + (k % 2));
 #else
-                    default: return Pow(a, k / 2) * Pow(a, k / 2 + k % 2);
+                    default: return Pow(a, k / 2) * Pow(a, (k / 2) + (k % 2));
 #endif
                 }
             }

@@ -29,7 +29,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             this.obstaclesToIgnore = obstaclesToIgnore;
             EdgeSeparation = edgeSeparation;
             HalfWidthArray = halfWidthArray;
-            TotalRequiredWidth = EdgeSeparation * HalfWidthArray.Length + HalfWidthArray.Sum() * 2;
+            TotalRequiredWidth = (EdgeSeparation * HalfWidthArray.Length) + (HalfWidthArray.Sum() * 2);
             longEnoughSideLength = new Rectangle(sourceBase.Curve.BoundingBox, targetBase.Curve.BoundingBox).Diagonal;
 
             //sometimes TotalRequiredWidth is too large to fit into the circle, so we evenly scale everything
@@ -58,8 +58,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //Polyline bundle = Intersections.Create4gon(SourceBase.CurveCenter, TargetBase.CurveCenter, sRadius * 2, tRadius * 2);
             Polyline bundle = Intersections.Create4gon(SourceBase.Position, TargetBase.Position, sRadius * 2, tRadius * 2);
 
-            tightObstaclesInTheBoundingBox = tightTree.AllHitItems(bundle.BoundingBox,
-                p => !obstaclesToIgnore.Contains(p) && Curve.ClosedCurveInteriorsIntersect(bundle, p)).ToList();
+            tightObstaclesInTheBoundingBox = [.. tightTree.AllHitItems(bundle.BoundingBox,
+                p => !obstaclesToIgnore.Contains(p) && Curve.ClosedCurveInteriorsIntersect(bundle, p))];
         }
 
         void SetEndParamsSymmetrically() {
@@ -69,8 +69,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point dir = (targetPos - sourcePos).Normalize();
             Point perp = dir.Rotate90Ccw();
             Point middle = 0.5 * (targetPos + sourcePos);
-            Point a = middle + longEnoughSideLength * dir;
-            Point b = middle - longEnoughSideLength * dir; // [a,b] is a long enough segment
+            Point a = middle + (longEnoughSideLength * dir);
+            Point b = middle - (longEnoughSideLength * dir); // [a,b] is a long enough segment
 
             //we are already fine
             if (SetRLParamsIfWidthIsFeasible(TotalRequiredWidth * perp / 2, a, b)) {
@@ -167,8 +167,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 TargetBase.InitialMidParameter = targetParam;
             }
             else {
-                SourceBase.InitialMidParameter = SourceBase.AdjustParam(SourceBase.ParRight + SourceBase.Span / 2);
-                TargetBase.InitialMidParameter = TargetBase.AdjustParam(TargetBase.ParRight + TargetBase.Span / 2);
+                SourceBase.InitialMidParameter = SourceBase.AdjustParam(SourceBase.ParRight + (SourceBase.Span / 2));
+                TargetBase.InitialMidParameter = TargetBase.AdjustParam(TargetBase.ParRight + (TargetBase.Span / 2));
             }
         }
 
@@ -272,11 +272,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point[] pns = SourceBase.Points;
             Point dir = (SourceBase.RightPoint - SourceBase.LeftPoint) / TotalRequiredWidth;
 
-            pns[count - 1] = SourceBase.LeftPoint + (EdgeSeparation / 2 + HalfWidthArray[0]) * dir;
+            pns[count - 1] = SourceBase.LeftPoint + (((EdgeSeparation / 2) + HalfWidthArray[0]) * dir);
             int j = 1;
             for (int i = count - 2; i >= 0; i--, j++)
             {
-                pns[i] = pns[i + 1] + (HalfWidthArray[j - 1] + EdgeSeparation + HalfWidthArray[j]) * dir;
+                pns[i] = pns[i + 1] + ((HalfWidthArray[j - 1] + EdgeSeparation + HalfWidthArray[j]) * dir);
             }
         }
 
@@ -286,10 +286,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point[] pns = TargetBase.Points;
             Point dir = (TargetBase.LeftPoint - TargetBase.RightPoint) / TotalRequiredWidth;
 
-            pns[0] = TargetBase.RightPoint + (EdgeSeparation / 2 + HalfWidthArray[0]) * dir;
+            pns[0] = TargetBase.RightPoint + (((EdgeSeparation / 2) + HalfWidthArray[0]) * dir);
             for (int i = 1; i < count; i++)
             {
-                pns[i] = pns[i - 1] + (HalfWidthArray[i - 1] + EdgeSeparation + HalfWidthArray[i]) * dir;
+                pns[i] = pns[i - 1] + ((HalfWidthArray[i - 1] + EdgeSeparation + HalfWidthArray[i]) * dir);
             }
         }
 

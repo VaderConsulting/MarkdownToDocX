@@ -53,7 +53,7 @@ public static class FlowchartDecisionShoulderLayoutPostProcessor
         }
 
         double FlowSign = Direction == FlowchartDirection.TopToBottom ? -1.0 : 1.0;
-        List<NodeContract> Decisions = Contract.Nodes.Where(Node => IsDecisionShape(Node.Shape) && BoundsById.ContainsKey(Node.Id)).ToList();
+        List<NodeContract> Decisions = [.. Contract.Nodes.Where(Node => IsDecisionShape(Node.Shape) && BoundsById.ContainsKey(Node.Id))];
         Decisions.Sort((Left, Right) => (BoundsById[Right.Id].CenterY * FlowSign).CompareTo(BoundsById[Left.Id].CenterY * FlowSign));
 
         foreach (NodeContract Decision in Decisions)
@@ -61,7 +61,7 @@ public static class FlowchartDecisionShoulderLayoutPostProcessor
             TryStraddleTargets(Contract, BoundsById, Decision.Id, FlowSign, Options);
         }
 
-        return BoundsById.Values.ToList();
+        return [.. BoundsById.Values];
     }
 
     private static void TryStraddleTargets(
@@ -146,7 +146,7 @@ public static class FlowchartDecisionShoulderLayoutPostProcessor
             }
         }
 
-        double Distance = Math.Max((Mover.Width + Anchor.Width) / 2.0 + Options.NodeSpacingPx, (DecisionBounds.Width / 2.0) + (MINIMUM_SHOULDER_CLEARANCE_PX * 2.0));
+        double Distance = Math.Max(((Mover.Width + Anchor.Width) / 2.0) + Options.NodeSpacingPx, (DecisionBounds.Width / 2.0) + (MINIMUM_SHOULDER_CLEARANCE_PX * 2.0));
         double PreferredSign = ResolveFreeSide(Contract, BoundsById, Anchor, DecisionId, Mover.NodeId);
         double Margin = Options.NodeSpacingPx / 2.0;
         if (TryShiftNodes(BoundsById, [Mover.NodeId], PreferredSign * Distance, Margin))

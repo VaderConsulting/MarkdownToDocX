@@ -132,10 +132,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         void RestoreCapacities() {
-            if (Cdt != null)
-            {
-                Cdt.RestoreEdgeCapacities();
-            }
+            Cdt?.RestoreEdgeCapacities();
         }
 
         /// <summary>
@@ -307,7 +304,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return null;
             }
 
-            List<SdBoneEdge> result = new List<SdBoneEdge>();
+            List<SdBoneEdge> result = [];
 
             while (current.PrevEdge != null) {
                 result.Add(current.PrevEdge);
@@ -351,11 +348,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        double H(SdVertex v) => v.Cost + LengthCoefficient * (v.Point - CurrentEdgeGeometry.TargetPort.Location).Length;
+        double H(SdVertex v) => v.Cost + (LengthCoefficient * (v.Point - CurrentEdgeGeometry.TargetPort.Location).Length);
 
         double GetEdgeAdditionalCost(SdBoneEdge boneEdge, double previousCost) {
             double len = (boneEdge.TargetPoint - boneEdge.SourcePoint).Length;
-            return LengthCoefficient * len + previousCost +
+            return (LengthCoefficient * len) + previousCost +
                 (boneEdge.IsOccupied ? 0 : BundlingSettings.InkImportance * len) + CapacityOverflowCost(boneEdge);
         }
 
@@ -389,7 +386,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point start = boneEdge.SourcePoint;
             CdtTriangle currentTriangle = boneEdge.Source.Triangle;
             Debug.Assert(Cdt.PointIsInsideOfTriangle(start, currentTriangle));
-            Set<CdtEdge> crossedEdges = new Set<CdtEdge>();
+            Set<CdtEdge> crossedEdges = [];
             Point end = boneEdge.TargetPoint;
             if (Cdt.PointIsInsideOfTriangle(end, currentTriangle))
             {
@@ -508,7 +505,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 else
                 {
                     AddAndEnqueueVertexToEnds(port.Location, sources, 0);
-                    Polyline[] polys = ObstacleHierarchy.GetNodeItemsIntersectingRectangle(port.Curve.BoundingBox).ToArray();
+                    Polyline[] polys = [.. ObstacleHierarchy.GetNodeItemsIntersectingRectangle(port.Curve.BoundingBox)];
                     double mindiag = polys[0].BoundingBox.Diagonal;
                     poly = polys[0];
                     for (int i = 1; i < polys.Length; i++)

@@ -11,6 +11,26 @@ Some catalogue scenarios are **skipped** (not rendered, not counted as failures)
 
 Pass an explicit diagram id as the third argument to render a skipped stress diagram anyway (for example profiling `A142` with a higher time cap).
 
+### LiveEditor enterprise sample (layout tuning)
+
+For day-to-day engine and preview work, time the **same** diagram as **Samples → Enterprise → Clauses and relationships (Complete)** in LiveEditor (`SampleCatalog`, title `All options` in source). This is not a row in `enterprise.md`.
+
+```powershell
+dotnet run -c Release --project tools/LayoutCatalogueBench/LayoutCatalogueBench.csproj -- @liveeditor-enterprise-complete
+```
+
+Optional: output jsonl path, cap milliseconds. Also writes `liveeditor-enterprise-complete-stages.json` (per-stage layout ms).
+
+### Landgate Azure import (optional)
+
+```powershell
+dotnet run -c Release --project tools/LayoutCatalogueBench/LayoutCatalogueBench.csproj -- @landgate-enterprise-import
+```
+
+Requires `in/Landgate.csv`. Imports with enterprise category defaults, then renders preview SVG. Default cap 600000 ms. Outputs `landgate-enterprise-import.jsonl` and `landgate-enterprise-import-stages.json`. Not in CI.
+
+Example (Release, 26 Oct 2026, enterprise defaults, ~137 resources after category filter): render ~**102** s, layout stage sum ~**199** s. See `landgate-enterprise-import-stages.json` for breakdown.
+
 ## Run
 
 From the repository root, Release build recommended:

@@ -18,15 +18,15 @@ internal sealed class DagreBarycenter
 
     public double Weight { get; set; }
 
-    public List<string> Vs { get; set; } = new List<string>();
+    public List<string> Vs { get; set; } = [];
 
     public int Index { get; set; }
 
     public int Indegree { get; set; }
 
-    public List<DagreBarycenter> Incoming { get; } = new List<DagreBarycenter>();
+    public List<DagreBarycenter> Incoming { get; } = [];
 
-    public List<DagreBarycenter> Outgoing { get; } = new List<DagreBarycenter>();
+    public List<DagreBarycenter> Outgoing { get; } = [];
 
     public bool Merged { get; set; }
 }
@@ -39,13 +39,13 @@ internal static partial class DagreLayoutEngine
     private static void Order(DagreGraph Graph, DagreContext Context)
     {
         int Max = MaxRank(Graph);
-        List<DagreGraph> Down = new List<DagreGraph>();
+        List<DagreGraph> Down = [];
         for (int Rank = 1; Rank <= Max; Rank++)
         {
             Down.Add(BuildLayerGraph(Graph, Context, Rank, true));
         }
 
-        List<DagreGraph> Up = new List<DagreGraph>();
+        List<DagreGraph> Up = [];
         for (int Rank = Max - 1; Rank >= 0; Rank--)
         {
             Up.Add(BuildLayerGraph(Graph, Context, Rank, false));
@@ -79,7 +79,7 @@ internal static partial class DagreLayoutEngine
 
     private static List<List<string>> CloneLayering(List<List<string>> Layering)
     {
-        List<List<string>> Copy = new List<List<string>>();
+        List<List<string>> Copy = [];
         foreach (List<string> Layer in Layering)
         {
             Copy.Add(new List<string>(Layer));
@@ -101,17 +101,14 @@ internal static partial class DagreLayoutEngine
                 }
 
                 DagreNodeLabel? Node = Graph.Node(NodeId);
-                if (Node != null)
-                {
-                    Node.Order = Index;
-                }
+                Node?.Order = Index;
             }
         }
     }
 
     private static List<List<string>> InitOrder(DagreGraph Graph)
     {
-        List<string> Simple = new List<string>();
+        List<string> Simple = [];
         foreach (string NodeId in Graph.Nodes())
         {
             if (Graph.Children(NodeId).Count == 0)
@@ -130,10 +127,10 @@ internal static partial class DagreLayoutEngine
             }
         }
 
-        List<List<string>> Layers = new List<List<string>>();
+        List<List<string>> Layers = [];
         for (int Rank = 0; Rank <= Max; Rank++)
         {
-            Layers.Add(new List<string>());
+            Layers.Add([]);
         }
 
         Dictionary<string, int> Insertion = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -241,15 +238,9 @@ internal static partial class DagreLayoutEngine
             {
                 string? Left = null;
                 string? Right = null;
-                if (Node.BorderLeftByRank != null)
-                {
-                    Node.BorderLeftByRank.TryGetValue(Rank, out Left);
-                }
+                Node.BorderLeftByRank?.TryGetValue(Rank, out Left);
 
-                if (Node.BorderRightByRank != null)
-                {
-                    Node.BorderRightByRank.TryGetValue(Rank, out Right);
-                }
+                Node.BorderRightByRank?.TryGetValue(Rank, out Right);
 
                 Result.SetNode(NodeId, new DagreNodeLabel
                 {
@@ -277,10 +268,7 @@ internal static partial class DagreLayoutEngine
             for (int Index = 0; Index < Sorted.Vs.Count; Index++)
             {
                 DagreNodeLabel? Node = LayerGraph.Node(Sorted.Vs[Index]);
-                if (Node != null)
-                {
-                    Node.Order = Index;
-                }
+                Node?.Order = Index;
             }
 
             AddSubgraphConstraints(LayerGraph, Constraints, Sorted.Vs);
@@ -353,7 +341,7 @@ internal static partial class DagreLayoutEngine
         List<DagreBarycenter> Entries = ResolveConflicts(Barycenters, Constraints);
         foreach (DagreBarycenter Entry in Entries)
         {
-            List<string> Flat = new List<string>();
+            List<string> Flat = [];
             foreach (string Member in Entry.Vs)
             {
                 if (Subgraphs.TryGetValue(Member, out DagreBarycenter? Subgraph))
@@ -372,9 +360,7 @@ internal static partial class DagreLayoutEngine
         DagreBarycenter Result = SortEntries(Entries, BiasRight);
         if (BorderLeft != null)
         {
-            List<string> WithBorders = new List<string>();
-            WithBorders.Add(BorderLeft);
-            WithBorders.AddRange(Result.Vs);
+            List<string> WithBorders = [BorderLeft, .. Result.Vs];
             if (BorderRight != null)
             {
                 WithBorders.Add(BorderRight);
@@ -424,7 +410,7 @@ internal static partial class DagreLayoutEngine
 
     private static List<DagreBarycenter> Barycenter(DagreGraph Graph, List<string> Movable)
     {
-        List<DagreBarycenter> Result = new List<DagreBarycenter>();
+        List<DagreBarycenter> Result = [];
         foreach (string NodeId in Movable)
         {
             List<DagreEdge> Incoming = Graph.InEdges(NodeId);
@@ -495,7 +481,7 @@ internal static partial class DagreLayoutEngine
             Source.Outgoing.Add(Target);
         }
 
-        List<DagreBarycenter> Sources = new List<DagreBarycenter>();
+        List<DagreBarycenter> Sources = [];
         foreach (DagreBarycenter Entry in Mapped.Values)
         {
             if (Entry.Indegree == 0)
@@ -509,7 +495,7 @@ internal static partial class DagreLayoutEngine
 
     private static List<DagreBarycenter> DoResolveConflicts(List<DagreBarycenter> Sources)
     {
-        List<DagreBarycenter> Entries = new List<DagreBarycenter>();
+        List<DagreBarycenter> Entries = [];
         while (Sources.Count > 0)
         {
             DagreBarycenter Entry = Sources[Sources.Count - 1];
@@ -540,7 +526,7 @@ internal static partial class DagreLayoutEngine
             }
         }
 
-        List<DagreBarycenter> Result = new List<DagreBarycenter>();
+        List<DagreBarycenter> Result = [];
         foreach (DagreBarycenter Entry in Entries)
         {
             if (!Entry.Merged)
@@ -568,9 +554,7 @@ internal static partial class DagreLayoutEngine
             Weight += Source.Weight;
         }
 
-        List<string> Combined = new List<string>();
-        Combined.AddRange(Source.Vs);
-        Combined.AddRange(Target.Vs);
+        List<string> Combined = [.. Source.Vs, .. Target.Vs];
         Target.Vs = Combined;
         Target.Barycenter = Weight == 0 ? 0 : Sum / Weight;
         Target.Weight = Weight;
@@ -581,8 +565,8 @@ internal static partial class DagreLayoutEngine
 
     private static DagreBarycenter SortEntries(List<DagreBarycenter> Entries, bool BiasRight)
     {
-        List<DagreBarycenter> Sortable = new List<DagreBarycenter>();
-        List<DagreBarycenter> Unsortable = new List<DagreBarycenter>();
+        List<DagreBarycenter> Sortable = [];
+        List<DagreBarycenter> Unsortable = [];
         foreach (DagreBarycenter Entry in Entries)
         {
             if (Entry.HasBarycenter)
@@ -619,7 +603,7 @@ internal static partial class DagreLayoutEngine
             return Right.Index.CompareTo(Left.Index);
         });
 
-        List<string> NodeIds = new List<string>();
+        List<string> NodeIds = [];
         double Sum = 0;
         double Weight = 0;
         int Cursor = 0;
@@ -682,7 +666,7 @@ internal static partial class DagreLayoutEngine
             }
         }
 
-        List<(int Pos, double Weight)> Entries = new List<(int Pos, double Weight)>();
+        List<(int Pos, double Weight)> Entries = [];
         foreach (string NodeId in North)
         {
             if (string.IsNullOrEmpty(NodeId))
@@ -690,7 +674,7 @@ internal static partial class DagreLayoutEngine
                 continue;
             }
 
-            List<(int Pos, double Weight)> Outgoing = new List<(int Pos, double Weight)>();
+            List<(int Pos, double Weight)> Outgoing = [];
             foreach (DagreEdge Edge in Graph.OutEdges(NodeId))
             {
                 if (!SouthPos.TryGetValue(Edge.W, out int Pos))

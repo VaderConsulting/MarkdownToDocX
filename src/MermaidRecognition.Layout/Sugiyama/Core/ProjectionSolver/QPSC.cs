@@ -244,7 +244,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
                     vectorPrevY[ii] = 0.0;
                 }
             }
-            matrixQ[variable.Ordinal] = newMatrixRow.ToArray();
+            matrixQ[variable.Ordinal] = [.. newMatrixRow];
             newMatrixRow.Clear();
 
             vectorQpscVars[variable.Ordinal] = new QpscVar(variable);

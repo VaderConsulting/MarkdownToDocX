@@ -36,7 +36,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <param name="center">the rectangle center</param>
         /// <returns></returns>
         public static ICurve CreateRectangleWithRoundedCorners(double width, double height, double radiusInXDirection, double radiusInYDirection, Point center) {
-            Rectangle box = new Rectangle(center.X - width/2, center.Y - height/2, center.X + width/2, center.Y + height/2);
+            Rectangle box = new Rectangle(center.X - (width/2), center.Y - (height/2), center.X + (width/2), center.Y + (height/2));
             return new RoundedRect(box, radiusInXDirection, radiusInYDirection);
         }
 
@@ -123,7 +123,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double x = center.X;
             double y = center.Y;
             Curve c = new Curve();
-            Point[] p = new Point[] { new Point(x - w, y - h), new Point(x + w, y - h), new Point(x + w, y + h), new Point(x - w, y + h) };
+            Point[] p = [new Point(x - w, y - h), new Point(x + w, y - h), new Point(x + w, y + h), new Point(x - w, y + h)];
             c.AddSegs(new LineSegment(p[0], p[1]), new LineSegment(p[1], p[2]), new LineSegment(p[2], p[3]), new LineSegment(p[3], p[0]));
             return c;
         }
@@ -142,7 +142,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double h = height / 2;
             double x = center.X;
             double y = center.Y;
-            Point[] p = new Point[] { new Point(x - w, y - h), new Point(x + w, y - h), new Point(x + w, y + h), new Point(x - w, y + h) };
+            Point[] p = [new Point(x - w, y - h), new Point(x + w, y - h), new Point(x + w, y + h), new Point(x - w, y + h)];
             c.AddSegs(new LineSegment(p[0], p[1]), new LineSegment(p[1], p[2]), new LineSegment(p[2], p[3]), new LineSegment(p[3], p[0]));
         }
 
@@ -169,7 +169,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             Curve c = new Curve(4);
             Curve.AddLineSegment(c, x - w, y - h, x + w, y - h);
             Curve.ContinueWithLineSegment(c, x + w, y + h);
-            Curve.ContinueWithLineSegment(c, x, y + 2 * h);
+            Curve.ContinueWithLineSegment(c, x, y + (2 * h));
             Curve.ContinueWithLineSegment(c, x - w, y + h);
             Curve.CloseCurve(c);
             return c;
@@ -223,7 +223,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double x = center.X;
             double y = center.Y;
             Curve c = new Curve();
-            Point[] p = new Point[] { new Point(x, y - h), new Point(x + w, y), new Point(x, y + h), new Point(x - w, y) };
+            Point[] p = [new Point(x, y - h), new Point(x + w, y), new Point(x, y + h), new Point(x - w, y)];
             c.AddSegs(new LineSegment(p[0], p[1]), new LineSegment(p[1], p[2]), new LineSegment(p[2], p[3]), new LineSegment(p[3], p[0]));
             return c;
         }
@@ -353,7 +353,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double x = center.X;
             double y = center.Y;
             Curve c = new Curve(3);
-            Point[] p = new Point[] { new Point(x - w, y - h), new Point(x + w, y - h), new Point(x, y + h) };
+            Point[] p = [new Point(x - w, y - h), new Point(x + w, y - h), new Point(x, y + h)];
             c.AddSegment(new LineSegment(p[0], p[1]));
             c.AddSegment(new LineSegment(p[1], p[2]));
             c.AddSegment(new LineSegment(p[2], p[0]));
@@ -401,8 +401,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double ang = Math.PI/2;
             double anghalf = a/2;
             for (int i = 0; i < 5; i++) {
-                yield return center + r2*new Point(Math.Cos(ang), Math.Sin(ang));
-                yield return center + r * new Point(Math.Cos(ang+anghalf), Math.Sin(ang+anghalf));
+                yield return center + (r2*new Point(Math.Cos(ang), Math.Sin(ang)));
+                yield return center + (r * new Point(Math.Cos(ang+anghalf), Math.Sin(ang+anghalf)));
                 ang += a;
             }
         }
@@ -412,7 +412,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double a = 2*Math.PI/n;
             for (int i = 0; i < n; i++)
             {
-                pt[i] = rad * (new Point(Math.Cos(i*a), Math.Sin(i*a))) + center;
+                pt[i] = (rad * (new Point(Math.Cos(i*a), Math.Sin(i*a)))) + center;
             }
 
             return new Polyline(pt) {Closed = true};

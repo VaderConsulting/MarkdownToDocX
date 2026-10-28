@@ -43,16 +43,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         /// 
         /// </summary>
         public void OnViewerChangeTransformAndInvalidateGraph() {
-            if (ViewerChangeTransformAndInvalidateGraph != null)
-            {
-                ViewerChangeTransformAndInvalidateGraph();
-            }
+            ViewerChangeTransformAndInvalidateGraph?.Invoke();
         }
 
         /// <summary>
         /// this graph is shown in the viewer
         /// </summary>
-        public RailGraph RailGraph => Interactor != null ? Interactor.RailGraph : null;
+        public RailGraph RailGraph => Interactor?.RailGraph;
 
         /// <summary>
         /// clones the object

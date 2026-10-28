@@ -10,10 +10,10 @@ public sealed class FlowchartCellCompactionTests
     [TestCase(true)]
     public void CompactionRemovesWholeStripsAndRestoresGapsExactly(bool Horizontal)
     {
-        var (Nodes, Grid) = Fixture(Horizontal);
-        var Before = Grid.Capture();
+        (List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartGridCompaction.ApplyCells(Nodes, Horizontal, 90), Is.True);
-        var A = Grid.RegionOf("A"); var B = Grid.RegionOf("B");
+        FlowchartCellRegion A = Grid.RegionOf("A"); FlowchartCellRegion B = Grid.RegionOf("B");
         Assert.That(Horizontal ? B.StartRow : B.StartColumn, Is.EqualTo(2));
         Assert.That(A.Overlaps(B), Is.False);
         Assert.That(Horizontal ? Grid.Capture().RowGaps[1] : Grid.Capture().ColumnGaps[1], Is.EqualTo(90));
@@ -25,9 +25,9 @@ public sealed class FlowchartCellCompactionTests
     [Test]
     public void HintedCompactionRejectsRegionsAndGapsTogether()
     {
-        var (Nodes, Grid) = Fixture(false);
+        (List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(false);
         Nodes[1].PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartGridCompaction.ApplyCells(Nodes, false, 90), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -37,11 +37,15 @@ public sealed class FlowchartCellCompactionTests
     /// <returns>Bound members and their shared grid.</returns>
     private static (List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool Horizontal)
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, Horizontal ? 2 : 1, Horizontal ? 1 : 2));
         Grid.TryPlace("B", new(Horizontal ? 5 : 0, Horizontal ? 0 : 5, 1, 1));
-        var Nodes = new List<DiagramGridLayout.GridNode> { new() { Id = "A" }, new() { Id = "B" } };
-        foreach (var Node in Nodes) Node.BindCells(Grid);
+        List<DiagramGridLayout.GridNode> Nodes = [new() { Id = "A" }, new() { Id = "B" }];
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            Node.BindCells(Grid);
+        }
+
         return (Nodes, Grid);
     }
 }

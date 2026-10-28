@@ -49,7 +49,7 @@ internal static class FlowchartWrapPlan
         int Best = 1;
         for (int Count = 1; Count <= NodeCount; Count++)
         {
-            int Span = Count * UnitSize + Math.Max(0, Count - 1) * Gap;
+            int Span = (Count * UnitSize) + (Math.Max(0, Count - 1) * Gap);
             if (Span <= UsableSpanPx + 1e-9)
             {
                 Best = Count;
@@ -68,8 +68,8 @@ internal static class FlowchartWrapPlan
     {
         Columns = Math.Max(1, Math.Min(NodeCount, Columns));
         int Rows = DivideRoundUp(NodeCount, Columns);
-        int Width = Columns * NodeWidth + Math.Max(0, Columns - 1) * ColumnGap;
-        int Height = Rows * NodeHeight + Math.Max(0, Rows - 1) * RankGap;
+        int Width = (Columns * NodeWidth) + (Math.Max(0, Columns - 1) * ColumnGap);
+        int Height = (Rows * NodeHeight) + (Math.Max(0, Rows - 1) * RankGap);
         return new Plan(Columns, Rows, Width, Height);
     }
 

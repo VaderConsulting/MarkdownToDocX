@@ -29,7 +29,10 @@ public static class EnterpriseLabelText
                     && (Scalar is 9 or 10 or 13 || Scalar >= 0x20)
                     && Scalar <= 0x10FFFF && !(Scalar >= 0xD800 && Scalar <= 0xDFFF)
                     && Scalar != 0xFFFE && Scalar != 0xFFFF)
+                {
                     return char.ConvertFromUtf32(Scalar);
+                }
+
                 return Match.Value;
             }
             string Entity = "&" + Code + ";";
@@ -39,7 +42,7 @@ public static class EnterpriseLabelText
 
     public static List<string> Wrap(string Text, int Width)
     {
-        List<string> Lines = new();
+        List<string> Lines = [];
         foreach (string ExplicitLine in Text.Replace("\r\n", "\n").Split('\n'))
         {
             string Current = string.Empty;
@@ -51,7 +54,10 @@ public static class EnterpriseLabelText
                     Lines.Add(Current);
                     Current = Word;
                 }
-                else Current = Candidate;
+                else
+                {
+                    Current = Candidate;
+                }
             }
             Lines.Add(Current);
         }

@@ -304,10 +304,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
 		/// </summary>
 		public void IncrementalRun(CancelToken cancelToken, GeometryGraph graph, Func<Cluster, LayoutAlgorithmSettings> clusterSettings)
         {
-            if (cancelToken != null)
-            {
-                cancelToken.ThrowIfCanceled();
-            }
+            cancelToken?.ThrowIfCanceled();
             SetupIncrementalRun(graph, clusterSettings);
             algorithm.Run(cancelToken);
             graph.UpdateBoundingBox();

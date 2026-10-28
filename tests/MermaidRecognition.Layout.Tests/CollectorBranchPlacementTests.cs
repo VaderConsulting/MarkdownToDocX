@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Flowchart;
 
@@ -18,18 +19,22 @@ public sealed class CollectorBranchPlacementTests
     {
         int Sign = Mirrored ? -1 : 1;
         string Source = "flowchart TB\nroot --> parent\nroot --> peer\nparent --> collector\npeer --> collector\n";
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        List<DiagramGridLayout.GridNode> Nodes = [];
         DiagramGridLayout.GridNode Add(string Id, int Rank, double Cross)
         {
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank,
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank,
                 X = Horizontal ? Rank * 150 : Cross, Y = Horizontal ? Cross : Rank * 150,
                 Width = Horizontal ? 60 : 180, Height = Horizontal ? 180 : 60 };
             Nodes.Add(Node); return Node;
         }
-        Add("root", -1, 0); var Parent = Add("parent", 0, 0);
-        Add("peer", 0, Sign * 420); var Collector = Add("collector", 1, Sign * 420);
-        if (Blocked) Add("obstacle", 1, -Sign * 240);
-        var Leaves = new List<DiagramGridLayout.GridNode>();
+        Add("root", -1, 0); DiagramGridLayout.GridNode Parent = Add("parent", 0, 0);
+        Add("peer", 0, Sign * 420); DiagramGridLayout.GridNode Collector = Add("collector", 1, Sign * 420);
+        if (Blocked)
+        {
+            Add("obstacle", 1, -Sign * 240);
+        }
+
+        List<DiagramGridLayout.GridNode> Leaves = [];
         for (int Index = 0; Index < Count; Index++)
         {
             Source += $"parent --> leaf{Index}\n";
@@ -49,24 +54,25 @@ public sealed class CollectorBranchPlacementTests
     [TestCase(true)]
     public void OffsetTerminalFanBesideCollector_UsesSideBranchAndNearSideRejoin(bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart TB\nparent --> collector\nparent --> leaf\npeer --> collector");
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nparent --> collector\nparent --> leaf\npeer --> collector");
         (double X, double Y) Map(double X, double Y) => Horizontal ? (-Y, X) : (X, Y);
-        var Bounds = new[] { ("parent", 0d, 0d), ("peer", 210d, 0d), ("collector", 210d, -150d), ("leaf", -210d, -150d) }
-            .ToDictionary(Item => Item.Item1, Item => { var Point = Map(Item.Item2, Item.Item3);
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = new[] { ("parent", 0d, 0d), ("peer", 210d, 0d), ("collector", 210d, -150d), ("leaf", -210d, -150d) }
+            .ToDictionary(Item => Item.Item1, Item => {
+                (double X, double Y) Point = Map(Item.Item2, Item.Item3);
                 return new FlowchartLayoutNodeBounds { NodeId = Item.Item1, CenterX = Point.X, CenterY = Point.Y,
                     Width = Horizontal ? 60 : 150, Height = Horizontal ? 150 : 60 }; });
-        var Layout = new FlowchartLayoutResult();
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
         FlowchartLayoutEdgeRoute Add(int Index, params (double X, double Y)[] Points)
         {
-            var Edge = Contract.Edges[Index];
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
+            EdgeContract Edge = Contract.Edges[Index];
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
                 ExitSide = Horizontal ? "right" : "bottom", EntrySide = Horizontal ? "left" : "top" };
-            foreach (var Point in Points) { var Mapped = Map(Point.X, Point.Y); Route.Points.Add(new() { X = Mapped.X, Y = Mapped.Y }); }
+            foreach ((double X, double Y) Point in Points) { (double X, double Y) Mapped = Map(Point.X, Point.Y); Route.Points.Add(new() { X = Mapped.X, Y = Mapped.Y }); }
             Layout.EdgeRoutesMutable.Add(Route); return Route;
         }
-        var Rejoin = Add(0, (0, -30), (0, -75), (185, -75), (185, -120));
-        var Side = Add(1, (-25, -30), (-25, -75), (-210, -75), (-210, -120));
-        var Straight = Add(2, (210, -30), (210, -120));
+        FlowchartLayoutEdgeRoute Rejoin = Add(0, (0, -30), (0, -75), (185, -75), (185, -120));
+        FlowchartLayoutEdgeRoute Side = Add(1, (-25, -30), (-25, -75), (-210, -75), (-210, -120));
+        FlowchartLayoutEdgeRoute Straight = Add(2, (210, -30), (210, -120));
         FlowchartForwardRouteSimplifier.Apply(Layout, Contract, Bounds, Contract.Nodes.ToDictionary(Node => Node.Id),
             Horizontal ? FlowchartDirection.LeftToRight : FlowchartDirection.TopToBottom);
         Assert.That(Side.Points, Has.Count.EqualTo(4));

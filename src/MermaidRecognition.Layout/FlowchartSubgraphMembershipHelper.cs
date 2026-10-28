@@ -22,7 +22,7 @@ public static class FlowchartSubgraphMembershipHelper
         public required Dictionary<string, GroupContract> GroupById { get; init; }
     }
 
-    private static readonly ConditionalWeakTable<DiagramContract, ContractMembershipCache> ContractCache = new();
+    private static readonly ConditionalWeakTable<DiagramContract, ContractMembershipCache> ContractCache = [];
 
     private sealed class MembershipScope(FixedMembership? Previous) : IDisposable
     {

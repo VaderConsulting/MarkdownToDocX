@@ -21,7 +21,7 @@ public sealed class CatalogueDiagramSvgRenderTests
     {
         string Root = FindRepositoryRoot();
         string Markdown = File.ReadAllText(Path.Combine(Root, FileName));
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
         foreach (Match Section in Regex.Matches(Markdown, @"(?ms)^### (?<id>(?:F|A|EIP)\d+)\b.*?\r?\n```mermaid\s*\r?\n(?<source>.*?)\r?\n```"))
         {
             string Id = Section.Groups["id"].Value;

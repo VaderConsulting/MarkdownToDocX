@@ -19,7 +19,7 @@ internal static class FlowchartFrameTitleBandHelper
     }
 
     private static readonly ConditionalWeakTable<IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>, CachedBands>
-        Cache = new();
+        Cache = [];
 
     internal static IReadOnlyList<Band> Get(DiagramContract contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> bounds) =>
@@ -35,12 +35,20 @@ internal static class FlowchartFrameTitleBandHelper
         List<Band> result = [];
         foreach (FlowchartLayoutNodeBounds frame in effectiveBounds.Values)
         {
-            if (!groups.TryGetValue(frame.NodeId, out GroupContract? group)) continue;
+            if (!groups.TryGetValue(frame.NodeId, out GroupContract? group))
+            {
+                continue;
+            }
+
             string title = string.IsNullOrWhiteSpace(group.Title) ? group.Id : group.Title;
             double strip = FlowchartFrameTitleReservation.BandHeight(options.FontSizePx, title.Split('\n').Length);
             double halfWidth = frame.Width / 2.0;
             double halfHeight = frame.Height / 2.0;
-            if (halfWidth <= 0 || halfHeight <= 0) continue;
+            if (halfWidth <= 0 || halfHeight <= 0)
+            {
+                continue;
+            }
+
             double top = frame.CenterY + halfHeight;
             result.Add(new Band(group.Id, frame.CenterX - halfWidth,
                 top - strip, frame.CenterX + halfWidth, top));
@@ -57,14 +65,21 @@ internal static class FlowchartFrameTitleBandHelper
             .Where(group => !bounds.TryGetValue(group.Id, out FlowchartLayoutNodeBounds frame)
                 || frame.Width <= 0 || frame.Height <= 0)
             .Select(group => group.Id).ToHashSet(StringComparer.Ordinal);
-        if (invalidFrames.Count == 0) return bounds;
+        if (invalidFrames.Count == 0)
+        {
+            return bounds;
+        }
 
         Dictionary<string, FlowchartLayoutNodeBounds> computed = new(bounds, StringComparer.Ordinal);
         FlowchartSubgraphBoundsRequest request = FlowchartSubgraphBoundsRequest.FromContract(contract, options);
         foreach (FlowchartSubgraphLayoutRect rect in FlowchartSubgraphBoundsBuilder.BuildOrderedRects(
                      contract, bounds, request))
         {
-            if (!invalidFrames.Contains(rect.GroupId)) continue;
+            if (!invalidFrames.Contains(rect.GroupId))
+            {
+                continue;
+            }
+
             computed[rect.GroupId] = new FlowchartLayoutNodeBounds
             {
                 NodeId = rect.GroupId,
@@ -83,13 +98,21 @@ internal static class FlowchartFrameTitleBandHelper
         const double epsilon = 0.5;
         if (Math.Abs(y1 - y2) <= epsilon)
         {
-            if (y1 <= band.Bottom + epsilon || y1 >= band.Top - epsilon) return false;
+            if (y1 <= band.Bottom + epsilon || y1 >= band.Top - epsilon)
+            {
+                return false;
+            }
+
             return Math.Min(Math.Max(x1, x2), band.Right - epsilon)
                 > Math.Max(Math.Min(x1, x2), band.Left + epsilon);
         }
         if (Math.Abs(x1 - x2) <= epsilon)
         {
-            if (x1 <= band.Left + epsilon || x1 >= band.Right - epsilon) return false;
+            if (x1 <= band.Left + epsilon || x1 >= band.Right - epsilon)
+            {
+                return false;
+            }
+
             return Math.Min(Math.Max(y1, y2), band.Top - epsilon)
                 > Math.Max(Math.Min(y1, y2), band.Bottom + epsilon);
         }
@@ -224,8 +247,8 @@ internal static class FlowchartFrameTitleBandHelper
         if (bounds.NodeId.StartsWith(prefix, StringComparison.Ordinal))
         {
             band = new Band(bounds.NodeId[prefix.Length..],
-                bounds.CenterX - bounds.Width / 2.0, bounds.CenterY - bounds.Height / 2.0,
-                bounds.CenterX + bounds.Width / 2.0, bounds.CenterY + bounds.Height / 2.0);
+                bounds.CenterX - (bounds.Width / 2.0), bounds.CenterY - (bounds.Height / 2.0),
+                bounds.CenterX + (bounds.Width / 2.0), bounds.CenterY + (bounds.Height / 2.0));
             return true;
         }
         band = default;

@@ -20,9 +20,9 @@ public sealed class DiagramGridLayoutTests
         int[] VerticalThree = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.NODE_HEIGHT_PX, 3);
         int[] VerticalFiveGrown = DiagramGridMetrics.EqualCentres(DiagramGridMetrics.MinSideLengthForPorts(5), 5);
 
-        Assert.That(Horizontal, Is.EqualTo(new[] { 45, 60, 75, 90, 105 }));
-        Assert.That(VerticalThree, Is.EqualTo(new[] { 15, 30, 45 }));
-        Assert.That(VerticalFiveGrown, Is.EqualTo(new[] { 15, 30, 45, 60, 75 }));
+        Assert.That(Horizontal, Is.EqualTo([45, 60, 75, 90, 105]));
+        Assert.That(VerticalThree, Is.EqualTo([15, 30, 45]));
+        Assert.That(VerticalFiveGrown, Is.EqualTo([15, 30, 45, 60, 75]));
         Assert.That(DiagramGridMetrics.MaxPortsOnSide(DiagramGridMetrics.NODE_HEIGHT_PX), Is.EqualTo(3));
     }
 
@@ -35,8 +35,8 @@ public sealed class DiagramGridLayoutTests
             """);
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        Assert.That(Layout.RenderContext.LayoutStageTrace, Is.EqualTo(new[]
-        {
+        Assert.That(Layout.RenderContext.LayoutStageTrace, Is.EqualTo(
+        [
             "grid-and-measured-geometry",
             "placement-hints-2.21",
             "automatic-node-placement-2.x",
@@ -47,16 +47,16 @@ public sealed class DiagramGridLayoutTests
             "rule-specific-route-construction",
             "coupled-route-repair",
             "final-legality-validation-section-10"
-        }));
+        ]));
     }
 
     [Test]
     public void TrackOffsets_FollowTheCentreOutwardPattern()
     {
-        Assert.That(DiagramGridMetrics.TrackOffsets(1, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(3, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30, 45 }));
-        Assert.That(DiagramGridMetrics.TrackOffsets(5, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo(new[] { 15, 30, 45, 60, 75 }));
+        Assert.That(DiagramGridMetrics.TrackOffsets(1, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo([15]));
+        Assert.That(DiagramGridMetrics.TrackOffsets(2, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo([15, 30]));
+        Assert.That(DiagramGridMetrics.TrackOffsets(3, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo([15, 30, 45]));
+        Assert.That(DiagramGridMetrics.TrackOffsets(5, DiagramGridMetrics.GRID_UNIT_PX), Is.EqualTo([15, 30, 45, 60, 75]));
     }
 
     [Test]

@@ -85,8 +85,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
         internal Point IntersectionOfSegmentAndSweepLine(ConeSide obstacleSide) {
             double den = obstacleSide.Direction*coneSweeper.SweepDirection;
             Debug.Assert(Math.Abs(den) > 0);
-            double t = (coneSweeper.Z - obstacleSide.Start*coneSweeper.SweepDirection)/den;
-            return obstacleSide.Start + t*obstacleSide.Direction;
+            double t = (coneSweeper.Z - (obstacleSide.Start*coneSweeper.SweepDirection))/den;
+            return obstacleSide.Start + (t*obstacleSide.Direction);
         }
 
 

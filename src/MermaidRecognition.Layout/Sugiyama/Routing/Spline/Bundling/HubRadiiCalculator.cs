@@ -153,8 +153,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //adjacent nodes
             foreach (Station adj in node.Neighbors) {
                 double dist = (adj.Position - node.Position).Length;
-                Debug.Assert(dist - 0.05 * (node.Radius + adj.Radius) + 1 >= node.Radius + adj.Radius);
-                r = Math.Min(r, dist / 1.05 - adj.Radius);
+                Debug.Assert(dist - (0.05 * (node.Radius + adj.Radius)) + 1 >= node.Radius + adj.Radius);
+                r = Math.Min(r, (dist / 1.05) - adj.Radius);
             }
             //TODO: still we can have two intersecting hubs for not adjacent nodes
 
@@ -175,7 +175,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double r = 1.0;
             foreach (Station adj in node.Neighbors) {
                 double width = metroGraphData.GetWidth(adj, node, bundlingSettings.EdgeSeparation);
-                double nr = width / 2.0 + bundlingSettings.EdgeSeparation;
+                double nr = (width / 2.0) + bundlingSettings.EdgeSeparation;
                 r = Math.Max(r, nr);
             }
 
@@ -238,7 +238,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
 
             double angle = Point.Angle(b, a, c);
-            angle = Math.Min(angle, Math.PI * 2 - angle);
+            angle = Math.Min(angle, (Math.PI * 2) - angle);
             if (angle < ApproximateComparer.DistanceEpsilon)
             {
                 return 2 * bundlingSettings.MaxHubRadius;
@@ -254,7 +254,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             double cosa = Math.Cos(angle);
             double aa = widthAB / (4 * sina);
             double bb = widthAC / (4 * sina);
-            double d = 2 * Math.Sqrt(aa * aa + bb * bb + 2 * aa * bb * cosa);
+            double d = 2 * Math.Sqrt((aa * aa) + (bb * bb) + (2 * aa * bb * cosa));
             d = Math.Min(d, 2 * bundlingSettings.MaxHubRadius);
             d = Math.Max(d, r);
             return d;
@@ -279,7 +279,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
 
             double angle = Point.Angle(b, a, c);
-            angle = Math.Min(angle, Math.PI * 2 - angle);
+            angle = Math.Min(angle, (Math.PI * 2) - angle);
             if (angle < ApproximateComparer.DistanceEpsilon)
             {
                 return 2 * bundlingSettings.MaxHubRadius;

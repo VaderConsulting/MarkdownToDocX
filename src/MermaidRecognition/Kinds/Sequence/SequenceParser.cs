@@ -10,7 +10,7 @@ namespace MermaidRecognition.Kinds.Sequence;
 /// </summary>
 public sealed class SequenceParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "sequenceDiagram" };
+    private static readonly string[] Headers = ["sequenceDiagram"];
 
     private static readonly Regex NoteRegex = new Regex(
         @"^note\s+(?:left|right)\s+of\s+(?<id>\S+)\s*:\s*(?<label>.*)$|^note\s+over\s+(?<ids>[^:]+)\s*:\s*(?<label>.*)$",

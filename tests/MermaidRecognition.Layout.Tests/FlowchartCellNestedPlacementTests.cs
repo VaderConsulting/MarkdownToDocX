@@ -12,8 +12,8 @@ public sealed class FlowchartCellNestedPlacementTests
     [TestCase(true)]
     public void PreservesAllNestedMembers(bool Horizontal)
     {
-        var (Contract, Nodes, Grid) = Fixture();
-        var Before = Grid.Capture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Invoke(Contract, Nodes, Horizontal);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -22,10 +22,10 @@ public sealed class FlowchartCellNestedPlacementTests
     [Test]
     public void OccupiedTargetRejectsAllNestedMembers()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Grid.TryPlace("O", new(2, 3, 1, 1));
-        var O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -34,9 +34,9 @@ public sealed class FlowchartCellNestedPlacementTests
     [Test]
     public void HintedMemberKeepsItsWholeNestedGroupFixed()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Nodes.Single(Node => Node.Id == "A").PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
     }
@@ -53,16 +53,16 @@ public sealed class FlowchartCellNestedPlacementTests
     /// <returns>Contract, bound members and parent grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract();
-        var Parent = new GroupContract { Id = "outer" }; Parent.ChildGroupIdsMutable.Add("inner");
+        DiagramContract Contract = new DiagramContract();
+        GroupContract Parent = new GroupContract { Id = "outer" }; Parent.ChildGroupIdsMutable.Add("inner");
         Contract.GroupsMutable.AddRange([Parent, new() { Id = "inner", ParentGroupId = "outer" }]);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Group, Row, Column) in new[] { ("P", "outer", 0, 2), ("A", "inner", 2, 0), ("B", "inner", 2, 2) })
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, string? Group, int Row, int Column) in new[] { ("P", "outer", 0, 2), ("A", "inner", 2, 0), ("B", "inner", 2, 2) })
         {
             Contract.NodesMutable.Add(new NodeContract { Id = Id, ParentGroupId = Group });
             Contract.Groups.Single(Item => Item.Id == Group).ChildNodeIdsMutable.Add(Id);
             Grid.TryPlace(Id, new(Row, Column, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = Group }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = Group }; Node.BindCells(Grid); Nodes.Add(Node);
         }
         return (Contract, Nodes, Grid);
     }

@@ -18,25 +18,25 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         static bool IsCloseToLineSeg(double a, ref Point ap, double b, ref Point bp, ICurve s, double e) {
             const double x = 1.0/3;
-            double p = a*x + b*(1 - x);
+            double p = (a*x) + (b*(1 - x));
 
-            Point delta = s[p] - (ap*x + bp*(1 - x));
+            Point delta = s[p] - ((ap*x) + (bp*(1 - x)));
             if (delta*delta > e)
             {
                 return false;
             }
 
-            p = a*(1 - x) + b*x;
+            p = (a*(1 - x)) + (b*x);
 
-            delta = s[p] - (ap*(1 - x) + bp*x);
+            delta = s[p] - ((ap*(1 - x)) + (bp*x));
             if (delta*delta > e)
             {
                 return false;
             }
 
-            p = a*0.5 + b*0.5;
+            p = (a*0.5) + (b*0.5);
 
-            delta = s[p] - (ap*0.5 + bp*0.5);
+            delta = s[p] - ((ap*0.5) + (bp*0.5));
             if (delta*delta > e)
             {
                 return false;
@@ -60,7 +60,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         internal static List<LineSegment> Interpolate(double a, ref Point ap, double b, ref Point bp, ICurve s,
             double eps) {
-            List<LineSegment> r = new List<LineSegment>();
+            List<LineSegment> r = [];
             if (IsCloseToLineSeg(a, ref ap, b, ref bp, s, eps))
             {
                 r.Add(new LineSegment(ap, bp));
@@ -317,7 +317,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                     }
 
                     pBNode = new ParallelogramInternalTreeNode(this, ParallelogramNodeOverICurve.DefaultLeafBoxesOffset);
-                    List<Parallelogram> parallelograms = new List<Parallelogram>();
+                    List<Parallelogram> parallelograms = [];
                     foreach (ICurve curveSeg in segs) {
                         ParallelogramNodeOverICurve pBoxNode = curveSeg.ParallelogramNodeOverICurve;
 
@@ -408,7 +408,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             bool liftIntersections) {
             //recurse down to find all PBLeaf pairs which intesect and try to cross their segments
 
-            List<IntersectionInfo> intersections = new List<IntersectionInfo>();
+            List<IntersectionInfo> intersections = [];
             CurveCurveXWithParallelogramNodes(curve0.ParallelogramNodeOverICurve, curve1.ParallelogramNodeOverICurve,
                                               ref intersections);
 
@@ -463,7 +463,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         }
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndCurve(LineSegment lineSeg, Curve curve, bool liftIntersections) {
-            List<IntersectionInfo> ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = [];
             ParallelogramNodeOverICurve lineParallelogram = lineSeg.ParallelogramNodeOverICurve;
             ParallelogramNodeOverICurve curveParallelogramRoot = curve.ParallelogramNodeOverICurve;
             if (Parallelogram.Intersect(lineParallelogram.Parallelogram, curveParallelogramRoot.Parallelogram) == false)
@@ -505,7 +505,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndArc(LineSegment lineSeg, Ellipse ellipse) {
             Point lineDir = lineSeg.End - lineSeg.Start;
-            List<IntersectionInfo> ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = [];
             double segLength = lineDir.Length;
             if (segLength < ApproximateComparer.DistanceEpsilon) {
                 if (ApproximateComparer.Close((lineSeg.Start - ellipse.Center).Length, ellipse.AxisA.Length)) {
@@ -523,7 +523,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
             Point perp = lineDir.Rotate90Ccw()/segLength;
             double segProjection = (lineSeg.Start - ellipse.Center)*perp;
-            Point closestPointOnLine = ellipse.Center + perp*segProjection;
+            Point closestPointOnLine = ellipse.Center + (perp*segProjection);
 
             double rad = ellipse.AxisA.Length;
             double absSegProj = Math.Abs(segProjection);
@@ -539,10 +539,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             }
             else {
                 Debug.Assert(rad > absSegProj);
-                double otherLeg = Math.Sqrt(rad*rad - segProjection*segProjection);
-                TryToAddPointToLineCircleCrossing(lineSeg, ellipse, ret, closestPointOnLine + otherLeg*lineDir,
+                double otherLeg = Math.Sqrt((rad*rad) - (segProjection*segProjection));
+                TryToAddPointToLineCircleCrossing(lineSeg, ellipse, ret, closestPointOnLine + (otherLeg*lineDir),
                                                   segLength, lineDir);
-                TryToAddPointToLineCircleCrossing(lineSeg, ellipse, ret, closestPointOnLine - otherLeg*lineDir,
+                TryToAddPointToLineCircleCrossing(lineSeg, ellipse, ret, closestPointOnLine - (otherLeg*lineDir),
                                                   segLength, lineDir);
             }
 
@@ -579,7 +579,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         }
 
         static IList<IntersectionInfo> GetAllIntersectionsOfLineAndPolyline(LineSegment lineSeg, Polyline poly) {
-            List<IntersectionInfo> ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = [];
             double offset = 0.0;
             double par0, par1;
             Point x;
@@ -741,9 +741,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double d1 = (l1.High - l1.Low)/2;
 
             for (int i = 1; i < 2; i++) {
-                double p0 = i*d0 + l0.Low;
+                double p0 = (i*d0) + l0.Low;
                 for (int j = 1; j < 2; j++) {
-                    double p1 = j*d1 + l1.Low;
+                    double p1 = (j*d1) + l1.Low;
                     double aSol, bSol;
                     Point x;
                     bool r;
@@ -758,7 +758,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                                                           p1, out aSol, out bSol, out x);
                         if (r)
                         {
-                            aSol = l0.Low + aSol*(l0.High - l0.Low);
+                            aSol = l0.Low + (aSol*(l0.High - l0.Low));
                         }
                     }
                     else if (l0.Chord == null) {
@@ -767,7 +767,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                                                           0.5*j, out aSol, out bSol, out x);
                         if (r)
                         {
-                            bSol = l1.Low + bSol*(l1.High - l1.Low);
+                            bSol = l1.Low + (bSol*(l1.High - l1.Low));
                         }
                     }
                     else //if (l0.Chord != null && l1.Chord != null)
@@ -776,8 +776,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                                                           0, 1, 0, 1, 0.5*i,
                                                           0.5*j, out aSol, out bSol, out x);
                         if (r) {
-                            bSol = l1.Low + bSol*(l1.High - l1.Low);
-                            aSol = l0.Low + aSol*(l0.High - l0.Low);
+                            bSol = l1.Low + (bSol*(l1.High - l1.Low));
+                            aSol = l0.Low + (aSol*(l0.High - l0.Low));
                         }
                     }
 
@@ -801,9 +801,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             bool found = false;
 
             for (int i = 1; i < 2; i++) {
-                double p0 = i*d0 + l0.Low;
+                double p0 = (i*d0) + l0.Low;
                 for (int j = 1; j < 2; j++) {
-                    double p1 = j*d1 + l1.Low;
+                    double p1 = (j*d1) + l1.Low;
 
 
                     double aSol, bSol;
@@ -822,7 +822,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                                                           p1, out aSol, out bSol, out x);
                         if (r)
                         {
-                            aSol = l0.Low + aSol*(l0.High - l0.Low);
+                            aSol = l0.Low + (aSol*(l0.High - l0.Low));
                         }
                     }
                     else if (l0.Chord == null) {
@@ -832,7 +832,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                                                           0.5*j, out aSol, out bSol, out x);
                         if (r)
                         {
-                            bSol = l1.Low + bSol*(l1.High - l1.Low);
+                            bSol = l1.Low + (bSol*(l1.High - l1.Low));
                         }
                     }
                     else //if (l0.Chord != null && l1.Chord != null)
@@ -841,8 +841,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                                                           0, 1, 0, 1, 0.5*i,
                                                           0.5*j, out aSol, out bSol, out x);
                         if (r) {
-                            bSol = l1.Low + bSol*(l1.High - l1.Low);
-                            aSol = l0.Low + aSol*(l0.High - l0.Low);
+                            bSol = l1.Low + (bSol*(l1.High - l1.Low));
+                            aSol = l0.Low + (aSol*(l0.High - l0.Low));
                         }
                     }
 
@@ -1106,7 +1106,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             }
             else
             {
-                asol = l0.Low + asol*(l0.High - l0.Low);
+                asol = l0.Low + (asol*(l0.High - l0.Low));
             }
 
             if (ls1 != l1.Seg && l1.Seg is Polyline == false) //l1.Seg is not a LineSegment and not a polyline
@@ -1115,7 +1115,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             }
             else
             {
-                bsol = l1.Low + bsol*(l1.High - l1.Low);
+                bsol = l1.Low + (bsol*(l1.High - l1.Low));
             }
         }
 
@@ -1371,7 +1371,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             Point v = bStart - bEnd;
             Point w = bStart - aStart;
             bool r = LinearSystem2.Solve(u.X, v.X, w.X, u.Y, v.Y, w.Y, out aSolution, out bSolution);
-            x = aStart + aSolution*u;
+            x = aStart + (aSolution*u);
 
             if (r) {
                 if (aSolution < amin - ApproximateComparer.Tolerance)
@@ -1430,7 +1430,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             int inside = 0;
             for (int i = 13; i < 360; i += 13) {
                 Point lineDir = new Point(Math.Cos(i*degree), Math.Sin(i*degree));
-                LineSegment ls = new LineSegment(point, point + l*lineDir);
+                LineSegment ls = new LineSegment(point, point + (l*lineDir));
 
                 IList<IntersectionInfo> intersections = GetAllIntersections(ls, curve, true);
 
@@ -2051,7 +2051,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double start = xx[xx.Count - 1].Par0;
             double end = xx[0].Par0;
             double len = a.ParEnd - start + end - a.ParStart;
-            double middle = start + len/2;
+            double middle = start + (len/2);
             if (middle > a.ParEnd)
             {
                 middle = a.ParStart + middle - a.ParEnd;
@@ -2149,10 +2149,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public static bool CurvesIntersect(ICurve curve1, ICurve curve2) => curve1 == curve2 || (CurveCurveIntersectionOne(curve1, curve2, false) != null);
 
         internal static CubicBezierSegment CreateBezierSeg(double kPrev, double kNext, Site a, Site b, Site c) {
-            Point s = kPrev*a.Point + (1 - kPrev)*b.Point;
-            Point e = kNext*c.Point + (1 - kNext)*b.Point;
+            Point s = (kPrev*a.Point) + ((1 - kPrev)*b.Point);
+            Point e = (kNext*c.Point) + ((1 - kNext)*b.Point);
             Point t = (2.0/3.0)*b.Point;
-            return new CubicBezierSegment(s, s/3.0 + t, t + e/3.0, e);
+            return new CubicBezierSegment(s, (s/3.0) + t, t + (e/3.0), e);
         }
 
         internal static CubicBezierSegment CreateBezierSeg(Point a, Point b, Point perp, int i) {
@@ -2310,13 +2310,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         static Polyline RefineEllipse(Ellipse ellipse) {
             Polyline rect = StandardRectBoundary(ellipse);
-            SortedDictionary<double, Point> dict = new SortedDictionary<double, Point>();
+            SortedDictionary<double, Point> dict = [];
             double a = Math.PI/4;
             double w = ellipse.BoundingBox.Width;
             double h = ellipse.BoundingBox.Height;
-            double l = Math.Sqrt(w*w + h*h);
+            double l = Math.Sqrt((w*w) + (h*h));
             for (int i = 0; i < 4; i++) {
-                double t = a + i*Math.PI/2; // parameter
+                double t = a + (i*Math.PI/2); // parameter
                 Point p = ellipse[t]; //point on the ellipse
                 Point tan = l*(ellipse.Derivative(t).Normalize()); //make it long enough
 

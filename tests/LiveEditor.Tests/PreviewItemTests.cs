@@ -52,18 +52,18 @@ public sealed class PreviewItemTests
         using PreviewCanvas Preview = LoadDiagram();
         PreviewObject Shop = Require(Preview, "node\u001fshop");
         PreviewObject Cart = Require(Preview, "node\u001fcart");
-        List<PreviewObject[]> Seen = new List<PreviewObject[]>();
+        List<PreviewObject[]> Seen = [];
         Preview.SelectedItemsChanged += (Sender, E) => Seen.Add(Selection(Preview));
 
-        Preview.SelectedItems = new PreviewObject[] { Shop };
-        Preview.SelectedItems = new PreviewObject[] { Shop };
-        Preview.SelectedItems = new PreviewObject[] { Cart };
+        Preview.SelectedItems = [Shop];
+        Preview.SelectedItems = [Shop];
+        Preview.SelectedItems = [Cart];
         Preview.SelectedItems = null;
         Preview.SelectedItems = null;
 
         Assert.That(Seen.Count, Is.EqualTo(3));
-        Assert.That(Seen[0], Is.EqualTo(new PreviewObject[] { Shop }));
-        Assert.That(Seen[1], Is.EqualTo(new PreviewObject[] { Cart }));
+        Assert.That(Seen[0], Is.EqualTo([Shop]));
+        Assert.That(Seen[1], Is.EqualTo([Cart]));
         Assert.That(Seen[2], Is.Empty);
         Assert.That(Shop.Selected, Is.False);
         Assert.That(Cart.Selected, Is.False);
@@ -75,14 +75,14 @@ public sealed class PreviewItemTests
     {
         using PreviewCanvas Preview = LoadDiagram();
         PreviewObject Shop = Require(Preview, "node\u001fshop");
-        Preview.SelectedItems = new PreviewObject[] { Shop };
+        Preview.SelectedItems = [Shop];
 
         foreach (PreviewObject Item in Preview.Items)
         {
             Assert.That(Item.Selected, Is.EqualTo(ReferenceEquals(Item, Shop)), Item.Key);
         }
 
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Shop }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Shop]));
     }
 
     [Test]
@@ -90,7 +90,7 @@ public sealed class PreviewItemTests
     {
         using PreviewCanvas Preview = LoadDiagram();
         PreviewObject Shop = Require(Preview, "node\u001fshop");
-        Preview.SelectedItems = new PreviewObject[] { Shop };
+        Preview.SelectedItems = [Shop];
         PreviewObject Stranger = new PreviewObject
         {
             Kind = PreviewObjectKind.Node,
@@ -99,10 +99,10 @@ public sealed class PreviewItemTests
         int Events = 0;
         Preview.SelectedItemsChanged += (Sender, E) => Events++;
 
-        Preview.SelectedItems = new PreviewObject[] { Stranger };
+        Preview.SelectedItems = [Stranger];
 
         Assert.That(Events, Is.EqualTo(1));
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Stranger }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Stranger]));
         Assert.That(Stranger.Selected, Is.True);
         Assert.That(Shop.Selected, Is.False);
         Assert.That(Preview.FindItem(Stranger.Key), Is.Null);
@@ -113,8 +113,8 @@ public sealed class PreviewItemTests
     {
         using PreviewCanvas Preview = LoadDiagram();
         PreviewObject Shop = Require(Preview, "node\u001fshop");
-        Preview.SelectedItems = new PreviewObject[] { Shop };
-        List<string?> Seen = new List<string?>();
+        Preview.SelectedItems = [Shop];
+        List<string?> Seen = [];
         Preview.SelectedItemsChanged += (Sender, E) => Seen.Add(SelectionKey(Preview));
 
         Preview.Load(SOURCE);
@@ -124,7 +124,7 @@ public sealed class PreviewItemTests
         Assert.That(Reloaded, Is.Not.SameAs(Shop));
         Assert.That(Reloaded.Selected, Is.True);
         Assert.That(Shop.Selected, Is.False);
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Reloaded }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Reloaded]));
     }
 
     [Test]
@@ -132,7 +132,7 @@ public sealed class PreviewItemTests
     {
         using PreviewCanvas Preview = LoadDiagram();
         PreviewObject Flow = Require(Preview, "line\u001fshop\u001fcart\u001fflow\u001f0");
-        Preview.SelectedItems = new PreviewObject[] { Flow };
+        Preview.SelectedItems = [Flow];
         int Events = 0;
         Preview.SelectedItemsChanged += (Sender, E) => Events++;
 
@@ -152,7 +152,7 @@ public sealed class PreviewItemTests
     public void ClearRemovesEveryItemAndClearsTheSelectionOnce()
     {
         using PreviewCanvas Preview = LoadDiagram();
-        Preview.SelectedItems = new PreviewObject[] { Require(Preview, "node\u001fbox") };
+        Preview.SelectedItems = [Require(Preview, "node\u001fbox")];
         PreviewObject Box = Preview.SelectedItems[0];
         int Events = 0;
         Preview.SelectedItemsChanged += (Sender, E) => Events++;
@@ -188,7 +188,7 @@ public sealed class PreviewItemTests
     {
         using PreviewCanvas Preview = LoadDiagram();
         PreviewObject Orders = Require(Preview, "node\u001forders");
-        Preview.SelectedItems = new PreviewObject[] { Orders };
+        Preview.SelectedItems = [Orders];
         int Escapes = 0;
         int SelectionEvents = 0;
         Preview.EscapePressed += (Sender, E) => Escapes++;
@@ -198,7 +198,7 @@ public sealed class PreviewItemTests
 
         Assert.That(Escapes, Is.EqualTo(1));
         Assert.That(SelectionEvents, Is.EqualTo(0));
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Orders }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Orders]));
         Assert.That(Orders.Selected, Is.True);
     }
 
@@ -245,7 +245,7 @@ public sealed class PreviewItemTests
         PreviewObject Shop = Require(Preview, "node\u001fshop");
         PreviewObject Cart = Require(Preview, "node\u001fcart");
         PreviewObject Orders = Require(Preview, "node\u001forders");
-        List<PreviewObject[]> Seen = new List<PreviewObject[]>();
+        List<PreviewObject[]> Seen = [];
         Preview.SelectedItemsChanged += (Sender, E) => Seen.Add(Selection(Preview));
 
         Preview.ToggleItem(Shop);
@@ -254,11 +254,11 @@ public sealed class PreviewItemTests
 
         Assert.That(Shop.Selected, Is.False);
         Assert.That(Cart.Selected, Is.True);
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Cart }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Cart]));
         Assert.That(Seen.Count, Is.EqualTo(3));
-        Assert.That(Seen[0], Is.EqualTo(new PreviewObject[] { Shop }));
-        Assert.That(Seen[1], Is.EqualTo(new PreviewObject[] { Shop, Cart }));
-        Assert.That(Seen[2], Is.EqualTo(new PreviewObject[] { Cart }));
+        Assert.That(Seen[0], Is.EqualTo([Shop]));
+        Assert.That(Seen[1], Is.EqualTo([Shop, Cart]));
+        Assert.That(Seen[2], Is.EqualTo([Cart]));
 
         Preview.ToggleItem(Cart);
         Assert.That(Preview.SelectedItems, Is.Null);
@@ -267,11 +267,11 @@ public sealed class PreviewItemTests
 
         Preview.ToggleItem(Shop);
         Preview.ToggleItem(Cart);
-        Preview.SelectedItems = new PreviewObject[] { Orders };
+        Preview.SelectedItems = [Orders];
         Assert.That(Shop.Selected, Is.False);
         Assert.That(Cart.Selected, Is.False);
         Assert.That(Orders.Selected, Is.True);
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Orders }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Orders]));
         foreach (PreviewObject Item in Preview.Items)
         {
             Assert.That(Item.Selected, Is.EqualTo(ReferenceEquals(Item, Orders)), Item.Key);
@@ -289,10 +289,10 @@ public sealed class PreviewItemTests
         int Events = 0;
         Preview.SelectedItemsChanged += (Sender, E) => Events++;
 
-        Preview.SelectedItems = new PreviewObject[] { Cart };
+        Preview.SelectedItems = [Cart];
 
         Assert.That(Events, Is.EqualTo(1));
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Cart }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Cart]));
         Assert.That(Cart.Selected, Is.True);
         Assert.That(Shop.Selected, Is.False);
     }
@@ -305,16 +305,16 @@ public sealed class PreviewItemTests
         PreviewObject Cart = Require(Preview, "node\u001fcart");
         Preview.ToggleItem(Shop);
         Preview.ToggleItem(Cart);
-        List<PreviewObject[]> Seen = new List<PreviewObject[]>();
+        List<PreviewObject[]> Seen = [];
         Preview.SelectedItemsChanged += (Sender, E) => Seen.Add(Selection(Preview));
 
         Assert.That(Preview.RemoveItem(Cart), Is.True);
 
         Assert.That(Shop.Selected, Is.True);
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Shop }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Shop]));
         Assert.That(Cart.Selected, Is.False);
         Assert.That(Seen.Count, Is.EqualTo(1));
-        Assert.That(Seen[0], Is.EqualTo(new PreviewObject[] { Shop }));
+        Assert.That(Seen[0], Is.EqualTo([Shop]));
 
         PreviewObject Orders = Require(Preview, "node\u001forders");
         Preview.ToggleItem(Orders);
@@ -323,7 +323,7 @@ public sealed class PreviewItemTests
         Assert.That(Shop.Selected, Is.False);
         Assert.That(Orders.Selected, Is.True);
         Assert.That(Seen.Count, Is.EqualTo(1));
-        Assert.That(Seen[0], Is.EqualTo(new PreviewObject[] { Orders }));
+        Assert.That(Seen[0], Is.EqualTo([Orders]));
     }
 
     [Test]
@@ -343,7 +343,7 @@ public sealed class PreviewItemTests
         Assert.That(Cart.Selected, Is.False);
         Assert.That(ReloadedShop.Selected, Is.True);
         Assert.That(ReloadedCart.Selected, Is.True);
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { ReloadedShop, ReloadedCart }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([ReloadedShop, ReloadedCart]));
     }
 
     [Test]
@@ -366,7 +366,7 @@ public sealed class PreviewItemTests
 
         MethodInfo? OnMouseDown = typeof(Control).GetMethod("OnMouseDown", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.That(OnMouseDown, Is.Not.Null);
-        OnMouseDown!.Invoke(Viewport, new object[] { new MouseEventArgs(MouseButtons.Left, 1, Viewport.ClientSize.Width - 2, Viewport.ClientSize.Height - 2, 0) });
+        OnMouseDown!.Invoke(Viewport, [new MouseEventArgs(MouseButtons.Left, 1, Viewport.ClientSize.Width - 2, Viewport.ClientSize.Height - 2, 0)]);
 
         Assert.That(Preview.SelectedItems, Is.Null);
         Assert.That(Shop.Selected, Is.False);
@@ -377,7 +377,7 @@ public sealed class PreviewItemTests
         Preview.FitToWindow = true;
         Preview.Refresh();
         Assert.That(Preview.IsOnDiagram(new Point(1, 1)), Is.False);
-        OnMouseDown.Invoke(Picture, new object[] { new MouseEventArgs(MouseButtons.Left, 1, 1, 1, 0) });
+        OnMouseDown.Invoke(Picture, [new MouseEventArgs(MouseButtons.Left, 1, 1, 1, 0)]);
 
         Assert.That(Preview.SelectedItems, Is.Null);
         Assert.That(Shop.Selected, Is.False);
@@ -408,7 +408,7 @@ public sealed class PreviewItemTests
         Preview.RefreshRequested += (Sender, E) => Refreshes++;
         Refresh.PerformClick();
         Assert.That(Refreshes, Is.EqualTo(1));
-        Assert.That(Preview.SelectedItems, Is.EqualTo(new PreviewObject[] { Shop, Cart }));
+        Assert.That(Preview.SelectedItems, Is.EqualTo([Shop, Cart]));
 
         Clear.PerformClick();
         Assert.That(Preview.SelectedItems, Is.Null);
@@ -637,7 +637,7 @@ public sealed class PreviewItemTests
         PreviewObject Shop = Require(Preview, "node\u001fshop");
         PreviewObject Cart = Require(Preview, "node\u001fcart");
         Form.SelectPreviewObject(Shop);
-        List<string?> Seen = new List<string?>();
+        List<string?> Seen = [];
         Preview.SelectedItemsChanged += (Sender, E) => Seen.Add(SelectionKey(Preview));
 
         Assert.That(Form.ChangePreviewItemType(null, "business-actor", false), Is.False);
@@ -689,7 +689,7 @@ public sealed class PreviewItemTests
         PreviewCanvas Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
         PreviewObject Spare = Require(Preview, "node\u001fspare");
         Form.SelectPreviewObject(Spare);
-        List<string?> Seen = new List<string?>();
+        List<string?> Seen = [];
         Preview.SelectedItemsChanged += (Sender, E) => Seen.Add(SelectionKey(Preview));
 
         Assert.That(Form.RemovePreviewItem(Spare), Is.True);

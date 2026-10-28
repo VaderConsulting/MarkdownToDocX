@@ -120,7 +120,7 @@ public static class FlowchartNodeDeclarationParser
 
         if (ClassFromSuffix is not null && ClassFromSuffix.Length > 0)
         {
-            Database.ApplyClassToTargets(new[] { NodeId }, ClassFromSuffix);
+            Database.ApplyClassToTargets([NodeId], ClassFromSuffix);
         }
 
         if (Suffix.Length == 0)
@@ -229,7 +229,7 @@ public static class FlowchartNodeDeclarationParser
         List<string> Entries = [];
         if (MetadataBody.Contains('\n', StringComparison.Ordinal))
         {
-            foreach (string Line in MetadataBody.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (string Line in MetadataBody.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
             {
                 Entries.Add(Line.Trim());
             }

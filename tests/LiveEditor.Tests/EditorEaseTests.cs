@@ -131,7 +131,7 @@ public sealed class EditorEaseTests
     public void NextAndPreviousErrorWalkTheDiagnosticLines()
     {
         SetText("alpha\nbeta\ngamma\ndelta");
-        _Editor.TintErrorLines(new int[] { 2, 4 });
+        _Editor.TintErrorLines([2, 4]);
         _Box.Select(0, 0);
         _Editor.NextDiagnostic();
         Assert.That(_Box.SelectionStart, Is.EqualTo(6));
@@ -161,7 +161,7 @@ public sealed class EditorEaseTests
         Assert.That(Gutter, Is.Not.Null);
         System.Drawing.Point Position = _Box.GetPositionFromCharIndex(_Box.GetFirstCharIndexFromLine(1));
         MethodInfo? OnMouseDown = typeof(Control).GetMethod("OnMouseDown", BindingFlags.Instance | BindingFlags.NonPublic);
-        OnMouseDown!.Invoke(Gutter, new object[] { new MouseEventArgs(MouseButtons.Left, 1, 4, Position.Y + 2, 0) });
+        OnMouseDown!.Invoke(Gutter, [new MouseEventArgs(MouseButtons.Left, 1, 4, Position.Y + 2, 0)]);
         Assert.That(Normalised(_Box.SelectedText), Is.EqualTo("beta\n"));
     }
 
@@ -198,7 +198,7 @@ public sealed class EditorEaseTests
     private void Press(Keys KeyData)
     {
         MethodInfo? OnKeyDown = typeof(Control).GetMethod("OnKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
-        OnKeyDown!.Invoke(_Box, new object[] { new KeyEventArgs(KeyData) });
+        OnKeyDown!.Invoke(_Box, [new KeyEventArgs(KeyData)]);
         Application.DoEvents();
     }
 

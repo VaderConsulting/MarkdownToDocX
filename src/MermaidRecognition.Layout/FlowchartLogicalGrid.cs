@@ -32,8 +32,16 @@ internal sealed record FlowchartCellRegion
     /// <param name="ColumnSpan">Positive number of contiguous columns.</param>
     internal FlowchartCellRegion(int StartRow, int StartColumn, int RowSpan, int ColumnSpan)
     {
-        if (RowSpan <= 0) throw new ArgumentOutOfRangeException(nameof(RowSpan));
-        if (ColumnSpan <= 0) throw new ArgumentOutOfRangeException(nameof(ColumnSpan));
+        if (RowSpan <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(RowSpan));
+        }
+
+        if (ColumnSpan <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ColumnSpan));
+        }
+
         this.StartRow = StartRow; this.StartColumn = StartColumn;
         this.RowSpan = RowSpan; this.ColumnSpan = ColumnSpan;
         EndRow = checked(StartRow + RowSpan); EndColumn = checked(StartColumn + ColumnSpan);
@@ -79,7 +87,10 @@ internal sealed class FlowchartLogicalGrid
             || !double.IsFinite(Configuration.ColumnGap) || Configuration.ColumnGap < 0
             || !double.IsFinite(Configuration.RowGap) || Configuration.RowGap < 0
             || !double.IsFinite(Configuration.TextPadding) || Configuration.TextPadding < 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(Configuration));
+        }
+
         this.Configuration = Configuration;
         Current = new(this, new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal),
             new Dictionary<int, double>(), new Dictionary<int, double>());
@@ -89,6 +100,8 @@ internal sealed class FlowchartLogicalGrid
 
     /// <summary>Optional semantic convention checked on every complete assignment, including hints and later repairs.</summary>
     internal Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>? RegionConvention { get; set; }
+    /// <summary>Detaches semantic constraints from a mutable parsed model when a document session takes ownership.</summary>
+    internal Func<Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>?>? RegionConventionSnapshot { get; set; }
     /// <summary>Counts proven convention violations before any ownership publication or candidate routing.</summary>
     internal int RegionConventionRejections { get; private set; }
 
@@ -97,7 +110,11 @@ internal sealed class FlowchartLogicalGrid
     /// <returns>False only for a proven violation of the diagram's semantic convention.</returns>
     internal bool CheckRegionConvention(IReadOnlyDictionary<string, FlowchartCellRegion> Candidate)
     {
-        if (RegionConvention?.Invoke(Candidate) != false) return true;
+        if (RegionConvention?.Invoke(Candidate) != false)
+        {
+            return true;
+        }
+
         RegionConventionRejections++;
         return false;
     }
@@ -110,10 +127,22 @@ internal sealed class FlowchartLogicalGrid
     {
         ArgumentException.ThrowIfNullOrEmpty(NodeId);
         ArgumentNullException.ThrowIfNull(Region);
-        if (Requirements.TryGetValue(NodeId, out var Requirement) && !Requirement(Region)) return false;
-        if (Regions.Any(Pair => Pair.Key != NodeId && Pair.Value.Overlaps(Region))) return false;
-        var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal) { [NodeId] = Region };
-        if (!CheckRegionConvention(Candidate)) return false;
+        if (Requirements.TryGetValue(NodeId, out Func<FlowchartCellRegion, bool>? Requirement) && !Requirement(Region))
+        {
+            return false;
+        }
+
+        if (Regions.Any(Pair => Pair.Key != NodeId && Pair.Value.Overlaps(Region)))
+        {
+            return false;
+        }
+
+        Dictionary<string, FlowchartCellRegion> Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal) { [NodeId] = Region };
+        if (!CheckRegionConvention(Candidate))
+        {
+            return false;
+        }
+
         Current = new(this, Candidate, ColumnGaps, RowGaps);
         return true;
     }
@@ -123,8 +152,8 @@ internal sealed class FlowchartLogicalGrid
     /// <returns>False without mutation if a node is missing or any final regions share a cell.</returns>
     internal bool TryApply(IReadOnlyDictionary<string, FlowchartCellRegion> Changes)
     {
-        var Before = Capture();
-        return TryPrepare(Changes, [], out var After) && TryCommit(Before, After!);
+        Snapshot Before = Capture();
+        return TryPrepare(Changes, [], out Snapshot? After) && TryCommit(Before, After!);
     }
 
     /// <summary>Builds and validates the complete target ownership and gaps without touching live geometry.</summary>
@@ -138,33 +167,67 @@ internal sealed class FlowchartLogicalGrid
         ArgumentNullException.ThrowIfNull(Changes);
         ArgumentNullException.ThrowIfNull(GapGrowth);
         After = null;
-        var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
-        foreach (var Change in Changes)
+        Dictionary<string, FlowchartCellRegion> Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
+        foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
         {
             ArgumentNullException.ThrowIfNull(Change.Value);
-            if (!Candidate.ContainsKey(Change.Key)) return false;
-            if (Requirements.TryGetValue(Change.Key, out var Requirement) && !Requirement(Change.Value)) return false;
+            if (!Candidate.ContainsKey(Change.Key))
+            {
+                return false;
+            }
+
+            if (Requirements.TryGetValue(Change.Key, out Func<FlowchartCellRegion, bool>? Requirement) && !Requirement(Change.Value))
+            {
+                return false;
+            }
+
             Candidate[Change.Key] = Change.Value;
         }
-        var Ordered = Candidate.Values.ToArray();
-        if (!CheckRegionConvention(Candidate)) return false;
+        FlowchartCellRegion[] Ordered = [.. Candidate.Values];
+        if (!CheckRegionConvention(Candidate))
+        {
+            return false;
+        }
+
         for (int First = 0; First < Ordered.Length; First++)
-        for (int Second = 0; Second < First; Second++)
-            if (Ordered[First].Overlaps(Ordered[Second])) return false;
-        var CandidateColumns = new Dictionary<int, double>(ColumnGaps);
-        var CandidateRows = new Dictionary<int, double>(RowGaps);
-        foreach (var Growth in GapGrowth)
+        {
+            for (int Second = 0; Second < First; Second++)
+            {
+                if (Ordered[First].Overlaps(Ordered[Second]))
+                {
+                    return false;
+                }
+            }
+        }
+
+        Dictionary<int, double> CandidateColumns = new Dictionary<int, double>(ColumnGaps);
+        Dictionary<int, double> CandidateRows = new Dictionary<int, double>(RowGaps);
+        foreach (FlowchartCellGapGrowth Growth in GapGrowth)
         {
             if (!double.IsFinite(Growth.Shortfall) || Growth.Shortfall < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(GapGrowth));
+            }
+
             if (!double.IsFinite(Growth.GridStep) || Growth.GridStep <= 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(GapGrowth));
-            if (Growth.Shortfall == 0) continue;
-            var Gaps = Growth.Horizontal ? CandidateColumns : CandidateRows;
+            }
+
+            if (Growth.Shortfall == 0)
+            {
+                continue;
+            }
+
+            Dictionary<int, double> Gaps = Growth.Horizontal ? CandidateColumns : CandidateRows;
             double Initial = Growth.Horizontal ? Configuration.ColumnGap : Configuration.RowGap;
             double Updated = Gaps.GetValueOrDefault(Growth.After, Initial)
-                + Math.Ceiling(Growth.Shortfall / Growth.GridStep) * Growth.GridStep;
-            if (!double.IsFinite(Updated)) throw new ArgumentOutOfRangeException(nameof(GapGrowth));
+                + (Math.Ceiling(Growth.Shortfall / Growth.GridStep) * Growth.GridStep);
+            if (!double.IsFinite(Updated))
+            {
+                throw new ArgumentOutOfRangeException(nameof(GapGrowth));
+            }
+
             Gaps[Growth.After] = Updated;
         }
         After = Changes.All(Change => Regions[Change.Key] == Change.Value) && GapGrowth.All(Growth => Growth.Shortfall == 0)
@@ -178,7 +241,7 @@ internal sealed class FlowchartLogicalGrid
     internal string? DescribePrepareFailure(IReadOnlyDictionary<string, FlowchartCellRegion> Changes)
     {
         ArgumentNullException.ThrowIfNull(Changes);
-        var Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
+        Dictionary<string, FlowchartCellRegion> Candidate = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
         foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
         {
             if (Change.Value == null)
@@ -205,7 +268,7 @@ internal sealed class FlowchartLogicalGrid
             return "semantic-convention";
         }
 
-        FlowchartCellRegion[] Ordered = Candidate.Values.ToArray();
+        FlowchartCellRegion[] Ordered = [.. Candidate.Values];
         for (int First = 0; First < Ordered.Length; First++)
         {
             for (int Second = 0; Second < First; Second++)
@@ -229,7 +292,11 @@ internal sealed class FlowchartLogicalGrid
         ArgumentNullException.ThrowIfNull(Before);
         ArgumentNullException.ThrowIfNull(After);
         if (!ReferenceEquals(Before.Owner, this) || !ReferenceEquals(After.Owner, this)
-            || !ReferenceEquals(Current, Before)) return false;
+            || !ReferenceEquals(Current, Before))
+        {
+            return false;
+        }
+
         Current = After;
         return true;
     }
@@ -240,7 +307,11 @@ internal sealed class FlowchartLogicalGrid
     internal void Require(string NodeId, Func<FlowchartCellRegion, bool> Requirement)
     {
         ArgumentNullException.ThrowIfNull(Requirement);
-        if (!Requirement(Regions[NodeId])) throw new ArgumentException("The current reservation cannot contain the node's mandatory geometry.", nameof(Requirement));
+        if (!Requirement(Regions[NodeId]))
+        {
+            throw new ArgumentException("The current reservation cannot contain the node's mandatory geometry.", nameof(Requirement));
+        }
+
         Requirements.Add(NodeId, Requirement);
     }
 
@@ -252,10 +323,14 @@ internal sealed class FlowchartLogicalGrid
     internal bool TryMove(IReadOnlyCollection<string> NodeIds, int Rows, int Columns)
     {
         ArgumentNullException.ThrowIfNull(NodeIds);
-        var Changes = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+        Dictionary<string, FlowchartCellRegion> Changes = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
         foreach (string Id in NodeIds)
         {
-            if (!Regions.TryGetValue(Id, out var Region)) return false;
+            if (!Regions.TryGetValue(Id, out FlowchartCellRegion? Region))
+            {
+                return false;
+            }
+
             Changes[Id] = new(checked(Region.StartRow + Rows), checked(Region.StartColumn + Columns),
                 Region.RowSpan, Region.ColumnSpan);
         }
@@ -269,7 +344,11 @@ internal sealed class FlowchartLogicalGrid
     /// <returns>False without mutation when the proposed reservation occupies another node's cells.</returns>
     internal bool TryResize(string NodeId, int Rows, int Columns)
     {
-        if (!Regions.TryGetValue(NodeId, out var Region)) return false;
+        if (!Regions.TryGetValue(NodeId, out FlowchartCellRegion? Region))
+        {
+            return false;
+        }
+
         return TryApply(new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal)
         {
             [NodeId] = new(Region.StartRow, Region.StartColumn, Rows, Columns)
@@ -285,7 +364,11 @@ internal sealed class FlowchartLogicalGrid
     internal void Restore(Snapshot State)
     {
         ArgumentNullException.ThrowIfNull(State);
-        if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("The snapshot belongs to another grid.", nameof(State));
+        if (!ReferenceEquals(State.Owner, this))
+        {
+            throw new ArgumentException("The snapshot belongs to another grid.", nameof(State));
+        }
+
         Current = State;
     }
 
@@ -325,21 +408,21 @@ internal sealed class FlowchartLogicalGrid
             _RowGapTotals ??= GapExtraTotals.Create(RowGaps, Owner.Configuration.RowGap);
 
         internal double ColumnExtent(int Start, int Span) =>
-            Span * Owner.Configuration.CellWidth + (Span - 1.0) * Owner.Configuration.ColumnGap
+            (Span * Owner.Configuration.CellWidth) + ((Span - 1.0) * Owner.Configuration.ColumnGap)
             + ColumnGapTotals.SumBetween(Start, checked(Start + Span - 1));
 
         internal double RowExtent(int Start, int Span) =>
-            Span * Owner.Configuration.CellHeight + (Span - 1.0) * Owner.Configuration.RowGap
+            (Span * Owner.Configuration.CellHeight) + ((Span - 1.0) * Owner.Configuration.RowGap)
             + RowGapTotals.SumBetween(Start, checked(Start + Span - 1));
 
         internal double ColumnPosition(int Index) =>
-            Index * (Owner.Configuration.CellWidth + Owner.Configuration.ColumnGap)
+            (Index * (Owner.Configuration.CellWidth + Owner.Configuration.ColumnGap))
             + (Index >= 0
                 ? ColumnGapTotals.SumBetween(0, Index)
                 : -ColumnGapTotals.SumBetween(Index, 0));
 
         internal double RowPosition(int Index) =>
-            Index * (Owner.Configuration.CellHeight + Owner.Configuration.RowGap)
+            (Index * (Owner.Configuration.CellHeight + Owner.Configuration.RowGap))
             + (Index >= 0
                 ? RowGapTotals.SumBetween(0, Index)
                 : -RowGapTotals.SumBetween(Index, 0));
@@ -357,9 +440,11 @@ internal sealed class FlowchartLogicalGrid
     /// <param name="GridStep">Configured drawing step used to round the shortfall upwards.</param>
     internal void GrowGap(bool Horizontal, int After, double Shortfall, double GridStep)
     {
-        var Before = Capture();
-        if (TryPrepare(new Dictionary<string, FlowchartCellRegion>(), [new(Horizontal, After, Shortfall, GridStep)], out var Candidate))
+        Snapshot Before = Capture();
+        if (TryPrepare(new Dictionary<string, FlowchartCellRegion>(), [new(Horizontal, After, Shortfall, GridStep)], out Snapshot? Candidate))
+        {
             TryCommit(Before, Candidate!);
+        }
     }
 
     /// <summary>Measures the continuous visible rectangle, including every grown internal gap it spans.</summary>
@@ -369,7 +454,11 @@ internal sealed class FlowchartLogicalGrid
     internal (double Width, double Height) Measure(FlowchartCellRegion Region, Snapshot? State = null)
     {
         State ??= Current;
-        if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
+        if (!ReferenceEquals(State.Owner, this))
+        {
+            throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
+        }
+
         return (State.ColumnExtent(Region.StartColumn, Region.ColumnSpan),
             State.RowExtent(Region.StartRow, Region.RowSpan));
     }
@@ -381,7 +470,11 @@ internal sealed class FlowchartLogicalGrid
     internal (double X, double Y) Origin(FlowchartCellRegion Region, Snapshot? State = null)
     {
         State ??= Current;
-        if (!ReferenceEquals(State.Owner, this)) throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
+        if (!ReferenceEquals(State.Owner, this))
+        {
+            throw new ArgumentException("Candidate geometry must belong to this grid.", nameof(State));
+        }
+
         return (State.ColumnPosition(Region.StartColumn), State.RowPosition(Region.StartRow));
     }
 
@@ -400,8 +493,8 @@ internal sealed class FlowchartLogicalGrid
 
         internal static GapExtraTotals Create(IReadOnlyDictionary<int, double> Grown, double BaseGap)
         {
-            List<int> Keys = new List<int>();
-            List<double> Extras = new List<double>();
+            List<int> Keys = [];
+            List<double> Extras = [];
             foreach (KeyValuePair<int, double> Pair in Grown)
             {
                 double Extra = Pair.Value - BaseGap;
@@ -417,8 +510,8 @@ internal sealed class FlowchartLogicalGrid
             int Count = Keys.Count;
             if (Count > 1)
             {
-                int[] KeyArray = Keys.ToArray();
-                double[] ExtraArray = Extras.ToArray();
+                int[] KeyArray = [.. Keys];
+                double[] ExtraArray = [.. Extras];
                 Array.Sort(KeyArray, ExtraArray);
                 Keys = new List<int>(KeyArray);
                 Extras = new List<double>(ExtraArray);
@@ -430,7 +523,7 @@ internal sealed class FlowchartLogicalGrid
                 Prefix[ExtraIndex + 1] = Prefix[ExtraIndex] + Extras[ExtraIndex];
             }
 
-            return new GapExtraTotals(Keys.ToArray(), Prefix);
+            return new GapExtraTotals([.. Keys], Prefix);
         }
 
         internal double SumBetween(int FromInclusive, int ToExclusive)

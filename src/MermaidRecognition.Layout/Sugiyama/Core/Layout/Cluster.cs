@@ -391,9 +391,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public void UnsetInitialLayoutState() {
             isInInitialLayoutState = false;
             RectangularClusterBoundary rb = RectangularBoundary;
-            if (rb != null) {
-                rb.RestoreDefaultMargin();
-            }
+            rb?.RestoreDefaultMargin();
         }
 
         /// <summary>
@@ -479,10 +477,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public override string ToString() => UserData != null ? UserData.ToString() : base.ToString();
 
         internal void RaiseLayoutDoneEvent() {
-            if (layoutDoneEvent != null)
-            {
-                layoutDoneEvent(this, null);
-            }
+            layoutDoneEvent?.Invoke(this, null);
         }
     }
 }

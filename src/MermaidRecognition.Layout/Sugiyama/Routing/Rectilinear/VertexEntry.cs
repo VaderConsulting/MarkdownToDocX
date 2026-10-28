@@ -49,7 +49,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         /// <summary>
         /// The vertex that this VertexEntry is entered from
         /// </summary>
-        internal VisibilityVertexRectilinear PreviousVertex => (PreviousEntry == null) ? null : PreviousEntry.Vertex;
+        internal VisibilityVertexRectilinear PreviousVertex => PreviousEntry?.Vertex;
 
         /// <summary>
         /// The direction of entry to the vertex for this path (i.e. the direction from PreviousVertex to this.Vertex).

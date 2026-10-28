@@ -295,7 +295,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         internal static List<DebugCurve> Test_GetObstacleDebugCurves(ObstacleTree obstacleTree, bool noPadPoly, bool noVisPoly) => Test_GetObstacleDebugCurves(obstacleTree.GetAllObstacles(), noPadPoly, noVisPoly);
 
         internal static List<DebugCurve> Test_GetObstacleDebugCurves(IEnumerable<Obstacle> obstacles, bool noPadPoly, bool noVisPoly) {
-            List<DebugCurve> debugCurves = new List<DebugCurve>();
+            List<DebugCurve> debugCurves = [];
             foreach (Obstacle obstacle in obstacles) {
                 debugCurves.Add(new DebugCurve(0.1, "darkgray", obstacle.InputShape.BoundaryCurve));
                 if (!noPadPoly || obstacle.IsGroup) {
@@ -310,15 +310,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return debugCurves;
         }
 
-        internal static List<DebugCurve> Test_GetVisibilityGraphDebugCurves(VisibilityGraph vg) => vg.Edges.Select(edge => new DebugCurve(0.1,
+        internal static List<DebugCurve> Test_GetVisibilityGraphDebugCurves(VisibilityGraph vg) => [.. vg.Edges.Select(edge => new DebugCurve(0.1,
                         (edge.Weight == ScanSegment.NormalWeight) ? "Blue"
                                 : ((edge.Weight == ScanSegment.ReflectionWeight) ? "DarkCyan" : "LightBlue"),
-                        new LineSegment(edge.Source.Point, edge.Target.Point))).ToList();
+                        new LineSegment(edge.Source.Point, edge.Target.Point)))];
 
         internal static List<DebugCurve> Test_GetPreNudgedPathDebugCurves(IEnumerable<Path> edgePaths) {
-            List<DebugCurve> debugCurves = new List<DebugCurve>();
+            List<DebugCurve> debugCurves = [];
             foreach (Path path in edgePaths) {
-                Point[] points = path.PathPoints.ToArray();
+                Point[] points = [.. path.PathPoints];
                 for (int ii = 0; ii < points.Length - 1; ++ii) {
                     debugCurves.Add(new DebugCurve(0.1, "purple", new LineSegment(points[ii], points[ii + 1])));
                 }
@@ -327,7 +327,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal static List<DebugCurve> Test_GetPostNudgedPathDebugCurves(IEnumerable<Path> edgePaths) {
-            List<DebugCurve> debugCurves = new List<DebugCurve>();
+            List<DebugCurve> debugCurves = [];
             foreach (Path path in edgePaths) {
                 debugCurves.AddRange(path.PathEdges.Select
                         (e => new DebugCurve(0.1, "purple", new LineSegment(e.Source, e.Target))));
@@ -335,9 +335,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
             return debugCurves;
         }
 
-        internal static List<DebugCurve> Test_GetScanSegmentCurves(ScanSegmentTree segTree) => segTree.Segments.Select(seg => new DebugCurve(0.2,
+        internal static List<DebugCurve> Test_GetScanSegmentCurves(ScanSegmentTree segTree) => [.. segTree.Segments.Select(seg => new DebugCurve(0.2,
                         seg.IsOverlapped ? "Aqua" : (seg.IsReflection ? "LightGreen" : "DarkGreen"),
-                        new LineSegment(seg.Start, seg.End))).ToList();
+                        new LineSegment(seg.Start, seg.End)))];
 
         internal static string GetDumpFileName(string prefix) => System.IO.Path.GetTempPath() + prefix + ".DebugCurves";
 #endif // TEST

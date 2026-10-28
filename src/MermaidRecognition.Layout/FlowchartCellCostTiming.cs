@@ -53,7 +53,7 @@ internal static class FlowchartCellCostTiming
         {
             double Total = Clock.Elapsed.TotalMilliseconds;
             Current = Parent;
-            if (Parent != null) Parent.Children += Total;
+            Parent?.Children += Total;
             DiagramGridLayout.LayoutStageTimingObserver?.Invoke("cell-cost/exclusive/" + Name, Math.Max(0, Total - Children));
             DiagramGridLayout.LayoutStageTimingObserver?.Invoke("cell-cost/inclusive/" + Name, Total);
         }

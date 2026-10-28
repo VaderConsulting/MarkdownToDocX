@@ -34,9 +34,15 @@ public static class NativeFlowchartRenderBridge
 
         DiagramContract Contract = MermaidRecognizer.Parse(Source);
         if (DefaultLayout.HasValue && !Contract.Configuration.RawDirectiveValues.ContainsKey("layout"))
+        {
             Contract.LayoutMode = DefaultLayout.Value;
+        }
+
         if (!string.IsNullOrWhiteSpace(DefaultLegend) && !Contract.Configuration.RawDirectiveValues.ContainsKey("legend"))
+        {
             Contract.Configuration.RawDirectiveValuesMutable["legend"] = DefaultLegend;
+        }
+
         if (!string.Equals(Contract.Kind, "flowchart", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(Contract.Kind, "graph", StringComparison.OrdinalIgnoreCase))
         {
@@ -58,9 +64,16 @@ public static class NativeFlowchartRenderBridge
         Entries = Array.Empty<string>();
         DiagramContract Contract = MermaidRecognizer.Parse(Source);
         if (!string.IsNullOrWhiteSpace(DefaultLegend) && !Contract.Configuration.RawDirectiveValues.ContainsKey("legend"))
+        {
             Contract.Configuration.RawDirectiveValuesMutable["legend"] = DefaultLegend;
+        }
+
         if (!Contract.Configuration.RawDirectiveValues.TryGetValue("legend", out string? Setting)
-            || !string.Equals(Setting?.Trim(), "table", StringComparison.OrdinalIgnoreCase)) return false;
+            || !string.Equals(Setting?.Trim(), "table", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         Entries = FlowchartLegendRenderer.EntryNames(Contract);
         return Contract.Kind is "flowchart" or "graph";
     }

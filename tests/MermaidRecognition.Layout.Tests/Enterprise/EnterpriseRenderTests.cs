@@ -53,11 +53,15 @@ public sealed class EnterpriseRenderTests
     {
         string Svg = EnterpriseRenderBridge.RenderEnterpriseSvg("enterprise\n application-component a \"Input\"\n application-component b \"First\"\n application-component c \"Second\"\n a -flow-> b\n a -flow-> c");
         XDocument Document = XDocument.Parse(Svg);
-        XElement[] Edges = Document.Descendants().Where(Element => (string?)Element.Attribute("data-source") == "a").ToArray();
+        XElement[] Edges = [.. Document.Descendants().Where(Element => (string?)Element.Attribute("data-source") == "a")];
         Assert.That(Edges, Has.Length.EqualTo(2));
         foreach (XElement Edge in Edges)
+        {
             foreach (XElement Path in Edge.Elements().Where(Element => Element.Name.LocalName == "path" && (string?)Element.Attribute("fill") == "none"))
+            {
                 OrthogonalRouteTestHelper.AssertEveryBendRounded((string)Path.Attribute("d")!);
+            }
+        }
     }
 
     [TestCase("01-application-layer.mmd")]

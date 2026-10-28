@@ -194,7 +194,7 @@ public static class FlowchartEdgeRouteDiagnosticAnalyzer
         FlowchartResolvedEdgeRoute ResolvedRoute = new FlowchartResolvedEdgeRoute
         {
             Edge = Edge,
-            LayoutPoints = LayoutPoints.ToList(),
+            LayoutPoints = [.. LayoutPoints],
             RouteKind = RouteKind,
             SemanticRouteClass = SemanticRouteClass,
             SourceBounds = SourceBounds,

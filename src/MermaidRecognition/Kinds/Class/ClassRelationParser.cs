@@ -54,7 +54,7 @@ public sealed class ClassRelationParseResult
 public static class ClassRelationParser
 {
     private static readonly string[] RelationTokens =
-    {
+    [
         "<|--",
         "<|..",
         "..>",
@@ -64,7 +64,7 @@ public static class ClassRelationParser
         "<--",
         "--",
         ".."
-    };
+    ];
 
     /// <summary>
     /// Attempts to parse a class relation line into source, target, token, cardinalities, and label.

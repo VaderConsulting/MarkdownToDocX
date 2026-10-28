@@ -25,8 +25,8 @@ public static partial class DiagramGridLayout
         FlowchartLayoutResult Seed, FlowchartLayoutResult Allocated, FlowchartLayoutResult BeforeGrowth,
         FlowchartLogicalGrid.Snapshot Cells, int Width, FlowchartRenderContext Context, BandHintState OriginalHints)
     {
-        var AllocatedHints = new BandHintState(Contract);
-        var ReferenceContext = new FlowchartRenderContext { UseCellRegions = true, EnterpriseBandWrapWidth = Width,
+        BandHintState AllocatedHints = new BandHintState(Contract);
+        FlowchartRenderContext ReferenceContext = new FlowchartRenderContext { UseCellRegions = true, EnterpriseBandWrapWidth = Width,
             LayoutOptions = Context.LayoutOptions,
             InitialBandPlacement = Cells, SuppressReservedCorridorAssignment = true,
             DisableExpandedBendRepairsForTests = Context.DisableExpandedBendRepairsForTests,
@@ -34,18 +34,26 @@ public static partial class DiagramGridLayout
             UsePreviousEnterpriseBandPaddingForTests = Context.UsePreviousEnterpriseBandPaddingForTests };
         FlowchartLayoutResult Reference;
         OriginalHints.Restore();
-        using (FlowchartRenderContext.Activate(ReferenceContext)) Reference = ApplyCore(Contract, Seed, ReferenceContext, false);
-        var ReferenceHints = new BandHintState(Contract);
-        var Candidates = new List<(string Name, FlowchartLayoutResult Layout, BandHintState Hints,
-            FlowchartLayoutScore.Result Score, bool Legal)>();
-        var Diagnostics = new List<string>();
+        using (FlowchartRenderContext.Activate(ReferenceContext))
+        {
+            Reference = ApplyCore(Contract, Seed, ReferenceContext, false);
+        }
+
+        BandHintState ReferenceHints = new BandHintState(Contract);
+        List<(string Name, FlowchartLayoutResult Layout, BandHintState Hints, FlowchartLayoutScore.Result Score, bool Legal)> Candidates = [];
+        List<string> Diagnostics = [];
         Add("allocated", Allocated, AllocatedHints, false);
         int RequiredHints = Candidates[0].Score.HintsHonoured;
         Add("fallback", Reference, ReferenceHints, false);
         Add("placement-baseline", BeforeGrowth, OriginalHints, true);
         for (int I = 0; I < Candidates.Count; I++)
+        {
             if (Candidates[I].Score.HintsHonoured < RequiredHints)
+            {
                 Candidates[I] = Candidates[I] with { Legal = false };
+            }
+        }
+
         int Winner = LowestCostCompleteAssignment(Candidates.Select(Item => (Item.Legal, Item.Score.Cost)).ToArray());
         // A discarded proposal must not force a more expensive fallback. The
         // old independent count ceilings could do that despite both paths being legal.
@@ -55,10 +63,10 @@ public static partial class DiagramGridLayout
             Context.BandSpaceDiagnostics.Add("CORRIDOR_ASSIGNMENT|noLegalCandidate=True");
             return Allocated;
         }
-        var Selected = Candidates[Winner];
+        (string Name, FlowchartLayoutResult Layout, BandHintState Hints, FlowchartLayoutScore.Result Score, bool Legal) Selected = Candidates[Winner];
         bool Keep = Selected.Name == "allocated";
-        var Counts = RouteRepairStage.FinalCounts(Allocated);
-        var PlainCounts = RouteRepairStage.FinalCounts(Reference);
+        (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) Counts = RouteRepairStage.FinalCounts(Allocated);
+        (int Bends, int Crossings, int Shared, int FanCrossings, HashSet<string> FanPairs) PlainCounts = RouteRepairStage.FinalCounts(Reference);
         string Decision = $"CORRIDOR_ASSIGNMENT|keepReserved={Keep}|selected={Selected.Name}|score={Candidates[0].Score.OptimizationScore:R}|reference={Candidates[1].Score.OptimizationScore:R}"
             + $"|bends={Counts.Bends}/{PlainCounts.Bends}|crossings={Counts.Crossings}/{PlainCounts.Crossings}|shared={Counts.Shared}/{PlainCounts.Shared}";
         if (Selected.Name != "fallback")
@@ -76,7 +84,11 @@ public static partial class DiagramGridLayout
         FlowchartLayoutResult Result;
         try
         {
-            using (FlowchartRenderContext.Activate(Context)) Result = ApplyCore(Contract, Seed, Context, false);
+            using (FlowchartRenderContext.Activate(Context))
+            {
+                Result = ApplyCore(Contract, Seed, Context, false);
+            }
+
             CompletePublishedRoutes(Contract, Result);
         }
         finally { Context.InitialBandPlacement = null; }
@@ -89,8 +101,12 @@ public static partial class DiagramGridLayout
         {
             Hints.Restore();
             bool SamePlacement = SameCorridorCellsAndGaps(Allocated, Layout);
-            if (SamePlacement) CompletePublishedRoutes(Contract, Layout);
-            var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+            if (SamePlacement)
+            {
+                CompletePublishedRoutes(Contract, Layout);
+            }
+
+            FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
             int Close = CloseCorridorSegmentPairs(Layout);
             bool HardLegal = BandLayoutIsLegal(Contract, Layout)
                 && !FlowchartRouteRuleChecker.Check(Contract, Layout).Any(Finding => Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7");
@@ -110,7 +126,13 @@ public static partial class DiagramGridLayout
     {
         int Best = -1;
         for (int I = 0; I < Candidates.Count; I++)
-            if (Candidates[I].Legal && (Best < 0 || Candidates[I].Cost < Candidates[Best].Cost)) Best = I;
+        {
+            if (Candidates[I].Legal && (Best < 0 || Candidates[I].Cost < Candidates[Best].Cost))
+            {
+                Best = I;
+            }
+        }
+
         return Best;
     }
 
@@ -119,10 +141,16 @@ public static partial class DiagramGridLayout
     /// <returns>Number of close parallel segment pairs, including exact overlaps and terminal runs.</returns>
     internal static int CloseCorridorSegmentPairs(FlowchartLayoutResult Layout)
     {
-        var Paths = Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
+        (double X, double Y)[][] Paths = [.. Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())];
         int Count = 0;
-        for (int I = 0; I < Paths.Length; I++) for (int J = I + 1; J < Paths.Length; J++)
-            Count += FlowchartFallbackCorridorTracks.CloseParallelSegments(Paths[I], Paths[J]);
+        for (int I = 0; I < Paths.Length; I++)
+        {
+            for (int J = I + 1; J < Paths.Length; J++)
+            {
+                Count += FlowchartFallbackCorridorTracks.CloseParallelSegments(Paths[I], Paths[J]);
+            }
+        }
+
         return Count;
     }
 
@@ -132,8 +160,12 @@ public static partial class DiagramGridLayout
     /// <returns>Whether both layouts retain precisely the same cell reservations and row and column gaps.</returns>
     private static bool SameCorridorCellsAndGaps(FlowchartLayoutResult First, FlowchartLayoutResult Second)
     {
-        if (First.CellNodes is not { Count: > 0 } || Second.CellNodes is not { Count: > 0 }) return false;
-        var A = First.CellNodes[0].CellNode!.Grid.Capture(); var B = Second.CellNodes[0].CellNode!.Grid.Capture();
+        if (First.CellNodes is not { Count: > 0 } || Second.CellNodes is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        FlowchartLogicalGrid.Snapshot A = First.CellNodes[0].CellNode!.Grid.Capture(); FlowchartLogicalGrid.Snapshot B = Second.CellNodes[0].CellNode!.Grid.Capture();
         return A.Regions.Count == B.Regions.Count && A.Regions.All(Pair => B.Regions.GetValueOrDefault(Pair.Key) == Pair.Value)
             && A.ColumnGaps.Count == B.ColumnGaps.Count && A.RowGaps.Count == B.RowGaps.Count
             && A.ColumnGaps.All(Pair => B.ColumnGaps.GetValueOrDefault(Pair.Key) == Pair.Value)

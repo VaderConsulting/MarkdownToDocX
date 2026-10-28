@@ -679,7 +679,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
             }
 
             FleshOutClusters();
-            Set<Cluster> rootClusterSet = new Set<Cluster>();
+            Set<Cluster> rootClusterSet = [];
             foreach (Cluster? cluster in stringToClusters.Values.Select(c => c.Cluster))
             {
                 if (cluster.ClusterParents == null || !cluster.ClusterParents.Any())
@@ -909,7 +909,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
         }
 
         Point ParsePoint(string str) {
-            string[] xy = str.Split(' ').ToArray();
+            string[] xy = [.. str.Split(' ')];
             Debug.Assert(xy.Length == 2);
             if (double.TryParse(xy[0], out double x) && double.TryParse(xy[1], out double y))
             {
@@ -1411,8 +1411,8 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
 
             //the circle center belongs to the perpendicular to d passing through 'middle'
             d /= dLen;
-            Point perp = new Point(d.Y, -d.X)*Math.Sqrt(r*r - dLenSquared/4);
-            center = sweepFlag == 1 && largeArcFlag == 0 || sweepFlag == 0 && largeArcFlag == 1
+            Point perp = new Point(d.Y, -d.X)*Math.Sqrt((r*r) - (dLenSquared/4));
+            center = (sweepFlag == 1 && largeArcFlag == 0) || (sweepFlag == 0 && largeArcFlag == 1)
                 ? middle - perp
                 : middle + perp;
             Point axisX = new Point(r, 0);
@@ -1420,13 +1420,13 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
             startAngle = Point.Angle(axisX, start - center);
             if (sweepFlag == 0)
             {
-                startAngle = 2*Math.PI - startAngle;
+                startAngle = (2*Math.PI) - startAngle;
             }
 
             endAngle = Point.Angle(axisX, end - center);
             if (sweepFlag == 0)
             {
-                endAngle = 2*Math.PI - endAngle;
+                endAngle = (2*Math.PI) - endAngle;
             }
 
             if (ApproximateComparer.Close(endAngle, startAngle) && largeArcFlag == 1)
@@ -1490,7 +1490,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers.Persistence {
                 Error("wrong number of points in LineSegment");
             }
 
-            double[] ds = ss.Select(ParseDouble).ToArray();
+            double[] ds = [.. ss.Select(ParseDouble)];
             return new LineSegment(new Point(ds[0], ds[1]), new Point(ds[2], ds[3]));
         }
 

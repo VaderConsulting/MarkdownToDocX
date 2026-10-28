@@ -294,7 +294,7 @@ public sealed class DocxPackageAssertionsTests
             Token(static Character => char.IsLetter(Character) || char.IsDigit(Character) || Character == '_')
                 .Then(
                     Token(static Character => char.IsLetterOrDigit(Character) || Character is '_' or '-').ManyString(),
-                    (char FirstCharacter, string Rest) => FirstCharacter.ToString() + Rest);
+                    (FirstCharacter, Rest) => FirstCharacter.ToString() + Rest);
         Parser<char, bool> LocalDirected =
             Try(String("-->").ThenReturn(true)).Or(String("---").ThenReturn(false));
         Parser<char, (string FromId, bool Directed, string ToId)> LocalEdge =
@@ -319,7 +319,7 @@ public sealed class DocxPackageAssertionsTests
         if (!Parsed.Success)
         {
             string EdgeLine = BlockInput.Split('\n').Last();
-            List<int> CodePoints = new List<int>();
+            List<int> CodePoints = [];
             foreach (char Character in EdgeLine)
             {
                 CodePoints.Add((int)Character);
@@ -449,7 +449,7 @@ public sealed class DocxPackageAssertionsTests
 
     private static void AssertAbstractNumberingPrecedesNumberingInstances(XDocument Numbering)
     {
-        List<string> Children = Numbering.Root!.Elements().Select(Element => Element.Name.LocalName).ToList();
+        List<string> Children = [.. Numbering.Root!.Elements().Select(Element => Element.Name.LocalName)];
         int FirstNumberingInstanceIndex = Children.IndexOf("num");
         int LastAbstractNumberingIndex = Children.LastIndexOf("abstractNum");
 
@@ -546,7 +546,7 @@ public sealed class DocxPackageAssertionsTests
                 ReadXml(Archive, "word/document.xml"),
                 ReadXml(Archive, "word/numbering.xml"),
                 ReadXml(Archive, "word/_rels/document.xml.rels"),
-                Archive.Entries.Select(Entry => Entry.FullName).ToList());
+                [.. Archive.Entries.Select(Entry => Entry.FullName)]);
         }
 
         public void Dispose()

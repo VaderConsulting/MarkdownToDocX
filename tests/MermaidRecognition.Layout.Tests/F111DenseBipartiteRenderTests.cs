@@ -156,7 +156,7 @@ public sealed class F111DenseBipartiteRenderTests
             AttachXValues.Add(LayoutPoints[0].X);
         }
 
-        return AttachXValues.OrderBy(Value => Value).ToList();
+        return [.. AttachXValues.OrderBy(Value => Value)];
     }
 
     private static List<double> CollectTargetAttachX(
@@ -181,6 +181,6 @@ public sealed class F111DenseBipartiteRenderTests
             AttachXValues.Add(LayoutPoints[^1].X);
         }
 
-        return AttachXValues.OrderBy(Value => Value).ToList();
+        return [.. AttachXValues.OrderBy(Value => Value)];
     }
 }

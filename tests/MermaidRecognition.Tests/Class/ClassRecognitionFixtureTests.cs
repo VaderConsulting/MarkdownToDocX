@@ -14,7 +14,7 @@ public sealed class ClassRecognitionFixtureTests
 
     private static readonly string[] FixtureNames =
 
-    {
+    [
 
         "simple",
 
@@ -84,17 +84,17 @@ public sealed class ClassRecognitionFixtureTests
 
         "complex-smoke",
 
-    };
+    ];
 
 
 
     private static readonly string[] FixturesAllowingBody =
 
-    {
+    [
 
         "accessibility",
 
-    };
+    ];
 
 
 

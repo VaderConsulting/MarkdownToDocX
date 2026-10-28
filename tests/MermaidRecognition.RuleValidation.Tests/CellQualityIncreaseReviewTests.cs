@@ -1,4 +1,6 @@
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -17,10 +19,13 @@ public sealed class CellQualityIncreaseReviewTests
     public static IEnumerable<TestCaseData> Cases()
     {
         HashSet<string> Ids = ["A115", "A163", "A164", "A165", "A167", "A169", "EIP137", "EIP18", "EIP301", "EIP332", "A63", "EIP236", "F136"];
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Ids.Contains(Scenario.Id)) yield return new TestCaseData(Scenario).SetName("CellQualityReview_" + Scenario.Id);
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Ids.Contains(Scenario.Id))
+            {
+                yield return new TestCaseData(Scenario).SetName("CellQualityReview_" + Scenario.Id);
+            }
         }
     }
 
@@ -29,21 +34,23 @@ public sealed class CellQualityIncreaseReviewTests
     [TestCaseSource(nameof(Cases))]
     public void PublishedRoutesAndRejectedStraightReplacementsAreAccountedFor(RouteRuleCatalogueAuditTests.Scenario Scenario)
     {
-        var OffContract = Scenario.Enterprise
+        DiagramContract OffContract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(OffContract, new FlowchartRenderContext { UseCellRegions = false }, out var OffLayout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(OffContract, new FlowchartRenderContext { UseCellRegions = false }, out FlowchartLayoutResult? OffLayout), Is.True);
         TestContext.Out.WriteLine("CELL_QUALITY_OFF_REVIEW|" + Scenario.Id + "|" + JsonSerializer.Serialize(new
         {
             Findings = FlowchartRouteRuleChecker.Check(OffContract, OffLayout).Where(Finding => Finding.Rule is "4.2" or "4.11" or "5.8"),
             Bounds = OffLayout.NodeBounds.Concat(OffLayout.ClusterBounds), Routes = OffLayout.EdgeRoutes
         }));
-        var Previous = DiagramGridLayout.RouteRepairCandidateObserver;
+        Action<string, string, double, bool>? Previous = DiagramGridLayout.RouteRepairCandidateObserver;
         DiagramGridLayout.RouteRepairCandidateObserver = (Option, Subject, Score, Keep) =>
         {
             Previous?.Invoke(Option, Subject, Score, Keep);
             if (Option == "facing-assignment")
+            {
                 TestContext.Out.WriteLine($"CELL_SIDE_REVIEW|{Scenario.Id}|{Subject}|keep={Keep}");
+            }
         };
         try
         {
@@ -52,13 +59,16 @@ public sealed class CellQualityIncreaseReviewTests
             CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (Contract, Layout) =>
             {
                 CompletedContract = Contract; CompletedLayout = Layout;
-                var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+                IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
                 Assert.That(Findings.Where(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7"), Is.Empty);
                 Assert.That(Layout.RenderContext.MoveBeforeDetourBudget.CandidateMoves,
                     Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
                 Assert.That(Layout.EdgeRoutes.All(Route => Contract.Edges.Any(Edge => Edge.Id == Route.EdgeId)), Is.True);
-                foreach (var Finding in Findings.Where(Finding => Finding.Rule == "4.2"))
+                foreach (FlowchartRouteRuleChecker.Finding? Finding in Findings.Where(Finding => Finding.Rule == "4.2"))
+                {
                     ReviewDirectReplacement(Scenario.Id, Finding.Subject, Contract, Layout);
+                }
+
                 TestContext.Out.WriteLine("CELL_QUALITY_REVIEW|" + Scenario.Id + "|" + JsonSerializer.Serialize(new
                 {
                     Findings = Findings.Where(Finding => Finding.Rule is "4.2" or "4.11" or "5.8"),
@@ -69,7 +79,7 @@ public sealed class CellQualityIncreaseReviewTests
             }, ObserveBoundNodes: Nodes =>
             {
                 Assert.That(CellGridAudit.Faults(CompletedContract!, CompletedLayout!, Nodes), Is.Empty);
-                Assert.That(FlowchartPlacementHints.CellHintsMatch(CompletedContract!, Nodes.ToList(),
+                Assert.That(FlowchartPlacementHints.CellHintsMatch(CompletedContract!, [.. Nodes],
                     FlowchartCellRepair.Capture(Nodes).Regions), Is.True);
             });
         }
@@ -84,19 +94,17 @@ public sealed class CellQualityIncreaseReviewTests
     private static void ReviewDirectReplacement(string Id, string EdgeId,
         MermaidRecognition.Contract.DiagramContract Contract, FlowchartLayoutResult Layout)
     {
-        var Route = Layout.EdgeRoutes.Single(Route => Route.EdgeId == EdgeId);
-        var Saved = Route.Points.ToArray();
-        var OtherPaths = Layout.EdgeRoutes.Where(Other => Other != Route)
-            .Select(Other => Other.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
-        var Original = Saved.Select(Point => (Point.X, Point.Y)).ToArray();
-        var Before = FlowchartLayoutScore.Measure(Contract, Layout, false);
+        FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Route => Route.EdgeId == EdgeId);
+        FlowchartLayoutPoint[] Saved = [.. Route.Points];
+        (double X, double Y)[][] OtherPaths = [.. Layout.EdgeRoutes.Where(Other => Other != Route).Select(Other => Other.Points.Select(Point => (Point.X, Point.Y)).ToArray())];
+        (double X, double Y)[] Original = [.. Saved.Select(Point => (Point.X, Point.Y))];
+        FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(Contract, Layout, false);
         try
         {
             Route.Points.Clear(); Route.Points.Add(Saved[0]); Route.Points.Add(Saved[^1]);
-            var Direct = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-            var After = FlowchartLayoutScore.Measure(Contract, Layout, false);
-            var Faults = FlowchartRouteRuleChecker.Check(Contract, Layout)
-                .Where(Item => Item.Subject == EdgeId && Item.Rule is "10" or "3.1" or "4.1").ToArray();
+            (double X, double Y)[] Direct = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
+            FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(Contract, Layout, false);
+            FlowchartRouteRuleChecker.Finding[] Faults = [.. FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Item => Item.Subject == EdgeId && Item.Rule is "10" or "3.1" or "4.1")];
             Assert.That(Faults, Is.Not.Empty, "A legal straight candidate must not be explained away as a necessary detour: " + Id + "/" + EdgeId);
             TestContext.Out.WriteLine("CELL_DIRECT_REVIEW|" + Id + "|" + EdgeId + "|" + JsonSerializer.Serialize(new
             {

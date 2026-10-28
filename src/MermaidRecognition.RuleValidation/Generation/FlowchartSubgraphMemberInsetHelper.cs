@@ -193,7 +193,7 @@ public static class FlowchartSubgraphMemberInsetHelper
             FlowchartSubgraphMembershipHelper.BuildGroupById(Contract);
         HashSet<string> MemberNodeIds = new HashSet<string>(StringComparer.Ordinal);
         CollectDescendantMemberNodeIdsRecursive(Group, Contract, GroupById, MemberNodeIds);
-        return MemberNodeIds.ToList();
+        return [.. MemberNodeIds];
     }
 
     private static void CollectDescendantMemberNodeIdsRecursive(

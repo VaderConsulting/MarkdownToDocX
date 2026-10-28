@@ -25,10 +25,18 @@ public sealed record NodeGeometry(NodeGeometryBounds VisualBounds,
     /// <returns>One rectangle shared by all three geometry roles.</returns>
     public static NodeGeometry Rectangle(double Width, double Height)
     {
-        if (!double.IsFinite(Width) || Width <= 0) throw new ArgumentOutOfRangeException(nameof(Width));
-        if (!double.IsFinite(Height) || Height <= 0) throw new ArgumentOutOfRangeException(nameof(Height));
-        var Bounds = new NodeGeometryBounds(-Width / 2, -Height / 2, Width / 2, Height / 2);
-        var Rectangle = new RectangularNodeGeometry(Bounds);
+        if (!double.IsFinite(Width) || Width <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(Width));
+        }
+
+        if (!double.IsFinite(Height) || Height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(Height));
+        }
+
+        NodeGeometryBounds Bounds = new NodeGeometryBounds(-Width / 2, -Height / 2, Width / 2, Height / 2);
+        RectangularNodeGeometry Rectangle = new RectangularNodeGeometry(Bounds);
         return new(Bounds, Rectangle, Rectangle);
     }
 }
@@ -91,9 +99,13 @@ public sealed class RectangularNodeGeometry(NodeGeometryBounds Bounds) : INodeCo
     public bool TryPort(string Side, double Fraction, out NodeGeometryPort Port)
     {
         Port = default;
-        if (!double.IsFinite(Fraction) || Fraction <= 0 || Fraction >= 1) return false;
-        double X = Bounds.Left + Fraction * Bounds.Width;
-        double Y = Bounds.Top + Fraction * Bounds.Height;
+        if (!double.IsFinite(Fraction) || Fraction <= 0 || Fraction >= 1)
+        {
+            return false;
+        }
+
+        double X = Bounds.Left + (Fraction * Bounds.Width);
+        double Y = Bounds.Top + (Fraction * Bounds.Height);
         switch (Side)
         {
             case "top": Port = new(X, Bounds.Top, 0, -1); return true;
@@ -106,10 +118,10 @@ public sealed class RectangularNodeGeometry(NodeGeometryBounds Bounds) : INodeCo
 
     /// <inheritdoc />
     public bool Contains(double X, double Y, double Tolerance)
-        => (Math.Abs(X - Bounds.Left) <= Tolerance || Math.Abs(X - Bounds.Right) <= Tolerance)
-                && Y >= Bounds.Top - Tolerance && Y <= Bounds.Bottom + Tolerance
-            || (Math.Abs(Y - Bounds.Top) <= Tolerance || Math.Abs(Y - Bounds.Bottom) <= Tolerance)
-                && X >= Bounds.Left - Tolerance && X <= Bounds.Right + Tolerance;
+        => ((Math.Abs(X - Bounds.Left) <= Tolerance || Math.Abs(X - Bounds.Right) <= Tolerance)
+                && Y >= Bounds.Top - Tolerance && Y <= Bounds.Bottom + Tolerance)
+            || ((Math.Abs(Y - Bounds.Top) <= Tolerance || Math.Abs(Y - Bounds.Bottom) <= Tolerance)
+                && X >= Bounds.Left - Tolerance && X <= Bounds.Right + Tolerance);
 
     /// <inheritdoc />
     public bool IntersectsSegmentInterior(double StartX, double StartY, double EndX, double EndY)
@@ -117,9 +129,13 @@ public sealed class RectangularNodeGeometry(NodeGeometryBounds Bounds) : INodeCo
         double Lower = 0, Upper = 1;
         if (!Clip(StartX, EndX - StartX, Bounds.Left, Bounds.Right, ref Lower, ref Upper)
             || !Clip(StartY, EndY - StartY, Bounds.Top, Bounds.Bottom, ref Lower, ref Upper)
-            || Upper <= Lower) return false;
+            || Upper <= Lower)
+        {
+            return false;
+        }
+
         double Middle = (Lower + Upper) / 2;
-        double X = StartX + Middle * (EndX - StartX), Y = StartY + Middle * (EndY - StartY);
+        double X = StartX + (Middle * (EndX - StartX)), Y = StartY + (Middle * (EndY - StartY));
         return X > Bounds.Left && X < Bounds.Right && Y > Bounds.Top && Y < Bounds.Bottom;
     }
 
@@ -133,7 +149,11 @@ public sealed class RectangularNodeGeometry(NodeGeometryBounds Bounds) : INodeCo
     /// <returns>Whether the segment has a nonempty interval within the slab.</returns>
     private static bool Clip(double Start, double Delta, double Minimum, double Maximum, ref double Lower, ref double Upper)
     {
-        if (Delta == 0) return Start > Minimum && Start < Maximum;
+        if (Delta == 0)
+        {
+            return Start > Minimum && Start < Maximum;
+        }
+
         double A = (Minimum - Start) / Delta, B = (Maximum - Start) / Delta;
         Lower = Math.Max(Lower, Math.Min(A, B));
         Upper = Math.Min(Upper, Math.Max(A, B));

@@ -13,7 +13,7 @@ public sealed class MindmapL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetMindmapFixtureDirectory(),
-            new[] { "simple", "comment", "hierarchy" },
+            ["simple", "comment", "hierarchy"],
             Contract => Contract.Nodes.Count > 0);
     }
 
@@ -22,7 +22,7 @@ public sealed class MindmapL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetMindmapFixtureDirectory(),
-            new[] { "simple", "hierarchy" },
+            ["simple", "hierarchy"],
             Contract => Contract.Nodes.Any(Node => Node.ParentGroupId is not null));
     }
 
@@ -47,7 +47,7 @@ public sealed class MindmapL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetMindmapFixtureDirectory(),
-            new[] { "shapes" },
+            ["shapes"],
             Contract => Contract.Nodes.Any(Node => Node.Shape != "mindmap"));
     }
 

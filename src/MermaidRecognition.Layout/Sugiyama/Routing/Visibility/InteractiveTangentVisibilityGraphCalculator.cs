@@ -157,10 +157,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             RBNode<Diagonal> changedNode = activeDiagonalTree.DeleteSubtree(diag.RbNode);
             if (changedNode != null)
             {
-                if (changedNode.Item != null)
-                {
-                    changedNode.Item.RbNode = changedNode;
-                }
+                changedNode.Item?.RbNode = changedNode;
             }
 
             diag.LeftTangent.Diagonal = null;

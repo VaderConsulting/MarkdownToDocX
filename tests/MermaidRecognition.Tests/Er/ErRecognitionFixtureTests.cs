@@ -6,7 +6,7 @@ namespace MermaidRecognition.Tests.Er;
 public sealed class ErRecognitionFixtureTests
 {
     private static readonly string[] FixtureNames =
-    {
+    [
         "relationship",
         "relation-cardinality",
         "entity-attributes",
@@ -41,12 +41,12 @@ public sealed class ErRecognitionFixtureTests
         "class-apply-only",
         "relationship-before-entity",
         "complex-smoke",
-    };
+    ];
 
     private static readonly string[] FixturesAllowingBody =
-    {
+    [
         "accDescr-block",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)

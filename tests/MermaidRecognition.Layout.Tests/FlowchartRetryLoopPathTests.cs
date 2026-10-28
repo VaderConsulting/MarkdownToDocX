@@ -54,12 +54,11 @@ public sealed class FlowchartRetryLoopPathTests
 
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
-        List<string> PathData = Regex.Matches(
+        List<string> PathData = [.. Regex.Matches(
                 Svg,
                 @"<path d=""([^""]+)"" fill=""none"" stroke=""",
                 RegexOptions.CultureInvariant)
-            .Select(Match => Match.Groups[1].Value)
-            .ToList();
+            .Select(Match => Match.Groups[1].Value)];
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = Layout.NodeBounds

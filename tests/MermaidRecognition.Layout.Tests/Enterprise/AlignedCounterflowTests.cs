@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
@@ -13,28 +14,30 @@ public sealed class AlignedCounterflowTests
     [TestCase("RL")]
     public void OpposingRelationships_UseDistinctStraightTracks(string Direction)
     {
-        var Document = EnterpriseValidator.Analyze($"""
+        EnterpriseDocument Document = EnterpriseValidator.Analyze($"""
             enterprise {Direction}
             application-component component "Component"
             application-service service "Service"
             component -realization-> service
             service -serving-> component
             """).Document;
-        var Layout = EnterpriseLayoutEngine.Layout(Document);
-        var Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
+        List<EnterpriseRoutedEdge> Routes = EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes);
         Assert.That(Routes, Has.Count.EqualTo(2));
         Assert.That(Routes.All(Route => Route.SvgPoints.Count == 2), Is.True);
-        var Intersections = FlowchartBranchRouteOrder.Intersections(Routes[0].SvgPoints, Routes[1].SvgPoints);
+        (int Crossings, double Overlap) Intersections = FlowchartBranchRouteOrder.Intersections(Routes[0].SvgPoints, Routes[1].SvgPoints);
         Assert.That(Intersections.Crossings, Is.Zero);
         Assert.That(Intersections.Overlap, Is.Zero);
-        foreach (var Route in Routes)
+        foreach (EnterpriseRoutedEdge Route in Routes)
         {
-            var A = Route.SvgPoints[0]; var B = Route.SvgPoints[1];
+            (double X, double Y) A = Route.SvgPoints[0]; (double X, double Y) B = Route.SvgPoints[1];
             Assert.That(Math.Abs(A.X - B.X) < 0.01 || Math.Abs(A.Y - B.Y) < 0.01, Is.True);
-            foreach (var Node in Layout.Nodes.Values)
+            foreach (EnterpriseLayoutNode Node in Layout.Nodes.Values)
+            {
                 Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(A.X, A.Y, B.X, B.Y,
-                    new FlowchartLayoutNodeBounds { NodeId = Node.Id, CenterX = Node.AbsoluteX + Node.Width / 2,
-                        CenterY = Node.AbsoluteY + Node.Height / 2, Width = Node.Width, Height = Node.Height }), Is.False);
+                    new FlowchartLayoutNodeBounds { NodeId = Node.Id, CenterX = Node.AbsoluteX + (Node.Width / 2),
+                        CenterY = Node.AbsoluteY + (Node.Height / 2), Width = Node.Width, Height = Node.Height }), Is.False);
+            }
         }
     }
 
@@ -42,20 +45,23 @@ public sealed class AlignedCounterflowTests
     [TestCase(true)]
     public void BlockedOrLabelledPair_PreservesItsExistingDetours(bool Labelled)
     {
-        var Contract = MermaidRecognizer.Parse(Labelled ? "flowchart TB\na -->|caption| b\nb --> a" : "flowchart TB\na --> b\nb --> a\nc");
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>
+        DiagramContract Contract = MermaidRecognizer.Parse(Labelled ? "flowchart TB\na -->|caption| b\nb --> a" : "flowchart TB\na --> b\nb --> a\nc");
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>
         {
             ["a"] = new() { NodeId = "a", CenterY = 150, Width = 150, Height = 60 },
             ["b"] = new() { NodeId = "b", CenterY = 0, Width = 150, Height = 60 },
             ["c"] = new() { NodeId = "c", CenterY = 75, Width = 120, Height = 30 }
         };
-        var Layout = new FlowchartLayoutResult();
-        foreach (var Edge in Contract.Edges)
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
+        foreach (EdgeContract Edge in Contract.Edges)
         {
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId };
-            foreach (var Point in new[] { (75d, Bounds[Edge.SourceId].CenterY), (240d, Bounds[Edge.SourceId].CenterY),
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId };
+            foreach ((double, double CenterY) Point in new[] { (75d, Bounds[Edge.SourceId].CenterY), (240d, Bounds[Edge.SourceId].CenterY),
                 (240d, Bounds[Edge.TargetId].CenterY), (75d, Bounds[Edge.TargetId].CenterY) })
+            {
                 Route.Points.Add(new() { X = Point.Item1, Y = Point.Item2 });
+            }
+
             Layout.EdgeRoutesMutable.Add(Route);
         }
         FlowchartAlignedCounterflowRoutes.Apply(Layout, Contract, Bounds);

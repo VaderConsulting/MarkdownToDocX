@@ -19,7 +19,7 @@ public sealed class DiagramGridTerminalRouteTests
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
         FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == "Branch" && Edge.TargetId == "Hub");
         List<bool> RunAxes = [];
-        foreach (var Pair in Route.Points.Zip(Route.Points.Skip(1)))
+        foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Pair in Route.Points.Zip(Route.Points.Skip(1)))
         {
             Assert.That(Math.Abs(Pair.First.X - Pair.Second.X) <= 0.75
                 || Math.Abs(Pair.First.Y - Pair.Second.Y) <= 0.75, Is.True,
@@ -104,11 +104,11 @@ public sealed class DiagramGridTerminalRouteTests
 
         Assert.That(DiagramGridLayout.TryTranslateInternalRun(Route, 1, true, 25, Obstacles), Is.False);
         Assert.That(Route.Points.Select(Point => (Point.X, Point.Y)),
-            Is.EqualTo(new[] { (0d, 100d), (50d, 100d), (50d, 0d), (0d, 0d) }));
+            Is.EqualTo([(0d, 100d), (50d, 100d), (50d, 0d), (0d, 0d)]));
 
         Assert.That(DiagramGridLayout.TryTranslateInternalRun(Route, 1, true, 6, Obstacles), Is.True);
         Assert.That(Route.Points.Select(Point => (Point.X, Point.Y)),
-            Is.EqualTo(new[] { (0d, 100d), (56d, 100d), (56d, 0d), (0d, 0d) }));
+            Is.EqualTo([(0d, 100d), (56d, 100d), (56d, 0d), (0d, 0d)]));
     }
 
     [Test]

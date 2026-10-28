@@ -88,7 +88,7 @@ public sealed class FlowchartParser : Parser
     /// <inheritdoc />
     public override DiagramParseResult Parse(string? Source)
     {
-        List<DiagramItem> Items = new List<DiagramItem>();
+        List<DiagramItem> Items = [];
         if (string.IsNullOrWhiteSpace(Source))
         {
             return new DiagramParseResult(Items, Array.Empty<string>());
@@ -157,8 +157,8 @@ public sealed class FlowchartParser : Parser
             return Array.Empty<string>();
         }
 
-        return new string[]
-        {
+        return
+        [
             "rectangle",
             "round",
             "stadium",
@@ -167,7 +167,7 @@ public sealed class FlowchartParser : Parser
             "circle",
             "diamond",
             "hexagon"
-        };
+        ];
     }
 
     private static string NodeLabel(string Rest, string Id)
@@ -177,13 +177,13 @@ public sealed class FlowchartParser : Parser
             return Id;
         }
 
-        int Start = Rest.IndexOfAny(new char[] { '[', '(', '{' });
+        int Start = Rest.IndexOfAny(['[', '(', '{']);
         if (Start < 0)
         {
             return Id;
         }
 
-        int End = Rest.LastIndexOfAny(new char[] { ']', ')', '}' });
+        int End = Rest.LastIndexOfAny([']', ')', '}']);
         if (End <= Start)
         {
             return Id;

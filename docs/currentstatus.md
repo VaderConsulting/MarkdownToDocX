@@ -51,7 +51,7 @@ Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate
 | DR-06 | Phase 3 item 9 worklist (4.12)? | **Defer** | Prior worklist attempt broke `BendRemovingPortRepairTests`; finish after next profiling slice. |
 | DR-07 | Next lever toward **75%**? | **Phase 5** nested completion on full graphs; **view layers** (status § View layers) when layers are off; **approved** Phase 4 re-baseline if stress patience is widened. **LiveEditor preview parked.** | In-gate render sum unchanged (~**181** s); stress tier alone does not close the gap. |
 | DR-08 | View layers vs engine speed-up? | **Complementary.** Layers shrink the laid-out graph when hidden; they do not fix nested full-pipeline search when everything is visible (VL-10). | See view-layer to-do table VL-1–VL-10. |
-| DR-09 | Phase 5 nested completion this session? | **Defer.** A central `ApplyFinalMoveBeforeDetour` guard during `IsEvaluatingCellRouteCandidate` is parity-safe in theory (nested cell search already returns zero) but `FlowchartCellMoveSearchTests.FrameOverlapRepairMovesWholeMemberRegions` fails on current `HEAD` without that change; scoped `CompleteAffectedCellRoutes` for `WholeRouteSet` trials broke many cell tests. Next design: cache or reuse `CompleteReferenceCellCandidate` in final repair (see `DiagramGridLayoutFinalRepair.cs`), or band-wrap placement pre-rank (review item 11). | Stress timings below. |
+| DR-09 | Phase 5 nested completion this session? | **Partial (26 Oct follow-up).** `SearchCellAssignmentsCore` caches `CompleteReferenceCellCandidate` by `CellAssignmentIdentity` on reference-completion and whole-route-set paths (`DiagramGridLayoutCellRepairs.cs`). Final repair still uses `BaseCompletions` / `CandidateCompletions` in `DiagramGridLayoutFinalRepair.cs`. Broader `ApplyFinalMoveBeforeDetour` guard and `WholeRouteSet` scoped completion remain deferred (`FrameOverlapRepairMovesWholeMemberRegions` on `HEAD`). **Hash gate (26 Oct):** `catalogue-verify-cellcache.jsonl` vs `catalogue-baseline.jsonl` - **261/261** `SvgSha256` match (`Compare-CatalogueHashes.ps1`). Bench log: `catalogue-verify-cellcache-run.log` (~195 s render sum, ~361 s layout sum). | Stress timings below. |
 
 | Milestone | Status | Notes |
 |-----------|--------|--------|
@@ -77,11 +77,11 @@ Phases 1–3 (identical output) cut cost but do **not** reach 75% on the in-gate
 
 In-gate hash gate still green vs `catalogue-baseline.jsonl` (`catalogue-verify-stress-patience.jsonl`). Layout ms sums nested `ApplyCore` passes per render and exceeds wall time on heavy diagrams.
 
-**Next actions:** Phase 5 via final-repair completion cache or band-wrap pre-rank (item 11); fix or record `FrameOverlapRepairMovesWholeMemberRegions` failure on `HEAD`. View layers stay todo-only. LiveEditor preview **parked**. Finish 4.12 worklist when parity design is ready. README-only commit when asked. Strip `Co-authored-by` before push.
+**Next actions:** Hash gate after cell completion cache; fix or record `FrameOverlapRepairMovesWholeMemberRegions` on `HEAD`. View layers: roadmap `docs/view-layers-roadmap.md` (VL-5 filter before layout still not coded). LiveEditor preview: **1×** raster for screen (`LiveEditorPreviewRasterScale`), pixel cap unchanged; `LastPreviewPngBytes` skips export re-encode (full SKPicture-at-zoom still open). Bench: `@liveeditor-enterprise-complete` and `@landgate-enterprise-import` (`in/Landgate.csv`) with `*-stages.json` (not CI). Finish 4.12 worklist when parity design is ready. README-only commit when asked.
 
 ## View layers and viewpoints — to do
 
-**Status:** Not started (concept agreed 26 Oct 2026). **Parked:** LiveEditor screen-scale preview / render queue (see §3 step 4).
+**Status:** Not started (concept agreed 26 Oct 2026). Roadmap: `docs/view-layers-roadmap.md`. LiveEditor preview raster at screen scale is in place; render queue / single-analyze path documented in `docs/LiveEditor-layout-trace.md`.
 
 **What this is:** Visio or Paint.NET-style **document layers** with metadata: each layer holds a slice of the model; the user (or an ArchiMate **viewpoint**) turns layers or **systems** on or off. Layout and routing run on the **visible derived diagram**, not on hidden elements. This is **not** Sugiyama rank layers, **not** the spec’s recognition/layout/routing **pipeline** layers (§11.1.7), and **not** the same as ArchiMate **aspect** styling (`Render.Layer.Business`, `Render.Layer.Technology`, etc.), though a view may filter by aspect.
 

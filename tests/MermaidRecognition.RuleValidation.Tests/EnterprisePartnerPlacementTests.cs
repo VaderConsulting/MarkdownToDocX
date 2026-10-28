@@ -15,15 +15,15 @@ public sealed class EnterprisePartnerPlacementTests
     [Test]
     public void A115LevelRowsDoNotRestoreTheDriftSharedTracks()
     {
-        var Contract = ReadContract("A115");
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = ReadContract("A115");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         AssertHardGeometry(Contract, Layout);
-        foreach (var Pair in new[] {
+        foreach ((string, string) Pair in new[] {
             ("replication->sydneyData:8", "mqSvc->orderMgr:22"),
             ("perthMq->mqSvc:17", "drSvc->shop:23") })
         {
-            var First = Layout.EdgeRoutes.Single(Route => Route.EdgeId == Pair.Item1);
-            var Second = Layout.EdgeRoutes.Single(Route => Route.EdgeId == Pair.Item2);
+            FlowchartLayoutEdgeRoute First = Layout.EdgeRoutes.Single(Route => Route.EdgeId == Pair.Item1);
+            FlowchartLayoutEdgeRoute Second = Layout.EdgeRoutes.Single(Route => Route.EdgeId == Pair.Item2);
             Assert.That(FlowchartBranchRouteOrder.Intersections(
                 First.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                 Second.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Overlap, Is.Zero,
@@ -37,25 +37,29 @@ public sealed class EnterprisePartnerPlacementTests
     {
         string Output = Environment.GetEnvironmentVariable("ENTERPRISE_PARTNER_TRACE") ?? throw new InvalidOperationException("Set ENTERPRISE_PARTNER_TRACE.");
         Directory.CreateDirectory(Output);
-        var Contract = ReadContract("A115");
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
-        var Nodes = Layout.CellNodes!.ToList();
-        var Grid = Nodes[0].CellNode!.Grid;
-        var Before = Grid.Capture();
+        DiagramContract Contract = ReadContract("A115");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        List<DiagramGridLayout.GridNode> Nodes = [.. Layout.CellNodes!];
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         string ExactBefore = CellProductionParityTests.Snapshot(Contract, Layout);
-        var Measurements = new List<object>();
+        List<object> Measurements = [];
         foreach (string Id in new[] { "shopImg1", "shopImg2", "shopImg3", "sydneyOrders", "wan", "lbSvc", "containerSvc", "dbSvc", "mqSvc", "drSvc" })
         {
-            var Region = Before.Regions[Id];
-            var Trials = new List<object>();
+            FlowchartCellRegion Region = Before.Regions[Id];
+            List<object> Trials = [];
             int Left = Before.Regions.Values.Min(Item => Item.StartColumn), Right = Before.Regions.Values.Max(Item => Item.EndColumn);
             foreach (int Column in Enumerable.Range(Left, Right - Left + 1))
             {
-                var Changes = new Dictionary<string, FlowchartCellRegion> { [Id] = new(Region.StartRow, Column, Region.RowSpan, Region.ColumnSpan) };
-                if (!Grid.TryPrepare(Changes, [], out var Candidate)) continue;
-                var Bounds = Nodes.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Bounds(Candidate!.Regions[Node.Id], Node.GeometryProvider, Candidate));
-                var Frames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Candidate!);
-                var Faults = DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, Frames, Bounds);
+                Dictionary<string, FlowchartCellRegion> Changes = new Dictionary<string, FlowchartCellRegion> { [Id] = new(Region.StartRow, Column, Region.RowSpan, Region.ColumnSpan) };
+                if (!Grid.TryPrepare(Changes, [], out FlowchartLogicalGrid.Snapshot? Candidate))
+                {
+                    continue;
+                }
+
+                Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Nodes.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Bounds(Candidate!.Regions[Node.Id], Node.GeometryProvider, Candidate));
+                List<DiagramGridLayout.GridFrame> Frames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Candidate!);
+                HashSet<string> Faults = DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, Frames, Bounds);
                 Trials.Add(new { Column, Faults });
             }
             Measurements.Add(new { Id, Region.StartColumn, Region.ColumnSpan,
@@ -75,11 +79,11 @@ public sealed class EnterprisePartnerPlacementTests
     [TestCase("A116"), TestCase("A117")]
     public void SingletonBandsStayWithinOnePartnerColumnAfterProductionRepairs(string Id)
     {
-        var Contract = ReadContract(Id);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = ReadContract(Id);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         AssertHardGeometry(Contract, Layout);
-        var Regions = Layout.CellNodes!.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
-        var Layers = LayersOf(Contract);
+        Dictionary<string, FlowchartCellRegion> Regions = Layout.CellNodes!.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
+        Dictionary<string, EnterpriseLayer> Layers = LayersOf(Contract);
         var Singles = Layers.GroupBy(Pair => Pair.Value).Where(Band => Band.Count() == 1).Select(Band => Band.Single().Key).ToArray();
         Assert.That(Singles, Is.Not.Empty);
         Assert.Multiple(() =>
@@ -87,7 +91,11 @@ public sealed class EnterprisePartnerPlacementTests
             foreach (string Node in Singles)
             {
                 var Partners = PartnerColumns(Contract, Layers, Regions, Node);
-                if (Partners.Length == 0) continue;
+                if (Partners.Length == 0)
+                {
+                    continue;
+                }
+
                 double Median = (Partners[(Partners.Length - 1) / 2] + Partners[Partners.Length / 2]) / 2;
                 Assert.That(Math.Abs(Regions[Node].StartColumn - Median), Is.LessThanOrEqualTo(1),
                     $"{Id}/{Node}: column {Regions[Node].StartColumn}, partners' median {Median}");
@@ -100,27 +108,29 @@ public sealed class EnterprisePartnerPlacementTests
     [TestCase("A115")]
     public void MixedBandsKeepNeighboursOrAnActualPartnerPull(string Id)
     {
-        var Contract = ReadContract(Id);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = ReadContract(Id);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         AssertHardGeometry(Contract, Layout);
-        var Regions = Layout.CellNodes!.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
-        var Layers = LayersOf(Contract);
-        var Groups = Contract.Nodes.ToDictionary(Node => Node.Id, Node => Node.ParentGroupId);
-        var Mixed = Layers.GroupBy(Pair => Pair.Value).Where(Band => Band.Any(Pair => Groups[Pair.Key] == null)
-            && Band.Any(Pair => Groups[Pair.Key] != null)).ToArray();
+        Dictionary<string, FlowchartCellRegion> Regions = Layout.CellNodes!.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
+        Dictionary<string, EnterpriseLayer> Layers = LayersOf(Contract);
+        Dictionary<string, string?> Groups = Contract.Nodes.ToDictionary(Node => Node.Id, Node => Node.ParentGroupId);
+        IGrouping<EnterpriseLayer, KeyValuePair<string, EnterpriseLayer>>[] Mixed = [.. Layers.GroupBy(Pair => Pair.Value).Where(Band => Band.Any(Pair => Groups[Pair.Key] == null)
+            && Band.Any(Pair => Groups[Pair.Key] != null))];
         Assert.That(Mixed, Is.Not.Empty);
         Assert.Multiple(() =>
         {
-            foreach (var Band in Mixed)
-            foreach (var Member in Band)
+            foreach (IGrouping<EnterpriseLayer, KeyValuePair<string, EnterpriseLayer>>? Band in Mixed)
             {
-                var Region = Regions[Member.Key];
+                foreach (KeyValuePair<string, EnterpriseLayer> Member in Band)
+            {
+                    FlowchartCellRegion Region = Regions[Member.Key];
                 int Gap = Band.Where(Peer => Peer.Key != Member.Key).Min(Peer =>
                     Math.Max(0, Math.Max(Regions[Peer.Key].StartColumn - Region.EndColumn, Region.StartColumn - Regions[Peer.Key].EndColumn)));
                 var Partners = PartnerColumns(Contract, Layers, Regions, Member.Key);
                 double? Median = Partners.Length == 0 ? null : (Partners[(Partners.Length - 1) / 2] + Partners[Partners.Length / 2]) / 2;
-                Assert.That(Gap <= 1 || Median is double Pull && Math.Abs(Region.StartColumn - Pull) <= 1, Is.True,
+                Assert.That(Gap <= 1 || (Median is double Pull && Math.Abs(Region.StartColumn - Pull) <= 1), Is.True,
                     $"{Id}/{Member.Key}: nearest cell-edge gap {Gap}, column {Region.StartColumn}, partner median {Median}");
+            }
             }
         });
     }
@@ -134,22 +144,28 @@ public sealed class EnterprisePartnerPlacementTests
         Directory.CreateDirectory(DirectoryPath);
         string Path = System.IO.Path.Combine(DirectoryPath, Id + "-stages.jsonl");
         File.WriteAllText(Path, "");
-        var Contract = ReadContract(Id);
-        var Layers = LayersOf(Contract);
+        DiagramContract Contract = ReadContract(Id);
+        Dictionary<string, EnterpriseLayer> Layers = LayersOf(Contract);
         var Singles = Layers.GroupBy(Pair => Pair.Value).Where(Band => Band.Count() == 1).Select(Band => Band.Single().Key).ToArray();
-        var Previous = DiagramGridLayout.LayoutStageObserver;
+        Action<string, FlowchartLayoutResult>? Previous = DiagramGridLayout.LayoutStageObserver;
         DiagramGridLayout.LayoutStageObserver = (Stage, Layout) =>
         {
-            if (Layout.CellNodes is not { Count: > 0 }) return;
-            var Regions = Layout.CellNodes.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
+            if (Layout.CellNodes is not { Count: > 0 })
+            {
+                return;
+            }
+
+            Dictionary<string, FlowchartCellRegion> Regions = Layout.CellNodes.ToDictionary(Node => Node.Id, Node => Node.CellNode!.Region);
             foreach (string Node in Singles)
+            {
                 File.AppendAllText(Path, JsonSerializer.Serialize(new { Id, Stage, Wrap = Layout.RenderContext.EnterpriseBandWrapWidth,
                     Node, Column = Regions[Node].StartColumn, Row = Regions[Node].StartRow,
                     Partners = PartnerColumns(Contract, Layers, Regions, Node) }) + Environment.NewLine);
+            }
         };
         try
         {
-            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
             File.AppendAllText(Path, JsonSerializer.Serialize(new { Published = ProductionBendRenderPathTests.GeometryHash(Layout),
                 Wrap = Layout.RenderContext.EnterpriseBandWrapWidth }) + Environment.NewLine);
         }
@@ -161,7 +177,7 @@ public sealed class EnterprisePartnerPlacementTests
     /// <returns>Typed contract with unchanged hints and memberships.</returns>
     private static DiagramContract ReadContract(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == Id);
         return EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
     }
@@ -196,10 +212,10 @@ public sealed class EnterprisePartnerPlacementTests
     /// <param name="Id">Element whose pull is measured.</param>
     /// <returns>Sorted starting columns; local relationships never contribute a cross-band pull.</returns>
     private static double[] PartnerColumns(DiagramContract Contract, IReadOnlyDictionary<string, EnterpriseLayer> Layers,
-        IReadOnlyDictionary<string, FlowchartCellRegion> Regions, string Id) => Contract.Edges
+        IReadOnlyDictionary<string, FlowchartCellRegion> Regions, string Id) => [.. Contract.Edges
         .Where(Edge => Edge.SourceId == Id || Edge.TargetId == Id).Select(Edge => Edge.SourceId == Id ? Edge.TargetId : Edge.SourceId)
-        .Distinct(StringComparer.Ordinal).SelectMany(Partner => Regions.ContainsKey(Partner) ? new[] { Partner }
+        .Distinct(StringComparer.Ordinal).SelectMany(Partner => Regions.ContainsKey(Partner) ? [Partner]
             : Regions.Keys.Where(Member => DiagramGridLayout.IsInsideGroup(Contract, Member, Partner)))
-        .Where(Partner => Layers.TryGetValue(Partner, out var Layer) && Layer != Layers[Id])
-        .Select(Partner => (double)Regions[Partner].StartColumn).Order().ToArray();
+        .Where(Partner => Layers.TryGetValue(Partner, out EnterpriseLayer Layer) && Layer != Layers[Id])
+        .Select(Partner => (double)Regions[Partner].StartColumn).Order()];
 }

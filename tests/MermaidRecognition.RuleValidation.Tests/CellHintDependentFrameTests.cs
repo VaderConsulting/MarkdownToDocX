@@ -13,21 +13,21 @@ public sealed class CellHintDependentFrameTests
     [Test]
     public void A165MovesItsHintDependentClosureLegally()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A165");
         DiagramContract? CompletedContract = null;
-        var OriginalHints = CellFrameHintEvidence.FromSource(Scenario);
+        Dictionary<string, string> OriginalHints = CellFrameHintEvidence.FromSource(Scenario);
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (Contract, Layout) =>
         {
             CompletedContract = Contract;
             Assert.That(CellFrameHintEvidence.Capture(Contract), Is.EquivalentTo(OriginalHints));
-            var Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
+            FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
             Assert.That(Score.HintsHonoured, Is.EqualTo(Score.HintsTotal));
             Assert.That(RouteRuleCatalogueAuditTests.UnrelatedFrameOverlaps(Contract, Layout), Is.Empty);
         }, Nodes =>
         {
             Assert.That(CompletedContract, Is.Not.Null);
-            Assert.That(FlowchartPlacementHints.CellHintsMatch(CompletedContract!, Nodes.ToList(),
+            Assert.That(FlowchartPlacementHints.CellHintsMatch(CompletedContract!, [.. Nodes],
                 Nodes[0].CellNode!.Grid.Capture().Regions), Is.True);
             Assert.That(CompletedContract!.Groups.Any(Group => Group.PlacementHint?.IsActive == true), Is.True);
         });

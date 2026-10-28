@@ -11,7 +11,7 @@ public static class WaveKindL3AxisGateTestHelper
     public static void AssertAxis(string FixtureRoot, string[] FixtureNames, Func<DiagramContract, bool> Predicate)
     {
         bool AnyPassed = false;
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
 
         foreach (string FixtureName in FixtureNames)
         {
@@ -60,7 +60,7 @@ public static class WaveKindL3AxisGateTestHelper
 
     sealed class WaveKindGateManifest
     {
-        public List<string> Fixtures { get; set; } = new List<string>();
+        public List<string> Fixtures { get; set; } = [];
     }
 }
 

@@ -17,7 +17,7 @@ public sealed class CommonMarkSpecFixtureTests
             Profile = "strict-commonmark"
         });
 
-        List<string> Failures = new List<string>();
+        List<string> Failures = [];
         foreach (CommonMarkExample Example in Examples)
         {
             try
@@ -45,7 +45,7 @@ public sealed class CommonMarkSpecFixtureTests
     {
         string SpecPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "commonmark-spec.txt");
         string[] Lines = File.ReadAllLines(SpecPath);
-        List<CommonMarkExample> Examples = new List<CommonMarkExample>();
+        List<CommonMarkExample> Examples = [];
         string Section = string.Empty;
         int ExampleNumber = 0;
 
@@ -65,7 +65,7 @@ public sealed class CommonMarkSpecFixtureTests
 
             ExampleNumber++;
             I++;
-            List<string> MarkdownLines = new List<string>();
+            List<string> MarkdownLines = [];
             while (I < Lines.Length && Lines[I] != ".")
             {
                 MarkdownLines.Add(DecodeSpecLine(Lines[I]));

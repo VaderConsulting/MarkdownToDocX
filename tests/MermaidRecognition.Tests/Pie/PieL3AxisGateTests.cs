@@ -28,7 +28,7 @@ public sealed class PieL3AxisGateTests
 
             RecognitionFixturePaths.GetPieFixtureDirectory(),
 
-            new[] { "simple" },
+            ["simple"],
 
             Contract => Contract.Nodes.Count > 0);
 
@@ -46,7 +46,7 @@ public sealed class PieL3AxisGateTests
 
             RecognitionFixturePaths.GetPieFixtureDirectory(),
 
-            new[] { "title-showData" },
+            ["title-showData"],
 
             Contract =>
 
@@ -68,7 +68,7 @@ public sealed class PieL3AxisGateTests
 
             RecognitionFixturePaths.GetPieFixtureDirectory(),
 
-            new[] { "pie-accessibility" },
+            ["pie-accessibility"],
 
             Contract =>
 

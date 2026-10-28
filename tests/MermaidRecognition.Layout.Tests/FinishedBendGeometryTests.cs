@@ -13,12 +13,12 @@ public sealed class FinishedBendGeometryTests
     [TestCase("TB"), TestCase("LR")]
     public void RowNeighbourGetsAStraightPortBeforeOtherBranches(string Direction)
     {
-        var (Contract, Layout) = Fixture(Direction, [("a", 0, 0), ("b", 0, 2), ("c", 2, 2), ("d", 4, 2)]);
+        (DiagramContract? Contract, FlowchartLayoutResult? Layout) = Fixture(Direction, [("a", 0, 0), ("b", 0, 2), ("c", 2, 2), ("d", 4, 2)]);
         AddLine(Contract, Layout, "ab", "a", "b", "right", "left", 0.25);
         AddLine(Contract, Layout, "ac", "a", "c", "right", "left", 0.5);
         AddLine(Contract, Layout, "ad", "a", "d", "right", "left", 0.75);
         Repair(Contract, Layout);
-        var Line = Layout.EdgeRoutes.Single(Route => Route.EdgeId == "ab");
+        FlowchartLayoutEdgeRoute Line = Layout.EdgeRoutes.Single(Route => Route.EdgeId == "ab");
         Assert.That(Line.Points, Has.Count.EqualTo(2));
         Assert.That(Line.Points[0].Y, Is.EqualTo(Line.Points[^1].Y));
     }
@@ -28,14 +28,14 @@ public sealed class FinishedBendGeometryTests
     [TestCase("TB"), TestCase("LR")]
     public void PlateauGapPlateauLinksStayInTheirRow(string Direction)
     {
-        var (Contract, Layout) = Fixture(Direction, [("p", 0, 0), ("g", 0, 1), ("q", 0, 2)]);
+        (DiagramContract? Contract, FlowchartLayoutResult? Layout) = Fixture(Direction, [("p", 0, 0), ("g", 0, 1), ("q", 0, 2)]);
         AddLine(Contract, Layout, "gp", "g", "p", "top", "top");
         AddLine(Contract, Layout, "gq", "g", "q", "bottom", "bottom");
         FlowchartLayoutAlternatives.RejectionObserver = TestContext.Out.WriteLine;
         try { Repair(Contract, Layout); }
         finally { FlowchartLayoutAlternatives.RejectionObserver = null; }
         TestContext.Out.WriteLine(JsonSerializer.Serialize(Layout.EdgeRoutes));
-        foreach (var Line in Layout.EdgeRoutes)
+        foreach (FlowchartLayoutEdgeRoute Line in Layout.EdgeRoutes)
         {
             Assert.That(Line.Points, Has.Count.EqualTo(2), Line.EdgeId);
             Assert.That(Line.ExitSide, Is.EqualTo(Line.TargetId == "p" ? "left" : "right"));
@@ -48,15 +48,15 @@ public sealed class FinishedBendGeometryTests
     [TestCase("TB"), TestCase("LR")]
     public void WholeCellMoveStraightensAStaggeredPair(string Direction)
     {
-        var (Contract, Layout) = Fixture(Direction, [("a", 0, 0), ("b", 2, 1)]);
+        (DiagramContract? Contract, FlowchartLayoutResult? Layout) = Fixture(Direction, [("a", 0, 0), ("b", 2, 1)]);
         AddLine(Contract, Layout, "ab", "a", "b", "bottom", "top");
         Repair(Contract, Layout);
         Assert.That(Layout.NodeBounds[0].CenterX, Is.EqualTo(Layout.NodeBounds[1].CenterX));
         Assert.That(Layout.EdgeRoutes.Single().Points, Has.Count.EqualTo(2));
-        foreach (var Node in Layout.CellNodes!)
+        foreach (DiagramGridLayout.GridNode Node in Layout.CellNodes!)
         {
-            var Derived = Node.CellNode!.Bounds();
-            var Published = Layout.NodeBounds.Single(Box => Box.NodeId == Node.Id);
+            FlowchartLayoutNodeBounds Derived = Node.CellNode!.Bounds();
+            FlowchartLayoutNodeBounds Published = Layout.NodeBounds.Single(Box => Box.NodeId == Node.Id);
             Assert.That((Published.CenterX, Published.CenterY), Is.EqualTo((Derived.CenterX, Derived.CenterY)));
         }
     }
@@ -66,18 +66,18 @@ public sealed class FinishedBendGeometryTests
     [TestCase("TB"), TestCase("LR")]
     public void LegalInteriorRouteNeverUsesTheOutsideMargin(string Direction)
     {
-        var (Contract, Layout) = Fixture(Direction, [("a", 0, 0), ("b", 0, 2)]);
-        var Line = AddLine(Contract, Layout, "ab", "a", "b", "right", "left");
-        var A = Line.Points[0]; var B = Line.Points[^1];
+        (DiagramContract? Contract, FlowchartLayoutResult? Layout) = Fixture(Direction, [("a", 0, 0), ("b", 0, 2)]);
+        FlowchartLayoutEdgeRoute Line = AddLine(Contract, Layout, "ab", "a", "b", "right", "left");
+        FlowchartLayoutPoint A = Line.Points[0]; FlowchartLayoutPoint B = Line.Points[^1];
         double Third = (B.X - A.X) / 3;
-        double Above = Layout.NodeBounds.Max(Box => Box.CenterY + Box.Height / 2) + FlowchartLayoutRules.TrackSpacing;
+        double Above = Layout.NodeBounds.Max(Box => Box.CenterY + (Box.Height / 2)) + FlowchartLayoutRules.TrackSpacing;
         Line.Points.Clear();
         Line.Points.AddRange(new[] { (A.X, A.Y), (A.X + Third, A.Y), (A.X + Third, Above),
             (B.X - Third, Above), (B.X - Third, B.Y), (B.X, B.Y) }.Select(Point => new FlowchartLayoutPoint { X = Point.Item1, Y = Point.Item2 }));
         Repair(Contract, Layout);
         Assert.That(Line.Points, Has.Count.EqualTo(2));
-        Assert.That(Line.Points.All(Point => Point.Y <= Layout.NodeBounds.Max(Box => Box.CenterY + Box.Height / 2)
-            && Point.Y >= Layout.NodeBounds.Min(Box => Box.CenterY - Box.Height / 2)), Is.True);
+        Assert.That(Line.Points.All(Point => Point.Y <= Layout.NodeBounds.Max(Box => Box.CenterY + (Box.Height / 2))
+            && Point.Y >= Layout.NodeBounds.Min(Box => Box.CenterY - (Box.Height / 2))), Is.True);
     }
 
     /// <summary>Four cardinal neighbours enter the hub's facing sides with no more than one corner each.</summary>
@@ -85,14 +85,17 @@ public sealed class FinishedBendGeometryTests
     [TestCase("TB"), TestCase("LR")]
     public void CardinalSourcesEnterTheFacingHubSides(string Direction)
     {
-        var (Contract, Layout) = Fixture(Direction, [("hub", 2, 2), ("left", 2, 0), ("right", 2, 4), ("top", 0, 2), ("bottom", 4, 2)]);
-        foreach (var Pair in new[] { ("left", "right"), ("right", "left"), ("top", "bottom"), ("bottom", "top") })
+        (DiagramContract? Contract, FlowchartLayoutResult? Layout) = Fixture(Direction, [("hub", 2, 2), ("left", 2, 0), ("right", 2, 4), ("top", 0, 2), ("bottom", 4, 2)]);
+        foreach ((string, string) Pair in new[] { ("left", "right"), ("right", "left"), ("top", "bottom"), ("bottom", "top") })
+        {
             AddLine(Contract, Layout, Pair.Item1, Pair.Item1, "hub", Pair.Item2, Pair.Item2);
+        }
+
         FlowchartLayoutAlternatives.RejectionObserver = TestContext.Out.WriteLine;
         try { Repair(Contract, Layout); }
         finally { FlowchartLayoutAlternatives.RejectionObserver = null; }
         TestContext.Out.WriteLine(JsonSerializer.Serialize(Layout.EdgeRoutes));
-        foreach (var Line in Layout.EdgeRoutes)
+        foreach (FlowchartLayoutEdgeRoute Line in Layout.EdgeRoutes)
         {
             Assert.That(Line.EntrySide, Is.EqualTo(Line.SourceId), Line.EdgeId);
             Assert.That(FlowchartLayoutScore.CountCorners(Line.Points), Is.LessThanOrEqualTo(1), Line.EdgeId);
@@ -104,7 +107,7 @@ public sealed class FinishedBendGeometryTests
     /// <param name="Layout">Fixed cell-owned input with deliberately inefficient routes.</param>
     private static void Repair(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
-        using var Active = FlowchartRenderContext.Activate(Layout.RenderContext);
+        using IDisposable Active = FlowchartRenderContext.Activate(Layout.RenderContext);
         FlowchartBendRemovingPortRepair.Apply(Contract, Layout);
         FlowchartFinishedLayoutBendRepair.Apply(Contract, Layout);
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Finding => Finding.Rule is "10" or "4.1" or "5.1"), Is.Empty);
@@ -116,15 +119,19 @@ public sealed class FinishedBendGeometryTests
     /// <returns>Production-owned state whose pixel bounds are projections of whole cells.</returns>
     internal static (DiagramContract Contract, FlowchartLayoutResult Layout) Fixture(string Direction, (string Id, int Row, int Column)[] Cells)
     {
-        var Contract = new DiagramContract { Kind = "flowchart", Direction = Direction };
-        var Layout = new FlowchartLayoutResult { UsesGridRoutes = true, RenderContext = new() { UseCellRegions = true } };
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        foreach (var Cell in Cells) Assert.That(Grid.TryPlace(Cell.Id, new(Cell.Row, Cell.Column, 1, 1)), Is.True);
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var Cell in Cells)
+        DiagramContract Contract = new DiagramContract { Kind = "flowchart", Direction = Direction };
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult { UsesGridRoutes = true, RenderContext = new() { UseCellRegions = true } };
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        foreach ((string Id, int Row, int Column) Cell in Cells)
+        {
+            Assert.That(Grid.TryPlace(Cell.Id, new(Cell.Row, Cell.Column, 1, 1)), Is.True);
+        }
+
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string Id, int Row, int Column) Cell in Cells)
         {
             Contract.NodesMutable.Add(new NodeContract { Id = Cell.Id, Shape = "rect" });
-            var Node = new DiagramGridLayout.GridNode { Id = Cell.Id };
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Cell.Id };
             Node.BindCells(Grid, Layout.RenderContext); Node.CellNode!.UseRoutingCoordinates(0);
             Nodes.Add(Node); Layout.NodeBoundsMutable.Add(Node.CellNode.Bounds());
         }
@@ -146,12 +153,12 @@ public sealed class FinishedBendGeometryTests
         string Id, string Source, string Target, string Exit, string Entry, double Fraction = 0.5)
     {
         Contract.EdgesMutable.Add(new EdgeContract { Id = Id, SourceId = Source, TargetId = Target });
-        var Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId);
-        var A = Port(Bounds[Source], Exit, Fraction); var B = Port(Bounds[Target], Entry, 0.5);
-        var Line = new FlowchartLayoutEdgeRoute { EdgeId = Id, SourceId = Source, TargetId = Target, ExitSide = Exit, EntrySide = Entry,
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId);
+        (double X, double Y, int Nx, int Ny) A = Port(Bounds[Source], Exit, Fraction); (double X, double Y, int Nx, int Ny) B = Port(Bounds[Target], Entry, 0.5);
+        FlowchartLayoutEdgeRoute Line = new FlowchartLayoutEdgeRoute { EdgeId = Id, SourceId = Source, TargetId = Target, ExitSide = Exit, EntrySide = Entry,
             ExitNormalX = A.Nx, ExitNormalY = A.Ny, EntryNormalX = B.Nx, EntryNormalY = B.Ny };
         Line.Points.Add(new() { X = A.X, Y = A.Y }); Line.Points.Add(new() { X = B.X, Y = B.Y });
-        var Path = FlowchartAllocatedPortFallback.Build(Contract, Bounds, Contract.Nodes.ToDictionary(Node => Node.Id), Line, true);
+        List<(double X, double Y)> Path = FlowchartAllocatedPortFallback.Build(Contract, Bounds, Contract.Nodes.ToDictionary(Node => Node.Id), Line, true);
         Assert.That(Path.Count, Is.GreaterThanOrEqualTo(2), "The deliberately inefficient fixture must start with a real legal route.");
         Line.Points.Clear(); Line.Points.AddRange(Path.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }));
         Layout.EdgeRoutesMutable.Add(Line);
@@ -165,9 +172,9 @@ public sealed class FinishedBendGeometryTests
     /// <returns>Exact position and outward normal.</returns>
     private static (double X, double Y, int Nx, int Ny) Port(FlowchartLayoutNodeBounds Box, string Side, double Fraction) => Side switch
     {
-        "left" => (Box.CenterX - Box.Width / 2, Box.CenterY + Box.Height * (0.5 - Fraction), -1, 0),
-        "right" => (Box.CenterX + Box.Width / 2, Box.CenterY + Box.Height * (0.5 - Fraction), 1, 0),
-        "top" => (Box.CenterX + Box.Width * (Fraction - 0.5), Box.CenterY + Box.Height / 2, 0, 1),
-        _ => (Box.CenterX + Box.Width * (Fraction - 0.5), Box.CenterY - Box.Height / 2, 0, -1)
+        "left" => (Box.CenterX - (Box.Width / 2), Box.CenterY + (Box.Height * (0.5 - Fraction)), -1, 0),
+        "right" => (Box.CenterX + (Box.Width / 2), Box.CenterY + (Box.Height * (0.5 - Fraction)), 1, 0),
+        "top" => (Box.CenterX + (Box.Width * (Fraction - 0.5)), Box.CenterY + (Box.Height / 2), 0, 1),
+        _ => (Box.CenterX + (Box.Width * (Fraction - 0.5)), Box.CenterY - (Box.Height / 2), 0, -1)
     };
 }

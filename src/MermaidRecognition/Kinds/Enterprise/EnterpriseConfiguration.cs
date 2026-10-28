@@ -12,7 +12,11 @@ internal static class EnterpriseConfiguration
         {
             string Preamble = Source[..(Source.Length - Remaining.Length)];
             Match Title = Regex.Match(Preamble, @"^title:\s*(.*?)\s*$", RegexOptions.Multiline);
-            if (Title.Success) Document.Title = Title.Groups[1].Value.Trim().Trim('"', '\'');
+            if (Title.Success)
+            {
+                Document.Title = Title.Groups[1].Value.Trim().Trim('"', '\'');
+            }
+
             Source = PreserveLines(Preamble) + Remaining;
         }
         return Regex.Replace(Source, @"^[\t ]*%%\{.*?}%%", Match =>
@@ -22,5 +26,5 @@ internal static class EnterpriseConfiguration
         }, RegexOptions.Multiline | RegexOptions.Singleline);
     }
 
-    private static string PreserveLines(string Text) => new(Text.Where(Character => Character is '\r' or '\n').ToArray());
+    private static string PreserveLines(string Text) => new([.. Text.Where(Character => Character is '\r' or '\n')]);
 }

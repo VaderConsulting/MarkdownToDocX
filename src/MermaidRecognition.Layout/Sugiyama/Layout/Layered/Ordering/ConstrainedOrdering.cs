@@ -343,7 +343,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         }
 
         static Dictionary<int, List<int>> CreateComponentRootsToComponentsMap(Dictionary<int, int> nodesToVerticalComponentsRoots) {
-            Dictionary<int, List<int>> d = new Dictionary<int, List<int>>();
+            Dictionary<int, List<int>> d = [];
             foreach (KeyValuePair<int, int> kv in nodesToVerticalComponentsRoots) {
                 int i = kv.Key;
                 int root = kv.Value;
@@ -386,9 +386,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         Dictionary<int, int> CreateVerticalComponents() {
             BasicGraph<IntEdge> vertGraph = new BasicGraph<IntEdge>(from pair in horizontalConstraints.VerticalInts select new IntEdge(pair.Item1, pair.Item2));
             IEnumerable<IEnumerable<int>> verticalComponents = ConnectedComponentCalculator<IntEdge>.GetComponents(vertGraph);
-            Dictionary<int, int> nodesToComponentRoots = new Dictionary<int, int>();
+            Dictionary<int, int> nodesToComponentRoots = [];
             foreach (IEnumerable<int> component in verticalComponents) {
-                int[] ca = component.ToArray();
+                int[] ca = [.. component];
                 if (ca.Length == 1)
                 {
                     continue;
@@ -573,7 +573,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                                                             ConstrainedVarWeight);
                     }
                     else {
-                        IEnumerable<int> t = from u in layerInfo.neigBlocks[v].Concat(new[] { v })
+                        IEnumerable<int> t = from u in layerInfo.neigBlocks[v].Concat([v])
                                              where IsConnectedToPrevLayer(u, sweepMode)
                                              select u;
                         if (t.Any()) {
@@ -615,8 +615,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
             }
         }
 
-        bool IsConnectedToPrevLayer(int v, SweepMode sweepMode) => sweepMode == SweepMode.ComingFromAbove && ProperLayeredGraph.InEdgesCount(v) > 0 ||
-                   sweepMode == SweepMode.ComingFromBelow && ProperLayeredGraph.OutEdgesCount(v) > 0;
+        bool IsConnectedToPrevLayer(int v, SweepMode sweepMode) => (sweepMode == SweepMode.ComingFromAbove && ProperLayeredGraph.InEdgesCount(v) > 0) ||
+                   (sweepMode == SweepMode.ComingFromBelow && ProperLayeredGraph.OutEdgesCount(v) > 0);
 
         double FixedNodePosition(int v, SweepMode sweepMode) {
             Debug.Assert(sweepMode != SweepMode.Starting);
@@ -711,7 +711,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         double GetGapBetweenBlockRoots(int leftBlockRoot, int rightBlockRoot) {
             double lw = GetBlockWidth(leftBlockRoot);
             double rw = GetNodeWidth(rightBlockRoot);
-            return settings.NodeSeparation + 0.5 * (lw + rw);
+            return settings.NodeSeparation + (0.5 * (lw + rw));
         }
 
         double GetBlockWidth(int leftBlockRoot) {
@@ -760,8 +760,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
                 return false;
             }
 
-            return sweepMode == SweepMode.ComingFromAbove && NodeIsConstrainedAbove(v, layerInfo) ||
-                   sweepMode == SweepMode.ComingFromBelow && NodeIsConstrainedBelow(v, layerInfo);
+            return (sweepMode == SweepMode.ComingFromAbove && NodeIsConstrainedAbove(v, layerInfo)) ||
+                   (sweepMode == SweepMode.ComingFromBelow && NodeIsConstrainedBelow(v, layerInfo));
         }
 
         double GetGapFromNodeNodesConstrainedBelow(int leftNode, int rightNode, LayerInfo layerInfo,
@@ -875,7 +875,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
 
         IEnumerable<IntEdge> CreatePathEdgesOnIntGraph() {
             numberOfNodesOfProperGraph = intGraph.NodeCount;
-            List<IntEdge> ret = new List<IntEdge>();
+            List<IntEdge> ret = [];
             foreach (IntEdge ie in intGraph.Edges) {
                 if (initialLayering[ie.Source] > initialLayering[ie.Target]) {
                     CreateLayerEdgesUnderIntEdge(ie);

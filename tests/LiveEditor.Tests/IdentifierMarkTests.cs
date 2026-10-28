@@ -72,7 +72,7 @@ public sealed class IdentifierMarkTests
             throw new InvalidOperationException("OnMouseDoubleClick is missing.");
         }
 
-        OnDoubleClick.Invoke(Editor, new object[] { new MouseEventArgs(MouseButtons.Left, 2, 1, 1, 0) });
+        OnDoubleClick.Invoke(Editor, [new MouseEventArgs(MouseButtons.Left, 2, 1, 1, 0)]);
     }
 
     private static MainForm OpenEditor()

@@ -159,10 +159,10 @@ Serializable
             double kNext = b.NextBezierSegmentFitCoefficient;
             Site? a = b.Previous;
             Site? c = b.Next;
-            Point s = kPrev*a.Point + (1 - kPrev)*b.Point;
-            Point e = kNext*c.Point + (1 - kNext)*b.Point;
-            Point u = s*b.PreviousTangentCoefficient + (1 - b.PreviousTangentCoefficient)*b.Point;
-            Point v = e*b.NextTangentCoefficient + (1 - b.NextTangentCoefficient)*b.Point;
+            Point s = (kPrev*a.Point) + ((1 - kPrev)*b.Point);
+            Point e = (kNext*c.Point) + ((1 - kNext)*b.Point);
+            Point u = (s*b.PreviousTangentCoefficient) + ((1 - b.PreviousTangentCoefficient)*b.Point);
+            Point v = (e*b.NextTangentCoefficient) + ((1 - b.NextTangentCoefficient)*b.Point);
             return new CubicBezierSegment(s, u, v, e);
         }
 

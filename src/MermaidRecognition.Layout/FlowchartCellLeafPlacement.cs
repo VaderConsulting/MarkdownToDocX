@@ -19,107 +19,174 @@ internal static class FlowchartCellLeafPlacement
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes,
         List<DiagramGridLayout.GridFrame> Frames, bool Horizontal, bool External)
     {
-        var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Nodes[0].CellNode!.Grid;
-        var Context = Nodes[0].PixelWriteContext ?? FlowchartRenderContext.Current;
-        var Regions = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var Growth = new Dictionary<int, double>(); var Ranks = new Dictionary<DiagramGridLayout.GridNode, int>();
-        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Edges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var Options = FlowchartRenderOptions.FromContract(Contract);
-        var State = Before; bool Changed = false;
-        foreach (var Leaf in Nodes.Where(Node => (External ? Node.GroupId == null : Node.GroupId != null) && !Node.IsDiamond && !Node.PlacementHintLocked))
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes); FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        FlowchartRenderContext Context = Nodes[0].PixelWriteContext ?? FlowchartRenderContext.Current;
+        Dictionary<string, FlowchartCellRegion> Regions = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        Dictionary<int, double> Growth = []; Dictionary<DiagramGridLayout.GridNode, int> Ranks = [];
+        Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        EdgeContract[] Edges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
+        FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
+        FlowchartLogicalGrid.Snapshot State = Before; bool Changed = false;
+        foreach (DiagramGridLayout.GridNode? Leaf in Nodes.Where(Node => (External ? Node.GroupId == null : Node.GroupId != null) && !Node.IsDiamond && !Node.PlacementHintLocked))
         {
-            if (Context.CellLeafCandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) break;
-            var Incident = Edges.Where(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id).ToArray();
-            if (Incident.Length != 1) continue;
-            var Edge = Incident[0];
-            if (!ById.TryGetValue(Edge.SourceId == Leaf.Id ? Edge.TargetId : Edge.SourceId, out var Parent) || Parent.IsDiamond
-                || (External ? Parent.GroupId == null : Parent.GroupId != Leaf.GroupId)) continue;
-            var CurrentFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, State);
-            var Owner = External ? CurrentFrames.Where(Frame => FlowchartCompoundEndpointHelper.Contains(Contract, Frame.Id, Parent.Id))
+            if (Context.CellLeafCandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves)
+            {
+                break;
+            }
+
+            EdgeContract[] Incident = [.. Edges.Where(Edge => Edge.SourceId == Leaf.Id || Edge.TargetId == Leaf.Id)];
+            if (Incident.Length != 1)
+            {
+                continue;
+            }
+
+            EdgeContract Edge = Incident[0];
+            if (!ById.TryGetValue(Edge.SourceId == Leaf.Id ? Edge.TargetId : Edge.SourceId, out DiagramGridLayout.GridNode? Parent) || Parent.IsDiamond
+                || (External ? Parent.GroupId == null : Parent.GroupId != Leaf.GroupId))
+            {
+                continue;
+            }
+
+            List<DiagramGridLayout.GridFrame> CurrentFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, State);
+            DiagramGridLayout.GridFrame? Owner = External ? CurrentFrames.Where(Frame => FlowchartCompoundEndpointHelper.Contains(Contract, Frame.Id, Parent.Id))
                 .OrderByDescending(Frame => Math.Abs((double)(Frame.Right - Frame.Left) * (Frame.Bottom - Frame.Top))).FirstOrDefault() : null;
-            if (External && Owner == null) continue;
+            if (External && Owner == null)
+            {
+                continue;
+            }
+
             if (!Edges.Any(Other => Other != Edge && (Edge.SourceId == Leaf.Id ? Other.TargetId == Parent.Id : Other.SourceId == Parent.Id)
                 && ById.ContainsKey(Other.SourceId == Parent.Id ? Other.TargetId : Other.SourceId)
                 && (External ? FlowchartCompoundEndpointHelper.Contains(Contract, Owner!.Id, Other.SourceId == Parent.Id ? Other.TargetId : Other.SourceId)
-                    : !FlowchartCompoundEndpointHelper.Contains(Contract, Leaf.GroupId!, Other.SourceId == Parent.Id ? Other.TargetId : Other.SourceId)))) continue;
-            var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
+                    : !FlowchartCompoundEndpointHelper.Contains(Contract, Leaf.GroupId!, Other.SourceId == Parent.Id ? Other.TargetId : Other.SourceId))))
+            {
+                continue;
+            }
+
+            FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? string.Empty, Options, Options.EdgeLabelFontSizePx);
             int Needed = DiagramGridMetrics.CeilToGrid(Math.Max(DiagramGridMetrics.GRID_UNIT_PX,
                 string.IsNullOrWhiteSpace(Edge.Label) ? 0 : (Horizontal ? Size.Height : Size.Width) + 12));
-            var CurrentBounds = Project(Nodes, State);
-            var ExistingConflicts = DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, CurrentFrames, CurrentBounds);
-            var Anchor = Regions[Parent.Id]; var LeafRegion = Regions[Leaf.Id];
-            var Unit = External ? Nodes.Where(Node => FlowchartCompoundEndpointHelper.Contains(Contract, Owner!.Id, Node.Id)).ToArray() : [Parent];
+            Dictionary<string, FlowchartLayoutNodeBounds> CurrentBounds = Project(Nodes, State);
+            HashSet<string> ExistingConflicts = DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, CurrentFrames, CurrentBounds);
+            FlowchartCellRegion Anchor = Regions[Parent.Id]; FlowchartCellRegion LeafRegion = Regions[Leaf.Id];
+            DiagramGridLayout.GridNode[] Unit = External ? [.. Nodes.Where(Node => FlowchartCompoundEndpointHelper.Contains(Contract, Owner!.Id, Node.Id))] : [Parent];
             int Low = Unit.Min(Node => Horizontal ? Regions[Node.Id].StartRow : Regions[Node.Id].StartColumn);
             int High = Unit.Max(Node => Horizontal ? Regions[Node.Id].EndRow : Regions[Node.Id].EndColumn);
             FlowchartCellRepair.Assignment? Best = null; double BestCost = double.PositiveInfinity;
             Dictionary<string, FlowchartCellRegion>? BestRegions = null;
-            var SettledSides = new HashSet<int>();
+            HashSet<int> SettledSides = [];
             for (int Extra = 0; SettledSides.Count < 2 && Context.CellLeafCandidateMoves < FlowchartLayoutRules.RepairCandidateMoves; Extra++)
-            foreach (int Sign in new[] { -1, 1 })
             {
-                if (SettledSides.Contains(Sign) || Context.CellLeafCandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves) continue;
-                Context.CellLeafCandidateMoves++;
+                foreach (int Sign in new[] { -1, 1 })
+            {
+                if (SettledSides.Contains(Sign) || Context.CellLeafCandidateMoves >= FlowchartLayoutRules.RepairCandidateMoves)
+                    {
+                        continue;
+                    }
+
+                    Context.CellLeafCandidateMoves++;
                 int Cross = Sign < 0 ? checked(Low - (Horizontal ? LeafRegion.RowSpan : LeafRegion.ColumnSpan) - Extra) : checked(High + Extra);
-                var Trial = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal)
+                    Dictionary<string, FlowchartCellRegion> Trial = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal)
                     { [Leaf.Id] = new(Horizontal ? Cross : Anchor.StartRow, Horizontal ? Anchor.StartColumn : Cross, LeafRegion.RowSpan, LeafRegion.ColumnSpan) };
-                var TrialGrowth = new Dictionary<int, double>(Growth);
-                var A = CurrentBounds[Parent.Id]; var B = Leaf.CellNode!.Bounds(Trial[Leaf.Id], Leaf.GeometryProvider, State);
+                    Dictionary<int, double> TrialGrowth = new Dictionary<int, double>(Growth);
+                    FlowchartLayoutNodeBounds A = CurrentBounds[Parent.Id]; FlowchartLayoutNodeBounds B = Leaf.CellNode!.Bounds(Trial[Leaf.Id], Leaf.GeometryProvider, State);
                 string Side = Horizontal ? (Sign < 0 ? "top" : "bottom") : (Sign < 0 ? "left" : "right");
-                if (!TryChord(Parent, Leaf, A, B, Side, out var Start, out var End)) { SettledSides.Add(Sign); continue; }
+                if (!TryChord(Parent, Leaf, A, B, Side, out (double X, double Y) Start, out (double X, double Y) End)) { SettledSides.Add(Sign); continue; }
                 double Missing = Needed - Math.Abs(Horizontal ? End.Y - Start.Y : End.X - Start.X);
                 if (External)
                 {
                     int WorldSign = Horizontal && Parent.CellNode!.UsesRoutingCoordinates ? -Sign : Sign;
                     double Border = Horizontal ? (WorldSign < 0 ? Math.Min(Owner!.Top, Owner.Bottom) : Math.Max(Owner!.Top, Owner.Bottom))
                         : (Sign < 0 ? Owner!.Left : Owner!.Right);
-                    double Near = Horizontal ? (WorldSign < 0 ? B.CenterY + B.Height / 2 : B.CenterY - B.Height / 2)
-                        : (Sign < 0 ? B.CenterX + B.Width / 2 : B.CenterX - B.Width / 2);
-                    Missing = Math.Max(Missing, 2 * DiagramGridMetrics.NODE_GAP_PX - WorldSign * (Near - Border));
+                    double Near = Horizontal ? (WorldSign < 0 ? B.CenterY + (B.Height / 2) : B.CenterY - (B.Height / 2))
+                        : (Sign < 0 ? B.CenterX + (B.Width / 2) : B.CenterX - (B.Width / 2));
+                    Missing = Math.Max(Missing, (2 * DiagramGridMetrics.NODE_GAP_PX) - (WorldSign * (Near - Border)));
                 }
                 int After = Sign < 0 ? Low - 1 : High - 1;
                 if (Missing > 0)
                 {
                     if (Trial.Values.Any(Region => Horizontal ? Region.StartRow <= After && Region.EndRow > After + 1
-                        : Region.StartColumn <= After && Region.EndColumn > After + 1)) continue;
-                    TrialGrowth[After] = TrialGrowth.GetValueOrDefault(After) + Missing;
+                        : Region.StartColumn <= After && Region.EndColumn > After + 1))
+                        {
+                            continue;
+                        }
+
+                        TrialGrowth[After] = TrialGrowth.GetValueOrDefault(After) + Missing;
                 }
-                var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Trial,
+                    FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, Trial,
                     TrialGrowth.Select(Pair => new FlowchartCellGapGrowth(!Horizontal, Pair.Key, Pair.Value, DiagramGridMetrics.GRID_UNIT_PX)).ToArray());
-                if (Plan == null) continue;
-                var Bounds = Project(Nodes, Plan.After); var ProjectedFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Plan.After);
-                if (DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, ProjectedFrames, Bounds).Any(Key => !ExistingConflicts.Contains(Key))) continue;
-                if (!TryChord(Parent, Leaf, Bounds[Parent.Id], Bounds[Leaf.Id], Side, out Start, out End)
-                    || FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(Start.X, Start.Y, End.X, End.Y, Bounds, Parent.Id, Leaf.Id)) continue;
-                bool Routing = Parent.CellNode!.UsesRoutingCoordinates;
+                if (Plan == null)
+                    {
+                        continue;
+                    }
+
+                    Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Project(Nodes, Plan.After); List<DiagramGridLayout.GridFrame> ProjectedFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Plan.After);
+                if (DiagramGridLayout.ProjectedCellFrameConflictKeys(Contract, Nodes, ProjectedFrames, Bounds).Any(Key => !ExistingConflicts.Contains(Key)))
+                    {
+                        continue;
+                    }
+
+                    if (!TryChord(Parent, Leaf, Bounds[Parent.Id], Bounds[Leaf.Id], Side, out Start, out End)
+                    || FlowchartRouteObstacleHelper.SegmentIntersectsUnrelatedNodeBodies(Start.X, Start.Y, End.X, End.Y, Bounds, Parent.Id, Leaf.Id))
+                    {
+                        continue;
+                    }
+
+                    bool Routing = Parent.CellNode!.UsesRoutingCoordinates;
                 if (ProjectedFrames.Any(Frame => Frame.TitleStrip > 0 && FlowchartRouteObstacleHelper.SegmentIntersectsRectangleInterior(
                     Start.X, Start.Y, End.X, End.Y, Frame.Left, Routing ? Math.Max(Frame.Top, Frame.Bottom) - Frame.TitleStrip : Math.Min(Frame.Top, Frame.Bottom),
-                    Frame.Right, Routing ? Math.Max(Frame.Top, Frame.Bottom) : Math.Min(Frame.Top, Frame.Bottom) + Frame.TitleStrip))) continue;
-                double Begin = Horizontal ? Start.Y : Start.X, Finish = Horizontal ? End.Y : End.X;
+                    Frame.Right, Routing ? Math.Max(Frame.Top, Frame.Bottom) : Math.Min(Frame.Top, Frame.Bottom) + Frame.TitleStrip)))
+                    {
+                        continue;
+                    }
+
+                    double Begin = Horizontal ? Start.Y : Start.X, Finish = Horizontal ? End.Y : End.X;
                 double ParentMain = Horizontal ? Bounds[Parent.Id].CenterX : Bounds[Parent.Id].CenterY;
                 int Crossings = Edges.Count(Other => Other.SourceId != Parent.Id && Other.TargetId != Parent.Id && Other.SourceId != Leaf.Id && Other.TargetId != Leaf.Id
-                    && Bounds.TryGetValue(Other.SourceId, out var First) && Bounds.TryGetValue(Other.TargetId, out var Last)
+                    && Bounds.TryGetValue(Other.SourceId, out FlowchartLayoutNodeBounds? First) && Bounds.TryGetValue(Other.TargetId, out FlowchartLayoutNodeBounds? Last)
                     && (Horizontal ? First.CenterY : First.CenterX) > Math.Min(Begin, Finish) && (Horizontal ? First.CenterY : First.CenterX) < Math.Max(Begin, Finish)
                     && ((Horizontal ? First.CenterX : First.CenterY) - ParentMain) * ((Horizontal ? Last.CenterX : Last.CenterY) - ParentMain) < 0);
                 double Move = Math.Abs((Horizontal ? Bounds[Leaf.Id].CenterY : Bounds[Leaf.Id].CenterX)
                     - (Horizontal ? CurrentBounds[Leaf.Id].CenterY : CurrentBounds[Leaf.Id].CenterX));
                 // Preserve the two existing leaf passes' established cost terms.
-                double Cost = Crossings * 1000 + (External ? Math.Abs(Finish - Begin) + Move / 100 : Move);
+                double Cost = (Crossings * 1000) + (External ? Math.Abs(Finish - Begin) + (Move / 100) : Move);
                 if (Cost < BestCost) { Best = Plan; BestCost = Cost; BestRegions = Trial; }
                 SettledSides.Add(Sign); // nearest legal whole-cell placement on this side
             }
-            if (Best == null) continue;
-            var BestGrowth = FlowchartCellRepair.GrownGapsSince(Before, Best.After, Columns: !Horizontal);
+            }
+
+            if (Best == null)
+            {
+                continue;
+            }
+
+            Dictionary<int, double> BestGrowth = FlowchartCellRepair.GrownGapsSince(Before, Best.After, Columns: !Horizontal);
             Changed |= BestRegions![Leaf.Id] != Regions[Leaf.Id] || BestGrowth.Any(Pair => Pair.Value != Growth.GetValueOrDefault(Pair.Key)) || Leaf.Rank != Parent.Rank;
             Regions = BestRegions!; Growth = BestGrowth; State = Best.After; Ranks[Leaf] = Parent.Rank;
         }
-        if (!Changed) return false;
-        var Complete = FlowchartCellRepair.PlanAssignment(Nodes, Regions,
+        if (!Changed)
+        {
+            return false;
+        }
+
+        FlowchartCellRepair.Assignment? Complete = FlowchartCellRepair.PlanAssignment(Nodes, Regions,
             Growth.Select(Pair => new FlowchartCellGapGrowth(!Horizontal, Pair.Key, Pair.Value, DiagramGridMetrics.GRID_UNIT_PX)).ToArray());
-        if (Complete == null) return false;
-        var FinalFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Complete.After);
-        if (!Complete.TryApply()) return false;
-        foreach (var Pair in Ranks) Pair.Key.Rank = Pair.Value;
+        if (Complete == null)
+        {
+            return false;
+        }
+
+        List<DiagramGridLayout.GridFrame> FinalFrames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Complete.After);
+        if (!Complete.TryApply())
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<DiagramGridLayout.GridNode, int> Pair in Ranks)
+        {
+            Pair.Key.Rank = Pair.Value;
+        }
+
         Frames.Clear(); Frames.AddRange(FinalFrames);
         return true;
     }
@@ -145,9 +212,13 @@ internal static class FlowchartCellLeafPlacement
     {
         Start = End = default;
         string Opposite = Side switch { "left" => "right", "right" => "left", "top" => "bottom", _ => "top" };
-        var ABoundary = (A.Geometry ?? NodeGeometry.Rectangle(A.Width, A.Height)).ConnectionBoundary;
-        var BBoundary = (B.Geometry ?? NodeGeometry.Rectangle(B.Width, B.Height)).ConnectionBoundary;
-        if (!ABoundary.TryPort(Side, 0.5, out var P) || !BBoundary.TryPort(Opposite, 0.5, out var Q)) return false;
+        INodeConnectionBoundary ABoundary = (A.Geometry ?? NodeGeometry.Rectangle(A.Width, A.Height)).ConnectionBoundary;
+        INodeConnectionBoundary BBoundary = (B.Geometry ?? NodeGeometry.Rectangle(B.Width, B.Height)).ConnectionBoundary;
+        if (!ABoundary.TryPort(Side, 0.5, out NodeGeometryPort P) || !BBoundary.TryPort(Opposite, 0.5, out NodeGeometryPort Q))
+        {
+            return false;
+        }
+
         Start = (A.CenterX + P.X, A.CenterY + (Parent.CellNode!.UsesRoutingCoordinates ? -P.Y : P.Y));
         End = (B.CenterX + Q.X, B.CenterY + (Leaf.CellNode!.UsesRoutingCoordinates ? -Q.Y : Q.Y));
         return true;

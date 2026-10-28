@@ -66,7 +66,7 @@ public sealed class RulesEngine(LoadedSpecBundle SpecBundle, IEnumerable<IRuleEv
         Report.Summary.PassCount = Report.DiagramResults.Sum(Diagram => Diagram.PassCount);
         Report.Summary.WarningCount = Report.DiagramResults.Sum(Diagram => Diagram.WarningCount);
         Report.Summary.ErrorCount = Report.Failures.Count(Failure => Failure.Severity == "Error");
-        Report.Summary.NotApplicableCount = _Ruleset.Rules.Count * ActualResults.Diagrams.Count
+        Report.Summary.NotApplicableCount = (_Ruleset.Rules.Count * ActualResults.Diagrams.Count)
             - Report.Summary.PassCount
             - Report.Summary.WarningCount
             - Report.Summary.ErrorCount;
@@ -327,9 +327,7 @@ public sealed class RulesEngine(LoadedSpecBundle SpecBundle, IEnumerable<IRuleEv
 
     private static IEnumerable<EvaluationContext> BuildNodePairContexts(DiagramActualResult Diagram)
     {
-        List<NodeActualResult> RenderedNodes = Diagram.Nodes
-            .Where(Node => Node.IsRendered && Node.Bounds.Width > 0 && Node.Bounds.Height > 0)
-            .ToList();
+        List<NodeActualResult> RenderedNodes = [.. Diagram.Nodes.Where(Node => Node.IsRendered && Node.Bounds.Width > 0 && Node.Bounds.Height > 0)];
 
         for (int LeftIndex = 0; LeftIndex < RenderedNodes.Count; LeftIndex++)
         {

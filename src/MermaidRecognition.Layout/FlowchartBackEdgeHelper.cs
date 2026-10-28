@@ -19,7 +19,7 @@ public static class FlowchartBackEdgeHelper
         public IReadOnlySet<EdgeContract> Items => MutableItems;
     }
 
-    private static readonly ConditionalWeakTable<DiagramContract, CachedBackEdges> ContractCache = new();
+    private static readonly ConditionalWeakTable<DiagramContract, CachedBackEdges> ContractCache = [];
 
     /// <summary>
     /// Returns the visible edges that point back to a node still on the depth-first path.
@@ -37,13 +37,13 @@ public static class FlowchartBackEdgeHelper
 
     private static CachedBackEdges ComputeBackEdges(DiagramContract Contract)
     {
-        HashSet<EdgeContract> BackEdges = new HashSet<EdgeContract>();
+        HashSet<EdgeContract> BackEdges = [];
         if (Contract == null || Contract.Edges.Count == 0)
         {
             return new CachedBackEdges { MutableItems = BackEdges };
         }
 
-        List<EdgeContract> VisibleEdges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).OrderBy(Edge => Edge.CreationIndex).ToList();
+        List<EdgeContract> VisibleEdges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).OrderBy(Edge => Edge.CreationIndex)];
         Dictionary<string, int> EarliestEdgeIndexById = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (EdgeContract Edge in VisibleEdges)
         {
@@ -59,7 +59,7 @@ public static class FlowchartBackEdgeHelper
         }
 
         HashSet<string> TargetIds = new HashSet<string>(VisibleEdges.Select(Edge => Edge.TargetId), StringComparer.Ordinal);
-        List<string> StartOrder = EarliestEdgeIndexById.Keys.OrderBy(NodeId => TargetIds.Contains(NodeId) ? 1 : 0).ThenBy(NodeId => EarliestEdgeIndexById[NodeId]).ToList();
+        List<string> StartOrder = [.. EarliestEdgeIndexById.Keys.OrderBy(NodeId => TargetIds.Contains(NodeId) ? 1 : 0).ThenBy(NodeId => EarliestEdgeIndexById[NodeId])];
         Dictionary<string, int> StateById = new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (string StartId in StartOrder)

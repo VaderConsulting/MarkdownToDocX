@@ -98,7 +98,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             }
 
             if (_nodes.Length == 2) {
-                Node[] nodes = _nodes.ToArray();
+                Node[] nodes = [.. _nodes];
                 Node a = nodes[0];
                 Node b = nodes[1];
 
@@ -131,8 +131,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             Point ab = ac - bc;
             double dx = Math.Abs(ab.X);
             double dy = Math.Abs(ab.Y);
-            double wx = (abox.Width/2 + bbox.Width/2);
-            double wy = (abox.Height/2 + bbox.Height/2);
+            double wx = ((abox.Width/2) + (bbox.Width/2));
+            double wy = ((abox.Height/2) + (bbox.Height/2));
             const double machineAcc = 1.0e-16;
             double t;
             if (dx < machineAcc*wx)
@@ -192,7 +192,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         bool OneIteration(Point[] nodePositions, Size[] nodeSizes, bool scanlinePhase) {
             Cdt cdt = new Cdt(nodePositions.Select((p, index) => Tuple.Create(p, (object) index)));
             cdt.Run();
-            Dictionary<CdtSite, int> siteIndex = new Dictionary<CdtSite, int>();
+            Dictionary<CdtSite, int> siteIndex = [];
             for (int i = 0; i < nodePositions.Length; i++)
             {
                 siteIndex[cdt.PointsToSites[nodePositions[i]]] = i;
@@ -380,8 +380,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             double dx = Math.Abs(point1.X - point2.X);
             double dy = Math.Abs(point1.Y - point2.Y);
 
-            double wx = (nodeBoxes[nodeId1].Width/2 + nodeBoxes[nodeId2].Width/2);
-            double wy = (nodeBoxes[nodeId1].Height/2 + nodeBoxes[nodeId2].Height/2);
+            double wx = ((nodeBoxes[nodeId1].Width/2) + (nodeBoxes[nodeId2].Width/2));
+            double wy = ((nodeBoxes[nodeId1].Height/2) + (nodeBoxes[nodeId2].Height/2));
 
             double t;
             if (dx < machineAcc*wx) {
@@ -434,7 +434,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 dy = a.Bottom - b.Top;
             }
 
-            double euclid = Math.Sqrt(dx*dx + dy*dy);
+            double euclid = Math.Sqrt((dx*dx) + (dy*dy));
             return euclid;
         }
 
@@ -450,7 +450,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
     /// <param name="rootId"></param>
         void ShowAndMoveBoxesRemoveLater(List<Tuple<int, int, double, double, double>> treeEdges,
             List<Tuple<int, int, double, double, double>> proximityEdges, Size[] nodeSizes, Point[] nodePos, int rootId) {
-            List<DebugCurve> l = new List<DebugCurve>();
+            List<DebugCurve> l = [];
             foreach (Tuple<int, int, double, double, double> tuple in proximityEdges)
             {
                 l.Add(new DebugCurve(100, 0.5, "black", new LineSegment(nodePos[tuple.Item1], nodePos[tuple.Item2])));
@@ -499,7 +499,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             int rootNodeId) {
             Point[] posOld = (Point[]) nodePositions.Clone();
 
-            Set<int> visited = new Set<int>();
+            Set<int> visited = [];
             visited.Insert(rootNodeId);
             for (int i = 0; i < treeEdges.Count; i++) {
                 Tuple<int, int, double, double, double> tupleEdge = treeEdges[i];
@@ -521,7 +521,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             Point dir = oldPos[edge.Item2] - oldPos[edge.Item1];
             double len = dir.Length;
 
-            dir *= (idealLen/len + 0.01);
+            dir *= ((idealLen/len) + 0.01);
             int standingNode = edge.Item1;
             int movedNode = edge.Item2;
             posNew[movedNode] = posNew[standingNode] + dir;
@@ -533,7 +533,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             double idealLen = edge.Item4;
             Point dir = -oldPos[edge.Item2] + oldPos[edge.Item1];
             double len = dir.Length;
-            dir *= (idealLen/len + 0.01);
+            dir *= ((idealLen/len) + 0.01);
             int standingNode = edge.Item2;
             int movedNode = edge.Item1;
             posNew[movedNode] = posNew[standingNode] + dir;

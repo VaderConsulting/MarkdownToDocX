@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 using LiveEditor.Editor;
@@ -12,7 +13,7 @@ namespace LiveEditor.Tests;
 /// </summary>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
-public sealed class LineNumberGutterTests
+public sealed partial class LineNumberGutterTests
 {
     [Test]
     public void RebindingWhileDpiFontIsActiveDoesNotDisposeTheExplicitFont()
@@ -26,7 +27,7 @@ public sealed class LineNumberGutterTests
             using LineNumberGutter Gutter = new LineNumberGutter();
             Editor.CreateControl();
             Gutter.Bind(Editor);
-            var ScaledFontField = typeof(Control).GetField("_scaledControlFont",
+            FieldInfo ScaledFontField = typeof(Control).GetField("_scaledControlFont",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
             try
             {
@@ -48,8 +49,8 @@ public sealed class LineNumberGutterTests
         }
     }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr Context);
+    [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+    private static partial IntPtr SetThreadDpiAwarenessContext(IntPtr Context);
 
     [Test]
     public void PaintingDoesNotUseARetiredDpiFont()
@@ -63,7 +64,7 @@ public sealed class LineNumberGutterTests
             using LineNumberGutter Gutter = new LineNumberGutter();
             Editor.CreateControl();
             Gutter.Bind(Editor);
-            var ScaledFontField = typeof(Control).GetField("_scaledControlFont",
+            FieldInfo ScaledFontField = typeof(Control).GetField("_scaledControlFont",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
             try
             {
@@ -73,7 +74,7 @@ public sealed class LineNumberGutterTests
                 using Graphics Canvas = Graphics.FromImage(Picture);
                 using PaintEventArgs Paint = new PaintEventArgs(Canvas, new Rectangle(Point.Empty, Picture.Size));
                 typeof(LineNumberGutter).GetMethod("OnPaint",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(Gutter, new object[] { Paint });
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(Gutter, [Paint]);
             }
             finally
             {
@@ -118,13 +119,13 @@ public sealed class LineNumberGutterTests
         using LineNumberGutter Gutter = new LineNumberGutter();
         Editor.CreateControl();
         Gutter.Bind(Editor);
-        var FontChanged = typeof(Control).GetMethod("OnFontChanged",
+        MethodInfo FontChanged = typeof(Control).GetMethod("OnFontChanged",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
         foreach (Font EditorFont in new[] { SmallFont, MediumFont, LargeFont, SessionFont })
         {
             Editor.Font = EditorFont;
-            FontChanged.Invoke(Editor, new object[] { System.EventArgs.Empty });
+            FontChanged.Invoke(Editor, [System.EventArgs.Empty]);
             Assert.That(Gutter.Font.Size, Is.EqualTo(EditorFont.Size));
             Assert.That(Gutter.Font.Height, Is.GreaterThan(0));
             Size FourDigits = TextRenderer.MeasureText("9999", Editor.Font, new Size(int.MaxValue, int.MaxValue),

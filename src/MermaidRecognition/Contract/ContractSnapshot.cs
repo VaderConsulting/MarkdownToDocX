@@ -23,7 +23,7 @@ public sealed class ContractSnapshot
             Snapshot.RemarkStatus = Contract.RemarkStatus.ToString();
         }
 
-        Snapshot.Nodes = Contract.Nodes
+        Snapshot.Nodes = [.. Contract.Nodes
             .Select(
                 Node => new NodeSnapshot
                 {
@@ -67,20 +67,17 @@ public sealed class ContractSnapshot
                         .Where(Entry => string.Equals(Entry.Key, "pieValue", StringComparison.Ordinal))
                         .Select(Entry => Entry.RawValue)
                         .FirstOrDefault(),
-                    Classes = Node.Classes.OrderBy(ClassId => ClassId, StringComparer.Ordinal).ToList(),
+                    Classes = [.. Node.Classes.OrderBy(ClassId => ClassId, StringComparer.Ordinal)],
                     InlineStroke = Node.InlineStyle.Stroke,
-                    Members = Node.Declarations
+                    Members = [.. Node.Declarations
                         .Where(Declaration => string.Equals(Declaration.Kind, "member", StringComparison.Ordinal))
-                        .Select(Declaration => Declaration.RawText.Trim())
-                        .ToList(),
-                    Attributes = Node.Declarations
+                        .Select(Declaration => Declaration.RawText.Trim())],
+                    Attributes = [.. Node.Declarations
                         .Where(Declaration => string.Equals(Declaration.Kind, "attribute", StringComparison.Ordinal))
-                        .Select(Declaration => Declaration.RawText.Trim())
-                        .ToList()
+                        .Select(Declaration => Declaration.RawText.Trim())]
                 })
-            .OrderBy(Node => Node.Id, StringComparer.Ordinal)
-            .ToList();
-        Snapshot.Edges = Contract.Edges
+            .OrderBy(Node => Node.Id, StringComparer.Ordinal)];
+        Snapshot.Edges = [.. Contract.Edges
             .Select(
                 Edge => new EdgeSnapshot
                 {
@@ -160,17 +157,16 @@ public sealed class ContractSnapshot
                         .OfType<AnimationMetadata>()
                         .Select(Entry => Entry.Animation)
                         .FirstOrDefault(),
-                    Classes = Edge.Classes.OrderBy(ClassId => ClassId, StringComparer.Ordinal).ToList()
+                    Classes = [.. Edge.Classes.OrderBy(ClassId => ClassId, StringComparer.Ordinal)]
                 })
-            .OrderBy(Edge => Edge.CreationIndex)
-            .ToList();
+            .OrderBy(Edge => Edge.CreationIndex)];
         if (Contract.Groups.Count == 0)
         {
             Snapshot.Groups = [];
         }
         else
         {
-            Snapshot.Groups = Contract.Groups
+            Snapshot.Groups = [.. Contract.Groups
             .Select(
                 Group => new GroupSnapshot
                 {
@@ -178,11 +174,10 @@ public sealed class ContractSnapshot
                     Title = Group.Title,
                     ParentGroupId = Group.ParentGroupId,
                     Direction = Group.Direction,
-                    ChildNodeIds = Group.ChildNodeIds.OrderBy(Id => Id, StringComparer.Ordinal).ToList(),
-                    ChildGroupIds = Group.ChildGroupIds.OrderBy(Id => Id, StringComparer.Ordinal).ToList()
+                    ChildNodeIds = [.. Group.ChildNodeIds.OrderBy(Id => Id, StringComparer.Ordinal)],
+                    ChildGroupIds = [.. Group.ChildGroupIds.OrderBy(Id => Id, StringComparer.Ordinal)]
                 })
-            .OrderBy(Group => Group.Id, StringComparer.Ordinal)
-            .ToList();
+            .OrderBy(Group => Group.Id, StringComparer.Ordinal)];
         }
 
         if (Contract.LinkStyles.Count == 0)
@@ -191,16 +186,15 @@ public sealed class ContractSnapshot
         }
         else
         {
-            Snapshot.LinkStyles = Contract.LinkStyles
+            Snapshot.LinkStyles = [.. Contract.LinkStyles
             .Select(
                 LinkStyle => new LinkStyleSnapshot
                 {
                     IsDefault = LinkStyle.IsDefault,
-                    EdgeIndexes = LinkStyle.EdgeIndexes.ToList(),
+                    EdgeIndexes = [.. LinkStyle.EdgeIndexes],
                     Stroke = LinkStyle.Style.Stroke,
                     Curve = LinkStyle.Curve
-                })
-            .ToList();
+                })];
         }
 
         if (Contract.Configuration.RawDirectiveValues.Count > 0)
@@ -215,7 +209,7 @@ public sealed class ContractSnapshot
 
         if (Contract.ClassDefs.Count > 0)
         {
-            Snapshot.ClassDefs = Contract.ClassDefs
+            Snapshot.ClassDefs = [.. Contract.ClassDefs
                 .Select(
                     ClassDef => new ClassDefSnapshot
                     {
@@ -223,8 +217,7 @@ public sealed class ContractSnapshot
                         Stroke = ClassDef.Style.Stroke,
                         Animation = ClassDef.Style.Animation
                     })
-                .OrderBy(ClassDef => ClassDef.ClassId, StringComparer.Ordinal)
-                .ToList();
+                .OrderBy(ClassDef => ClassDef.ClassId, StringComparer.Ordinal)];
         }
 
         if (Contract.Accessibility.Title is not null || Contract.Accessibility.Description is not null)
@@ -238,7 +231,7 @@ public sealed class ContractSnapshot
 
         if (Contract.Interactions.Count > 0)
         {
-            Snapshot.Interactions = Contract.Interactions
+            Snapshot.Interactions = [.. Contract.Interactions
                 .Select(
                     Interaction => new InteractionSnapshot
                     {
@@ -246,13 +239,12 @@ public sealed class ContractSnapshot
                         Callback = Interaction.Callback,
                         Url = Interaction.Url
                     })
-                .OrderBy(Interaction => Interaction.TargetId, StringComparer.Ordinal)
-                .ToList();
+                .OrderBy(Interaction => Interaction.TargetId, StringComparer.Ordinal)];
         }
 
         if (Contract.Diagnostics.Count > 0)
         {
-            Snapshot.Diagnostics = Contract.Diagnostics
+            Snapshot.Diagnostics = [.. Contract.Diagnostics
                 .Select(
                     Diagnostic => new DiagnosticSnapshot
                     {
@@ -260,21 +252,19 @@ public sealed class ContractSnapshot
                         Code = Diagnostic.Code,
                         AffectedId = Diagnostic.AffectedId
                     })
-                .OrderBy(Diagnostic => Diagnostic.Code, StringComparer.Ordinal)
-                .ToList();
+                .OrderBy(Diagnostic => Diagnostic.Code, StringComparer.Ordinal)];
         }
 
         if (Contract.SourceStatements.Count > 0)
         {
-            Snapshot.SourceStatements = Contract.SourceStatements
+            Snapshot.SourceStatements = [.. Contract.SourceStatements
                 .Select(
                     Statement => new SourceStatementSnapshot
                     {
                         LineNumber = Statement.LineNumber,
                         LineTypeId = Statement.LineTypeId,
                         RawLine = Statement.RawLine
-                    })
-                .ToList();
+                    })];
         }
 
         return Snapshot;

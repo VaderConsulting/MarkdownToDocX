@@ -13,7 +13,7 @@ public sealed class EnterpriseWordScaleReadabilityTests
     [Test]
     public void EveryEnterpriseDiagram_ReportsWordEmbedScale()
     {
-        List<string> Unreadable = new List<string>();
+        List<string> Unreadable = [];
         foreach (string Id in ReadEnterpriseIds())
         {
             string Source = ReadScenario(Id);

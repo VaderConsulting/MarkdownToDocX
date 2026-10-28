@@ -70,7 +70,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry {
 
         public override int GetHashCode() {
             uint hc = (uint) first.GetHashCode();
-            return (int) ((hc << 5 | hc >> 27) + (uint) second.GetHashCode());
+            return (int) (((hc << 5) | (hc >> 27)) + (uint) second.GetHashCode());
         }
 
         public override bool Equals(object obj) {

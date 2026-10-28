@@ -22,10 +22,9 @@ public sealed class F93MarkdownListRenderTests
         string Svg = FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract);
 
         MatchCollection LineTspans = Regex.Matches(Svg, @"<tspan x=""([-\d.]+)""[^>]*>([^<]+)</tspan>");
-        List<Match> ListLineTspans = LineTspans
+        List<Match> ListLineTspans = [.. LineTspans
             .Cast<Match>()
-            .Where(Match => Match.Groups[2].Value.StartsWith("- Item", StringComparison.Ordinal))
-            .ToList();
+            .Where(Match => Match.Groups[2].Value.StartsWith("- Item", StringComparison.Ordinal))];
 
         Assert.That(ListLineTspans, Has.Count.EqualTo(3));
         Assert.That(ListLineTspans[0].Groups[2].Value, Is.EqualTo("- Item 1"));

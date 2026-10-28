@@ -30,7 +30,7 @@ public sealed class LinePatternKindRecognizer(
         MermaidConfigurationPipeline.ParseLeadingInitDirectives(Source, Contract.Configuration);
 
         string Body = StripLeadingInitBlocks(Source);
-        string[] Lines = Body.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        string[] Lines = Body.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
         bool HeaderRecorded = false;
 
         for (int LineIndex = 0; LineIndex < Lines.Length; LineIndex++)

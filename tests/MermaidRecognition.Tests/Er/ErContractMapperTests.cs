@@ -254,7 +254,7 @@ public sealed class ErContractMapperTests
 
         Assert.That(Contract.Nodes, Has.Count.EqualTo(2));
         Assert.That(Contract.Edges, Has.Count.EqualTo(2));
-        Assert.That(Contract.Edges.Select(Edge => Edge.Label), Is.EquivalentTo(new[] { "insured for", "owns" }));
+        Assert.That(Contract.Edges.Select(Edge => Edge.Label), Is.EquivalentTo(["insured for", "owns"]));
         Assert.That(Contract.Edges.All(Edge => Edge.SourceId == "CAR" && Edge.TargetId == "PERSON"), Is.True);
     }
 
@@ -281,7 +281,7 @@ public sealed class ErContractMapperTests
                 LINE-ITEM ||--o{ WAREHOUSE-STOCK : stores
             """);
 
-        Assert.That(Contract.Nodes.Select(Node => Node.Id), Is.EquivalentTo(new[] { "LINE-ITEM", "WAREHOUSE-STOCK" }));
+        Assert.That(Contract.Nodes.Select(Node => Node.Id), Is.EquivalentTo(["LINE-ITEM", "WAREHOUSE-STOCK"]));
         EdgeContract Edge = Contract.Edges.Single();
         Assert.That(Edge.SourceId, Is.EqualTo("LINE-ITEM"));
         Assert.That(Edge.TargetId, Is.EqualTo("WAREHOUSE-STOCK"));

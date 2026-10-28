@@ -86,7 +86,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public static Point Multiply(PlaneTransformation transformation, Point point) {
             if (transformation != null)
             {
-                return new Point(transformation[0, 0] * point.X + transformation[0, 1] * point.Y + transformation[0, 2], transformation[1, 0] * point.X + transformation[1, 1] * point.Y + transformation[1, 2]);
+                return new Point((transformation[0, 0] * point.X) + (transformation[0, 1] * point.Y) + transformation[0, 2], (transformation[1, 0] * point.X) + (transformation[1, 1] * point.Y) + transformation[1, 2]);
             }
 
             return new Point();
@@ -109,8 +109,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             if (a != null && b != null)
             {
                 return new PlaneTransformation(
-                   a[0, 0] * b[0, 0] + a[0, 1] * b[1, 0], a[0, 0] * b[0, 1] + a[0, 1] * b[1, 1], a[0, 0] * b[0, 2] + a[0, 1] * b[1, 2] + a[0, 2],
-                   a[1, 0] * b[0, 0] + a[1, 1] * b[1, 0], a[1, 0] * b[0, 1] + a[1, 1] * b[1, 1], a[1, 0] * b[0, 2] + a[1, 1] * b[1, 2] + a[1, 2]);
+                   (a[0, 0] * b[0, 0]) + (a[0, 1] * b[1, 0]), (a[0, 0] * b[0, 1]) + (a[0, 1] * b[1, 1]), (a[0, 0] * b[0, 2]) + (a[0, 1] * b[1, 2]) + a[0, 2],
+                   (a[1, 0] * b[0, 0]) + (a[1, 1] * b[1, 0]), (a[1, 0] * b[0, 1]) + (a[1, 1] * b[1, 1]), (a[1, 0] * b[0, 2]) + (a[1, 1] * b[1, 2]) + a[1, 2]);
             }
 
             return null;
@@ -145,7 +145,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         public PlaneTransformation Inverse {
             get {
-                double det = Elements[0][0] * Elements[1][1] - Elements[1][0] * Elements[0][1];
+                double det = (Elements[0][0] * Elements[1][1]) - (Elements[1][0] * Elements[0][1]);
 //                if (ApproximateComparer.Close(det, 0))
 //                    throw new InvalidOperationException();//"trying to reverse a singular matrix");
 
@@ -153,8 +153,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 double a01 = -Elements[0][1] / det;
                 double a10 = -Elements[1][0] / det;
                 double a11 = Elements[0][0] / det;
-                double a02 = -a00 * Elements[0][2] - a01 * Elements[1][2];
-                double a12 = -a10 * Elements[0][2] - a11 * Elements[1][2];
+                double a02 = (-a00 * Elements[0][2]) - (a01 * Elements[1][2]);
+                double a12 = (-a10 * Elements[0][2]) - (a11 * Elements[1][2]);
 
 
                 return new PlaneTransformation(a00, a01, a02, a10, a11, a12);

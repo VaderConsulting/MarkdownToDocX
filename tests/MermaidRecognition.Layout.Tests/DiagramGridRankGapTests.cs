@@ -113,11 +113,10 @@ public sealed class DiagramGridRankGapTests
 
     private static List<double> MeasureClearGaps(FlowchartLayoutResult Layout)
     {
-        List<FlowchartLayoutNodeBounds> RankGroups = Layout.NodeBounds
+        List<FlowchartLayoutNodeBounds> RankGroups = [.. Layout.NodeBounds
             .GroupBy(Bounds => Bounds.CenterY)
             .OrderByDescending(Group => Group.Key)
-            .Select(Group => Group.OrderByDescending(Bounds => Bounds.Height).First())
-            .ToList();
+            .Select(Group => Group.OrderByDescending(Bounds => Bounds.Height).First())];
 
         List<double> ClearGaps = [];
         for (int Index = 0; Index < RankGroups.Count - 1; Index++)

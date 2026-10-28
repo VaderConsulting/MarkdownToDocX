@@ -110,15 +110,15 @@ internal static class ElementShapePainter
         {
             int Notch = 5;
             using GraphicsPath Path = new GraphicsPath();
-            Path.AddLines(new Point[]
-            {
+            Path.AddLines(
+            [
                 new Point(Bounds.Left, Bounds.Top),
                 new Point(Bounds.Right, Bounds.Top),
                 new Point(Bounds.Right - Notch, Bounds.Top + Notch),
                 new Point(Bounds.Right - Notch, Bounds.Bottom),
                 new Point(Bounds.Left + Notch, Bounds.Bottom),
                 new Point(Bounds.Left + Notch, Bounds.Top + Notch)
-            });
+            ]);
             Path.CloseFigure();
             Graphics.FillPath(Fill, Path);
             Graphics.DrawPath(Outline, Path);
@@ -144,15 +144,15 @@ internal static class ElementShapePainter
         {
             int Depth = 5;
             using GraphicsPath Path = new GraphicsPath();
-            Path.AddPolygon(new Point[]
-            {
+            Path.AddPolygon(
+            [
                 new Point(Bounds.Left, Bounds.Top + Depth),
                 new Point(Bounds.Left + Depth, Bounds.Top),
                 new Point(Bounds.Right, Bounds.Top),
                 new Point(Bounds.Right, Bounds.Bottom - Depth),
                 new Point(Bounds.Right - Depth, Bounds.Bottom),
                 new Point(Bounds.Left, Bounds.Bottom)
-            });
+            ]);
             Graphics.FillPath(Fill, Path);
             Graphics.DrawPath(Outline, Path);
             Graphics.DrawLine(Outline, Bounds.Left, Bounds.Top + Depth, Bounds.Right - Depth, Bounds.Top + Depth);
@@ -231,10 +231,10 @@ internal static class ElementShapePainter
                 Graphics.DrawLine(Pen, 10, 9, 13, 13);
                 break;
             case "event":
-                Graphics.DrawLines(Pen, new PointF[] { new PointF(3, 2), new PointF(12, 2), new PointF(12, 12), new PointF(3, 12), new PointF(6, 7), new PointF(3, 2) });
+                Graphics.DrawLines(Pen, [new PointF(3, 2), new PointF(12, 2), new PointF(12, 12), new PointF(3, 12), new PointF(6, 7), new PointF(3, 2)]);
                 break;
             case "process":
-                Graphics.DrawPolygon(Pen, new PointF[] { new PointF(2, 5), new PointF(11, 5), new PointF(11, 2), new PointF(18, 7), new PointF(11, 12), new PointF(11, 9), new PointF(2, 9) });
+                Graphics.DrawPolygon(Pen, [new PointF(2, 5), new PointF(11, 5), new PointF(11, 2), new PointF(18, 7), new PointF(11, 12), new PointF(11, 9), new PointF(2, 9)]);
                 break;
             case "goal":
                 Graphics.DrawEllipse(Pen, 5, 2, 10, 10);
@@ -251,7 +251,7 @@ internal static class ElementShapePainter
                 break;
             case "device":
                 Graphics.DrawRectangle(Pen, 4, 1, 12, 8);
-                Graphics.DrawLines(Pen, new PointF[] { new PointF(6, 9), new PointF(3, 13), new PointF(17, 13), new PointF(14, 9) });
+                Graphics.DrawLines(Pen, [new PointF(6, 9), new PointF(3, 13), new PointF(17, 13), new PointF(14, 9)]);
                 break;
             default:
                 Graphics.DrawRectangle(Pen, 4, 2, 12, 10);

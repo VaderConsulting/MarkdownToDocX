@@ -69,7 +69,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
         private static int CompareVectorsPointingToTheSameYHalfPlane(ref Point a, ref Point b) {
             //now we know that a and b do not point to different Y half planes
-            double sign = a.X * b.Y - a.Y * b.X;
+            double sign = (a.X * b.Y) - (a.Y * b.X);
             if (sign > ApproximateComparer.Tolerance)
             {
                 return -1;

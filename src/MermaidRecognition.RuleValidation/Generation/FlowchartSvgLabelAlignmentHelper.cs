@@ -155,9 +155,7 @@ public static class FlowchartSvgLabelAlignmentHelper
                     continue;
                 }
 
-                LayoutPoints = Edge.Path.Points
-                    .Select(Point => (Point.X, Point.Y))
-                    .ToList();
+                LayoutPoints = [.. Edge.Path.Points.Select(Point => (Point.X, Point.Y))];
             }
             else
             {
@@ -323,11 +321,10 @@ public static class FlowchartSvgLabelAlignmentHelper
 
     private static EdgeContract? TryResolveEdgeContract(DiagramContract Contract, EdgeActualResult Edge)
     {
-        List<EdgeContract> Matches = Contract.Edges
+        List<EdgeContract> Matches = [.. Contract.Edges
             .Where(Candidate =>
                 string.Equals(Candidate.SourceId, Edge.SourceNodeId, StringComparison.Ordinal)
-                && string.Equals(Candidate.TargetId, Edge.TargetNodeId, StringComparison.Ordinal))
-            .ToList();
+                && string.Equals(Candidate.TargetId, Edge.TargetNodeId, StringComparison.Ordinal))];
 
         if (Matches.Count == 0)
         {
@@ -449,9 +446,7 @@ public static class FlowchartSvgLabelAlignmentHelper
             return null;
         }
 
-        List<RenderedTextElement> Matches = TextElements
-            .Where(Candidate => TextMatchesLabel(Candidate.Text, SearchToken))
-            .ToList();
+        List<RenderedTextElement> Matches = [.. TextElements.Where(Candidate => TextMatchesLabel(Candidate.Text, SearchToken))];
 
         if (Matches.Count == 0)
         {

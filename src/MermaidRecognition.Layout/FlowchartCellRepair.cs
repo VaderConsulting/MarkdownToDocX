@@ -14,8 +14,12 @@ internal static class FlowchartCellRepair
     /// <returns>Actual positive increases relative to the original gaps, suitable for a private cumulative plan.</returns>
     internal static Dictionary<int, double> GrownGapsSince(FlowchartLogicalGrid.Snapshot Before, FlowchartLogicalGrid.Snapshot After, bool Columns)
     {
-        if (!ReferenceEquals(Before.Owner, After.Owner)) throw new ArgumentException("Gap comparisons must use the same diagram grid.", nameof(After));
-        var Original = Columns ? Before.ColumnGaps : Before.RowGaps; var Candidate = Columns ? After.ColumnGaps : After.RowGaps;
+        if (!ReferenceEquals(Before.Owner, After.Owner))
+        {
+            throw new ArgumentException("Gap comparisons must use the same diagram grid.", nameof(After));
+        }
+
+        IReadOnlyDictionary<int, double> Original = Columns ? Before.ColumnGaps : Before.RowGaps; IReadOnlyDictionary<int, double> Candidate = Columns ? After.ColumnGaps : After.RowGaps;
         double BaseGap = Columns ? Before.Owner.Configuration.ColumnGap : Before.Owner.Configuration.RowGap;
         return Candidate.Where(Pair => Pair.Value > Original.GetValueOrDefault(Pair.Key, BaseGap))
             .ToDictionary(Pair => Pair.Key, Pair => Pair.Value - Original.GetValueOrDefault(Pair.Key, BaseGap));
@@ -26,7 +30,11 @@ internal static class FlowchartCellRepair
     /// <returns>Exact state for rollback, or throws when the nodes do not share cell authority.</returns>
     internal static FlowchartLogicalGrid.Snapshot Capture(IReadOnlyList<DiagramGridLayout.GridNode> Nodes)
     {
-        if (!TryGrid(Nodes, out var Grid)) throw new ArgumentException("Repair nodes must share one cell grid.", nameof(Nodes));
+        if (!TryGrid(Nodes, out FlowchartLogicalGrid? Grid))
+        {
+            throw new ArgumentException("Repair nodes must share one cell grid.", nameof(Nodes));
+        }
+
         return Grid.Capture();
     }
 
@@ -35,7 +43,11 @@ internal static class FlowchartCellRepair
     /// <param name="State">Exact state captured before building the candidate.</param>
     internal static void Restore(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid.Snapshot State)
     {
-        if (!TryGrid(Nodes, out var Grid)) throw new ArgumentException("Repair nodes must share one cell grid.", nameof(Nodes));
+        if (!TryGrid(Nodes, out FlowchartLogicalGrid? Grid))
+        {
+            throw new ArgumentException("Repair nodes must share one cell grid.", nameof(Nodes));
+        }
+
         Grid.Restore(State);
     }
 
@@ -54,8 +66,12 @@ internal static class FlowchartCellRepair
     /// <returns>A validated complete assignment, or null without mutation when it cannot be applied legally.</returns>
     internal static Assignment? PlanMove(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, int Rows, int Columns)
     {
-        if (!TryGrid(Nodes, out _)) return null;
-        var Targets = Nodes.ToDictionary(Node => Node.Id, Node => Translate(Node.CellNode!.Region, Rows, Columns), StringComparer.Ordinal);
+        if (!TryGrid(Nodes, out _))
+        {
+            return null;
+        }
+
+        Dictionary<string, FlowchartCellRegion> Targets = Nodes.ToDictionary(Node => Node.Id, Node => Translate(Node.CellNode!.Region, Rows, Columns), StringComparer.Ordinal);
         return PlanAssignment(Nodes, Targets);
     }
 
@@ -67,9 +83,17 @@ internal static class FlowchartCellRepair
     internal static bool TryResize(DiagramGridLayout.GridNode Node, int Rows, int Columns)
     {
         ArgumentNullException.ThrowIfNull(Node);
-        if (Node.CellNode == null) return false;
-        var Before = Node.CellNode.Region;
-        if (Node.PlacementHintLocked && (Rows != Before.RowSpan || Columns != Before.ColumnSpan)) return false;
+        if (Node.CellNode == null)
+        {
+            return false;
+        }
+
+        FlowchartCellRegion Before = Node.CellNode.Region;
+        if (Node.PlacementHintLocked && (Rows != Before.RowSpan || Columns != Before.ColumnSpan))
+        {
+            return false;
+        }
+
         return TryAssign([Node], new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal)
             { [Node.Id] = new(Before.StartRow, Before.StartColumn, Rows, Columns) });
     }
@@ -82,7 +106,11 @@ internal static class FlowchartCellRepair
     /// <returns>False without mutation if the change would move a pinned node or has no measured shortfall.</returns>
     internal static bool TryGrowGap(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, bool Horizontal, int After, double Shortfall)
     {
-        if (Shortfall <= 0) return false;
+        if (Shortfall <= 0)
+        {
+            return false;
+        }
+
         return PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion>(),
             [new(Horizontal, After, Shortfall, DiagramGridMetrics.GRID_UNIT_PX)])?.TryApply() == true;
     }
@@ -96,8 +124,8 @@ internal static class FlowchartCellRepair
     {
         int Start = Horizontal ? Region.StartColumn : Region.StartRow;
         int End = Horizontal ? Region.EndColumn : Region.EndRow;
-        return Start <= After && After < End - 1 || Start > 0 && After >= 0 && After < Start
-            || Start < 0 && After >= Start && After < 0;
+        return (Start <= After && After < End - 1) || (Start > 0 && After >= 0 && After < Start)
+            || (Start < 0 && After >= Start && After < 0);
     }
 
     /// <summary>Offers a complete side, slot or track-order geometry assignment before building its routes.</summary>
@@ -119,32 +147,65 @@ internal static class FlowchartCellRepair
         bool AllowHintedRegionRepair = false)
     {
         ArgumentNullException.ThrowIfNull(Changes);
-        if (!TryGrid(Nodes, out var Grid)) return null;
-        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        foreach (var Change in Changes)
+        if (!TryGrid(Nodes, out FlowchartLogicalGrid? Grid))
         {
-            if (!ById.TryGetValue(Change.Key, out var Node)) return null;
-            var Before = Grid.RegionOf(Change.Key);
+            return null;
+        }
+
+        Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
+        {
+            if (!ById.TryGetValue(Change.Key, out DiagramGridLayout.GridNode? Node))
+            {
+                return null;
+            }
+
+            FlowchartCellRegion Before = Grid.RegionOf(Change.Key);
             if (Node.PlacementHintLocked && Change.Value != Before
-                && (!AllowHintedRegionRepair || Node.CellHintValidator == null)) return null;
+                && (!AllowHintedRegionRepair || Node.CellHintValidator == null))
+            {
+                return null;
+            }
         }
-        var Original = Grid.Capture();
-        foreach (var Growth in GapGrowth ?? [])
-        foreach (var Pair in Original.Regions)
+        FlowchartLogicalGrid.Snapshot Original = Grid.Capture();
+        foreach (FlowchartCellGapGrowth Growth in GapGrowth ?? [])
         {
-            if (Growth.Shortfall == 0) continue;
-            var Target = Changes.GetValueOrDefault(Pair.Key, Pair.Value);
+            foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Original.Regions)
+        {
+            if (Growth.Shortfall == 0)
+                {
+                    continue;
+                }
+
+                FlowchartCellRegion Target = Changes.GetValueOrDefault(Pair.Key, Pair.Value);
             if (!AffectedByGap(Pair.Value, Growth.Horizontal, Growth.After)
-                && !AffectedByGap(Target, Growth.Horizontal, Growth.After)) continue;
-            if (!ById.TryGetValue(Pair.Key, out var Node) || Node.PlacementHintLocked && Node.CellHintValidator == null) return null;
+                && !AffectedByGap(Target, Growth.Horizontal, Growth.After))
+                {
+                    continue;
+                }
+
+                if (!ById.TryGetValue(Pair.Key, out DiagramGridLayout.GridNode? Node) || (Node.PlacementHintLocked && Node.CellHintValidator == null))
+                {
+                    return null;
+                }
+            }
         }
-        var Affected = Nodes.Where(Node => Changes.TryGetValue(Node.Id, out var Target) && Target != Node.CellNode!.Region
+
+        DiagramGridLayout.GridNode[] Affected = [.. Nodes.Where(Node => (Changes.TryGetValue(Node.Id, out FlowchartCellRegion? Target) && Target != Node.CellNode!.Region)
             || (GapGrowth ?? []).Any(Growth => Growth.Shortfall != 0
                 && (AffectedByGap(Node.CellNode!.Region, Growth.Horizontal, Growth.After)
-                    || AffectedByGap(Changes.GetValueOrDefault(Node.Id, Node.CellNode!.Region), Growth.Horizontal, Growth.After)))).ToArray();
-        if (!Grid.TryPrepare(Changes, GapGrowth ?? [], out var Candidate)) return null;
+                    || AffectedByGap(Changes.GetValueOrDefault(Node.Id, Node.CellNode!.Region), Growth.Horizontal, Growth.After))))];
+        if (!Grid.TryPrepare(Changes, GapGrowth ?? [], out FlowchartLogicalGrid.Snapshot? Candidate))
+        {
+            return null;
+        }
+
         if (Nodes.Select(Node => Node.CellHintValidator).OfType<Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>>()
-            .Distinct().Any(Validate => !Validate(Candidate!.Regions))) return null;
+            .Distinct().Any(Validate => !Validate(Candidate!.Regions)))
+        {
+            return null;
+        }
+
         return new(Grid, Affected, Original, Candidate!, AllowHintedRegionRepair);
     }
 
@@ -157,17 +218,33 @@ internal static class FlowchartCellRepair
     internal static Assignment? PlanDisplacement(IReadOnlyList<DiagramGridLayout.GridNode> AllNodes,
         IReadOnlyList<DiagramGridLayout.GridNode> Moving, int Rows, int Columns)
     {
-        if (!TryGrid(AllNodes, out var Grid) || Moving.Count == 0 || Rows == 0 && Columns == 0) return null;
-        var ById = AllNodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        if (Moving.Any(Node => !ById.TryGetValue(Node.Id, out var Found) || !ReferenceEquals(Node, Found))) return null;
-        var Ids = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        if (!TryGrid(AllNodes, out FlowchartLogicalGrid? Grid) || Moving.Count == 0 || (Rows == 0 && Columns == 0))
+        {
+            return null;
+        }
+
+        Dictionary<string, DiagramGridLayout.GridNode> ById = AllNodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        if (Moving.Any(Node => !ById.TryGetValue(Node.Id, out DiagramGridLayout.GridNode? Found) || !ReferenceEquals(Node, Found)))
+        {
+            return null;
+        }
+
+        HashSet<string> Ids = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
         for (int Depth = 0; Depth < FlowchartLayoutRules.RepairChainDepth; Depth++)
         {
-            var Targets = Ids.ToDictionary(Id => Id, Id => Translate(Grid.RegionOf(Id), Rows, Columns), StringComparer.Ordinal);
-            var Displaced = AllNodes.Where(Node => !Ids.Contains(Node.Id)
-                && Targets.Values.Any(Target => Target.Overlaps(Node.CellNode!.Region))).ToArray();
-            if (Displaced.Length == 0) return PlanAssignment(Ids.Select(Id => ById[Id]).ToArray(), Targets);
-            if (Displaced.Any(Node => Node.PlacementHintLocked)) return null;
+            Dictionary<string, FlowchartCellRegion> Targets = Ids.ToDictionary(Id => Id, Id => Translate(Grid.RegionOf(Id), Rows, Columns), StringComparer.Ordinal);
+            DiagramGridLayout.GridNode[] Displaced = [.. AllNodes.Where(Node => !Ids.Contains(Node.Id)
+                && Targets.Values.Any(Target => Target.Overlaps(Node.CellNode!.Region)))];
+            if (Displaced.Length == 0)
+            {
+                return PlanAssignment(Ids.Select(Id => ById[Id]).ToArray(), Targets);
+            }
+
+            if (Displaced.Any(Node => Node.PlacementHintLocked))
+            {
+                return null;
+            }
+
             Ids.UnionWith(Displaced.Select(Node => Node.Id));
         }
         return null;
@@ -208,7 +285,7 @@ internal static class FlowchartCellRepair
         /// <summary>Applies every target together only if its original state is still current.</summary>
         /// <returns>False without mutation for a stale candidate or a participant pinned since planning.</returns>
         internal bool TryApply() => !Nodes.Any(Node => Node.PlacementHintLocked && (Node.CellHintValidator == null
-                || !AllowHintedRegionRepair && Before.Regions[Node.Id] != After.Regions[Node.Id]))
+                || (!AllowHintedRegionRepair && Before.Regions[Node.Id] != After.Regions[Node.Id])))
             && !Nodes.Select(Node => Node.CellHintValidator).OfType<Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>>()
                 .Distinct().Any(Validate => !Validate(After.Regions)) && Grid.TryCommit(Before, After);
         /// <summary>Restores source ownership and every grown gap together without pixel copyback.</summary>

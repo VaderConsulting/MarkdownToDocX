@@ -35,7 +35,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
             Stack<int> sv = new Stack<int>();
             Stack<IEnumerator<int>> se = new Stack<IEnumerator<int>>();
 
-            List<int> order = new List<int>();
+            List<int> order = [];
 
             IEnumerator<int> en;
             for (int u = 0; u < graph.NodeCount; u++){
@@ -73,7 +73,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
                 } while (true);
             }
             order.Reverse();
-            return order.ToArray();
+            return [.. order];
         }
 
         /// <summary>
@@ -84,8 +84,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
         /// </summary>
         /// <returns></returns>
         internal static int[] GetOrderOnEdges<TEdge>(IEnumerable<TEdge> edges) where TEdge : IEdge {
-            Dictionary<int, bool> visited = new Dictionary<int,bool>();
-            Dictionary<int, List<int>> graph = new Dictionary<int, List<int>>();
+            Dictionary<int, bool> visited = [];
+            Dictionary<int, List<int>> graph = [];
             foreach (TEdge e in edges) {
                 visited[e.Source]=visited[e.Target]=false;
                 int x =e.Source;
@@ -99,7 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
             Stack<int> sv = new Stack<int>();
             Stack<IEnumerator<int>> se = new Stack<IEnumerator<int>>();
 
-            List<int> order = new List<int>();
+            List<int> order = [];
 
             IEnumerator<int> en;
             foreach (int u in visited.Keys.ToArray()) {
@@ -150,7 +150,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms{
                 } while (true);
             }
             order.Reverse();
-            return order.ToArray();
+            return [.. order];
         }
     }
 }

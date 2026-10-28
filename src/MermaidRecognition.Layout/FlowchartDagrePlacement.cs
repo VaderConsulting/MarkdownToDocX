@@ -376,12 +376,12 @@ public static class FlowchartDagrePlacement
         double DistanceTop = Math.Abs(At.Y - (Node.Y - HalfHeight));
         double DistanceBottom = Math.Abs(At.Y - (Node.Y + HalfHeight));
         (string Name, double Distance)[] Faces =
-        {
+        [
             ("left", DistanceLeft),
             ("right", DistanceRight),
             ("top", DistanceTop),
             ("bottom", DistanceBottom)
-        };
+        ];
         string BestName = Faces[0].Name;
         double Best = Faces[0].Distance;
         double Second = double.PositiveInfinity;
@@ -595,7 +595,7 @@ public static class FlowchartDagrePlacement
 
     private static List<string> CopyOrder(DagreGraph Graph, string RootId)
     {
-        List<string> Order = new List<string>();
+        List<string> Order = [];
         AppendCopyOrder(Graph, RootId, RootId, Order);
         return Order;
     }
@@ -702,7 +702,7 @@ public static class FlowchartDagrePlacement
     /// </summary>
     private static List<DagrePoint> CutPathAtCluster(List<DagrePoint> Points, DagreNodeLabel Boundary)
     {
-        List<DagrePoint> Kept = new List<DagrePoint>();
+        List<DagrePoint> Kept = [];
         if (Points.Count == 0)
         {
             return Kept;

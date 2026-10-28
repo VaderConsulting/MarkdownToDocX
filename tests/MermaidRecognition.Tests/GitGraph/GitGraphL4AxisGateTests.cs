@@ -13,7 +13,7 @@ public sealed class GitGraphL4AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGitGraphFixtureDirectory(),
-            new[] { "simple" },
+            ["simple"],
             Contract =>
                 Contract.Nodes.Count(Node => Node.Shape == "commit") >= 2
                 && Contract.Edges.Count > 0);

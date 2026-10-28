@@ -19,29 +19,29 @@ public sealed class FlowchartCellMoveSearchTests
     [TestCase(true)]
     public void MovingGeometryScoreMatchesReferenceWithoutChangingOtherLines(bool Grow)
     {
-        var Fixture = CreateState(true, "flowchart TB\nA --> B\nX --> Y",
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(true, "flowchart TB\nA --> B\nX --> Y",
             new Dictionary<string, FlowchartCellRegion> { ["A"] = new(0, 0, 1, 1), ["B"] = new(2, 1, 1, 1),
                 ["X"] = new(0, 5, 1, 1), ["Y"] = new(2, 5, 1, 1) });
-        var Context = new FlowchartLayoutScore.CellMovementContext(Fixture.Contract, Fixture.Layout);
-        var Changed = Fixture.Layout.EdgeRoutes.Single(Route => Route.SourceId == "A");
-        var Untouched = Fixture.Layout.EdgeRoutes.Single(Route => Route.SourceId == "X");
-        var Points = Untouched.Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        var Plan = FlowchartCellRepair.PlanAssignment(Fixture.Nodes,
+        FlowchartLayoutScore.CellMovementContext Context = new FlowchartLayoutScore.CellMovementContext(Fixture.Contract, Fixture.Layout);
+        FlowchartLayoutEdgeRoute Changed = Fixture.Layout.EdgeRoutes.Single(Route => Route.SourceId == "A");
+        FlowchartLayoutEdgeRoute Untouched = Fixture.Layout.EdgeRoutes.Single(Route => Route.SourceId == "X");
+        (double X, double Y)[] Points = [.. Untouched.Points.Select(Point => (Point.X, Point.Y))];
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Fixture.Nodes,
             new Dictionary<string, FlowchartCellRegion> { ["B"] = Grow ? new(2, 1, 2, 1) : new(2, 0, 1, 1) });
         Assert.That(Plan!.TryApply(), Is.True);
-        var StateType = Fixture.State.GetType();
-        var Placed = (List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(Fixture.State)!;
-        var Frames = (List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(Fixture.State)!;
+        Type StateType = Fixture.State.GetType();
+        List<DiagramGridLayout.GridNode> Placed = (List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(Fixture.State)!;
+        List<DiagramGridLayout.GridFrame> Frames = (List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(Fixture.State)!;
         typeof(DiagramGridLayout).GetMethod("WriteBack", StaticPrivate)!.Invoke(null, [Fixture.Layout, Placed, Frames]);
-        var Bounds = Fixture.Layout.NodeBounds.ToDictionary(Box => Box.NodeId);
-        var Definitions = Fixture.Contract.Nodes.ToDictionary(Node => Node.Id);
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Fixture.Layout.NodeBounds.ToDictionary(Box => Box.NodeId);
+        Dictionary<string, NodeContract> Definitions = Fixture.Contract.Nodes.ToDictionary(Node => Node.Id);
         typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!
             .GetMethod("AllocateFinalPortSlots", StaticPrivate)!.Invoke(null,
                 [Fixture.Contract, Fixture.Layout, Bounds, Definitions, new HashSet<string> { "A", "B" }]);
         DiagramGridRouteBuilder.RebuildAllRoutes(Fixture.Layout, Placed, Definitions, Fixture.Contract, Frames,
             FlowchartDirection.TopToBottom, new HashSet<FlowchartLayoutEdgeRoute> { Changed });
-        var Actual = Context.Measure(new HashSet<FlowchartLayoutEdgeRoute> { Changed });
-        var Expected = FlowchartLayoutScore.Measure(Fixture.Contract, Fixture.Layout, false);
+        FlowchartLayoutScore.Result Actual = Context.Measure(new HashSet<FlowchartLayoutEdgeRoute> { Changed });
+        FlowchartLayoutScore.Result Expected = FlowchartLayoutScore.Measure(Fixture.Contract, Fixture.Layout, false);
         Assert.Multiple(() =>
         {
             Assert.That(Actual.OptimizationScore, Is.EqualTo(Expected.OptimizationScore));
@@ -55,13 +55,13 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void RejectedCandidateRestoresMutableGuideContents()
     {
-        var Fixture = CreateState(true);
-        var Route = Fixture.Layout.EdgeRoutes[0];
-        var Guide = new FlowchartResolvedGuide(Fixture.Contract.Edges[0],
-            Route.Points.Select(Point => (Point.X, Point.Y)).ToList(), FlowchartEdgeRouteKind.Grid);
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(true);
+        FlowchartLayoutEdgeRoute Route = Fixture.Layout.EdgeRoutes[0];
+        FlowchartResolvedGuide Guide = new FlowchartResolvedGuide(Fixture.Contract.Edges[0],
+            [.. Route.Points.Select(Point => (Point.X, Point.Y))], FlowchartEdgeRouteKind.Grid);
         Fixture.Layout.ResolvedEdgeGuides = [Guide];
-        var Points = Guide.Points.ToArray();
-        var Before = Fixture.Grid.Capture();
+        (double X, double Y)[] Points = [.. Guide.Points];
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string Geometry = GeometryOf(Fixture.Layout);
         DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) =>
         {
@@ -84,13 +84,13 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void RejectedCandidateRestoresGuideCacheAndDiagnostics()
     {
-        var Fixture = CreateState(true);
-        var Context = Fixture.Layout.RenderContext;
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(true);
+        FlowchartRenderContext Context = Fixture.Layout.RenderContext;
         Context.CachedRouteContract = Fixture.Contract;
         Context.CachedRouteGeometry = "original-geometry";
-        var Guides = new List<FlowchartResolvedGuide>(); Context.CachedRouteGuides = Guides;
+        List<FlowchartResolvedGuide> Guides = []; Context.CachedRouteGuides = Guides;
         Context.LayoutStageTrace.Add("original-trace");
-        var Before = Fixture.Grid.Capture(); string Geometry = GeometryOf(Fixture.Layout);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture(); string Geometry = GeometryOf(Fixture.Layout);
         bool CacheChanged = false;
         DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) =>
         {
@@ -108,7 +108,7 @@ public sealed class FlowchartCellMoveSearchTests
             Assert.That(Context.CachedRouteContract, Is.SameAs(Fixture.Contract));
             Assert.That(Context.CachedRouteGeometry, Is.EqualTo("original-geometry"));
             Assert.That(Context.CachedRouteGuides, Is.SameAs(Guides));
-            Assert.That(Context.LayoutStageTrace, Is.EqualTo(new[] { "original-trace" }));
+            Assert.That(Context.LayoutStageTrace, Is.EqualTo(["original-trace"]));
         });
     }
 
@@ -118,7 +118,7 @@ public sealed class FlowchartCellMoveSearchTests
     [TestCase(true)]
     public void HintedClearancePublishesAllObstacleMovesOrNone(bool PinnedLaterObstacle)
     {
-        var Fixture = CreateState(false, "flowchart TB\nA[Input] --> B[Output]\nC[First obstacle]\nD[Later obstacle]",
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(false, "flowchart TB\nA[Input] --> B[Output]\nC[First obstacle]\nD[Later obstacle]",
             new Dictionary<string, FlowchartCellRegion>
             {
                 ["A"] = new(0, 0, 1, 1), ["B"] = new(4, 0, 1, 1),
@@ -128,11 +128,14 @@ public sealed class FlowchartCellMoveSearchTests
         Fixture.Contract.Edges.Single().RoutingHint = new()
             { Leave = LayoutHintDirection.North, Enter = LayoutHintDirection.South, IsActive = true };
         Fixture.Nodes.Single(Node => Node.Id == "D").PlacementHintLocked = PinnedLaterObstacle;
-        var Before = Fixture.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         typeof(DiagramGridLayout).GetMethod("ResolveHintedTerminalClearance", StaticPrivate)!.Invoke(null, [Fixture.State]);
         Assert.That(Fixture.Grid.RegionOf("A"), Is.EqualTo(Before.Regions["A"]));
         Assert.That(Fixture.Grid.RegionOf("B"), Is.EqualTo(Before.Regions["B"]));
-        if (PinnedLaterObstacle) Assert.That(Fixture.Grid.Capture(), Is.SameAs(Before));
+        if (PinnedLaterObstacle)
+        {
+            Assert.That(Fixture.Grid.Capture(), Is.SameAs(Before));
+        }
         else
         {
             Assert.That(Fixture.Grid.RegionOf("C"), Is.Not.EqualTo(Before.Regions["C"]));
@@ -146,20 +149,24 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void GapGrowthCandidateFailureRestoresTheExactWholeState()
     {
-        var Fixture = CreateState(true, "flowchart TB\nA[Input] --> B[Work]",
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(true, "flowchart TB\nA[Input] --> B[Work]",
             new Dictionary<string, FlowchartCellRegion> { ["A"] = new(0, 0, 1, 1), ["B"] = new(1, 1, 1, 1) });
-        var Before = Fixture.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string Geometry = GeometryOf(Fixture.Layout);
         bool ObservedGrowth = false;
         DiagramGridLayout.RouteRepairCandidateObserver = (_, Subject, _, _) =>
         {
-            if (!Subject.StartsWith("gap ", StringComparison.Ordinal)) return;
+            if (!Subject.StartsWith("gap ", StringComparison.Ordinal))
+            {
+                return;
+            }
+
             ObservedGrowth = Fixture.Grid.Capture().ColumnGaps.Count != 0 || Fixture.Grid.Capture().RowGaps.Count != 0;
             throw new InvalidOperationException("forced-grown-gap-rejection");
         };
         try
         {
-            var Failure = Assert.Throws<TargetInvocationException>(() => typeof(DiagramGridLayout)
+            TargetInvocationException? Failure = Assert.Throws<TargetInvocationException>(() => typeof(DiagramGridLayout)
                 .GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!
                 .GetMethod("RepairCellChannelSpacing", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [Fixture.State]));
             Assert.That(Failure!.InnerException!.Message, Is.EqualTo("forced-grown-gap-rejection"));
@@ -176,10 +183,17 @@ public sealed class FlowchartCellMoveSearchTests
     [TestCase(true)]
     public void RepeatedRepairCallsShareTheExistingNamedLimits(bool AcceptedLimit)
     {
-        var Fixture = CreateState(true);
-        var Budget = Fixture.Layout.RenderContext.MoveBeforeDetourBudget;
-        if (AcceptedLimit) Budget.AcceptedMoves = FlowchartLayoutRules.RepairChainDepth;
-        else Budget.CandidateMoves = FlowchartLayoutRules.RepairCandidateMoves;
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(true);
+        FlowchartRenderContext.RepairSearchBudget Budget = Fixture.Layout.RenderContext.MoveBeforeDetourBudget;
+        if (AcceptedLimit)
+        {
+            Budget.AcceptedMoves = FlowchartLayoutRules.RepairChainDepth;
+        }
+        else
+        {
+            Budget.CandidateMoves = FlowchartLayoutRules.RepairCandidateMoves;
+        }
+
         string Before = GeometryOf(Fixture.Layout);
         Assert.That(Search(Fixture.State), Is.EqualTo((0, 0)));
         Assert.That(GeometryOf(Fixture.Layout), Is.EqualTo(Before));
@@ -190,14 +204,14 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void HintedTerminalClearanceMovesOnlyWholeRegions()
     {
-        var Fixture = CreateState(false, "flowchart TB\nA[Input] --> B[Output]\nC[Obstacle]",
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(false, "flowchart TB\nA[Input] --> B[Output]\nC[Obstacle]",
             new Dictionary<string, FlowchartCellRegion>
             {
                 ["A"] = new(0, 0, 1, 1), ["B"] = new(2, 0, 1, 1), ["C"] = new(-1, 0, 1, 1)
             }, RoutingCoordinates: false,
             Configuration: FlowchartLogicalGridConfiguration.FromRules() with { RowGap = 0 });
         Fixture.Contract.Edges.Single().RoutingHint = new() { Leave = LayoutHintDirection.North, IsActive = true };
-        var Before = Fixture.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         typeof(DiagramGridLayout).GetMethod("ResolveHintedTerminalClearance", StaticPrivate)!
             .Invoke(null, [Fixture.State]);
         Assert.That(Fixture.Grid.RegionOf("A"), Is.EqualTo(Before.Regions["A"]));
@@ -212,8 +226,8 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void FinalCompletionUsesCellGeometryWithoutReverseWritingPixels()
     {
-        var Fixture = CreateState(Offset: false);
-        var Before = Fixture.Grid.Capture();
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(Offset: false);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!
             .GetMethod("Apply", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [Fixture.State]);
         Assert.That(Fixture.Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
@@ -226,7 +240,7 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void FrameOverlapRepairMovesWholeMemberRegions()
     {
-        var Fixture = CreateState(Offset: false, Source: """
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(Offset: false, Source: """
             flowchart TB
               subgraph Left
                 A[Left member]
@@ -254,16 +268,16 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void MoveBeforeDetourChangesRegionsAndDerivesItsWinningBounds()
     {
-        var Fixture = CreateState(Offset: true);
-        var Result = Search(Fixture.State);
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(Offset: true);
+        (int Moved, int Examined) Result = Search(Fixture.State);
         Assert.That(Result.Moved, Is.EqualTo(1));
         Assert.That(Result.Examined, Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
-        foreach (var Node in Fixture.Nodes)
+        foreach (DiagramGridLayout.GridNode Node in Fixture.Nodes)
         {
-            var Region = Fixture.Grid.RegionOf(Node.Id);
-            var Origin = Fixture.Grid.Origin(Region); var Size = Fixture.Grid.Measure(Region);
-            Assert.That(Node.X, Is.EqualTo(Origin.X + Size.Width / 2));
-            Assert.That(Node.Y, Is.EqualTo(600 - Origin.Y - Size.Height / 2));
+            FlowchartCellRegion Region = Fixture.Grid.RegionOf(Node.Id);
+            (double X, double Y) Origin = Fixture.Grid.Origin(Region); (double Width, double Height) Size = Fixture.Grid.Measure(Region);
+            Assert.That(Node.X, Is.EqualTo(Origin.X + (Size.Width / 2)));
+            Assert.That(Node.Y, Is.EqualTo(600 - Origin.Y - (Size.Height / 2)));
         }
         Assert.That(FlowchartRouteRuleChecker.Check(Fixture.Contract, Fixture.Layout)
             .Where(Finding => Finding.Rule is "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
@@ -274,9 +288,13 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void RejectedSearchKeepsTheExactCellAndRouteSnapshot()
     {
-        var Fixture = CreateState(Offset: true);
-        foreach (var Node in Fixture.Nodes) Node.PlacementHintLocked = true;
-        var Cells = Fixture.Grid.Capture();
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(Offset: true);
+        foreach (DiagramGridLayout.GridNode Node in Fixture.Nodes)
+        {
+            Node.PlacementHintLocked = true;
+        }
+
+        FlowchartLogicalGrid.Snapshot Cells = Fixture.Grid.Capture();
         string Geometry = GeometryOf(Fixture.Layout);
         Assert.That(Search(Fixture.State).Moved, Is.Zero);
         Assert.That(Fixture.Grid.Capture().Regions, Is.EquivalentTo(Cells.Regions));
@@ -287,13 +305,13 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void ForcedCandidateFailureRestoresTheWholeOriginalState()
     {
-        var Fixture = CreateState(Offset: true);
-        var Before = Fixture.Grid.Capture();
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(Offset: true);
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string Geometry = GeometryOf(Fixture.Layout);
         DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) => throw new InvalidOperationException("forced-cell-candidate-rejection");
         try
         {
-            var Failure = Assert.Throws<TargetInvocationException>(() => Search(Fixture.State));
+            TargetInvocationException? Failure = Assert.Throws<TargetInvocationException>(() => Search(Fixture.State));
             Assert.That(Failure!.InnerException!.Message, Is.EqualTo("forced-cell-candidate-rejection"));
         }
         finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
@@ -316,42 +334,49 @@ public sealed class FlowchartCellMoveSearchTests
         Dictionary<string, FlowchartCellRegion>? Regions = null, bool RoutingCoordinates = true,
         FlowchartLogicalGridConfiguration? Configuration = null)
     {
-        var Contract = MermaidRecognizer.Parse(Source ?? "flowchart TB\nA[Input] --> B[Work]\nB --> C[Output]");
-        Assert.That(FlowchartDagrePlacement.TryPlace(Contract, out var Seed), Is.True);
+        DiagramContract Contract = MermaidRecognizer.Parse(Source ?? "flowchart TB\nA[Input] --> B[Work]\nB --> C[Output]");
+        Assert.That(FlowchartDagrePlacement.TryPlace(Contract, out FlowchartLayoutResult? Seed), Is.True);
         Type StateType = typeof(DiagramGridLayout).GetNestedType("GridLayoutState", BindingFlags.NonPublic)!;
         object State = Activator.CreateInstance(StateType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             null, [Contract, Seed, new FlowchartRenderContext()], null)!;
         typeof(DiagramGridLayout).GetNestedType("GridPreparationStage", BindingFlags.NonPublic)!
             .GetMethod("Apply", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [State]);
-        var Owners = (List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(State)!;
+        List<DiagramGridLayout.GridNode> Owners = (List<DiagramGridLayout.GridNode>)StateType.GetProperty("Placed")!.GetValue(State)!;
         // Preparation now binds its production seed. This independent unit
         // fixture has its own declared regions/configuration, so create its
         // owners once instead of attempting to rebind those seed owners.
-        var Nodes = Owners.Select(Node => new DiagramGridLayout.GridNode
+        DiagramGridLayout.GridNode[] Nodes = [.. Owners.Select(Node => new DiagramGridLayout.GridNode
         {
             Id = Node.Id, Rank = Node.Rank, Column = Node.Column,
             GroupId = Node.GroupId, IsDiamond = Node.IsDiamond,
             Shape = Node.Shape, GeometryProvider = Node.GeometryProvider
-        }).ToArray();
+        })];
         Owners.Clear(); Owners.AddRange(Nodes);
-        var Grid = new FlowchartLogicalGrid(Configuration ?? FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration ?? FlowchartLogicalGridConfiguration.FromRules());
         Regions ??= new Dictionary<string, FlowchartCellRegion>
         {
             ["A"] = new(0, 0, 1, 1), ["B"] = new(1, Offset ? 1 : 0, 1, 1), ["C"] = new(2, 0, 1, 1)
         };
-        foreach (var Pair in Regions) Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
-        foreach (var Node in Nodes)
+        foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Regions)
+        {
+            Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
+        }
+
+        foreach (DiagramGridLayout.GridNode? Node in Nodes)
         {
             Node.BindCells(Grid);
-            if (RoutingCoordinates) Node.CellNode!.UseRoutingCoordinates(600);
+            if (RoutingCoordinates)
+            {
+                Node.CellNode!.UseRoutingCoordinates(600);
+            }
         }
-        var Layout = (FlowchartLayoutResult)StateType.GetProperty("Copy")!.GetValue(State)!;
+        FlowchartLayoutResult Layout = (FlowchartLayoutResult)StateType.GetProperty("Copy")!.GetValue(State)!;
         Layout.CellNodes = Owners;
         Layout.UsesGridRoutes = true;
         var Placed = StateType.GetProperty("Placed")!.GetValue(State)!;
-        var Frames = (List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(State)!;
+        List<DiagramGridLayout.GridFrame> Frames = (List<DiagramGridLayout.GridFrame>)StateType.GetProperty("Frames")!.GetValue(State)!;
         typeof(DiagramGridLayout).GetMethod("BuildFramesYUp", StaticPrivate)!.Invoke(null, [Contract, Placed, Frames]);
-        var NodeDefinitions = (Dictionary<string, NodeContract>)StateType.GetProperty("Nodes")!.GetValue(State)!;
+        Dictionary<string, NodeContract> NodeDefinitions = (Dictionary<string, NodeContract>)StateType.GetProperty("Nodes")!.GetValue(State)!;
         typeof(DiagramGridLayout).GetMethod("WriteBack", StaticPrivate)!.Invoke(null, [Layout, Placed, Frames]);
         typeof(DiagramGridLayout).GetMethod("AssignPortSides", StaticPrivate)!.Invoke(null,
             [Contract, Layout, Placed, Frames, NodeDefinitions, FlowchartDirection.TopToBottom, new HashSet<string>()]);
@@ -374,19 +399,19 @@ public sealed class FlowchartCellMoveSearchTests
     [Test]
     public void RejectedTerminalGapCandidateRestoresEveryGeometryLayerExactly()
     {
-        var Fixture = CreateState(false, "flowchart LR\nsubgraph G[Group]\nA[Input] --> B[Work]\nend\nB --> C[Output]",
+        (object State, DiagramGridLayout.GridNode[] Nodes, DiagramContract Contract, FlowchartLogicalGrid Grid, FlowchartLayoutResult Layout) Fixture = CreateState(false, "flowchart LR\nsubgraph G[Group]\nA[Input] --> B[Work]\nend\nB --> C[Output]",
             new() { ["A"] = new(0, 0, 1, 1), ["B"] = new(0, 1, 1, 1), ["C"] = new(0, 3, 1, 1) });
-        var Before = Fixture.Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Fixture.Grid.Capture();
         string Geometry = GeometryOf(Fixture.Layout);
         Assert.That(Fixture.Layout.ClusterBounds, Is.Not.Empty);
-        var Assignment = FlowchartCellRepair.PlanAssignment(Fixture.Nodes, new Dictionary<string, FlowchartCellRegion>(),
+        FlowchartCellRepair.Assignment? Assignment = FlowchartCellRepair.PlanAssignment(Fixture.Nodes, new Dictionary<string, FlowchartCellRegion>(),
             [new(true, 0, DiagramGridMetrics.GRID_UNIT_PX, DiagramGridMetrics.GRID_UNIT_PX)]);
         Assert.That(Assignment, Is.Not.Null);
-        var Stage = typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!;
-        var OptionType = Stage.GetNestedType("CellRepairOption", BindingFlags.NonPublic)!;
+        Type Stage = typeof(DiagramGridLayout).GetNestedType("RouteRepairStage", BindingFlags.NonPublic)!;
+        Type OptionType = Stage.GetNestedType("CellRepairOption", BindingFlags.NonPublic)!;
         var Option = Activator.CreateInstance(OptionType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             null, ["gap|True|0", "gap 0", Assignment!], null)!;
-        var Options = Array.CreateInstance(OptionType, 1); Options.SetValue(Option, 0);
+        Array Options = Array.CreateInstance(OptionType, 1); Options.SetValue(Option, 0);
         bool SawGrowth = false;
         DiagramGridLayout.RouteRepairCandidateObserver = (_, _, _, _) =>
         {
@@ -420,11 +445,17 @@ public sealed class FlowchartCellMoveSearchTests
     /// <param name="Grid">Authoritative regions after a complete search or rollback.</param>
     private static void AssertNoSharedCells(FlowchartLogicalGrid Grid)
     {
-        var Occupied = new HashSet<(int Row, int Column)>();
-        foreach (var Region in Grid.Capture().Regions.Values)
-        for (int Row = Region.StartRow; Row < Region.EndRow; Row++)
-        for (int Column = Region.StartColumn; Column < Region.EndColumn; Column++)
-            Assert.That(Occupied.Add((Row, Column)), Is.True);
+        HashSet<(int Row, int Column)> Occupied = [];
+        foreach (FlowchartCellRegion Region in Grid.Capture().Regions.Values)
+        {
+            for (int Row = Region.StartRow; Row < Region.EndRow; Row++)
+            {
+                for (int Column = Region.StartColumn; Column < Region.EndColumn; Column++)
+                {
+                    Assert.That(Occupied.Add((Row, Column)), Is.True);
+                }
+            }
+        }
     }
 
     /// <summary>Checks the two unrelated derived frame rectangles without using an engine gate implementation.</summary>
@@ -432,8 +463,8 @@ public sealed class FlowchartCellMoveSearchTests
     /// <returns>Whether their interiors overlap on both axes.</returns>
     private static bool FramesOverlap(FlowchartLayoutResult Layout)
     {
-        var A = Layout.ClusterBounds.Single(Box => Box.NodeId == "Left");
-        var B = Layout.ClusterBounds.Single(Box => Box.NodeId == "Right");
+        FlowchartLayoutNodeBounds A = Layout.ClusterBounds.Single(Box => Box.NodeId == "Left");
+        FlowchartLayoutNodeBounds B = Layout.ClusterBounds.Single(Box => Box.NodeId == "Right");
         return Math.Abs(A.CenterX - B.CenterX) * 2 < A.Width + B.Width
             && Math.Abs(A.CenterY - B.CenterY) * 2 < A.Height + B.Height;
     }

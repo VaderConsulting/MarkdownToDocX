@@ -92,7 +92,11 @@ public static class FlowchartOrdinaryFanOutRouteBuilder
                     {
                         continue;
                     }
-                    if (Targets.Contains(Edge.TargetId)) return true;
+                    if (Targets.Contains(Edge.TargetId))
+                    {
+                        return true;
+                    }
+
                     Pending.Enqueue(Edge.TargetId);
                 }
             }

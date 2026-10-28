@@ -16,7 +16,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (int i = 0; i < Layers.Length; i++) {
                 ProgressStep();
                 RouteFlatEdgesBetweenTwoLayers(Layers[i],
-                    i < Layers.Length - 1 ? Layers[i + 1] : new int[0]);
+                    i < Layers.Length - 1 ? Layers[i + 1] : []);
             }
         }
 

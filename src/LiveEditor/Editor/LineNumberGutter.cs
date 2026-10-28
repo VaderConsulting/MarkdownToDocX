@@ -10,7 +10,7 @@ namespace LiveEditor.Editor;
 /// Read-only line numbers that stay beside the source editor and move with its vertical scroll.
 /// The column is wide enough for four digits.
 /// </summary>
-internal sealed class LineNumberGutter : Panel
+internal sealed partial class LineNumberGutter : Panel
 {
     private const int WM_MOUSEWHEEL = 0x020A;
 
@@ -38,13 +38,8 @@ internal sealed class LineNumberGutter : Panel
     /// <param name="Editor">The source editor.</param>
     public void Bind(RichTextBox Editor)
     {
-        if (Editor == null)
-        {
-            throw new ArgumentNullException(nameof(Editor));
-        }
-
         Detach();
-        _Editor = Editor;
+        _Editor = Editor ?? throw new ArgumentNullException(nameof(Editor));
         _Editor.TextChanged += Editor_Changed;
         _Editor.VScroll += Editor_Changed;
         _Editor.Resize += Editor_Changed;
@@ -63,11 +58,8 @@ internal sealed class LineNumberGutter : Panel
         if (Disposing)
         {
             Detach();
-            if (_OwnedFont != null)
-            {
-                _OwnedFont.Dispose();
-                _OwnedFont = null;
-            }
+            _OwnedFont?.Dispose();
+            _OwnedFont = null;
         }
 
         base.Dispose(Disposing);
@@ -260,6 +252,6 @@ internal sealed class LineNumberGutter : Panel
         return Color.FromArgb((Ink.R + Paper.R) / 2, (Ink.G + Paper.G) / 2, (Ink.B + Paper.B) / 2);
     }
 
-    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
-    private static extern IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr Handle, int Message, IntPtr WParam, IntPtr LParam);
 }

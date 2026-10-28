@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Layout;
 
@@ -24,7 +25,7 @@ public sealed class FlowchartGridCornerRenderTests
     public void Render_FanOut_RoundsEveryBendWithOrWithoutLabelGap(string Direction, string Label)
     {
         string EdgeLabel = Label.Length == 0 ? "" : $"|{Label}|";
-        var Contract = MermaidRecognizer.Parse($"""
+        DiagramContract Contract = MermaidRecognizer.Parse($"""
             flowchart {Direction}
             A[Request] -->{EdgeLabel} B[Approved]
             A -->{EdgeLabel} C[Rejected]
@@ -32,12 +33,11 @@ public sealed class FlowchartGridCornerRenderTests
         XDocument Svg = XDocument.Parse(FlowchartSugiyamaSvgRenderer.RenderToSvg(Contract));
         foreach (string Target in new[] { "B", "C" })
         {
-            string[] Paths = Svg.Descendants()
+            string[] Paths = [.. Svg.Descendants()
                 .Where(Element => Element.Name.LocalName == "path"
                     && (string?)Element.Attribute("data-edge-source") == "A"
                     && (string?)Element.Attribute("data-edge-target") == Target)
-                .Select(Element => (string)Element.Attribute("d")!)
-                .ToArray();
+                .Select(Element => (string)Element.Attribute("d")!)];
             foreach (string Path in Paths)
             {
                 OrthogonalRouteTestHelper.AssertEveryBendRounded(Path);

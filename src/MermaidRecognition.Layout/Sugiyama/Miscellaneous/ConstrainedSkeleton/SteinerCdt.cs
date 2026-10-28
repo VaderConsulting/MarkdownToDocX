@@ -273,7 +273,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
 
             RTree<Point> tree =
                 new RTree<Point>(_pointsToIndices.Keys.Select(p => new KeyValuePair<Rectangle, Point>(new Rectangle(p), p)));
-            List<SymmetricTuple<int>> badSegs = (from e in _segments let overlaps = GetPointsOverlappingSeg(e, tree, indexToPoints) where overlaps.Count > 2 select e).ToList();
+            List<SymmetricTuple<int>> badSegs = [.. (from e in _segments let overlaps = GetPointsOverlappingSeg(e, tree, indexToPoints) where overlaps.Count > 2 select e)];
 
 #if TEST_MSAGL
             if (badSegs.Any())
@@ -287,7 +287,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
         
         private void ShowInputSegments(List<SymmetricTuple<int>> badSegs, Point[] indexToPoints) {
 #if TEST_MSAGL
-            List<DebugCurve> l = new List<DebugCurve>();
+            List<DebugCurve> l = [];
             foreach (SymmetricTuple<int> seg in _segments) {
                 Point p1 = indexToPoints[seg.A];
                 Point p2 = indexToPoints[seg.B];
@@ -301,7 +301,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             //{
             //    l.Add(new DebugCurve(200, 0.1, "black", CurveFactory.CreateCircle(0.1, p)));
             //}
-            LayoutAlgorithmSettings.ShowDebugCurves(l.ToArray());
+            LayoutAlgorithmSettings.ShowDebugCurves([.. l]);
 #endif
         }
 
@@ -327,11 +327,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.ConstrainedSkeleton {
             Rectangle rect = new Rectangle(p0, p1);
             rect.Pad(1e-5);
 
-            Point[] vts = tree.GetAllIntersecting(rect).ToArray();
+            Point[] vts = [.. tree.GetAllIntersecting(rect)];
 
-            List<Point> vtsOverlapping = vts.Where(p => Point.DistToLineSegment(p, p0, p1, out double t) < 1e-5).ToList();
+            List<Point> vtsOverlapping = [.. vts.Where(p => Point.DistToLineSegment(p, p0, p1, out double t) < 1e-5)];
 
-            vtsOverlapping = vtsOverlapping.OrderBy(p => (p - p0).Length).ToList();
+            vtsOverlapping = [.. vtsOverlapping.OrderBy(p => (p - p0).Length)];
             if (vtsOverlapping.Count > 2) {
                 Console.WriteLine("overlapping points");
                 foreach (Point v in vtsOverlapping)

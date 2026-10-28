@@ -12,10 +12,13 @@ public sealed class CellPlacementPolicyCatalogueRegressionTests
     public static IEnumerable<TestCaseData> Cases()
     {
         HashSet<string> Reviewed = ["F136", "A110", "A111", "A173", "A58", "A138", "EIP84"];
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Reviewed.Contains(Scenario.Id)) yield return new TestCaseData(Scenario).SetName("CellPlacementPolicy_" + Scenario.Id);
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Reviewed.Contains(Scenario.Id))
+            {
+                yield return new TestCaseData(Scenario).SetName("CellPlacementPolicy_" + Scenario.Id);
+            }
         }
     }
 

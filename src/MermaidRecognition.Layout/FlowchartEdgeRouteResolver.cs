@@ -215,7 +215,9 @@ public static class FlowchartEdgeRouteResolver
                     && FlowchartDagrePresentation.IsDiamondShape(TargetNode.Shape)
                     && Contract.Edges.Count(Candidate => Candidate.TargetId == Guide.Edge.TargetId
                         && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) > 1)
+                {
                     Guide.RouteKind = FlowchartEdgeRouteKind.Decision;
+                }
             }
         }
 
@@ -285,7 +287,9 @@ public static class FlowchartEdgeRouteResolver
             if (BoundsById == null)
             {
                 foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
+                {
                     RouteBoundsById[Bounds.NodeId] = Bounds;
+                }
             }
 
             if (FlowchartOrdinaryFanOutRouteBuilder.TryIsOrdinaryFanOutHub(

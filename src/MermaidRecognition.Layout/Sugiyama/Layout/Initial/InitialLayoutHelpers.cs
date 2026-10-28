@@ -60,7 +60,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Initial
 
         internal static void PlaceLabels(GeometryGraph component, CancelToken cancelToken)
         {
-            List<Label> labelList = component.Edges.SelectMany(e => e.Labels).ToList();
+            List<Label> labelList = [.. component.Edges.SelectMany(e => e.Labels)];
             EdgeLabelPlacement labelPlacer = new EdgeLabelPlacement(component, labelList);
             labelPlacer.Run(cancelToken);
         }

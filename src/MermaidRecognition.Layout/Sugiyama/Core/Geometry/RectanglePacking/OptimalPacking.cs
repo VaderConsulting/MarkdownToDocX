@@ -128,7 +128,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
             }
 
             // x2 must be between x1 and x3
-            Debug.Assert(x1 < x2 && x2 < x3 || x3 < x2 && x2 < x1, "x2 not bounded by x1 and x3");
+            Debug.Assert((x1 < x2 && x2 < x3) || (x3 < x2 && x2 < x1), "x2 not bounded by x1 and x3");
 
             // x4 will be our new midpoint candidate
             double x4 = GetGoldenSectionStep(x2, x3);
@@ -161,9 +161,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
         {
             if (x1 < x2)
             {
-                return x1 + PackingConstants.GoldenRatioRemainder * (x2 - x1);
+                return x1 + (PackingConstants.GoldenRatioRemainder * (x2 - x1));
             }
-            return x1 - PackingConstants.GoldenRatioRemainder * (x1 - x2);
+            return x1 - (PackingConstants.GoldenRatioRemainder * (x1 - x2));
         }
     }
 }

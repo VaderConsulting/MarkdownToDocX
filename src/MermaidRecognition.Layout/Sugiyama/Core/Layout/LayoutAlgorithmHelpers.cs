@@ -148,7 +148,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         internal static void SetEdgeLengthsProportionalToSymmetricDifference(GeometryGraph graph, double lengthInitialOffset, double lengthAdjustment)
         {
             ValidateArg.IsNotNull(graph, "graph");
-            Dictionary<Node, Set<Node>> neighbors = new Dictionary<Node, Set<Node>>();
+            Dictionary<Node, Set<Node>> neighbors = [];
             foreach (Node u in graph.Nodes)
             {
                 Set<Node> ns = neighbors[u] = [];
@@ -178,7 +178,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
                     // cap it at 30
                     l = Math.Min(30, l);
 
-                    e.Length *= lengthInitialOffset + l * lengthAdjustment;
+                    e.Length *= lengthInitialOffset + (l * lengthAdjustment);
                 }
             }
         }

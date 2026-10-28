@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using NUnit.Framework;
 
@@ -12,9 +13,9 @@ public sealed class FlowchartCellProductionActivationTests
     [TestCase(true), TestCase(false)]
     public void PublicLayoutHonoursCellMode(bool Enabled)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\n A[Start] --> B[Finish]");
-        var Context = new FlowchartRenderContext { UseCellRegions = Enabled };
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out var Layout), Is.True);
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\n A[Start] --> B[Finish]");
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = Enabled };
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out FlowchartLayoutResult? Layout), Is.True);
         Assert.That(Layout.CellWriteCoverage!.BoundNodes, Is.EqualTo(Enabled ? 2 : 0));
         Assert.That(Layout.CellNodes != null, Is.EqualTo(Enabled));
         Assert.That(Context.RejectedCellPixelWrites, Is.Empty);

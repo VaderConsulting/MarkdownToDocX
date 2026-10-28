@@ -51,6 +51,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Get the list of nodes involved in the constraint
         /// </summary>
-        public IEnumerable<Node> Nodes => new Node[] { u, v };
+        public IEnumerable<Node> Nodes => [u, v];
     }
 }

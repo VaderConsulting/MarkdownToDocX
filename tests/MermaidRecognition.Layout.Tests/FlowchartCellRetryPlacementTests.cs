@@ -10,12 +10,12 @@ public sealed class FlowchartCellRetryPlacementTests
     [Test]
     public void RetryAndSuccessPublishWithMeasuredClearance()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Assert.That(DiagramGridLayout.AlignCellHorizontalRetryOutcomes(Contract, Nodes), Is.True);
         Assert.That(Grid.RegionOf("R").StartColumn, Is.EqualTo(Grid.RegionOf("D").StartColumn));
         Assert.That(Grid.RegionOf("F").StartRow, Is.EqualTo(Grid.RegionOf("D").StartRow));
-        var R = Nodes.Single(Node => Node.Id == "R"); var D = Nodes.Single(Node => Node.Id == "D");
-        Assert.That(R.Y - R.Height / 2d - D.Y - D.Height / 2d, Is.GreaterThanOrEqualTo(90));
+        DiagramGridLayout.GridNode R = Nodes.Single(Node => Node.Id == "R"); DiagramGridLayout.GridNode D = Nodes.Single(Node => Node.Id == "D");
+        Assert.That(R.Y - (R.Height / 2d) - D.Y - (D.Height / 2d), Is.GreaterThanOrEqualTo(90));
         Assert.That(R.Rank, Is.EqualTo(D.Rank));
     }
 
@@ -23,9 +23,9 @@ public sealed class FlowchartCellRetryPlacementTests
     [Test]
     public void RetryClearancePreservesSuccessRegion()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Assert.That(Grid.TryPlace("F", new(1, 4, 1, 1)), Is.True);
-        var Before = Grid.RegionOf("F");
+        FlowchartCellRegion Before = Grid.RegionOf("F");
         Assert.That(DiagramGridLayout.AlignCellHorizontalRetryOutcomes(Contract, Nodes), Is.True);
         Assert.That(Grid.RegionOf("F"), Is.SameAs(Before));
     }
@@ -36,13 +36,16 @@ public sealed class FlowchartCellRetryPlacementTests
     [TestCase(true)]
     public void RejectedRetryLeavesAllRegionsAndRanksUnchanged(bool Hint)
     {
-        var (Contract, Nodes, Grid) = Fixture(); var Retry = Nodes.Single(Node => Node.Id == "R");
-        if (Hint) Retry.PlacementHintLocked = true;
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); DiagramGridLayout.GridNode Retry = Nodes.Single(Node => Node.Id == "R");
+        if (Hint)
+        {
+            Retry.PlacementHintLocked = true;
+        }
         else
         {
-            Grid.TryPlace("O", new(2, 2, 1, 1)); var O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
+            Grid.TryPlace("O", new(2, 2, 1, 1)); DiagramGridLayout.GridNode O = new DiagramGridLayout.GridNode { Id = "O" }; O.BindCells(Grid); Nodes.Add(O);
         }
-        var Before = Grid.Capture(); int Rank = Retry.Rank;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); int Rank = Retry.Rank;
         DiagramGridLayout.AlignCellHorizontalRetryOutcomes(Contract, Nodes);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions)); Assert.That(Retry.Rank, Is.EqualTo(Rank));
     }
@@ -51,12 +54,12 @@ public sealed class FlowchartCellRetryPlacementTests
     /// <returns>Graph, bound nodes and parent grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract(); var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Row, Column, Rank) in new[] { ("I", 0, 0, 0), ("D", 0, 2, 1), ("R", 4, 4, 2), ("F", 0, 4, 2) })
+        DiagramContract Contract = new DiagramContract(); FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, int Row, int Column, int Rank) in new[] { ("I", 0, 0, 0), ("D", 0, 2, 1), ("R", 4, 4, 2), ("F", 0, 4, 2) })
         {
             Grid.TryPlace(Id, new(Row, Column, Id == "D" ? 2 : 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, IsDiamond = Id == "D", Rank = Rank }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, IsDiamond = Id == "D", Rank = Rank }; Node.BindCells(Grid); Nodes.Add(Node);
         }
         Contract.EdgesMutable.AddRange([new() { SourceId = "I", TargetId = "D" }, new() { SourceId = "D", TargetId = "R" },
             new() { SourceId = "D", TargetId = "F" }, new() { SourceId = "R", TargetId = "I" }]);

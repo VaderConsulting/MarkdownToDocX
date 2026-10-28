@@ -9,7 +9,7 @@ namespace MermaidRecognition.Core;
 /// </summary>
 public abstract class Parser
 {
-    private static readonly List<Parser> _Registered = new List<Parser>();
+    private static readonly List<Parser> _Registered = [];
 
     private static readonly object _RegisterLock = new object();
 

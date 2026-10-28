@@ -28,13 +28,13 @@ internal sealed partial class ElementPalette : UserControl
         "or"
     };
 
-    private readonly List<ElementGlyphButton> _Buttons = new List<ElementGlyphButton>();
+    private readonly List<ElementGlyphButton> _Buttons = [];
 
-    private readonly Dictionary<EnterpriseLayer, TabPage> _Pages = new Dictionary<EnterpriseLayer, TabPage>();
+    private readonly Dictionary<EnterpriseLayer, TabPage> _Pages = [];
 
-    private readonly List<TabPage> _StatementPages = new List<TabPage>();
+    private readonly List<TabPage> _StatementPages = [];
 
-    private readonly List<Button> _StatementButtons = new List<Button>();
+    private readonly List<Button> _StatementButtons = [];
 
     private string _DiagramKind = "enterprise";
 
@@ -485,7 +485,7 @@ internal sealed partial class ElementPalette : UserControl
             return;
         }
 
-        List<ElementGlyphButton> VisibleButtons = new List<ElementGlyphButton>();
+        List<ElementGlyphButton> VisibleButtons = [];
         foreach (Control Child in Flow.Controls)
         {
             ElementGlyphButton? Button = Child as ElementGlyphButton;
@@ -626,7 +626,7 @@ internal sealed partial class ElementPalette : UserControl
 
     private List<ElementGlyphButton> ButtonsOnSelectedLayer()
     {
-        List<ElementGlyphButton> Visible = new List<ElementGlyphButton>();
+        List<ElementGlyphButton> Visible = [];
         if (LayerTabs.SelectedTab == null || LayerTabs.SelectedTab.Controls.Count == 0)
         {
             return Visible;
@@ -816,7 +816,7 @@ internal sealed partial class ElementPalette : UserControl
 
     private static string SuggestIdentifier(string Label, HashSet<string> Used)
     {
-        List<string> Words = new List<string>();
+        List<string> Words = [];
         string Current = string.Empty;
         foreach (char Character in Label.Trim())
         {
@@ -845,7 +845,7 @@ internal sealed partial class ElementPalette : UserControl
             return string.Empty;
         }
 
-        List<string> Candidates = new List<string>();
+        List<string> Candidates = [];
         if (Words.Count == 1)
         {
             string Word = Words[0].ToLower(CultureInfo.InvariantCulture);

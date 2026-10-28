@@ -1,4 +1,6 @@
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -16,19 +18,19 @@ public sealed class FinalRepairA117DiagnosticTests
     [TestCase(61.0), TestCase(65.0), TestCase(80.0)]
     public void MeasureJointRegionCandidate(double Cap)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A117");
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
         DiagramGridLayout.FinalRepairLengthCapForTests = Cap;
         DiagramGridLayout.FinalRepairRegionForTests = Nodes => new Dictionary<string, FlowchartCellRegion> {
             ["g3"] = FlowchartCellRepair.Translate(Nodes.Single(Node => Node.Id == "g3").CellNode!.Region, -1, 0),
             ["wpSelect"] = FlowchartCellRepair.Translate(Nodes.Single(Node => Node.Id == "wpSelect").CellNode!.Region, 0, -1) };
         DiagramGridLayout.FinalRepairMeasurementObserver = (Key, Layout) => Report("candidate", Layout);
         DiagramGridLayout.FinalRepairObserver = (Key, Reason, Length) => TestContext.Out.WriteLine($"A117_FINAL_DECISION|cap={Cap}|{Reason}|length={Length:R}");
-        DiagramGridLayout.FinalRepairStateObserver = (Stage, Layout, Nodes) => { if (Stage == "before") Report("before", Layout); };
+        DiagramGridLayout.FinalRepairStateObserver = (Stage, Layout, Nodes) => { if (Stage == "before") { Report("before", Layout); } };
         try
         {
-            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out var Layout), Is.True);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new() { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
             Report("published", Layout);
         }
         finally
@@ -44,18 +46,28 @@ public sealed class FinalRepairA117DiagnosticTests
         void Report(string Stage, FlowchartLayoutResult Layout)
         {
             int Crossings = 0, Shared = 0;
-            var FanPairs = new Dictionary<string, int>(StringComparer.Ordinal);
-            for (int A = 0; A < Layout.EdgeRoutes.Count; A++) for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+            Dictionary<string, int> FanPairs = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int A = 0; A < Layout.EdgeRoutes.Count; A++)
             {
-                var Hits = FlowchartBranchRouteOrder.Intersections(Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
+                for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+            {
+                (int Crossings, double Overlap) Hits = FlowchartBranchRouteOrder.Intersections(Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                     Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray());
-                Crossings += Hits.Crossings; if (Hits.Overlap > 0) Shared++;
-                var First = Layout.EdgeRoutes[A]; var Second = Layout.EdgeRoutes[B];
+                Crossings += Hits.Crossings; if (Hits.Overlap > 0)
+                    {
+                        Shared++;
+                    }
+
+                    FlowchartLayoutEdgeRoute First = Layout.EdgeRoutes[A]; FlowchartLayoutEdgeRoute Second = Layout.EdgeRoutes[B];
                 if (Hits.Crossings > 0 && (First.SourceId == Second.SourceId
                     || First.TargetId == Second.TargetId))
-                    FanPairs[First.EdgeId + " x " + Second.EdgeId] = Hits.Crossings;
+                    {
+                        FanPairs[First.EdgeId + " x " + Second.EdgeId] = Hits.Crossings;
+                    }
+                }
             }
-            var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout); var Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
+
+            IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout); FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, false);
             TestContext.Out.WriteLine("A117_FINAL_METRICS|" + JsonSerializer.Serialize(new { Stage, Cap, Score.Bends, Crossings, Shared,
                 FiveNine = Findings.Count(Finding => Finding.Rule == "5.9"), TotalFindings = Findings.Count,
                 SameFanCrossings = FanPairs.Values.Sum(), FanPairs,

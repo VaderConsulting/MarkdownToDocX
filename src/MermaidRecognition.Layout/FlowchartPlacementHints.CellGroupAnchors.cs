@@ -23,17 +23,25 @@ internal static partial class FlowchartPlacementHints
     {
         for (int Depth = 0; Depth < FlowchartLayoutRules.RepairChainDepth; Depth++)
         {
-            var Broken = Accepted.Where(Item => !CellHintMatches(Item, Nodes, ById, Groups, Targets)).ToArray();
-            if (Broken.Length == 0) return CellHintMatches(Current, Nodes, ById, Groups, Targets);
-            bool Changed = false;
-            foreach (var Item in Broken.Where(Item => Item.IsGroup && Item.Hint.Kind != PlacementHintKind.Push))
+            HintItem[] Broken = [.. Accepted.Where(Item => !CellHintMatches(Item, Nodes, ById, Groups, Targets))];
+            if (Broken.Length == 0)
             {
-                var Members = UnitNodes(Item.Id, true, Nodes, ById, Groups);
-                var Peer = UnitNodes(Item.Hint.PeerId ?? string.Empty, Groups.ContainsKey(Item.Hint.PeerId ?? string.Empty), Nodes, ById, Groups);
-                var Moving = DiagramGridLayout.CellHintDependentUnit(Contract, Nodes, Item.Id);
-                var Ids = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-                if (Members.Count == 0 || Peer.Count == 0 || Peer.Any(Node => Ids.Contains(Node.Id))) continue;
-                var Owner = CellEnvelope(Members, Targets); var Anchor = CellEnvelope(Peer, Targets);
+                return CellHintMatches(Current, Nodes, ById, Groups, Targets);
+            }
+
+            bool Changed = false;
+            foreach (HintItem? Item in Broken.Where(Item => Item.IsGroup && Item.Hint.Kind != PlacementHintKind.Push))
+            {
+                List<DiagramGridLayout.GridNode> Members = UnitNodes(Item.Id, true, Nodes, ById, Groups);
+                List<DiagramGridLayout.GridNode> Peer = UnitNodes(Item.Hint.PeerId ?? string.Empty, Groups.ContainsKey(Item.Hint.PeerId ?? string.Empty), Nodes, ById, Groups);
+                DiagramGridLayout.GridNode[] Moving = DiagramGridLayout.CellHintDependentUnit(Contract, Nodes, Item.Id);
+                HashSet<string> Ids = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+                if (Members.Count == 0 || Peer.Count == 0 || Peer.Any(Node => Ids.Contains(Node.Id)))
+                {
+                    continue;
+                }
+
+                FlowchartCellRegion Owner = CellEnvelope(Members, Targets); FlowchartCellRegion Anchor = CellEnvelope(Peer, Targets);
                 int Rows = 0, Columns = 0, RowDirection = 0, ColumnDirection = 0;
                 switch (Item.Hint.Kind)
                 {
@@ -50,7 +58,7 @@ internal static partial class FlowchartPlacementHints
                         Columns = Math.Max(0, checked(Anchor.EndColumn - Owner.StartColumn + Item.Hint.Offset));
                         Rows = Anchor.StartRow - Owner.StartRow; ColumnDirection = 1; break;
                 }
-                var Others = Nodes.Where(Node => !Ids.Contains(Node.Id)).ToArray();
+                DiagramGridLayout.GridNode[] Others = [.. Nodes.Where(Node => !Ids.Contains(Node.Id))];
                 Dictionary<string, FlowchartCellRegion> Changes;
                 // As in ordinary explicit hint placement, advance only along
                 // the requested direction past the finite occupied regions.
@@ -58,17 +66,28 @@ internal static partial class FlowchartPlacementHints
                 {
                     Changes = Moving.ToDictionary(Node => Node.Id, Node =>
                     {
-                        var Region = Targets[Node.Id];
+                        FlowchartCellRegion Region = Targets[Node.Id];
                         return new FlowchartCellRegion(checked(Region.StartRow + Rows), checked(Region.StartColumn + Columns),
                             Region.RowSpan, Region.ColumnSpan);
                     }, StringComparer.Ordinal);
-                    if (!Changes.Values.Any(Region => Others.Any(Node => Region.Overlaps(Targets[Node.Id])))) break;
+                    if (!Changes.Values.Any(Region => Others.Any(Node => Region.Overlaps(Targets[Node.Id]))))
+                    {
+                        break;
+                    }
+
                     Rows = checked(Rows + RowDirection); Columns = checked(Columns + ColumnDirection);
                 }
-                foreach (var Change in Changes) Targets[Change.Key] = Change.Value;
+                foreach (KeyValuePair<string, FlowchartCellRegion> Change in Changes)
+                {
+                    Targets[Change.Key] = Change.Value;
+                }
+
                 Changed |= Rows != 0 || Columns != 0;
             }
-            if (!Changed) return false;
+            if (!Changed)
+            {
+                return false;
+            }
         }
         return Accepted.Append(Current).All(Item => CellHintMatches(Item, Nodes, ById, Groups, Targets));
     }

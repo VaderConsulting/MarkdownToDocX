@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout.Enterprise;
 
@@ -11,15 +12,15 @@ public sealed class EnterpriseBandConnectionClearanceTests
     [Test]
     public void HintedBlockerKeepsItsRegionAndRecordsTheConflict()
     {
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
             "enterprise\n business-process first\n business-process middle below first\n business-process last"
             + "\n application-component app\n first -triggering-> middle\n middle -triggering-> last"
             + "\n first -triggering-> last\n last -serving-> app").Document!);
-        var Nodes = Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 }).ToList();
+        List<DiagramGridLayout.GridNode> Nodes = [.. Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 })];
         FlowchartCellInitialPlacement.Bind(Nodes, 150, 90, false, new() { UseCellRegions = true });
-        var Context = new FlowchartRenderContext { UseCellRegions = true };
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = true };
         Assert.That(EnterpriseBandPlacement.Apply(Contract, Nodes, Context), Is.True);
-        var Regions = Nodes[0].CellNode!.Grid.Capture().Regions;
+        IReadOnlyDictionary<string, FlowchartCellRegion> Regions = Nodes[0].CellNode!.Grid.Capture().Regions;
         Assert.Multiple(() =>
         {
             Assert.That(Contract.Nodes.Single(Node => Node.Id == "middle").PlacementHint!.IsActive, Is.True);
@@ -32,15 +33,15 @@ public sealed class EnterpriseBandConnectionClearanceTests
     [Test]
     public void PartnerAlignedBlockerKeepsItsColumn()
     {
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
             "enterprise\n business-process first\n business-process middle\n business-process last"
             + "\n application-component app\n first -triggering-> middle\n middle -triggering-> last"
             + "\n first -triggering-> last\n middle -serving-> app").Document!);
-        var Nodes = Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 }).ToList();
+        List<DiagramGridLayout.GridNode> Nodes = [.. Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 })];
         FlowchartCellInitialPlacement.Bind(Nodes, 150, 90, false, new() { UseCellRegions = true });
-        var Context = new FlowchartRenderContext { UseCellRegions = true };
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = true };
         Assert.That(EnterpriseBandPlacement.Apply(Contract, Nodes, Context), Is.True);
-        var Regions = Nodes[0].CellNode!.Grid.Capture().Regions;
+        IReadOnlyDictionary<string, FlowchartCellRegion> Regions = Nodes[0].CellNode!.Grid.Capture().Regions;
         Assert.Multiple(() =>
         {
             Assert.That(Regions["middle"].StartColumn, Is.EqualTo(Regions["app"].StartColumn));
@@ -53,14 +54,14 @@ public sealed class EnterpriseBandConnectionClearanceTests
     [TestCase("TB"), TestCase("BT")]
     public void DirectConnectionKeepsItsColumnClear(string Direction)
     {
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(
             "enterprise\n direction " + Direction + "\n business-process first\n business-process middle\n business-process last"
             + "\n application-component app\n first -triggering-> middle\n middle -triggering-> last"
             + "\n first -triggering-> last\n last -serving-> app").Document!);
-        var Nodes = Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 }).ToList();
+        List<DiagramGridLayout.GridNode> Nodes = [.. Contract.Nodes.Select((Node, Index) => new DiagramGridLayout.GridNode { Id = Node.Id, Rank = Index, Column = 0 })];
         FlowchartCellInitialPlacement.Bind(Nodes, 150, 90, false, new() { UseCellRegions = true });
         Assert.That(EnterpriseBandPlacement.Apply(Contract, Nodes), Is.True);
-        var Regions = Nodes[0].CellNode!.Grid.Capture().Regions;
+        IReadOnlyDictionary<string, FlowchartCellRegion> Regions = Nodes[0].CellNode!.Grid.Capture().Regions;
         Assert.Multiple(() =>
         {
             Assert.That(Regions["first"].StartColumn, Is.EqualTo(Regions["last"].StartColumn));

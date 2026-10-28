@@ -188,7 +188,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
         }
 
         static void AddOrphanNodesToRootCluster(GeometryGraph geometryGraph) {
-            Set<Node> clusterNodeSet = new Set<Node>();
+            Set<Node> clusterNodeSet = [];
             foreach(Cluster cl in geometryGraph.RootCluster.AllClustersDepthFirst())
             {
                 clusterNodeSet.InsertRange(cl.Nodes);
@@ -212,7 +212,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
         public static void RouteAndLabelEdges(GeometryGraph geometryGraph, LayoutAlgorithmSettings layoutSettings, IEnumerable<Edge> edgesToRoute) {
             //todo: what about parent edges!!!!
             Edge[] filteredEdgesToRoute =
-                edgesToRoute.Where(e => ! e.UnderCollapsedCluster()).ToArray();
+                [.. edgesToRoute.Where(e => ! e.UnderCollapsedCluster())];
             EdgeRoutingSettings ers = layoutSettings.EdgeRoutingSettings;
             if (ers.EdgeRoutingMode == EdgeRoutingMode.Rectilinear ||
                 ers.EdgeRoutingMode == EdgeRoutingMode.RectilinearToCenter) {
@@ -306,24 +306,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous
             geometryGraph.BoundingBox = new Rectangle(transformation * geometryGraph.LeftBottom, transformation * geometryGraph.RightTop);
             foreach (Edge e in geometryGraph.Edges)
             {
-                if (e.Label != null)
-                {
-                    e.Label.Center = transformation * e.Label.Center;
-                }
+                e.Label?.Center = transformation * e.Label.Center;
 
                 if (e.Curve != null)
                 {
                     e.Curve = e.Curve.Transform(transformation);
                     EdgeGeometry eg = e.EdgeGeometry;
-                    if (eg.SourceArrowhead != null)
-                    {
-                        eg.SourceArrowhead.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
-                    }
+                    eg.SourceArrowhead?.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
 
-                    if (eg.TargetArrowhead != null)
-                    {
-                        eg.TargetArrowhead.TipPosition = transformation * eg.TargetArrowhead.TipPosition;
-                    }
+                    eg.TargetArrowhead?.TipPosition = transformation * eg.TargetArrowhead.TipPosition;
 
                     TransformUnderlyingPolyline(e, settings);
                 }

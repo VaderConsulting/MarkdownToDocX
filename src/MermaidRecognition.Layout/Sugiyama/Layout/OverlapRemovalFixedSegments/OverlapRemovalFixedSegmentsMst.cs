@@ -178,7 +178,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 _moveableRectanglesTree.Add(moveableRectangles[i], node);
             }
 
-            List<Point> sites = pointToTreeNode.Keys.ToList();
+            List<Point> sites = [.. pointToTreeNode.Keys];
 
             //AddSitesForBoxSegmentOverlaps(sites);            
 
@@ -235,7 +235,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
 
          List<Segment> GetAllSegmentsIntersecting(Rectangle rect)
         {
-            List<Segment> segmentsIntersecting = new List<Segment>();
+            List<Segment> segmentsIntersecting = [];
             Segment[] boxIntersecting = _segmentTree.GetAllIntersecting(rect);
             foreach(Segment seg in boxIntersecting)
             {
@@ -258,7 +258,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
         public List<SymmetricSegment> GetMstFromCdt() {
             Func<CdtEdge, double> weights = GetWeightOfCdtEdgeDefault;//GetWeightOfCdtEdgeDefault;// GetWeightOfCdtEdgePenalizeFixed; //GetWeightOfCdtEdgePenalizeSegmentCrossings ;
             List<CdtEdge> mstEdges = MstOnDelaunayTriangulation.GetMstOnCdt(cdt, weights);
-            return (from e in mstEdges select new SymmetricSegment(e.upperSite.Point, e.lowerSite.Point)).ToList();
+            return [.. (from e in mstEdges select new SymmetricSegment(e.upperSite.Point, e.lowerSite.Point))];
         }
 
         public void BuildForestFromCdtEdges(List<SymmetricSegment> edges) {
@@ -356,8 +356,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             double dx = Math.Abs(point1.X - point2.X);
             double dy = Math.Abs(point1.Y - point2.Y);
 
-            double wx = (box1.Width / 2 + box2.Width / 2);
-            double wy = (box1.Height / 2 + box2.Height / 2);
+            double wx = ((box1.Width / 2) + (box2.Width / 2));
+            double wy = ((box1.Height / 2) + (box2.Height / 2));
 
             const double machineAcc = 1.0e-16;
 
@@ -393,8 +393,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             double dx = Math.Abs(point1.X - point2.X);
             double dy = Math.Abs(point1.Y - point2.Y);
 
-            double wx = (box1.Width / 2 + box2.Width / 2);
-            double wy = (box1.Height / 2 + box2.Height / 2);
+            double wx = ((box1.Width / 2) + (box2.Width / 2));
+            double wy = ((box1.Height / 2) + (box2.Height / 2));
 
             const double machineAcc = 1.0e-16;
 
@@ -470,7 +470,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 return dx;
             }
 
-            return Math.Sqrt(dx * dx + dy * dy);
+            return Math.Sqrt((dx * dx) + (dy * dy));
         }
 
         public Rectangle GetInitialBoundingBox() {
@@ -701,7 +701,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                     continue;
                 }
 
-                List<TreeNode> vOverlapsList = new List<TreeNode>();
+                List<TreeNode> vOverlapsList = [];
                 foreach (TreeNode u in vOverlaps)
                 {
                     if (u != v)
@@ -726,7 +726,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                     continue;
                 }
 
-                List<Segment> vOverlapsList = new List<Segment>();
+                List<Segment> vOverlapsList = [];
                 foreach (Segment s in vOverlaps)
                 {
                     if(RectSegIntersection.Intersect(v.rect, s.p1, s.p2))
@@ -908,7 +908,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 treeNodes[node.id] = node;
             }
 
-            List<SimpleIntEdge> intEdges = new List<SimpleIntEdge>();
+            List<SimpleIntEdge> intEdges = [];
             foreach (SymmetricSegment edge in edges)
             {
                 int sourceId = pointToTreeNode[edge.A].id;

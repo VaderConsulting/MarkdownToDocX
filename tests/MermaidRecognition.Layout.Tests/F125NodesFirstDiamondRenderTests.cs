@@ -145,21 +145,24 @@ public sealed class F125NodesFirstDiamondRenderTests
             Assert.That(Math.Abs(normalX) + Math.Abs(normalY), Is.GreaterThan(0), $"{edge.Id} has an edge-normal port");
             FlowchartLayoutPoint adjacent = source ? route.Points[1] : route.Points[^2];
             double vx = adjacent.X - port.X, vy = adjacent.Y - port.Y;
-            double normalMagnitude = Math.Sqrt(normalX * normalX + normalY * normalY);
-            Assert.That(Math.Abs(vx * normalY - vy * normalX) / normalMagnitude, Is.LessThan(1.5),
+            double normalMagnitude = Math.Sqrt((normalX * normalX) + (normalY * normalY));
+            Assert.That(Math.Abs((vx * normalY) - (vy * normalX)) / normalMagnitude, Is.LessThan(1.5),
                 $"{edge.Id} leaves the slanted edge square-on");
-            Assert.That(vx * normalX + vy * normalY, Is.GreaterThan(0),
+            Assert.That((vx * normalX) + (vy * normalY), Is.GreaterThan(0),
                 $"{edge.Id} departs outward from the diamond");
             ports.Add((edge, route, source, port));
         }
 
-        foreach (var group in ports.GroupBy(item => DiamondEdge(item.Port, diamond)))
+        foreach (IGrouping<FlowchartDiamondEdge, (EdgeContract Edge, FlowchartLayoutEdgeRoute Route, bool Source, FlowchartLayoutPoint Port)> group in ports.GroupBy(item => DiamondEdge(item.Port, diamond)))
         {
-            var ordered = group.OrderBy(item => EdgeFraction(item.Port, diamond, group.Key)).ToArray();
-            double[] fractions = ordered.Select(item => EdgeFraction(item.Port, diamond, group.Key)).ToArray();
+            (EdgeContract Edge, FlowchartLayoutEdgeRoute Route, bool Source, FlowchartLayoutPoint Port)[] ordered = [.. group.OrderBy(item => EdgeFraction(item.Port, diamond, group.Key))];
+            double[] fractions = [.. ordered.Select(item => EdgeFraction(item.Port, diamond, group.Key))];
             for (int i = 0; i < fractions.Length; i++)
+            {
                 Assert.That(fractions[i], Is.EqualTo((i + 1.0) / (fractions.Length + 1)).Within(0.02),
                     $"{group.Key} diamond ports use symmetric k/(n+1) slots");
+            }
+
             for (int i = 1; i < ordered.Length; i++)
             {
                 string peerId = ordered[i].Source ? ordered[i].Edge.TargetId : ordered[i].Edge.SourceId;
@@ -171,7 +174,7 @@ public sealed class F125NodesFirstDiamondRenderTests
             }
         }
 
-        foreach (var item in ports)
+        foreach ((EdgeContract Edge, FlowchartLayoutEdgeRoute Route, bool Source, FlowchartLayoutPoint Port) item in ports)
         {
             FlowchartLayoutEdgeRoute route = item.Route;
             FlowchartLayoutPoint start = route.Points[0], end = route.Points[^1];
@@ -183,10 +186,10 @@ public sealed class F125NodesFirstDiamondRenderTests
         double originX = Layout.NodeBounds[0].CenterX, originY = Layout.NodeBounds[0].CenterY;
         foreach (FlowchartLayoutNodeBounds node in Layout.NodeBounds)
         {
-            Assert.That(Math.Abs((node.CenterX - originX) / DiagramGridMetrics.GRID_UNIT_PX
+            Assert.That(Math.Abs(((node.CenterX - originX) / DiagramGridMetrics.GRID_UNIT_PX)
                 - Math.Round((node.CenterX - originX) / DiagramGridMetrics.GRID_UNIT_PX)), Is.LessThan(0.01),
                 $"{node.NodeId} uses the common horizontal grid");
-            Assert.That(Math.Abs((node.CenterY - originY) / DiagramGridMetrics.GRID_UNIT_PX
+            Assert.That(Math.Abs(((node.CenterY - originY) / DiagramGridMetrics.GRID_UNIT_PX)
                 - Math.Round((node.CenterY - originY) / DiagramGridMetrics.GRID_UNIT_PX)), Is.LessThan(0.01),
                 $"{node.NodeId} uses the common vertical grid");
         }
@@ -195,7 +198,11 @@ public sealed class F125NodesFirstDiamondRenderTests
     private static FlowchartDiamondEdge DiamondEdge(FlowchartLayoutPoint point, FlowchartLayoutNodeBounds box)
     {
         double x = point.X - box.CenterX, y = point.Y - box.CenterY;
-        if (x >= 0) return y >= 0 ? FlowchartDiamondEdge.TopRight : FlowchartDiamondEdge.BottomRight;
+        if (x >= 0)
+        {
+            return y >= 0 ? FlowchartDiamondEdge.TopRight : FlowchartDiamondEdge.BottomRight;
+        }
+
         return y >= 0 ? FlowchartDiamondEdge.TopLeft : FlowchartDiamondEdge.BottomLeft;
     }
 

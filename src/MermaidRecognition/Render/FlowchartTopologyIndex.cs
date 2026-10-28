@@ -25,11 +25,10 @@ internal sealed class FlowchartTopologyIndex
             Index._NodesById[Node.Id] = Node;
         }
 
-        List<EdgeContract> OrderedEdges = Contract.Edges
+        List<EdgeContract> OrderedEdges = [.. Contract.Edges
             .OrderBy(Edge => Edge.CreationIndex >= 0 ? Edge.CreationIndex : int.MaxValue)
             .ThenBy(Edge => Edge.SourceId, StringComparer.Ordinal)
-            .ThenBy(Edge => Edge.TargetId, StringComparer.Ordinal)
-            .ToList();
+            .ThenBy(Edge => Edge.TargetId, StringComparer.Ordinal)];
 
         foreach (EdgeContract Edge in OrderedEdges)
         {

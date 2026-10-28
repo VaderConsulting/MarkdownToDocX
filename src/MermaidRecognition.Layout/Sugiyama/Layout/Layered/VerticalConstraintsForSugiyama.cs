@@ -327,7 +327,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                 return layer;
             }
 
-            return new int[] { node };
+            return [node];
         }
 
 

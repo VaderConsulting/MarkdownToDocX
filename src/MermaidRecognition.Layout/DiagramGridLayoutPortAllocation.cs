@@ -44,7 +44,7 @@ public static partial class DiagramGridLayout
         FlowchartDirection Direction,
         HashSet<string> SharedFanSources, IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes)
     {
-        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
@@ -56,7 +56,7 @@ public static partial class DiagramGridLayout
 
         Dictionary<string, FlowchartLayoutNodeBounds> ObstacleBounds = BuildObstacleBounds(Placed, Frames);
         HashSet<string> ReservedCenterPorts = new HashSet<string>(StringComparer.Ordinal);
-        List<PortEnd> Ends = new List<PortEnd>();
+        List<PortEnd> Ends = [];
         List<(FlowchartLayoutEdgeRoute Route, BoxRef Source, BoxRef Target)> Pending = [];
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
@@ -81,8 +81,8 @@ public static partial class DiagramGridLayout
             RoutingHintContract? RoutingHint = ContractEdge?.RoutingHint?.IsActive == true
                 ? ContractEdge.RoutingHint : null;
             bool CircularReturn = BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
-                && (Nodes.TryGetValue(Route.SourceId, out var CircularSource) && CircularSource.Shape == "circle"
-                    || Nodes.TryGetValue(Route.TargetId, out var CircularTarget) && CircularTarget.Shape == "circle");
+                && ((Nodes.TryGetValue(Route.SourceId, out NodeContract? CircularSource) && CircularSource.Shape == "circle")
+                    || (Nodes.TryGetValue(Route.TargetId, out NodeContract? CircularTarget) && CircularTarget.Shape == "circle"));
             string StraightExit = string.Empty, StraightEntry = string.Empty;
             bool HasStraightCandidate = RoutingHint == null && !CircularReturn
                 && (ContractEdge == null || !BackEdges.Contains(ContractEdge))
@@ -157,13 +157,13 @@ public static partial class DiagramGridLayout
                 };
                 bool DownstreamUsed = Contract.Edges.Any(Other => !ReferenceEquals(Other, ContractEdge)
                     && Other.SourceId == Item.Source.Id && Other.Stroke != "invisible"
-                    && TryBox(Other.TargetId, ById, FrameById, out var OtherTarget)
+                    && TryBox(Other.TargetId, ById, FrameById, out BoxRef OtherTarget)
                     && FacingSide(Item.Source, OtherTarget) == Downstream);
                 Exit = DownstreamUsed ? ReturnSide : Downstream;
                 Entry = ReturnSide;
             }
-            else if (Horizontal && ById.TryGetValue(Item.Source.Id, out var WrapSource)
-                && ById.TryGetValue(Item.Target.Id, out var WrapTarget)
+            else if (Horizontal && ById.TryGetValue(Item.Source.Id, out GridNode? WrapSource)
+                && ById.TryGetValue(Item.Target.Id, out GridNode? WrapTarget)
                 && WrapTarget.Rank > WrapSource.Rank && WrapTarget.Y != WrapSource.Y
                 && (WrapTarget.X - WrapSource.X) * (Direction == FlowchartDirection.RightToLeft ? -1 : 1) < 0
                 && Contract.Edges.Count(Edge => Edge.SourceId == Item.Source.Id && Edge.Stroke != "invisible") == 1
@@ -221,7 +221,7 @@ public static partial class DiagramGridLayout
             string Key = End.Box.Id + (Diamond ? "|diamond" : "|" + End.Side);
             if (!Groups.TryGetValue(Key, out List<PortEnd>? Group))
             {
-                Group = new List<PortEnd>();
+                Group = [];
                 Groups[Key] = Group;
             }
 
@@ -233,18 +233,30 @@ public static partial class DiagramGridLayout
             List<PortEnd> Group = Pair.Value;
             bool Diamond = Pair.Key.EndsWith("|diamond", StringComparison.Ordinal);
             bool CorridorNesting = NeedsCorridorPortNesting(Group, Copy.RenderContext);
-            if (!Diamond) Group.Sort(delegate(PortEnd Left, PortEnd Right)
+            if (!Diamond)
+            {
+                Group.Sort(delegate(PortEnd Left, PortEnd Right)
             {
                 if (CorridorNesting)
+                {
                     return CompareCorridorPortEnds(Left, Right);
+                }
+
                 int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
-                if (HintOrder != 0) return HintOrder;
+                if (HintOrder != 0)
+                {
+                    return HintOrder;
+                }
+
                 bool VerticalSide = Left.Side == "left" || Left.Side == "right";
                 int PeerOrder = VerticalSide ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
                     : Left.Other.CenterX.CompareTo(Right.Other.CenterX);
                 if (PeerOrder == 0 && CorridorSlotIsOnFlatSide(Left) && CorridorSlotIsOnFlatSide(Right)
                     && FlowchartFallbackCorridorTracks.HasReservedCapacity(Copy.RenderContext))
+                {
                     return CompareExistingCorridorSlots(Left, Right);
+                }
+
                 if (VerticalSide)
                 {
                     return Right.Other.CenterY.CompareTo(Left.Other.CenterY);
@@ -252,13 +264,14 @@ public static partial class DiagramGridLayout
 
                 return Left.Other.CenterX.CompareTo(Right.Other.CenterX);
             });
+            }
 
             ApplySlots(Group, Nodes, Contract, Direction);
             CorridorPortOrderObserver?.Invoke("initial|" + Copy.RenderContext.ActiveLayoutStage + "|" + Pair.Key + "|nested=" + CorridorNesting + "|"
                 + string.Join(";", Group.Select(End => End.Route.EdgeId + ":" + (End.IsSource ? End.Route.Points[0].Y : End.Route.Points[^1].Y))));
         }
 
-        var SideTimer = Stopwatch.StartNew();
+        Stopwatch SideTimer = Stopwatch.StartNew();
         ChooseFreeSidesByRouteCost(Ends, Nodes, FanOutBoundsById, Contract, Direction, Copy.RenderContext);
         LayoutStageTimingObserver?.Invoke("allocation/free-side-comparison", SideTimer.Elapsed.TotalMilliseconds);
 
@@ -271,11 +284,19 @@ public static partial class DiagramGridLayout
     private static int CompareCorridorPortEnds(PortEnd Left, PortEnd Right)
     {
         int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
-        if (HintOrder != 0) return HintOrder;
+        if (HintOrder != 0)
+        {
+            return HintOrder;
+        }
+
         bool Vertical = Left.Side is "left" or "right";
         int CrossOrder = Vertical ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
             : Left.Other.CenterX.CompareTo(Right.Other.CenterX);
-        if (CrossOrder != 0) return CrossOrder;
+        if (CrossOrder != 0)
+        {
+            return CrossOrder;
+        }
+
         double FirstDistance = Vertical ? Math.Abs(Left.Other.CenterX - Left.Box.CenterX) : Math.Abs(Left.Other.CenterY - Left.Box.CenterY);
         double SecondDistance = Vertical ? Math.Abs(Right.Other.CenterX - Right.Box.CenterX) : Math.Abs(Right.Other.CenterY - Right.Box.CenterY);
         bool FarFirst = Vertical ? Left.Other.CenterY < Left.Box.CenterY : Left.Other.CenterX > Left.Box.CenterX;
@@ -292,28 +313,54 @@ public static partial class DiagramGridLayout
             + "|" + string.Join(";", Ends.Select(End => End.Box.Id + "/" + End.Side + "/" + End.Route.EdgeId + "/src=" + End.IsSource
                 + "/hint=" + End.IsHinted + "/peer=" + End.Other.CenterX + "," + End.Other.CenterY
                 + "/remote=" + (End.IsSource ? End.Route.EntrySide : End.Route.ExitSide))));
-        if (!FlowchartFallbackCorridorTracks.IsConstructionStage(Context) || !Ends.All(CorridorSlotIsOnFlatSide)) return false;
-        for (int I = 0; I < Ends.Count; I++)
-        for (int J = I + 1; J < Ends.Count; J++)
+        if (!FlowchartFallbackCorridorTracks.IsConstructionStage(Context) || !Ends.All(CorridorSlotIsOnFlatSide))
         {
-            var A = Ends[I]; var B = Ends[J];
-            if (A.IsHinted || B.IsHinted || A.IsSource != B.IsSource) continue;
-            bool VerticalSide = A.Side is "left" or "right";
-            if (VerticalSide ? A.Other.CenterY != B.Other.CenterY : A.Other.CenterX != B.Other.CenterX) continue;
-            // Final facing-side choice can replace a provisional left/right
-            // entry with top/bottom after slot allocation. Off-axis equal-rank
-            // leaves already define the nesting order; aligned straight peers
-            // do not, and keep their settled centre-port allocation.
-            if (VerticalSide ? A.Other.CenterY == A.Box.CenterY : A.Other.CenterX == A.Box.CenterX) continue;
-            int RequiredOrder = CompareCorridorPortEnds(A, B);
+            return false;
+        }
+
+        for (int I = 0; I < Ends.Count; I++)
+        {
+            for (int J = I + 1; J < Ends.Count; J++)
+        {
+                PortEnd A = Ends[I]; PortEnd B = Ends[J];
+            if (A.IsHinted || B.IsHinted || A.IsSource != B.IsSource)
+                {
+                    continue;
+                }
+
+                bool VerticalSide = A.Side is "left" or "right";
+            if (VerticalSide ? A.Other.CenterY != B.Other.CenterY : A.Other.CenterX != B.Other.CenterX)
+                {
+                    continue;
+                }
+                // Final facing-side choice can replace a provisional left/right
+                // entry with top/bottom after slot allocation. Off-axis equal-rank
+                // leaves already define the nesting order; aligned straight peers
+                // do not, and keep their settled centre-port allocation.
+                if (VerticalSide ? A.Other.CenterY == A.Box.CenterY : A.Other.CenterX == A.Box.CenterX)
+                {
+                    continue;
+                }
+
+                int RequiredOrder = CompareCorridorPortEnds(A, B);
             int CurrentOrder = CompareExistingCorridorSlots(A, B);
             // A port replay can invert the terminal slots before its paths are
             // rebuilt. The inversion is already geometric evidence: normal
             // perpendicular arms to equal-rank leaves would necessarily cross.
-            if (RequiredOrder != 0 && CurrentOrder != 0 && Math.Sign(RequiredOrder) != Math.Sign(CurrentOrder)) return true;
-            if (FlowchartBranchRouteOrder.Intersections(A.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray(),
-                B.Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).Crossings > 0) return true;
+            if (RequiredOrder != 0 && CurrentOrder != 0 && Math.Sign(RequiredOrder) != Math.Sign(CurrentOrder))
+                {
+                    return true;
+                }
+
+                if (FlowchartBranchRouteOrder.Intersections(
+                    [.. A.Route.Points.Select(Point => (Point.X, Point.Y))],
+                    [.. B.Route.Points.Select(Point => (Point.X, Point.Y))]).Crossings > 0)
+                {
+                    return true;
+                }
+            }
         }
+
         return false;
     }
 
@@ -323,8 +370,8 @@ public static partial class DiagramGridLayout
     /// <returns>Current along-side slot order; unallocated coincident anchors retain the original tie.</returns>
     private static int CompareExistingCorridorSlots(PortEnd Left, PortEnd Right)
     {
-        var A = Left.IsSource ? Left.Route.Points[0] : Left.Route.Points[^1];
-        var B = Right.IsSource ? Right.Route.Points[0] : Right.Route.Points[^1];
+        FlowchartLayoutPoint A = Left.IsSource ? Left.Route.Points[0] : Left.Route.Points[^1];
+        FlowchartLayoutPoint B = Right.IsSource ? Right.Route.Points[0] : Right.Route.Points[^1];
         return Left.Side is "left" or "right" ? B.Y.CompareTo(A.Y) : A.X.CompareTo(B.X);
     }
 
@@ -333,7 +380,7 @@ public static partial class DiagramGridLayout
     /// <returns>Whether the terminal lies on the named axis-aligned face.</returns>
     private static bool CorridorSlotIsOnFlatSide(PortEnd End)
     {
-        var Point = End.IsSource ? End.Route.Points[0] : End.Route.Points[^1];
+        FlowchartLayoutPoint Point = End.IsSource ? End.Route.Points[0] : End.Route.Points[^1];
         double Difference = End.Side switch { "left" => Point.X - End.Box.Left, "right" => Point.X - End.Box.Right,
             "top" => Point.Y - End.Box.Top, _ => Point.Y - End.Box.Bottom };
         return Math.Abs(Difference) < 0.001;
@@ -349,17 +396,21 @@ public static partial class DiagramGridLayout
     private static string EligibleGeometrySide(BoxRef Box, BoxRef Other, string Preferred,
         List<PortEnd> Ends, Dictionary<string, NodeContract> Nodes)
     {
-        Nodes.TryGetValue(Box.Id, out var Node);
+        Nodes.TryGetValue(Box.Id, out NodeContract? Node);
         int Count(string Side) => Ends.Count(End => End.Box.Id == Box.Id && End.Side == Side) + 1;
-        if (SupportsGeometrySide(Box, Preferred, Count(Preferred), Nodes)) return Preferred;
-        var Geometry = Node?.GeometryProvider?.Create(Box.Width, Box.Height);
+        if (SupportsGeometrySide(Box, Preferred, Count(Preferred), Nodes))
+        {
+            return Preferred;
+        }
+
+        NodeGeometry? Geometry = Node?.GeometryProvider?.Create(Box.Width, Box.Height);
         return new[] { "top", "bottom", "left", "right" }
             .Where(Side => SupportsGeometrySide(Box, Side, Count(Side), Nodes))
             .OrderBy(Side =>
             {
                 double X = Side == "left" ? Box.Left : Side == "right" ? Box.Right : Box.CenterX;
                 double Y = Side == "top" ? Box.Top : Side == "bottom" ? Box.Bottom : Box.CenterY;
-                if (Geometry != null && Geometry.ConnectionBoundary.TryPort(Side, 0.5, out var Port))
+                if (Geometry != null && Geometry.ConnectionBoundary.TryPort(Side, 0.5, out NodeGeometryPort Port))
                 { X = Box.CenterX + Port.X; Y = Box.CenterY - Port.Y; }
                 return Math.Abs(X - Other.CenterX) + Math.Abs(Y - Other.CenterY);
             }).FirstOrDefault() ?? Preferred;
@@ -405,11 +456,23 @@ public static partial class DiagramGridLayout
         double SourceCross = Horizontal ? Source.CenterY : Source.CenterX;
         double TargetCross = Horizontal ? Target.CenterY : Target.CenterX;
         string Positive = Horizontal ? "top" : "right", Negative = Horizontal ? "bottom" : "left";
-        if (SourceCross > TargetCross) return Positive;
-        if (SourceCross < TargetCross) return Negative;
+        if (SourceCross > TargetCross)
+        {
+            return Positive;
+        }
+
+        if (SourceCross < TargetCross)
+        {
+            return Negative;
+        }
+
         int PositiveNodes = Placed.Count(Node => (Horizontal ? Node.Y : Node.X) > SourceCross);
         int NegativeNodes = Placed.Count(Node => (Horizontal ? Node.Y : Node.X) < SourceCross);
-        if (PositiveNodes != NegativeNodes) return PositiveNodes < NegativeNodes ? Positive : Negative;
+        if (PositiveNodes != NegativeNodes)
+        {
+            return PositiveNodes < NegativeNodes ? Positive : Negative;
+        }
+
         return Horizontal ? Negative : Positive;
     }
 
@@ -418,98 +481,156 @@ public static partial class DiagramGridLayout
     /// <param name="Nodes">Shape definitions used by outline and normal calculations.</param>
     /// <param name="Bounds">Placed endpoint and obstacle bounds.</param>
     /// <param name="Contract">Declared links, frames and honoured hints.</param>
+    /// <param name="Direction"></param>
     /// <param name="Context">The owning layout's search caches.</param>
     private static void ChooseFreeSidesByRouteCost(List<PortEnd> Ends,
         Dictionary<string, NodeContract> Nodes, Dictionary<string, FlowchartLayoutNodeBounds> Bounds,
         DiagramContract Contract, FlowchartDirection Direction, FlowchartRenderContext Context)
     {
-        var ByNode = Ends.GroupBy(End => End.Box.Id).ToDictionary(Group => Group.Key, Group => Group.ToList());
+        Dictionary<string, List<PortEnd>> ByNode = Ends.GroupBy(End => End.Box.Id).ToDictionary(Group => Group.Key, Group => Group.ToList());
         string Obstacles = string.Join(";", Bounds.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
             .Select(Pair => FormattableString.Invariant($"{Pair.Key}:{Pair.Value.CenterX:R},{Pair.Value.CenterY:R},{Pair.Value.Width:R},{Pair.Value.Height:R}")));
         string Geometry = Obstacles + "|" + string.Join(";", Ends.Select(End => $"{End.Route.EdgeId}:{End.IsSource}:{End.Side}:{End.IsHinted}"));
-        if (!Context.TerminalCandidateCache.TryGetValue((Contract, Obstacles), out var TerminalCache))
+        if (!Context.TerminalCandidateCache.TryGetValue((Contract, Obstacles), out Dictionary<string, List<List<(double X, double Y)>>>? TerminalCache))
+        {
             Context.TerminalCandidateCache[(Contract, Obstacles)] = TerminalCache = new(StringComparer.Ordinal);
-        var Cache = Context.PortSideCache;
+        }
+
+        Dictionary<(DiagramContract Contract, string Geometry), string[]> Cache = Context.PortSideCache;
         if (Cache.TryGetValue((Contract, Geometry), out string[]? Cached))
         {
-            var ChangedNodes = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> ChangedNodes = new HashSet<string>(StringComparer.Ordinal);
             for (int Index = 0; Index < Ends.Count; Index++)
             {
-                if (Ends[Index].Side != Cached[Index]) ChangedNodes.Add(Ends[Index].Box.Id);
+                if (Ends[Index].Side != Cached[Index])
+                {
+                    ChangedNodes.Add(Ends[Index].Box.Id);
+                }
+
                 Ends[Index].Side = Cached[Index];
-                if (Ends[Index].IsSource) Ends[Index].Route.ExitSide = Cached[Index];
-                else Ends[Index].Route.EntrySide = Cached[Index];
+                if (Ends[Index].IsSource)
+                {
+                    Ends[Index].Route.ExitSide = Cached[Index];
+                }
+                else
+                {
+                    Ends[Index].Route.EntrySide = Cached[Index];
+                }
             }
-            foreach (var NodeEnds in ByNode.Where(Pair => ChangedNodes.Contains(Pair.Key)).Select(Pair => Pair.Value))
-            foreach (var SideEnds in NodeEnds.GroupBy(End => End.Side))
-                ApplySlots(SideEnds.OrderBy(End => End.Side is "left" or "right"
-                    ? -End.Other.CenterY : End.Other.CenterX).ToList(), Nodes, Contract, Direction, UseCompassOverrides: false);
+            foreach (List<PortEnd>? NodeEnds in ByNode.Where(Pair => ChangedNodes.Contains(Pair.Key)).Select(Pair => Pair.Value))
+            {
+                foreach (IGrouping<string, PortEnd> SideEnds in NodeEnds.GroupBy(End => End.Side))
+                {
+                    ApplySlots([.. SideEnds.OrderBy(End => End.Side is "left" or "right"
+                    ? -End.Other.CenterY : End.Other.CenterX)], Nodes, Contract, Direction, UseCompassOverrides: false);
+                }
+            }
+
             FlowchartRenderContext.ReportOperationCount("port-side-assignment-cache-hits", 1);
             return;
         }
-        var ByRoute = Ends.GroupBy(End => End.Route).Where(Group => Group.Count() == 2)
+        Dictionary<FlowchartLayoutEdgeRoute, PortEnd[]> ByRoute = Ends.GroupBy(End => End.Route).Where(Group => Group.Count() == 2)
             .ToDictionary(Group => Group.Key, Group => Group.OrderByDescending(End => End.IsSource).ToArray());
-        var SharedNeighbours = ByRoute.Keys.ToDictionary(Route => Route, _ => new HashSet<FlowchartLayoutEdgeRoute>());
-        foreach (var Side in Ends.GroupBy(End => (End.Box.Id, End.Side)))
-        foreach (var End in Side)
-            SharedNeighbours[End.Route].UnionWith(Side.Select(Other => Other.Route));
-        var CohortByRoute = new Dictionary<FlowchartLayoutEdgeRoute, HashSet<FlowchartLayoutEdgeRoute>>();
-        foreach (var Route in ByRoute.Keys)
+        Dictionary<FlowchartLayoutEdgeRoute, HashSet<FlowchartLayoutEdgeRoute>> SharedNeighbours = ByRoute.Keys.ToDictionary(Route => Route, _ => new HashSet<FlowchartLayoutEdgeRoute>());
+        foreach (IGrouping<(string Id, string Side), PortEnd> Side in Ends.GroupBy(End => (End.Box.Id, End.Side)))
         {
-            if (CohortByRoute.ContainsKey(Route)) continue;
-            var Cohort = new HashSet<FlowchartLayoutEdgeRoute>();
-            var Pending = new Queue<FlowchartLayoutEdgeRoute>(); Pending.Enqueue(Route);
-            while (Pending.TryDequeue(out var Next))
-                if (Cohort.Add(Next)) foreach (var Other in SharedNeighbours[Next]) Pending.Enqueue(Other);
-            foreach (var Member in Cohort) CohortByRoute[Member] = Cohort;
+            foreach (PortEnd? End in Side)
+            {
+                SharedNeighbours[End.Route].UnionWith(Side.Select(Other => Other.Route));
+            }
         }
-        var PathCache = new Dictionary<FlowchartLayoutEdgeRoute,
-            ((double Sx, double Sy, double Tx, double Ty, string Exit, string Entry) Key, List<(double X, double Y)>? Path)>();
+
+        Dictionary<FlowchartLayoutEdgeRoute, HashSet<FlowchartLayoutEdgeRoute>> CohortByRoute = [];
+        foreach (FlowchartLayoutEdgeRoute Route in ByRoute.Keys)
+        {
+            if (CohortByRoute.ContainsKey(Route))
+            {
+                continue;
+            }
+
+            HashSet<FlowchartLayoutEdgeRoute> Cohort = [];
+            Queue<FlowchartLayoutEdgeRoute> Pending = new Queue<FlowchartLayoutEdgeRoute>(); Pending.Enqueue(Route);
+            while (Pending.TryDequeue(out FlowchartLayoutEdgeRoute? Next))
+            {
+                if (Cohort.Add(Next))
+                {
+                    foreach (FlowchartLayoutEdgeRoute? Other in SharedNeighbours[Next])
+                    {
+                        Pending.Enqueue(Other);
+                    }
+                }
+            }
+
+            foreach (FlowchartLayoutEdgeRoute Member in Cohort)
+            {
+                CohortByRoute[Member] = Cohort;
+            }
+        }
+        Dictionary<FlowchartLayoutEdgeRoute, ((double Sx, double Sy, double Tx, double Ty, string Exit, string Entry) Key, List<(double X, double Y)>? Path)> PathCache = [];
         // Terminal families are immutable for this obstacle geometry. The same
         // complete path participates in many side options, so measure its cost
         // and each ordered path pair once rather than per incident link option.
-        var PathCosts = new Dictionary<List<(double X, double Y)>, (int Bends, double Length)>();
-        var TerminalObstacles = DiagramGridRouteBuilder.PrepareTerminalObstacles(Contract, Bounds);
-        var Interactions = new Dictionary<(List<(double X, double Y)> A, List<(double X, double Y)> B),
-            (int Crossings, double Overlap)>();
-        foreach (var Pair in ByRoute)
+        Dictionary<List<(double X, double Y)>, (int Bends, double Length)> PathCosts = [];
+        IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> TerminalObstacles = DiagramGridRouteBuilder.PrepareTerminalObstacles(Contract, Bounds);
+        Dictionary<(List<(double X, double Y)> A, List<(double X, double Y)> B), (int Crossings, double Overlap)> Interactions = [];
+        foreach (KeyValuePair<FlowchartLayoutEdgeRoute, PortEnd[]> Pair in ByRoute)
         {
-            var Cohort = CohortByRoute[Pair.Key];
-            if (Cohort.Count > FlowchartLayoutRules.RepairChainLines) continue;
+            HashSet<FlowchartLayoutEdgeRoute> Cohort = CohortByRoute[Pair.Key];
+            if (Cohort.Count > FlowchartLayoutRules.RepairChainLines)
+            {
+                continue;
+            }
+
             int Examined = 0;
             PortEnd Source = Pair.Value[0], Target = Pair.Value[1];
             if (Source.IsHinted || Target.IsHinted || Source.Box.Id == Target.Box.Id
-                || !IsBox(Source) || !IsBox(Target)) continue;
+                || !IsBox(Source) || !IsBox(Target))
+            {
+                continue;
+            }
+
             bool Shared(PortEnd End) => ByNode[End.Box.Id].Count(Other => Other.Side == End.Side) > 1;
-            if (!Shared(Source) && !Shared(Target)) continue;
-            var Affected = ByNode[Source.Box.Id].Concat(ByNode[Target.Box.Id]).Select(End => End.Route).Distinct().ToArray();
-            if (Affected.Length > FlowchartLayoutRules.RepairChainLines) continue;
+            if (!Shared(Source) && !Shared(Target))
+            {
+                continue;
+            }
+
+            FlowchartLayoutEdgeRoute[] Affected = [.. ByNode[Source.Box.Id].Concat(ByNode[Target.Box.Id])
+                .Select(End => End.Route).Distinct()];
+            if (Affected.Length > FlowchartLayoutRules.RepairChainLines)
+            {
+                continue;
+            }
+
             double Left = Affected.Min<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Min((FlowchartLayoutPoint Point) => Point.X));
             double Right = Affected.Max<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Max((FlowchartLayoutPoint Point) => Point.X));
             double Bottom = Affected.Min<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Min((FlowchartLayoutPoint Point) => Point.Y));
             double Top = Affected.Max<FlowchartLayoutEdgeRoute, double>((FlowchartLayoutEdgeRoute Route) => Route.Points.Max((FlowchartLayoutPoint Point) => Point.Y));
-            var Nearby = ByRoute.Keys.Where(Route => Route.Points.Max(Point => Point.X) >= Left
-                && Route.Points.Min(Point => Point.X) <= Right && Route.Points.Max(Point => Point.Y) >= Bottom
-                && Route.Points.Min(Point => Point.Y) <= Top).ToArray();
+            FlowchartLayoutEdgeRoute[] Nearby = [.. ByRoute.Keys.Where(Route => Route.Points.Max(Point => Point.X) >= Left
+                && Route.Points.Min(Point => Point.X) <= Right
+                && Route.Points.Max(Point => Point.Y) >= Bottom
+                && Route.Points.Min(Point => Point.Y) <= Top)];
             // Side selection is a bounded coupled search. Do not route an entire
             // dense catalogue graph provisionally for each local side option.
-            if (Nearby.Length > FlowchartLayoutRules.RepairChainLines) continue;
-            var UnchangedPaths = Nearby.Except(Affected).Select(Route =>
+            if (Nearby.Length > FlowchartLayoutRules.RepairChainLines)
             {
-                var Key = (Route.Points[0].X, Route.Points[0].Y, Route.Points[^1].X, Route.Points[^1].Y, Route.ExitSide, Route.EntrySide);
-                if (PathCache.TryGetValue(Route, out var Cached) && Cached.Key == Key) return Cached.Path;
-                var Path = TerminalPaths(Route)
+                continue;
+            }
+
+            List<(double X, double Y)>?[] UnchangedPaths = [.. Nearby.Except(Affected).Select(Route => {
+                (double, double, double, double, string ExitSide, string EntrySide) Key = (Route.Points[0].X, Route.Points[0].Y, Route.Points[^1].X, Route.Points[^1].Y, Route.ExitSide, Route.EntrySide);
+                if (PathCache.TryGetValue(Route, out ((double Sx, double Sy, double Tx, double Ty, string Exit, string Entry) Key, List<(double X, double Y)>? Path) Cached) && Cached.Key == Key) { return Cached.Path; } List<(double X, double Y)>? Path = TerminalPaths(Route)
                     .OrderBy(Candidate => PortCandidateCost(Candidate)).FirstOrDefault();
                 PathCache[Route] = (Key, Path);
                 return Path;
             })
-                .Where(Path => Path != null).ToArray();
-            var Saved = Affected.Select(Route => (Route,
+                .Where(Path => Path != null)];
+            (FlowchartLayoutEdgeRoute Route, (double X, double Y) Start, (double X, double Y) End, string ExitSide, string EntrySide, double ExitNormalX, double ExitNormalY, double EntryNormalX, double EntryNormalY)[] Saved = [.. Affected.Select(Route => (Route,
                 Start: (Route.Points[0].X, Route.Points[0].Y), End: (Route.Points[^1].X, Route.Points[^1].Y),
-                Route.ExitSide, Route.EntrySide, Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY)).ToArray();
+                Route.ExitSide, Route.EntrySide, Route.ExitNormalX, Route.ExitNormalY, Route.EntryNormalX, Route.EntryNormalY))];
             string OriginalExit = Source.Side, OriginalEntry = Target.Side;
             string BestExit = OriginalExit, BestEntry = OriginalEntry;
-            var Best = Cost();
+            (double Overlap, int Bends, int SharedSides, double Length, int Crossings, int AlignedDetours) Best = Cost();
             Examined++;
             int MaximumCrossings = Best.Crossings;
             // An empty low-bend family is not permission to introduce an
@@ -518,25 +639,37 @@ public static partial class DiagramGridLayout
             int MaximumAlignedDetours = Best.AlignedDetours == int.MaxValue ? 0 : Best.AlignedDetours;
             // Keep the original facing pair first so an exact tie is stable.
             foreach (string Exit in new[] { OriginalExit, "bottom", "top", "left", "right" }.Distinct())
-            foreach (string Entry in new[] { OriginalEntry, "top", "bottom", "left", "right" }.Distinct())
+            {
+                foreach (string Entry in new[] { OriginalEntry, "top", "bottom", "left", "right" }.Distinct())
             {
                 if (!SupportsGeometrySide(Source.Box, Exit,
                         ByNode[Source.Box.Id].Count(End => !ReferenceEquals(End, Source) && End.Side == Exit) + 1, Nodes)
                     || !SupportsGeometrySide(Target.Box, Entry,
-                        ByNode[Target.Box.Id].Count(End => !ReferenceEquals(End, Target) && End.Side == Entry) + 1, Nodes)) continue;
-                if (Examined >= FlowchartLayoutRules.RepairCandidateMoves) continue;
-                if (Exit == OriginalExit && Entry == OriginalEntry) continue;
-                // A line may take a port another line already uses when that swap
-                // lowers the bend count. The points stay on the centre-out grid.
-                bool SwapsOntoOccupiedSide = Exit != OriginalExit && ByNode[Source.Box.Id].Any(End => End != Source && End.Side == Exit)
-                    || Entry != OriginalEntry && ByNode[Target.Box.Id].Any(End => End != Target && End.Side == Entry);
+                        ByNode[Target.Box.Id].Count(End => !ReferenceEquals(End, Target) && End.Side == Entry) + 1, Nodes))
+                    {
+                        continue;
+                    }
+
+                    if (Examined >= FlowchartLayoutRules.RepairCandidateMoves)
+                    {
+                        continue;
+                    }
+
+                    if (Exit == OriginalExit && Entry == OriginalEntry)
+                    {
+                        continue;
+                    }
+                    // A line may take a port another line already uses when that swap
+                    // lowers the bend count. The points stay on the centre-out grid.
+                    bool SwapsOntoOccupiedSide = (Exit != OriginalExit && ByNode[Source.Box.Id].Any(End => End != Source && End.Side == Exit))
+                    || (Entry != OriginalEntry && ByNode[Target.Box.Id].Any(End => End != Target && End.Side == Entry));
                 Restore();
                 Source.Side = Exit; Target.Side = Entry;
                 Source.Route.ExitSide = Exit; Target.Route.EntrySide = Entry;
                 Allocate(Source.Box.Id); Allocate(Target.Box.Id);
                 Examined++;
                 FlowchartRenderContext.ReportOperationCount("port-side-assignment-candidates", 1);
-                var Candidate = Cost();
+                    (double Overlap, int Bends, int SharedSides, double Length, int Crossings, int AlignedDetours) Candidate = Cost();
                 bool FewerBends = Candidate.Bends < Best.Bends;
                 bool NoNewFault = Candidate.Crossings <= MaximumCrossings && Candidate.AlignedDetours <= MaximumAlignedDetours;
                 if (NoNewFault && (SwapsOntoOccupiedSide ? FewerBends : Candidate.CompareTo(Best) < 0))
@@ -544,6 +677,8 @@ public static partial class DiagramGridLayout
                     Best = Candidate; BestExit = Exit; BestEntry = Entry;
                 }
             }
+            }
+
             Restore();
             Source.Side = BestExit; Target.Side = BestEntry;
             Source.Route.ExitSide = BestExit; Target.Route.EntrySide = BestEntry;
@@ -554,7 +689,7 @@ public static partial class DiagramGridLayout
             void Restore()
             {
                 Source.Side = OriginalExit; Target.Side = OriginalEntry;
-                foreach (var Item in Saved)
+                foreach ((FlowchartLayoutEdgeRoute Route, (double X, double Y) Start, (double X, double Y) End, string ExitSide, string EntrySide, double ExitNormalX, double ExitNormalY, double EntryNormalX, double EntryNormalY) Item in Saved)
                 {
                     Item.Route.Points[0] = new() { X = Item.Start.X, Y = Item.Start.Y };
                     Item.Route.Points[^1] = new() { X = Item.End.X, Y = Item.End.Y };
@@ -566,10 +701,10 @@ public static partial class DiagramGridLayout
 
             void Allocate(string NodeId)
             {
-                foreach (var Group in ByNode[NodeId].GroupBy(End => End.Side))
+                foreach (IGrouping<string, PortEnd> Group in ByNode[NodeId].GroupBy(End => End.Side))
                 {
-                    var Ordered = Group.OrderBy(End => End.Side is "left" or "right"
-                        ? -End.Other.CenterY : End.Other.CenterX).ToList();
+                    List<PortEnd> Ordered = [.. Group.OrderBy(End => End.Side is "left" or "right"
+                        ? -End.Other.CenterY : End.Other.CenterX)];
                     ApplySlots(Ordered, Nodes, Contract, Direction, UseCompassOverrides: false);
                 }
             }
@@ -578,36 +713,47 @@ public static partial class DiagramGridLayout
             {
                 int Bends = 0, Crossings = 0, AlignedDetours = 0;
                 double Length = 0, Overlap = 0;
-                var ChosenPaths = new List<List<(double X, double Y)>>();
-                foreach (var Route in Affected)
+                List<List<(double X, double Y)>> ChosenPaths = [];
+                foreach (FlowchartLayoutEdgeRoute? Route in Affected)
                 {
-                    if (!Bounds.TryGetValue(Route.SourceId, out var From) || !Bounds.TryGetValue(Route.TargetId, out var To))
-                        return (double.PositiveInfinity, int.MaxValue, int.MaxValue, double.PositiveInfinity, int.MaxValue, int.MaxValue);
-                    var BestRoute = (Overlap: double.PositiveInfinity, Bends: int.MaxValue, Length: double.PositiveInfinity, Crossings: int.MaxValue);
-                    List<(double X, double Y)>? BestPath = null;
-                    foreach (var Path in TerminalPaths(Route))
+                    if (!Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? From) || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? To))
                     {
-                        if (!PathCosts.TryGetValue(Path, out var PathCost))
+                        return (double.PositiveInfinity, int.MaxValue, int.MaxValue, double.PositiveInfinity, int.MaxValue, int.MaxValue);
+                    }
+
+                    (double Overlap, int Bends, double Length, int Crossings) BestRoute = (Overlap: double.PositiveInfinity, Bends: int.MaxValue, Length: double.PositiveInfinity, Crossings: int.MaxValue);
+                    List<(double X, double Y)>? BestPath = null;
+                    foreach (List<(double X, double Y)> Path in TerminalPaths(Route))
+                    {
+                        if (!PathCosts.TryGetValue(Path, out (int Bends, double Length) PathCost))
                         {
                             PathCost = PortCandidateCost(Path);
                             PathCosts.Add(Path, PathCost);
                         }
                         double SharedLength = 0; int CrossingCount = 0;
-                        foreach (var Other in UnchangedPaths.Concat(ChosenPaths))
+                        foreach (List<(double X, double Y)>? Other in UnchangedPaths.Concat(ChosenPaths))
                         {
-                            if (!Interactions.TryGetValue((Path, Other!), out var Interaction))
+                            if (!Interactions.TryGetValue((Path, Other!), out (int Crossings, double Overlap) Interaction))
                             {
                                 Interaction = FlowchartBranchRouteOrder.Intersections(Path, Other!);
                                 Interactions.Add((Path, Other!), Interaction);
                             }
                             SharedLength += Interaction.Overlap; CrossingCount += Interaction.Crossings;
                         }
-                        var Candidate = (Overlap: Math.Round(SharedLength, 3), Bends: PathCost.Bends, Length: PathCost.Length, Crossings: CrossingCount);
+                        (double Overlap, int Bends, double Length, int Crossings) Candidate = (Overlap: Math.Round(SharedLength, 3), Bends: PathCost.Bends, Length: PathCost.Length, Crossings: CrossingCount);
                         if (Candidate.CompareTo(BestRoute) < 0) { BestRoute = Candidate; BestPath = Path; }
                     }
-                    if (BestPath == null) return (double.PositiveInfinity, int.MaxValue, int.MaxValue, double.PositiveInfinity, int.MaxValue, int.MaxValue);
+                    if (BestPath == null)
+                    {
+                        return (double.PositiveInfinity, int.MaxValue, int.MaxValue, double.PositiveInfinity, int.MaxValue, int.MaxValue);
+                    }
+
                     if (BestPath.Count > 2 && (Math.Abs(BestPath[0].X - BestPath[^1].X) <= 1
-                            || Math.Abs(BestPath[0].Y - BestPath[^1].Y) <= 1)) AlignedDetours++;
+                            || Math.Abs(BestPath[0].Y - BestPath[^1].Y) <= 1))
+                    {
+                        AlignedDetours++;
+                    }
+
                     ChosenPaths.Add(BestPath);
                     Overlap += BestRoute.Overlap; Bends += BestRoute.Bends; Length += BestRoute.Length; Crossings += BestRoute.Crossings;
                 }
@@ -617,7 +763,7 @@ public static partial class DiagramGridLayout
             }
         }
 
-        Cache[(Contract, Geometry)] = Ends.Select(End => End.Side).ToArray();
+        Cache[(Contract, Geometry)] = [.. Ends.Select(End => End.Side)];
 
         // <summary>Reuses the exact legal terminal family when the complete obstacle geometry and allocated ports agree.</summary>
         // <param name="Route">The provisional side and slot assignment to enumerate.</param>
@@ -625,16 +771,20 @@ public static partial class DiagramGridLayout
         List<List<(double X, double Y)>> TerminalPaths(FlowchartLayoutEdgeRoute Route)
         {
             string Key = FormattableString.Invariant($"{Route.SourceId}:{Route.TargetId}:{Nodes.GetValueOrDefault(Route.SourceId)?.Shape}:{Nodes.GetValueOrDefault(Route.TargetId)?.Shape}:{Route.ExitSide}:{Route.EntrySide}:{Route.Points[0].X:R},{Route.Points[0].Y:R},{Route.Points[^1].X:R},{Route.Points[^1].Y:R}");
-            if (TerminalCache.TryGetValue(Key, out var Paths)) return Paths;
-            Paths = DiagramGridRouteBuilder.MinimumBendTerminalCandidates(Route.Points[0], Route.Points[^1],
+            if (TerminalCache.TryGetValue(Key, out List<List<(double X, double Y)>>? Paths))
+            {
+                return Paths;
+            }
+
+            Paths = [.. DiagramGridRouteBuilder.MinimumBendTerminalCandidates(Route.Points[0], Route.Points[^1],
                 Bounds[Route.SourceId], Bounds[Route.TargetId], Route.ExitSide, Route.EntrySide, Nodes, Bounds, Contract,
-                TerminalObstacles).ToList();
+                TerminalObstacles)];
             TerminalCache[Key] = Paths;
             return Paths;
         }
 
-        bool IsBox(PortEnd End) => End.Box.IsFrame || Nodes.TryGetValue(End.Box.Id, out var Node)
-            && IsRectangular(Node.Shape);
+        bool IsBox(PortEnd End) => End.Box.IsFrame || (Nodes.TryGetValue(End.Box.Id, out NodeContract? Node)
+            && IsRectangular(Node.Shape));
     }
 
     /// <summary>Measures a provisional allocated-port route without rounding away short runs.</summary>
@@ -646,9 +796,12 @@ public static partial class DiagramGridLayout
         for (int Index = 1; Index < Path.Count; Index++)
         {
             double Dx = Path[Index].X - Path[Index - 1].X, Dy = Path[Index].Y - Path[Index - 1].Y;
-            Length += Math.Sqrt(Dx * Dx + Dy * Dy);
-            if (Index + 1 < Path.Count && Math.Abs(Dx * (Path[Index + 1].Y - Path[Index].Y)
-                    - Dy * (Path[Index + 1].X - Path[Index].X)) > 0.001) Bends++;
+            Length += Math.Sqrt((Dx * Dx) + (Dy * Dy));
+            if (Index + 1 < Path.Count && Math.Abs((Dx * (Path[Index + 1].Y - Path[Index].Y))
+                    - (Dy * (Path[Index + 1].X - Path[Index].X))) > 0.001)
+            {
+                Bends++;
+            }
         }
         return (Bends, Length);
     }
@@ -657,7 +810,11 @@ public static partial class DiagramGridLayout
     {
         EdgeContract? ById = Contract.Edges.FirstOrDefault(Edge =>
             !string.IsNullOrEmpty(Edge.Id) && string.Equals(Edge.Id, Route.EdgeId, StringComparison.Ordinal));
-        if (ById != null) return ById;
+        if (ById != null)
+        {
+            return ById;
+        }
+
         return Contract.Edges.Where(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)
             .OrderBy(Edge => Edge.CreationIndex).FirstOrDefault();
     }
@@ -685,7 +842,10 @@ public static partial class DiagramGridLayout
             }
 
             bool IsHinted = FindContractEdge(Contract, Route)?.RoutingHint?.IsActive == true;
-            if (IsHinted) continue;
+            if (IsHinted)
+            {
+                continue;
+            }
             // Hinted routes still occupy their symmetric slot. Excluding them
             // here must be compensated by the final hint allocator, which
             // allocates hinted and automatic endpoints on each affected side as
@@ -705,7 +865,11 @@ public static partial class DiagramGridLayout
                 Ends.Sort((Left, Right) =>
                 {
                     int HintOrder = Right.IsHinted.CompareTo(Left.IsHinted);
-                    if (HintOrder != 0) return HintOrder;
+                    if (HintOrder != 0)
+                    {
+                        return HintOrder;
+                    }
+
                     bool VerticalSide = Left.Side is "left" or "right";
                     return VerticalSide
                         ? Right.Other.CenterY.CompareTo(Left.Other.CenterY)
@@ -713,7 +877,9 @@ public static partial class DiagramGridLayout
                 });
             }
             if (!Diamond)
+            {
                 ApplySlots(Ends, Nodes);
+            }
         }
 
         HashSet<FlowchartLayoutEdgeRoute> Changed = [];
@@ -735,7 +901,10 @@ public static partial class DiagramGridLayout
                 && FlowchartDagrePresentation.IsDiamondShape(Node.Shape);
             string Key = Box.Id + (Diamond ? "|diamond" : "|" + Side);
             if (!Groups.TryGetValue(Key, out List<PortEnd>? Ends))
+            {
                 Groups[Key] = Ends = [];
+            }
+
             Ends.Add(new PortEnd
             {
                 Route = Route,
@@ -869,7 +1038,7 @@ public static partial class DiagramGridLayout
                 ?? (Contract != null
                     ? FlowchartDirectionNormalizer.Normalize(Contract.Direction)
                     : FlowchartDirection.TopToBottom);
-            HashSet<int> CompassFixedIndices = new HashSet<int>();
+            HashSet<int> CompassFixedIndices = [];
             if (Contract != null
                 && UseCompassOverrides
                 && TryApplyDiamondCompassSourcePorts(Group, Contract, FlowDirection, CompassFixedIndices))
@@ -881,9 +1050,9 @@ public static partial class DiagramGridLayout
             }
 
             List<int> RemainingIndices = CompassFixedIndices.Count == 0
-                ? Enumerable.Range(0, Group.Count).ToList()
-                : Enumerable.Range(0, Group.Count).Where(Index => !CompassFixedIndices.Contains(Index)).ToList();
-            List<(double X, double Y)> Destinations = new List<(double X, double Y)>();
+                ? [.. Enumerable.Range(0, Group.Count)]
+                : [.. Enumerable.Range(0, Group.Count).Where(Index => !CompassFixedIndices.Contains(Index))];
+            List<(double X, double Y)> Destinations = [];
             foreach (int Index in RemainingIndices)
             {
                 PortEnd End = Group[Index];
@@ -895,16 +1064,14 @@ public static partial class DiagramGridLayout
                 return;
             }
 
-            HashSet<int> Reservations = Enumerable.Range(0, RemainingIndices.Count).Where(SubIndex =>
+            HashSet<int> Reservations = [.. Enumerable.Range(0, RemainingIndices.Count).Where(SubIndex =>
             {
                 PortEnd End = Group[RemainingIndices[SubIndex]];
-                if (End.KeepsCentre) return true;
-                if (End.Route.Points.Count != 2) return false;
-                FlowchartLayoutPoint A = End.Route.Points[0];
+                if (End.KeepsCentre) { return true; } if (End.Route.Points.Count != 2) { return false; } FlowchartLayoutPoint A = End.Route.Points[0];
                 FlowchartLayoutPoint B = End.Route.Points[^1];
-                return Math.Abs(A.X - B.X) < 0.001 && Math.Abs(End.Box.CenterX - End.Other.CenterX) < 0.001
-                    || Math.Abs(A.Y - B.Y) < 0.001 && Math.Abs(End.Box.CenterY - End.Other.CenterY) < 0.001;
-            }).ToHashSet();
+                return (Math.Abs(A.X - B.X) < 0.001 && Math.Abs(End.Box.CenterX - End.Other.CenterX) < 0.001)
+                    || (Math.Abs(A.Y - B.Y) < 0.001 && Math.Abs(End.Box.CenterY - End.Other.CenterY) < 0.001);
+            })];
             if (FlowchartDiamondPorts.TryAssign((int)Box.Width, (int)Box.Height, Destinations, out IReadOnlyList<FlowchartDiamondPort> Ports, Reservations)
                 && Ports.Count == RemainingIndices.Count)
             {
@@ -1008,11 +1175,14 @@ public static partial class DiagramGridLayout
                 OutX = 1;
             }
 
-            if (Nodes.TryGetValue(Box.Id, out var GeometryNode) && GeometryNode.GeometryProvider is { } Provider)
+            if (Nodes.TryGetValue(Box.Id, out NodeContract? GeometryNode) && GeometryNode.GeometryProvider is { } Provider)
             {
                 if (Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(
-                    Side, Fraction, out var Port))
+                    Side, Fraction, out NodeGeometryPort Port))
+                {
                     SetEnd(Group[Index], Box.CenterX + Port.X, Box.CenterY - Port.Y, Port.NormalX, -Port.NormalY);
+                }
+
                 continue;
             }
 
@@ -1030,8 +1200,14 @@ public static partial class DiagramGridLayout
                 // coordinate would turn a straight neighbour link into a jog.
                 if (Group.Count == 1 && Math.Abs(Fraction - 0.5) < 0.000001)
                 {
-                    if (VerticalSide) Y = Box.CenterY;
-                    else X = Box.CenterX;
+                    if (VerticalSide)
+                    {
+                        Y = Box.CenterY;
+                    }
+                    else
+                    {
+                        X = Box.CenterX;
+                    }
                 }
             }
 
@@ -1047,12 +1223,12 @@ public static partial class DiagramGridLayout
             if (OutX != 0)
             {
                 double Dy = (SlotY - Box.CenterY) / Ry;
-                double Offset = Rx * Math.Sqrt(Math.Max(0, 1 - Dy * Dy));
-                return ((int)Math.Round(Box.CenterX + OutX * Offset), SlotY);
+                double Offset = Rx * Math.Sqrt(Math.Max(0, 1 - (Dy * Dy)));
+                return ((int)Math.Round(Box.CenterX + (OutX * Offset)), SlotY);
             }
             double Dx = (SlotX - Box.CenterX) / Rx;
-            double VerticalOffset = Ry * Math.Sqrt(Math.Max(0, 1 - Dx * Dx));
-            return (SlotX, (int)Math.Round(Box.CenterY + OutY * VerticalOffset));
+            double VerticalOffset = Ry * Math.Sqrt(Math.Max(0, 1 - (Dx * Dx)));
+            return (SlotX, (int)Math.Round(Box.CenterY + (OutY * VerticalOffset)));
         }
 
         if (string.Equals(Shape, "circle", StringComparison.OrdinalIgnoreCase)
@@ -1127,7 +1303,11 @@ public static partial class DiagramGridLayout
     {
         // A rejected geometry candidate may have cleared the provisional path.
         // Allocation still owns both anchors of that declared relationship.
-        while (End.Route.Points.Count < 2) End.Route.Points.Add(new FlowchartLayoutPoint());
+        while (End.Route.Points.Count < 2)
+        {
+            End.Route.Points.Add(new FlowchartLayoutPoint());
+        }
+
         End.OutX = OutX;
         End.OutY = OutY;
         if (End.IsSource)
@@ -1225,7 +1405,7 @@ public static partial class DiagramGridLayout
     {
         if (Nodes.TryGetValue(Box.Id, out NodeContract? GeometryNode) && GeometryNode.GeometryProvider is { } Provider)
         {
-            if (!Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, 0.5, out var Port))
+            if (!Provider.Create(Box.Width, Box.Height).ConnectionBoundary.TryPort(Side, 0.5, out NodeGeometryPort Port))
             {
                 return false;
             }

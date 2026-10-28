@@ -72,7 +72,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
 
             this.geometryGraph = geometryGraph;
             this.bundlingSettings = bundlingSettings;
-            regularEdges = geometryGraph.Edges.Where(e => e.Source != e.Target).ToArray();
+            regularEdges = [.. geometryGraph.Edges.Where(e => e.Source != e.Target)];
             VisibilityGraph = visibilityGraph;
             this.shortestPathRouter = shortestPathRouter;
             LoosePadding = loosePadding;
@@ -110,7 +110,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             FixChildParentEdges();
             if (!bundlingSettings.StopAfterShortestPaths) {
 
-                MetroGraphData metroGraphData = new MetroGraphData(regularEdges.Select(e => e.EdgeGeometry).ToArray(),
+                MetroGraphData metroGraphData = new MetroGraphData([.. regularEdges.Select(e => e.EdgeGeometry)],
                                                         LooseHierarchy,
                                                         TightHierarchy,
                                                         bundlingSettings,
@@ -155,8 +155,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Point rt = rectangle.RightTop + new Point(d, d);
             Point rb = rectangle.RightBottom + new Point(d, -d);
 
-            Polyline[] additionalObstacles = new[] { 
-                new Polyline(lb, lt, rt, rb) { Closed = true }};
+            Polyline[] additionalObstacles = [ 
+                new Polyline(lb, lt, rt, rb) { Closed = true }];
 
             return GetConstrainedDelaunayTriangulation(obstacles.Concat(additionalObstacles));
         }
@@ -170,7 +170,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         // ReSharper disable UnusedMember.Local
         void ShowGraphLocal() {
             // ReSharper restore UnusedMember.Local
-            List<ICurve> l = new List<ICurve>();
+            List<ICurve> l = [];
             l.Clear();
             foreach (Edge e in geometryGraph.Edges) {
                 {
@@ -192,10 +192,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 }
                 else {
                     hookPort = edge.TargetPort as HookUpAnywhereFromInsidePort;
-                    if (hookPort != null)
-                    {
-                        hookPort.SetLocation(FigureOutHookLocation(hookPort.LoosePolyline, edge.SourcePort, edge.EdgeGeometry));
-                    }
+                    hookPort?.SetLocation(FigureOutHookLocation(hookPort.LoosePolyline, edge.SourcePort, edge.EdgeGeometry));
                 }
             }
         }
@@ -246,7 +243,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         bool RoutePathsWithSteinerDijkstra() {
             shortestPathRouter.VisibilityGraph = VisibilityGraph;
             shortestPathRouter.BundlingSettings = bundlingSettings;
-            shortestPathRouter.EdgeGeometries = regularEdges.Select(e => e.EdgeGeometry).ToArray();
+            shortestPathRouter.EdgeGeometries = [.. regularEdges.Select(e => e.EdgeGeometry)];
             shortestPathRouter.ObstacleHierarchy = LooseHierarchy;
             shortestPathRouter.RouteEdges();
 
@@ -355,7 +352,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         bool EdgeSeparationIsOk(CdtEdge edge, Set<EdgeGeometry> paths, double separation) {
-            double requiredWidth = paths.Select(v => v.LineWidth).Sum() + (paths.Count - 1) * separation;
+            double requiredWidth = paths.Select(v => v.LineWidth).Sum() + ((paths.Count - 1) * separation);
             double availableWidth = edge.Capacity;
 
             return (requiredWidth <= availableWidth);

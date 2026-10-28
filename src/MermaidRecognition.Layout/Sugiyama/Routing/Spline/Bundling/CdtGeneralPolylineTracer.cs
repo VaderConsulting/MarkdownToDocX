@@ -46,7 +46,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             TriangleOrientation segStartOrientation = Point.GetTriangleOrientation(segStart.Point, cdtEdge.upperSite.Point,
                                                           cdtEdge.lowerSite.Point);
 
-            return segStartOrientation != TriangleOrientation.Collinear && segStartOrientation != segEndOrientation ||
+            return (segStartOrientation != TriangleOrientation.Collinear && segStartOrientation != segEndOrientation) ||
                     SomePreviousPointIsOnOtherSiteOfEdge(cdtEdge, segEndOrientation);
 
         }

@@ -20,19 +20,24 @@ public sealed class SvgViewportRasterTests
               <rect x="15" y="25" width="90" height="110" fill="#00aa00"/>
             </svg>
             """;
-        using var Bitmap = Rasterize(Svg);
+        using SKBitmap Bitmap = Rasterize(Svg);
         Assert.AreEqual(Width * 4, Bitmap.Width);
         Assert.AreEqual(Height * 4, Bitmap.Height);
         foreach (double X in new[] { 0.10, 0.90 })
-        foreach (double Y in new[] { 0.10, 0.90 })
-            Assert.AreEqual(new SKColor(0, 170, 0), Bitmap.GetPixel((int)(Bitmap.Width * X), (int)(Bitmap.Height * Y)));
+        {
+            foreach (double Y in new[] { 0.10, 0.90 })
+            {
+                Assert.AreEqual(new SKColor(0, 170, 0), Bitmap.GetPixel((int)(Bitmap.Width * X), (int)(Bitmap.Height * Y)));
+            }
+        }
+
         Assert.AreEqual(SKColors.White, Bitmap.GetPixel(Bitmap.Width - 1, Bitmap.Height - 1));
     }
 
     private static SKBitmap Rasterize(string Svg)
     {
-        var Method = typeof(DocxWriter).GetMethod("TryRasterizeSvgToPng", BindingFlags.NonPublic | BindingFlags.Static)!;
-        var Png = (byte[]?)Method.Invoke(null, new object[] { Svg });
+        MethodInfo Method = typeof(DocxWriter).GetMethod("TryRasterizeSvgToPng", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var Png = (byte[]?)Method.Invoke(null, [Svg]);
         Assert.IsNotNull(Png);
         return SKBitmap.Decode(Png);
     }
@@ -50,15 +55,22 @@ public sealed class SvgViewportRasterTests
             application-service target "Target"
             source -realization-> target
             """.Replace("FONT_SIZE", FontSize.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        using var Bitmap = Rasterize(Svg);
+        using SKBitmap Bitmap = Rasterize(Svg);
         int MaxX = -1, MaxY = -1;
         for (int Y = 0; Y < Bitmap.Height; Y++)
-        for (int X = 0; X < Bitmap.Width; X++)
         {
-            var Pixel = Bitmap.GetPixel(X, Y);
-            if (Pixel.Red > 245 && Pixel.Green > 245 && Pixel.Blue > 245) continue;
-            MaxX = Math.Max(MaxX, X); MaxY = Math.Max(MaxY, Y);
+            for (int X = 0; X < Bitmap.Width; X++)
+        {
+                SKColor Pixel = Bitmap.GetPixel(X, Y);
+            if (Pixel.Red > 245 && Pixel.Green > 245 && Pixel.Blue > 245)
+                {
+                    continue;
+                }
+
+                MaxX = Math.Max(MaxX, X); MaxY = Math.Max(MaxY, Y);
         }
+        }
+
         Assert.IsTrue(MaxX > Bitmap.Width * 0.8 && MaxX < Bitmap.Width - 4);
         Assert.IsTrue(MaxY > Bitmap.Height * 0.8 && MaxY < Bitmap.Height - 4);
     }

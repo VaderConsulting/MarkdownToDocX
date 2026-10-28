@@ -17,7 +17,7 @@ namespace LiveEditor.Tests;
 /// </summary>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
-public sealed class EnterpriseNodeEditingTests
+public sealed partial class EnterpriseNodeEditingTests
 {
     [Test]
     public void ToolboxInsertsEveryElementType()
@@ -413,7 +413,7 @@ public sealed class EnterpriseNodeEditingTests
 
     private static List<ElementGlyphButton> Glyphs(Control Root)
     {
-        List<ElementGlyphButton> Found = new List<ElementGlyphButton>();
+        List<ElementGlyphButton> Found = [];
         CollectGlyphs(Root, Found);
         return Found;
     }
@@ -440,7 +440,7 @@ public sealed class EnterpriseNodeEditingTests
             throw new InvalidOperationException("Control.OnClick is missing.");
         }
 
-        OnClick.Invoke(Control, new object[] { EventArgs.Empty });
+        OnClick.Invoke(Control, [EventArgs.Empty]);
     }
 
     private static T Require<T>(Control Root, string Name) where T : Control
@@ -460,6 +460,6 @@ public sealed class EnterpriseNodeEditingTests
     private const int WM_LBUTTONUP = 0x0202;
     private const int VK_DELETE = 0x2E;
 
-    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
-    private static extern IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial IntPtr SendMessage(IntPtr HWnd, int Msg, IntPtr WParam, IntPtr LParam);
 }

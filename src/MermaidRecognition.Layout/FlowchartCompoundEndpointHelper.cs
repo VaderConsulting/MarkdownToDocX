@@ -18,19 +18,35 @@ public static class FlowchartCompoundEndpointHelper
         IReadOnlyDictionary<string, NodeContract> Nodes, FlowchartDirection Direction,
         List<(double X, double Y)> Points, Dictionary<string, List<(double X, double Y)>> UsedPorts)
     {
-        if (Points.Count < 2 || !Bounds.TryGetValue(Edge.SourceId, out var Source)
-            || !Bounds.TryGetValue(Edge.TargetId, out var Target)) return;
-        var Route = Layout.EdgeRoutes.FirstOrDefault(Route => Route.EdgeId == Edge.Id);
-        if (Route == null) return;
+        if (Points.Count < 2 || !Bounds.TryGetValue(Edge.SourceId, out FlowchartLayoutNodeBounds? Source)
+            || !Bounds.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds? Target))
+        {
+            return;
+        }
+
+        FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Route => Route.EdgeId == Edge.Id);
+        if (Route == null)
+        {
+            return;
+        }
+
         string? Exit = Route.ExitSide, Entry = Route.EntrySide;
-        var Start = Points[0]; var End = Points[^1];
+        (double X, double Y) Start = Points[0]; (double X, double Y) End = Points[^1];
         bool Repair(string Id, FlowchartLayoutNodeBounds Box, (double X, double Y) Other,
             ref (double X, double Y) Port, ref string? Side)
         {
-            if (!IsGroupId(Contract, Id)) return false;
-            if (!UsedPorts.TryGetValue(Id, out var Ports)) UsedPorts[Id] = Ports = new();
-            double Left = Box.CenterX - Box.Width / 2, Right = Box.CenterX + Box.Width / 2;
-            double Bottom = Box.CenterY - Box.Height / 2, Top = Box.CenterY + Box.Height / 2;
+            if (!IsGroupId(Contract, Id))
+            {
+                return false;
+            }
+
+            if (!UsedPorts.TryGetValue(Id, out List<(double X, double Y)>? Ports))
+            {
+                UsedPorts[Id] = Ports = [];
+            }
+
+            double Left = Box.CenterX - (Box.Width / 2), Right = Box.CenterX + (Box.Width / 2);
+            double Bottom = Box.CenterY - (Box.Height / 2), Top = Box.CenterY + (Box.Height / 2);
             if (Port.X >= Left - 0.5 && Port.X <= Right + 0.5 && Port.Y >= Bottom - 0.5 && Port.Y <= Top + 0.5
                 && (Math.Abs(Port.X - Left) < 0.5 || Math.Abs(Port.X - Right) < 0.5
                     || Math.Abs(Port.Y - Top) < 0.5 || Math.Abs(Port.Y - Bottom) < 0.5))
@@ -58,7 +74,7 @@ public static class FlowchartCompoundEndpointHelper
                         Right - Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Width / 4)),
                     Other.Y > Top ? Top : Bottom);
             }
-            var Preferred = Port;
+            (double X, double Y) Preferred = Port;
             bool Vertical = Side is "left" or "right";
             double Low = Vertical
                 ? Bottom + Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Height / 4)
@@ -66,17 +82,21 @@ public static class FlowchartCompoundEndpointHelper
             double High = Vertical
                 ? Top - Math.Min(FlowchartGeometryPolicy.CompoundTitleInsetPx, Box.Height / 2)
                 : Right - Math.Min(FlowchartGeometryPolicy.CompoundPortInsetPx, Box.Width / 4);
-            for (int Step = 0; Step <= (int)((High - Low) / FlowchartGeometryPolicy.CompoundPortSpacingPx) * 2 + 2; Step++)
+            for (int Step = 0; Step <= ((int)((High - Low) / FlowchartGeometryPolicy.CompoundPortSpacingPx) * 2) + 2; Step++)
             {
                 double Offset = Step == 0
                     ? 0
                     : ((Step + 1) / 2) * FlowchartGeometryPolicy.CompoundPortSpacingPx * (Step % 2 == 1 ? -1 : 1);
-                var Candidate = Vertical ? (X: Preferred.X, Y: Preferred.Y + Offset) : (X: Preferred.X + Offset, Y: Preferred.Y);
+                (double X, double Y) Candidate = Vertical ? (X: Preferred.X, Y: Preferred.Y + Offset) : (X: Preferred.X + Offset, Y: Preferred.Y);
                 double Along = Vertical ? Candidate.Y : Candidate.X;
                 if (Along < Low
                     || Along > High
                     || Ports.Any(Used => Math.Abs(Used.X - Candidate.X) + Math.Abs(Used.Y - Candidate.Y)
-                        < FlowchartGeometryPolicy.CompoundPortSpacingPx)) continue;
+                        < FlowchartGeometryPolicy.CompoundPortSpacingPx))
+                {
+                    continue;
+                }
+
                 Port = Candidate;
                 break;
             }
@@ -85,10 +105,14 @@ public static class FlowchartCompoundEndpointHelper
         }
         bool Changed = Repair(Edge.SourceId, Source, End, ref Start, ref Exit);
         Changed |= Repair(Edge.TargetId, Target, Start, ref End, ref Entry);
-        if (!Changed) return;
-        Nodes.TryGetValue(Edge.SourceId, out var SourceNode);
-        Nodes.TryGetValue(Edge.TargetId, out var TargetNode);
-        var Rebuilt = DiagramGridRouteBuilder.BuildRoute(Start.X, Start.Y, Source, SourceNode?.Shape ?? "rect", Exit,
+        if (!Changed)
+        {
+            return;
+        }
+
+        Nodes.TryGetValue(Edge.SourceId, out NodeContract? SourceNode);
+        Nodes.TryGetValue(Edge.TargetId, out NodeContract? TargetNode);
+        List<(double X, double Y)> Rebuilt = DiagramGridRouteBuilder.BuildRoute(Start.X, Start.Y, Source, SourceNode?.Shape ?? "rect", Exit,
             End.X, End.Y, Target, TargetNode?.Shape ?? "rect", Entry, Bounds, Edge.SourceId, Edge.TargetId,
             Contract, Direction, Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft);
         Points.Clear();
@@ -98,17 +122,30 @@ public static class FlowchartCompoundEndpointHelper
     internal static bool Contains(DiagramContract Contract, string GroupId, string ChildId)
     {
         string? Parent = null;
-        foreach (var Node in Contract.Nodes)
+        foreach (NodeContract Node in Contract.Nodes)
+        {
             if (Node.Id == ChildId) { Parent = Node.ParentGroupId; break; }
-        foreach (var Group in Contract.Groups)
+        }
+
+        foreach (GroupContract Group in Contract.Groups)
+        {
             if (Group.Id == ChildId) { Parent = Group.ParentGroupId; break; }
-        var Seen = new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
         while (!string.IsNullOrEmpty(Parent) && Seen.Add(Parent))
         {
-            if (Parent == GroupId) return true;
+            if (Parent == GroupId)
+            {
+                return true;
+            }
+
             string? Next = null;
-            foreach (var Group in Contract.Groups)
+            foreach (GroupContract Group in Contract.Groups)
+            {
                 if (Group.Id == Parent) { Next = Group.ParentGroupId; break; }
+            }
+
             Parent = Next;
         }
         return false;
@@ -117,13 +154,17 @@ public static class FlowchartCompoundEndpointHelper
     internal static int InternalBoundaryPadding(DiagramContract Contract, string GroupId)
     {
         int Padding = 0;
-        foreach (var Edge in Contract.Edges)
+        foreach (EdgeContract Edge in Contract.Edges)
         {
-            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if ((Edge.SourceId == GroupId && Contains(Contract, GroupId, Edge.TargetId))
                 || (Edge.TargetId == GroupId && Contains(Contract, GroupId, Edge.SourceId)))
             {
-                var Label = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? "",
+                FlowchartLabelDimensions Label = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label ?? "",
                     FlowchartRenderOptions.FromContract(Contract));
                 Padding = Math.Max(Padding, DiagramGridMetrics.CeilToGrid(Label.Height + 70));
             }
@@ -193,7 +234,7 @@ public static class FlowchartCompoundEndpointHelper
         IReadOnlyDictionary<string, NodeContract> NodeById,
         out List<(double X, double Y)> LayoutPoints)
     {
-        LayoutPoints = new List<(double X, double Y)>();
+        LayoutPoints = [];
         bool SourceIsGroup = IsGroupId(Contract, Edge.SourceId);
         bool TargetIsGroup = IsGroupId(Contract, Edge.TargetId);
         if (!SourceIsGroup && !TargetIsGroup)

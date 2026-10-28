@@ -22,11 +22,11 @@ internal static class FlowchartDistinctTrackRepair
             return false;
         }
 
-        FlowchartLayoutEdgeRoute[] AllRoutes = Layout.EdgeRoutes.ToArray();
-        Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> PathCache = new Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]>();
+        FlowchartLayoutEdgeRoute[] AllRoutes = [.. Layout.EdgeRoutes];
+        Dictionary<FlowchartLayoutEdgeRoute, (double X, double Y)[]> PathCache = [];
         foreach (FlowchartLayoutEdgeRoute Route in AllRoutes)
         {
-            PathCache[Route] = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            PathCache[Route] = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
         }
 
         bool Changed = false;
@@ -38,8 +38,8 @@ internal static class FlowchartDistinctTrackRepair
                 continue;
             }
 
-            FlowchartLayoutEdgeRoute[] Others = AllRoutes.Where(Other => Other != Route && Other.Points.Count >= 2).ToArray();
-            (double X, double Y)[][] OtherPaths = Others.Select(Other => PathCache[Other]).ToArray();
+            FlowchartLayoutEdgeRoute[] Others = [.. AllRoutes.Where(Other => Other != Route && Other.Points.Count >= 2)];
+            (double X, double Y)[][] OtherPaths = [.. Others.Select(Other => PathCache[Other])];
             FlowchartRouteSegmentSpatialIndex SegmentIndex = new FlowchartRouteSegmentSpatialIndex(OtherPaths);
             (double X, double Y)[] Original = PathCache[Route];
             (int Shared, int Crossings, double Length) Before = Measure(Route, Others, PathCache, SegmentIndex);
@@ -52,9 +52,7 @@ internal static class FlowchartDistinctTrackRepair
             FlowchartLayoutScore.ComparisonCost BestCompleteCost = FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
             (double X, double Y)[]? BestPoints = null;
             int Examined = 0;
-            int[] Runs = Enumerable.Range(1, Original.Length - 3)
-                .Where(Index => SegmentIndex.SegmentOverlapsAnyPath(Original[Index].X, Original[Index].Y, Original[Index + 1].X, Original[Index + 1].Y))
-                .ToArray();
+            int[] Runs = [.. Enumerable.Range(1, Original.Length - 3).Where(Index => SegmentIndex.SegmentOverlapsAnyPath(Original[Index].X, Original[Index].Y, Original[Index + 1].X, Original[Index + 1].Y))];
             if (Runs.Length == 0)
             {
                 continue;
@@ -79,17 +77,17 @@ internal static class FlowchartDistinctTrackRepair
                             continue;
                         }
 
-                        PathCache[Route] = Route.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+                        PathCache[Route] = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
                         (int Shared, int Crossings, double Length) Candidate = Measure(Route, Others, PathCache, SegmentIndex);
                         bool CompletesSeparation = Candidate.Shared == 0 && GlobalShared == Before.Shared;
-                        if (Candidate.Shared > Before.Shared || Candidate.Crossings > Before.Crossings && !CompletesSeparation)
+                        if (Candidate.Shared > Before.Shared || (Candidate.Crossings > Before.Crossings && !CompletesSeparation))
                         {
                             continue;
                         }
 
                         FlowchartLayoutScore.ComparisonCost CompleteCost = CompletesSeparation
                             ? FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false).Cost
-                                + RouteLength(Route) / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight
+                                + (RouteLength(Route) / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RepairLengthWeight)
                             : FlowchartLayoutScore.ComparisonCost.PositiveInfinity;
                         if (CompletesSeparation ? CompleteCost >= BestCompleteCost : Candidate.CompareTo(Best) >= 0)
                         {

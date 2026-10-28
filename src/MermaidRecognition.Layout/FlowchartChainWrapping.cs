@@ -18,10 +18,9 @@ internal static partial class FlowchartChainWrapping
         }
 
         Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        List<EdgeContract> Edges = Contract.Edges
+        List<EdgeContract> Edges = [.. Contract.Edges
             .Where(Edge => ById.ContainsKey(Edge.SourceId) && ById.ContainsKey(Edge.TargetId)
-                && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+                && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         Dictionary<string, List<string>> Outgoing = Nodes.ToDictionary(Node => Node.Id, _ => new List<string>(), StringComparer.Ordinal);
         Dictionary<string, List<string>> Incoming = Nodes.ToDictionary(Node => Node.Id, _ => new List<string>(), StringComparer.Ordinal);
         foreach (EdgeContract Edge in Edges)
@@ -30,11 +29,15 @@ internal static partial class FlowchartChainWrapping
             Incoming[Edge.TargetId].Add(Edge.SourceId);
         }
 
-        var Components = new List<List<DiagramGridLayout.GridNode>>();
-        var Seen = new HashSet<string>(StringComparer.Ordinal);
+        List<List<DiagramGridLayout.GridNode>> Components = [];
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (DiagramGridLayout.GridNode Seed in Nodes)
         {
-            if (!Seen.Add(Seed.Id)) continue;
+            if (!Seen.Add(Seed.Id))
+            {
+                continue;
+            }
+
             Components.Add(CollectComponent(Seed.Id, ById, Incoming, Outgoing, Seen));
         }
 
@@ -43,10 +46,17 @@ internal static partial class FlowchartChainWrapping
         {
             foreach (List<DiagramGridLayout.GridNode> Path in OrderedPaths(Component, ById, Incoming, Outgoing))
             {
-            if (Path.Count < FlowchartWrapPlan.MinimumRun + 1) continue;
-            if (Path.Select(Node => Node.GroupId).Distinct(StringComparer.Ordinal).Count() != 1) continue;
+            if (Path.Count < FlowchartWrapPlan.MinimumRun + 1)
+                {
+                    continue;
+                }
 
-            int NodeWidth = Path.Max(Node => Node.Width);
+                if (Path.Select(Node => Node.GroupId).Distinct(StringComparer.Ordinal).Count() != 1)
+                {
+                    continue;
+                }
+
+                int NodeWidth = Path.Max(Node => Node.Width);
             int NodeHeight = Path.Max(Node => Node.Height);
             int ColumnGap = Horizontal
                 ? Math.Max(DiagramGridMetrics.NODE_GAP_PX, DiagramGridMetrics.MIN_LR_RANK_GAP_PX)
@@ -69,15 +79,21 @@ internal static partial class FlowchartChainWrapping
             }
             FlowchartWrapPlan.Plan Plan = FlowchartWrapPlan.Choose(
                 Path.Count, NodeWidth, NodeHeight, ColumnGap, RowGap, Horizontal);
-            if (Plan.Columns >= Path.Count || Plan.Rows >= Path.Count) continue;
+            if (Plan.Columns >= Path.Count || Plan.Rows >= Path.Count)
+                {
+                    continue;
+                }
 
-            double OldWidth = Path.Max(Node => Node.X + Node.Width / 2.0) - Path.Min(Node => Node.X - Node.Width / 2.0);
-            double OldHeight = Path.Max(Node => Node.Y + Node.Height / 2.0) - Path.Min(Node => Node.Y - Node.Height / 2.0);
-            if (!ShouldAcceptWrap(Horizontal, OldWidth, OldHeight, Plan)) continue;
+                double OldWidth = Path.Max(Node => Node.X + (Node.Width / 2.0)) - Path.Min(Node => Node.X - (Node.Width / 2.0));
+            double OldHeight = Path.Max(Node => Node.Y + (Node.Height / 2.0)) - Path.Min(Node => Node.Y - (Node.Height / 2.0));
+            if (!ShouldAcceptWrap(Horizontal, OldWidth, OldHeight, Plan))
+                {
+                    continue;
+                }
 
-            Dictionary<string, (double X, double Y)> Before = Path.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y), StringComparer.Ordinal);
-            double Left = Path.Min(Node => Node.X - Node.Width / 2.0);
-            double Top = Path.Min(Node => Node.Y - Node.Height / 2.0);
+                Dictionary<string, (double X, double Y)> Before = Path.ToDictionary(Node => Node.Id, Node => (Node.X, Node.Y), StringComparer.Ordinal);
+            double Left = Path.Min(Node => Node.X - (Node.Width / 2.0));
+            double Top = Path.Min(Node => Node.Y - (Node.Height / 2.0));
             for (int Index = 0; Index < Path.Count; Index++)
             {
                 int Column;
@@ -93,16 +109,19 @@ internal static partial class FlowchartChainWrapping
                     Row = Index % Plan.Rows;
                 }
 
-                Path[Index].X = Left + NodeWidth / 2.0 + Column * (NodeWidth + ColumnGap);
-                Path[Index].Y = Top + NodeHeight / 2.0 + Row * (NodeHeight + RowGap);
+                Path[Index].X = Left + (NodeWidth / 2.0) + (Column * (NodeWidth + ColumnGap));
+                Path[Index].Y = Top + (NodeHeight / 2.0) + (Row * (NodeHeight + RowGap));
             }
 
             HashSet<string> ComponentIds = Path.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
             if (HasOverlap(Path, Nodes.Where(Node => !ComponentIds.Contains(Node.Id))))
             {
                 foreach (DiagramGridLayout.GridNode Node in Path)
-                    (Node.X, Node.Y) = Before[Node.Id];
-                continue;
+                    {
+                        (Node.X, Node.Y) = Before[Node.Id];
+                    }
+
+                    continue;
             }
 
             Changed = true;
@@ -118,15 +137,20 @@ internal static partial class FlowchartChainWrapping
         IReadOnlyDictionary<string, List<string>> Outgoing,
         HashSet<string> Seen)
     {
-        var Result = new List<DiagramGridLayout.GridNode>();
-        var Pending = new Queue<string>();
+        List<DiagramGridLayout.GridNode> Result = [];
+        Queue<string> Pending = new Queue<string>();
         Pending.Enqueue(Seed);
         while (Pending.Count > 0)
         {
             string Id = Pending.Dequeue();
             Result.Add(ById[Id]);
             foreach (string Other in Incoming[Id].Concat(Outgoing[Id]))
-                if (Seen.Add(Other)) Pending.Enqueue(Other);
+            {
+                if (Seen.Add(Other))
+                {
+                    Pending.Enqueue(Other);
+                }
+            }
         }
 
         return Result;
@@ -138,12 +162,19 @@ internal static partial class FlowchartChainWrapping
         IReadOnlyDictionary<string, List<string>> Outgoing)
     {
         HashSet<string> ComponentIds = Component.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-        var SeenStarts = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> SeenStarts = new HashSet<string>(StringComparer.Ordinal);
         foreach (DiagramGridLayout.GridNode Start in Component.Where(Node => Outgoing[Node.Id].Count == 1))
         {
-            if (!SeenStarts.Add(Start.Id)) continue;
+            if (!SeenStarts.Add(Start.Id))
+            {
+                continue;
+            }
+
             List<DiagramGridLayout.GridNode>? Path = WalkPath(Start, ById, Outgoing, ComponentIds);
-            if (Path != null) yield return Path;
+            if (Path != null)
+            {
+                yield return Path;
+            }
         }
     }
 
@@ -152,15 +183,23 @@ internal static partial class FlowchartChainWrapping
         IReadOnlyDictionary<string, List<string>> Outgoing,
         HashSet<string> ComponentIds)
     {
-        var Result = new List<DiagramGridLayout.GridNode>();
-        var Seen = new HashSet<string>(StringComparer.Ordinal);
+        List<DiagramGridLayout.GridNode> Result = [];
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
         DiagramGridLayout.GridNode? Current = Start;
         while (Current != null && Seen.Add(Current.Id))
         {
             Result.Add(Current);
-            if (Outgoing[Current.Id].Count != 1) break;
+            if (Outgoing[Current.Id].Count != 1)
+            {
+                break;
+            }
+
             string NextId = Outgoing[Current.Id][0];
-            if (!ComponentIds.Contains(NextId) || Seen.Contains(NextId)) break;
+            if (!ComponentIds.Contains(NextId) || Seen.Contains(NextId))
+            {
+                break;
+            }
+
             Current = ById[NextId];
         }
 
@@ -171,10 +210,17 @@ internal static partial class FlowchartChainWrapping
         IEnumerable<DiagramGridLayout.GridNode> Others)
     {
         foreach (DiagramGridLayout.GridNode A in Moved)
-        foreach (DiagramGridLayout.GridNode B in Others)
-            if (Math.Abs(A.X - B.X) < (A.Width + B.Width) / 2.0 + DiagramGridMetrics.NODE_GAP_PX
-                && Math.Abs(A.Y - B.Y) < (A.Height + B.Height) / 2.0 + DiagramGridMetrics.NODE_GAP_PX)
-                return true;
+        {
+            foreach (DiagramGridLayout.GridNode B in Others)
+            {
+                if (Math.Abs(A.X - B.X) < ((A.Width + B.Width) / 2.0) + DiagramGridMetrics.NODE_GAP_PX
+                && Math.Abs(A.Y - B.Y) < ((A.Height + B.Height) / 2.0) + DiagramGridMetrics.NODE_GAP_PX)
+                {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -183,7 +229,11 @@ internal static partial class FlowchartChainWrapping
         double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
         if (Horizontal)
         {
-            if (OldWidth <= Usable + 1e-9) return false;
+            if (OldWidth <= Usable + 1e-9)
+            {
+                return false;
+            }
+
             return Plan.Width <= Usable + 1e-9 && Plan.Width < OldWidth - 1e-9;
         }
 
@@ -192,7 +242,11 @@ internal static partial class FlowchartChainWrapping
             return true;
         }
 
-        if (OldHeight <= Usable + 1e-9) return false;
+        if (OldHeight <= Usable + 1e-9)
+        {
+            return false;
+        }
+
         return Plan.Height <= Usable + 1e-9 && Plan.Height < OldHeight - 1e-9;
     }
 

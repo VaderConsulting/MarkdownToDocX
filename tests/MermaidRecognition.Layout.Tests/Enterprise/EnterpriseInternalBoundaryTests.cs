@@ -43,16 +43,23 @@ public sealed class EnterpriseInternalBoundaryTests
         Assert.That(ParentSource ? Points[1] : Points[^1], Is.EqualTo(ParentBottom).Within(0.01));
         bool BottomPort = Math.Abs(ChildY - ChildBottom) < 0.01;
         Assert.That(BottomPort
-            ? Math.Abs(ChildX - Number(Child, "x") - Number(Child, "width") / 2) < 0.01
-            : Math.Abs(ChildY - Number(Child, "y") - Number(Child, "height") / 2) < 0.01
+            ? Math.Abs(ChildX - Number(Child, "x") - (Number(Child, "width") / 2)) < 0.01
+            : Math.Abs(ChildY - Number(Child, "y") - (Number(Child, "height") / 2)) < 0.01
                 && (Math.Abs(ChildX - Number(Child, "x")) < 0.01
                     || Math.Abs(ChildX - Number(Child, "x") - Number(Child, "width")) < 0.01), Is.True);
         Assert.That(ParentX, Is.InRange(Number(Parent, "x") + 10, Number(Parent, "x") + Number(Parent, "width") - 10));
         XElement Caption = Edge.Elements().Single(Element => Element.Name.LocalName == "text");
         double Y = Number(Caption, "y") - 4;
         double X = Number(Caption, "x");
-        if (BottomPort) Assert.That(Y - 6, Is.GreaterThan(ChildBottom + 6));
-        else Assert.That(Math.Abs(X - ChildX), Is.GreaterThan(30));
+        if (BottomPort)
+        {
+            Assert.That(Y - 6, Is.GreaterThan(ChildBottom + 6));
+        }
+        else
+        {
+            Assert.That(Math.Abs(X - ChildX), Is.GreaterThan(30));
+        }
+
         Assert.That(Y + 6, Is.LessThan(ParentBottom - 6));
         XElement Sibling = Rect(ParentSource ? "a" : "b");
         Assert.That(X < Number(Sibling, "x") - 6 || X > Number(Sibling, "x") + Number(Sibling, "width") + 6
@@ -61,6 +68,5 @@ public sealed class EnterpriseInternalBoundaryTests
     }
 
     private static double Number(XElement Element, string Name) => double.Parse((string)Element.Attribute(Name)!, CultureInfo.InvariantCulture);
-    private static double[] Coordinates(string Path) => Regex.Matches(Path, @"-?\d+(?:\.\d+)?")
-        .Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture)).ToArray();
+    private static double[] Coordinates(string Path) => [.. Regex.Matches(Path, @"-?\d+(?:\.\d+)?").Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))];
 }

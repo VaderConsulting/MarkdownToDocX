@@ -10,7 +10,7 @@ namespace MermaidRecognition.Kinds.Class;
 /// </summary>
 public sealed class ClassDiagramParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "classDiagram" };
+    private static readonly string[] Headers = ["classDiagram"];
 
     private static readonly Regex ClassDeclareRegex = new Regex(
         @"^class\s+(?<id>[A-Za-z_][\w-]*)(?:\s*~(?<label>[^~]*)~)?",

@@ -113,7 +113,7 @@ public static class FlowchartScriptNormalizer
         string Normalised = Source.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         string[] Lines = Normalised.Split('\n');
         HashSet<string> DeclaredAlone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        List<InlineNode> InlineOnly = new List<InlineNode>();
+        List<InlineNode> InlineOnly = [];
         Dictionary<string, InlineNode> ByOriginalId = new Dictionary<string, InlineNode>(StringComparer.OrdinalIgnoreCase);
 
         for (int Index = 0; Index < Lines.Length; Index++)
@@ -165,7 +165,7 @@ public static class FlowchartScriptNormalizer
             Node.ShortId = AllocateUniqueId(Node.OriginalId, Used);
         }
 
-        List<string> Output = new List<string>();
+        List<string> Output = [];
         bool NodesEmitted = false;
         string Indent = DetectIndent(Lines);
 

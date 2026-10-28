@@ -19,9 +19,7 @@ public static class FlowchartParallelColumnChainBuilder
         double ColumnClusterTolerancePx,
         double VerticalStackMinSeparationPx)
     {
-        List<FlowchartLayoutNodeBounds> OrderedByColumnAxis = BoundsById.Values
-            .OrderBy(Bounds => Bounds.CenterX)
-            .ToList();
+        List<FlowchartLayoutNodeBounds> OrderedByColumnAxis = [.. BoundsById.Values.OrderBy(Bounds => Bounds.CenterX)];
 
         List<List<FlowchartLayoutNodeBounds>> ColumnBounds = [];
         List<FlowchartLayoutNodeBounds> CurrentColumn = [];

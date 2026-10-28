@@ -33,7 +33,11 @@ internal static class CatalogueScenarioPolicy
     internal static TestCaseData Apply(TestCaseData Case, string Id)
     {
         Case.SetProperty("CatalogueScenarioId", Id).SetProperty("CatalogueWatchdogSeconds", WatchdogSeconds(Id));
-        if (StressScenarios.Contains(Id)) Case.SetCategory("Stress").SetProperty("Description", $"Stress watchdog: {StressWatchdogSeconds} seconds; excluded from quality totals.");
+        if (StressScenarios.Contains(Id))
+        {
+            Case.SetCategory("Stress").SetProperty("Description", $"Stress watchdog: {StressWatchdogSeconds} seconds; excluded from quality totals.");
+        }
+
         return Case;
     }
 
@@ -42,11 +46,24 @@ internal static class CatalogueScenarioPolicy
     /// <returns>A named stress identity where present, otherwise the ordinary identity or null.</returns>
     internal static string? Identify(ITest Test)
     {
-        if (Test.Properties.Get("CatalogueScenarioId") is string Declared) return Declared;
+        if (Test.Properties.Get("CatalogueScenarioId") is string Declared)
+        {
+            return Declared;
+        }
+
         if (Test.Arguments.Length >= 2 && Test.Arguments[0] is string Prefix && Prefix is "A" or "F" or "EIP" && Test.Arguments[1] is int Number)
+        {
             return Prefix + Number.ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         foreach (var Argument in Test.Arguments)
-            if (Argument?.GetType().GetProperty("Id")?.GetValue(Argument) is string Id) return Id;
+        {
+            if (Argument?.GetType().GetProperty("Id")?.GetValue(Argument) is string Id)
+            {
+                return Id;
+            }
+        }
+
         var Names = Regex.Matches(Test.Name, @"(?<![A-Za-z0-9])(?:EIP|A|F)[0-9]+(?![0-9])").Select(Match => Match.Value).ToArray();
         return Names.FirstOrDefault(StressScenarios.Contains) ?? Names.FirstOrDefault();
     }
@@ -65,9 +82,15 @@ public sealed class CatalogueWatchdogActionAttribute : Attribute, ITestAction
         string? Id = CatalogueScenarioPolicy.Identify(Test);
         int Seconds = CatalogueScenarioPolicy.WatchdogSeconds(Id);
         if (Id != null)
+        {
             TestContext.Progress.WriteLine($"CATALOGUE_WATCHDOG|{Id}|seconds={Seconds}|stress={CatalogueScenarioPolicy.StressScenarios.Contains(Id)}");
+        }
+
         if (Id != null && CatalogueScenarioPolicy.StressScenarios.Contains(Id))
+        {
             Test.Properties.Set("Description", $"Stress watchdog: {Seconds} seconds; excluded from quality totals.");
+        }
+
         Publish(Test, Id, false);
     }
     /// <summary>Marks completion so time between cases cannot inherit a stress allowance.</summary>
@@ -80,7 +103,11 @@ public sealed class CatalogueWatchdogActionAttribute : Attribute, ITestAction
     private static void Publish(ITest Test, string? Id, bool Completed)
     {
         string? Path = Environment.GetEnvironmentVariable("CATALOGUE_WATCHDOG_PROGRESS");
-        if (string.IsNullOrWhiteSpace(Path)) return;
+        if (string.IsNullOrWhiteSpace(Path))
+        {
+            return;
+        }
+
         File.WriteAllText(Path, JsonSerializer.Serialize(new { TestId = Test.Id, Test.FullName, Scenario = Id,
             Completed, UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }));
     }

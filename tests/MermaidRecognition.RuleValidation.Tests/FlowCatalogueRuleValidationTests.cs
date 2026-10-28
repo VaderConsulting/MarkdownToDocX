@@ -731,13 +731,11 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
         MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(_FlowMarkdownPath, OutputDirectory);
 
         string[] TerminalStubRules =
-        {
+        [
             "Render.Ports.PerpendicularAttach"
-        };
+        ];
 
-        List<ValidationFailureRecord> StubFailures = Result.ValidationReport.Failures
-            .Where(Failure => TerminalStubRules.Contains(Failure.RuleId, StringComparer.Ordinal))
-            .ToList();
+        List<ValidationFailureRecord> StubFailures = [.. Result.ValidationReport.Failures.Where(Failure => TerminalStubRules.Contains(Failure.RuleId, StringComparer.Ordinal))];
 
         Assert.That(
             StubFailures,
@@ -756,14 +754,12 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
         MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(_FlowMarkdownPath, OutputDirectory);
 
         string[] MarkerTangentRules =
-        {
+        [
             "Render.Marker.EndAlignedWithPathTangent",
             "Render.Marker.StartAlignedWithPathTangent"
-        };
+        ];
 
-        List<ValidationFailureRecord> TangentFailures = Result.ValidationReport.Failures
-            .Where(Failure => MarkerTangentRules.Contains(Failure.RuleId, StringComparer.Ordinal))
-            .ToList();
+        List<ValidationFailureRecord> TangentFailures = [.. Result.ValidationReport.Failures.Where(Failure => MarkerTangentRules.Contains(Failure.RuleId, StringComparer.Ordinal))];
 
         Assert.That(
             TangentFailures,
@@ -833,17 +829,15 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
         MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(_FlowMarkdownPath, OutputDirectory);
 
         string[] LabelAlignmentRules =
-        {
+        [
             "Render.Label.NodeCentredHorizontally",
             "Render.Label.NodeCentredVertically",
             "Routing.Label.CentredOnConnectorSpine",
             "Routing.Label.CentredOnConnectorHorizontally",
             "Routing.Label.CentredOnConnectorVertically"
-        };
+        ];
 
-        List<ValidationFailureRecord> LabelFailures = Result.ValidationReport.Failures
-            .Where(Failure => LabelAlignmentRules.Contains(Failure.RuleId, StringComparer.Ordinal))
-            .ToList();
+        List<ValidationFailureRecord> LabelFailures = [.. Result.ValidationReport.Failures.Where(Failure => LabelAlignmentRules.Contains(Failure.RuleId, StringComparer.Ordinal))];
 
         Assert.That(
             LabelFailures,
@@ -916,9 +910,7 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
             """);
 
         DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
-        List<EdgeActualResult> BranchEdges = Diagram.Edges
-            .Where(Edge => Edge.SourceNodeId == "Check")
-            .ToList();
+        List<EdgeActualResult> BranchEdges = [.. Diagram.Edges.Where(Edge => Edge.SourceNodeId == "Check")];
 
         Assert.That(BranchEdges.Count, Is.EqualTo(2));
         Assert.That(BranchEdges.All(Edge => Edge.RouteClass == "LocalDecisionBranch"), Is.True);
@@ -953,9 +945,7 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
             """);
 
         DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
-        List<EdgeActualResult> BranchEdges = Diagram.Edges
-            .Where(Edge => Edge.SourceNodeId == "Gate")
-            .ToList();
+        List<EdgeActualResult> BranchEdges = [.. Diagram.Edges.Where(Edge => Edge.SourceNodeId == "Gate")];
 
         Assert.That(BranchEdges.Count, Is.EqualTo(3));
         Assert.That(BranchEdges.All(Edge => Edge.RouteClass == "LocalDecisionBranch"), Is.True);
@@ -990,9 +980,7 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
             """);
 
         DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
-        List<EdgeActualResult> BranchEdges = Diagram.Edges
-            .Where(Edge => Edge.SourceNodeId == "B" && !string.IsNullOrWhiteSpace(Edge.Label))
-            .ToList();
+        List<EdgeActualResult> BranchEdges = [.. Diagram.Edges.Where(Edge => Edge.SourceNodeId == "B" && !string.IsNullOrWhiteSpace(Edge.Label))];
 
         Assert.That(BranchEdges.Count, Is.EqualTo(2));
         foreach (EdgeActualResult Edge in BranchEdges)
@@ -1039,9 +1027,7 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
             """);
 
         DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
-        List<EdgeActualResult> BranchEdges = Diagram.Edges
-            .Where(Edge => Edge.SourceNodeId == "C" && !string.IsNullOrWhiteSpace(Edge.Label))
-            .ToList();
+        List<EdgeActualResult> BranchEdges = [.. Diagram.Edges.Where(Edge => Edge.SourceNodeId == "C" && !string.IsNullOrWhiteSpace(Edge.Label))];
 
         Assert.That(BranchEdges.Count, Is.EqualTo(3));
         foreach (EdgeActualResult Edge in BranchEdges)
@@ -1178,9 +1164,7 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
 
         DiagramActualResult Diagram = Result.ActualResults.Diagrams.Single();
         EdgeActualResult PathBEdge = Diagram.Edges.Single(Edge => Edge.EdgeId == "L-PB-D-1");
-        List<EdgeActualResult> BranchEdges = Diagram.Edges
-            .Where(Edge => Edge.SourceNodeId == "D")
-            .ToList();
+        List<EdgeActualResult> BranchEdges = [.. Diagram.Edges.Where(Edge => Edge.SourceNodeId == "D")];
 
         Assert.That(PathBEdge.Facts["Path.NoUnnecessaryDetour"], Is.EqualTo(true));
         Assert.That(PathBEdge.Facts["Path.StraightWithinTolerance"], Is.EqualTo(true));
@@ -1278,8 +1262,7 @@ public sealed class FlowCatalogueRuleValidationTests : ProductionCatalogueTestFi
         Assert.That(Branch.Path.Points[Branch.Path.Points.Count - 1].X, Is.EqualTo(Target.Bounds.CentreX).Within(1.0), $"{BranchName} branch should land on the target's top centre");
     }
 
-    private static List<string> FailureRuleIds(MermaidRuleValidationPipelineResult Result, string DiagramId) => Result.ValidationReport.Failures
+    private static List<string> FailureRuleIds(MermaidRuleValidationPipelineResult Result, string DiagramId) => [.. Result.ValidationReport.Failures
             .Where(Failure => Failure.DiagramId == DiagramId)
-            .Select(Failure => Failure.RuleId)
-            .ToList();
+            .Select(Failure => Failure.RuleId)];
 }

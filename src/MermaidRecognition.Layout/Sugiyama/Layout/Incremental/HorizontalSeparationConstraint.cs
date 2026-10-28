@@ -68,8 +68,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
                     wu = ((FiNode)u.AlgorithmData).stayWeight,
                     wv = ((FiNode)v.AlgorithmData).stayWeight;
                 double f = d / (wu + wv);
-                u.Center = new Point(u.Center.X - wv * f, u.Center.Y);
-                v.Center = new Point(v.Center.X + wu * f, v.Center.Y);
+                u.Center = new Point(u.Center.X - (wv * f), u.Center.Y);
+                v.Center = new Point(v.Center.X + (wu * f), v.Center.Y);
                 return d;
             } else {
                 return 0;
@@ -83,6 +83,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental {
         /// <summary>
         /// Get the list of nodes involved in the constraint
         /// </summary>
-        public IEnumerable<Node> Nodes => new Node[] { u, v };
+        public IEnumerable<Node> Nodes => [u, v];
     }
 }

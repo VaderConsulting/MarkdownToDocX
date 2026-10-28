@@ -18,9 +18,9 @@ internal sealed class ScrollMarkStrip : Control
 
     private int _VisibleCount = 1;
 
-    private readonly List<int> _FindLines = new List<int>();
+    private readonly List<int> _FindLines = [];
 
-    private readonly List<int> _DiagnosticLines = new List<int>();
+    private readonly List<int> _DiagnosticLines = [];
 
     private bool _Dark;
 

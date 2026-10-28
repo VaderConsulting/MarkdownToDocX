@@ -551,9 +551,7 @@ public static class FlowchartDecisionPortAllocator
         FlowchartDirection Direction,
         List<(double X, double Y)> LayoutPoints)
     {
-        List<EdgeContract> Incoming = FlowchartSharedPortAllocator.GetVisibleEdgesToTarget(Contract, Edge.TargetId)
-            .Where(Candidate => string.IsNullOrWhiteSpace(Candidate.Label))
-            .ToList();
+        List<EdgeContract> Incoming = [.. FlowchartSharedPortAllocator.GetVisibleEdgesToTarget(Contract, Edge.TargetId).Where(Candidate => string.IsNullOrWhiteSpace(Candidate.Label))];
 
         if (Incoming.Count < 2)
         {
@@ -802,16 +800,27 @@ public static class FlowchartDecisionPortAllocator
         {
             // Grid routes have already allocated their inbound ports. Use those
             // endpoints rather than inferring a vertex from the parent's centre.
-            foreach (var Port in IncomingPorts)
+            foreach ((double X, double Y) Port in IncomingPorts)
             {
                 if (Math.Abs(Port.X - (CentreX - HalfWidth)) < 1 && Math.Abs(Port.Y - CentreY) < 1)
+                {
                     Taken |= DiamondVertexOccupancy.Left;
+                }
+
                 if (Math.Abs(Port.X - (CentreX + HalfWidth)) < 1 && Math.Abs(Port.Y - CentreY) < 1)
+                {
                     Taken |= DiamondVertexOccupancy.Right;
+                }
+
                 if (Math.Abs(Port.Y - (CentreY - HalfHeight)) < 1 && Math.Abs(Port.X - CentreX) < 1)
+                {
                     Taken |= DiamondVertexOccupancy.Bottom;
+                }
+
                 if (Math.Abs(Port.Y - (CentreY + HalfHeight)) < 1 && Math.Abs(Port.X - CentreX) < 1)
+                {
                     Taken |= DiamondVertexOccupancy.Top;
+                }
             }
         }
 
@@ -1307,8 +1316,15 @@ public static class FlowchartDecisionPortAllocator
         EdgeContract? NoEdge = null;
         foreach (EdgeContract Edge in Outgoing)
         {
-            if (FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label)) YesEdge = Edge;
-            if (FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label)) NoEdge = Edge;
+            if (FlowchartDecisionBranchLabelHelper.IsYesBranchLabel(Edge.Label))
+            {
+                YesEdge = Edge;
+            }
+
+            if (FlowchartDecisionBranchLabelHelper.IsNoBranchLabel(Edge.Label))
+            {
+                NoEdge = Edge;
+            }
         }
 
         (DiamondVertexKind YesVertex, DiamondVertexKind NoVertex) = ResolveYesNoExitVertices(Direction);
@@ -1360,10 +1376,9 @@ public static class FlowchartDecisionPortAllocator
 
         if (Outgoing.Count == 3)
         {
-            List<EdgeContract> Ordered = Outgoing
+            List<EdgeContract> Ordered = [.. Outgoing
                 .OrderBy(Edge => BoundsById.TryGetValue(Edge.TargetId, out FlowchartLayoutNodeBounds? Box) ? Box.CenterX : 0.0)
-                .ThenBy(Edge => Edge.CreationIndex)
-                .ToList();
+                .ThenBy(Edge => Edge.CreationIndex)];
             PortsByTarget[Ordered[0].TargetId] = ResolveVertexAttach(
                 DiamondVertexKind.Left, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
             PortsByTarget[Ordered[1].TargetId] = ResolveVertexAttach(
@@ -1375,7 +1390,7 @@ public static class FlowchartDecisionPortAllocator
 
         if (Outgoing.Count == 2)
         {
-            List<EdgeContract> Ordered = Outgoing.OrderBy(Edge => Edge.CreationIndex).ToList();
+            List<EdgeContract> Ordered = [.. Outgoing.OrderBy(Edge => Edge.CreationIndex)];
             PortsByTarget[Ordered[0].TargetId] = ResolveVertexAttach(
                 YesVertex, CentreX, CentreY, HalfWidth, HalfHeight, UseBottomFace);
             PortsByTarget[Ordered[1].TargetId] = ResolveVertexAttach(

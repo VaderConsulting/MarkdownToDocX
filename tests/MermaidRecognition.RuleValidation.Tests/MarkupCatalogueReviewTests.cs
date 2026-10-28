@@ -1,4 +1,6 @@
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -28,8 +30,12 @@ public sealed class MarkupCatalogueReviewTests
     public void BeginCapture()
     {
         string? Path = Environment.GetEnvironmentVariable("MARKUP_BASELINE");
-        if (Path != null) Baseline = File.ReadLines(Path).Select(Line => JsonSerializer.Deserialize<Measurement>(Line)!)
+        if (Path != null)
+        {
+            Baseline = File.ReadLines(Path).Select(Line => JsonSerializer.Deserialize<Measurement>(Line)!)
             .ToDictionary(Row => Row.Id, StringComparer.Ordinal);
+        }
+
         Output = Environment.GetEnvironmentVariable("MARKUP_OUTPUT") ?? throw new InvalidOperationException("MARKUP_OUTPUT is required.");
         File.WriteAllText(Output, "");
     }
@@ -39,7 +45,10 @@ public sealed class MarkupCatalogueReviewTests
     public void RequireCompleteCapture()
     {
         Assert.That(File.ReadLines(Output).Select(Line => JsonSerializer.Deserialize<Measurement>(Line)!.Id).Distinct().Count(), Is.EqualTo(673));
-        if (Baseline != null) Assert.That(Baseline.Count, Is.EqualTo(673));
+        if (Baseline != null)
+        {
+            Assert.That(Baseline.Count, Is.EqualTo(673));
+        }
     }
 
     /// <summary>Measures every source independently, including open-mode and native-ineligible cases.</summary>
@@ -52,18 +61,24 @@ public sealed class MarkupCatalogueReviewTests
     [TestCaseSource(nameof(Cases))]
     public void MeasureAndCompare(RouteRuleCatalogueAuditTests.Scenario Scenario)
     {
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        var Context = new FlowchartRenderContext { UseCellRegions = true };
-        bool Complete = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out var Layout);
+        FlowchartRenderContext Context = new FlowchartRenderContext { UseCellRegions = true };
+        bool Complete = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, Context, out FlowchartLayoutResult? Layout);
         int Crossings = 0;
-        var Paths = Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
-        for (int A = 0; A < Paths.Length; A++) for (int B = A + 1; B < Paths.Length; B++)
-            Crossings += FlowchartBranchRouteOrder.Intersections(Paths[A], Paths[B]).Crossings;
+        (double X, double Y)[][] Paths = [.. Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())];
+        for (int A = 0; A < Paths.Length; A++)
+        {
+            for (int B = A + 1; B < Paths.Length; B++)
+            {
+                Crossings += FlowchartBranchRouteOrder.Intersections(Paths[A], Paths[B]).Crossings;
+            }
+        }
+
         double Length = Paths.Sum(Path => Enumerable.Range(1, Math.Max(0, Path.Length - 1))
             .Sum(double (int Index) => Math.Sqrt(Math.Pow(Path[Index].X - Path[Index - 1].X, 2) + Math.Pow(Path[Index].Y - Path[Index - 1].Y, 2))));
-        var Actual = new Measurement(Scenario.Id, Complete, Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)),
+        Measurement Actual = new Measurement(Scenario.Id, Complete, Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)),
             Crossings, Length, Complete && Marked.Contains(Scenario.Id) ? CellProductionParityTests.Snapshot(Contract, Layout) : null);
         File.AppendAllText(Output, JsonSerializer.Serialize(Actual) + Environment.NewLine);
         if (Baseline != null)
@@ -72,9 +87,16 @@ public sealed class MarkupCatalogueReviewTests
             Assert.That(Actual.Bends, Is.LessThanOrEqualTo(Baseline[Scenario.Id].Bends), "Bend regression: " + Scenario.Id);
             Assert.That(Actual.Crossings, Is.LessThanOrEqualTo(Baseline[Scenario.Id].Crossings), "Crossing regression: " + Scenario.Id);
         }
-        if (!Complete) return;
+        if (!Complete)
+        {
+            return;
+        }
+
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout).Where(Finding => Finding.Rule is "10" or "4.1" or "3.2/4.7"), Is.Empty);
         Assert.That(Context.RejectedCellPixelWrites, Is.Empty);
-        if (Layout.CellNodes != null) Assert.That(CellGridAudit.Faults(Contract, Layout, Layout.CellNodes), Is.Empty);
+        if (Layout.CellNodes != null)
+        {
+            Assert.That(CellGridAudit.Faults(Contract, Layout, Layout.CellNodes), Is.Empty);
+        }
     }
 }

@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -13,21 +14,25 @@ public sealed class FlowchartCellJointRouteIdentityTests
     [TestCase("appNode", false)]
     public void GroupEndpointAliasUsesOnlyItsMemberRegions(string GroupId, bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse($"flowchart LR\nsubgraph {GroupId}[Boundary]\nb --> c\nend\na --> {GroupId}");
+        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart LR\nsubgraph {GroupId}[Boundary]\nb --> c\nend\na --> {GroupId}");
         Assert.That(Contract.Nodes.Any(Node => Node.Id == GroupId), Is.True,
             "Recognition must retain the group endpoint alias and its declarations.");
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Assert.That(Grid.TryPlace("a", new(0, 0, 1, 1)), Is.True);
         Assert.That(Grid.TryPlace("b", new(0, 3, 1, 1)), Is.True);
         Assert.That(Grid.TryPlace("c", new(2, 3, 1, 1)), Is.True);
-        var Placed = new List<DiagramGridLayout.GridNode>
-        {
+        List<DiagramGridLayout.GridNode> Placed =
+        [
             new() { Id = "a" }, new() { Id = "b", GroupId = GroupId }, new() { Id = "c", GroupId = GroupId }
-        };
-        foreach (var Node in Placed) Node.BindCells(Grid);
-        var Before = Grid.Capture();
-        var Nominated = new HashSet<string>(StringComparer.Ordinal) { "a", GroupId };
-        var Aliased = DiagramGridLayout.CellJointRouteAssignments(Contract, Placed, Horizontal, Nominated).ToArray();
+        ];
+        foreach (DiagramGridLayout.GridNode Node in Placed)
+        {
+            Node.BindCells(Grid);
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        HashSet<string> Nominated = new HashSet<string>(StringComparer.Ordinal) { "a", GroupId };
+        DiagramGridLayout.CellJointRouteCandidate[] Aliased = [.. DiagramGridLayout.CellJointRouteAssignments(Contract, Placed, Horizontal, Nominated)];
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
         Assert.That(Grid.Capture().ColumnGaps, Is.EquivalentTo(Before.ColumnGaps));
         Assert.That(Grid.Capture().RowGaps, Is.EquivalentTo(Before.RowGaps));
@@ -35,10 +40,10 @@ public sealed class FlowchartCellJointRouteIdentityTests
         // Removing recognition-only metadata cannot change ownership or the
         // complete region candidates. It is never removed by production code.
         Contract.NodesMutable.RemoveAll(Node => Node.Id == GroupId);
-        var Canonical = DiagramGridLayout.CellJointRouteAssignments(Contract, Placed, Horizontal, Nominated).ToArray();
+        DiagramGridLayout.CellJointRouteCandidate[] Canonical = [.. DiagramGridLayout.CellJointRouteAssignments(Contract, Placed, Horizontal, Nominated)];
         Assert.That(Aliased.Select(Option => Option.Key).Order(),
             Is.EqualTo(Canonical.Select(Option => Option.Key).Order()));
-        Assert.That(Grid.Capture().Regions.Keys, Is.EquivalentTo(new[] { "a", "b", "c" }));
+        Assert.That(Grid.Capture().Regions.Keys, Is.EquivalentTo(["a", "b", "c"]));
         Assert.Throws<ArgumentException>(() => DiagramGridLayout.CellJointRouteAssignments(
             Contract, [.. Placed, Placed[0]], Horizontal, Nominated).ToArray(),
             "A repeated physical owner must still fail instead of being merged.");

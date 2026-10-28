@@ -10,7 +10,7 @@ public sealed class FlowchartCellPartnerGapTests
     [Test]
     public void GrowsExternalChannelWithoutMovingReservations()
     {
-        var (Blocks, Nodes, Grid) = Fixture(); var Before = Grid.Capture();
+        (List<FlowchartPartnerRankLayout.Partners>? Blocks, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartPartnerRankLayout.GrowCellGaps(new(), Nodes, [], Blocks, false), Is.True);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
         Assert.That(Grid.Capture().RowGaps[0], Is.GreaterThan(Grid.Configuration.RowGap));
@@ -22,9 +22,9 @@ public sealed class FlowchartCellPartnerGapTests
     [Test]
     public void HintedGapParticipantRejectsAllGrowth()
     {
-        var (Blocks, Nodes, Grid) = Fixture(); Nodes[^1].PlacementHintLocked = true;
-        var Before = Grid.Capture(); var Frame = new DiagramGridLayout.GridFrame { Id = "sentinel" };
-        var Frames = new List<DiagramGridLayout.GridFrame> { Frame };
+        (List<FlowchartPartnerRankLayout.Partners>? Blocks, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(); Nodes[^1].PlacementHintLocked = true;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); DiagramGridLayout.GridFrame Frame = new DiagramGridLayout.GridFrame { Id = "sentinel" };
+        List<DiagramGridLayout.GridFrame> Frames = [Frame];
         Assert.That(FlowchartPartnerRankLayout.GrowCellGaps(new(), Nodes, Frames, Blocks, false), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That(Frames.Single(), Is.SameAs(Frame));
@@ -34,9 +34,9 @@ public sealed class FlowchartCellPartnerGapTests
     [Test]
     public void SufficientChannelLeavesStateUntouched()
     {
-        var (Blocks, Nodes, Grid) = Fixture();
+        (List<FlowchartPartnerRankLayout.Partners>? Blocks, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Grid.GrowGap(false, 0, 600, 30);
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartPartnerRankLayout.GrowCellGaps(new(), Nodes, [], Blocks, false), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -45,15 +45,18 @@ public sealed class FlowchartCellPartnerGapTests
     /// <returns>Partner demand, bound nodes and parent grid.</returns>
     private static (List<FlowchartPartnerRankLayout.Partners> Blocks, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); var Nodes = new List<DiagramGridLayout.GridNode>();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); List<DiagramGridLayout.GridNode> Nodes = [];
         foreach (string Prefix in new[] { "P", "C" })
-        for (int Index = 0; Index < 3; Index++)
+        {
+            for (int Index = 0; Index < 3; Index++)
         {
             string Id = Prefix + Index; int Row = Prefix == "P" ? 0 : 1;
             Grid.TryPlace(Id, new(Row, Index * 2, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Row }; Node.BindCells(Grid); Nodes.Add(Node);
+                DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Row }; Node.BindCells(Grid); Nodes.Add(Node);
         }
-        return ([new(Nodes.Take(3).ToArray(), Nodes.Skip(3).ToArray(), 18,
+        }
+
+        return ([new([.. Nodes.Take(3)], [.. Nodes.Skip(3)], 18,
             new Dictionary<int, int> { [0] = 0, [1] = 1, [2] = 2 })], Nodes, Grid);
     }
 }

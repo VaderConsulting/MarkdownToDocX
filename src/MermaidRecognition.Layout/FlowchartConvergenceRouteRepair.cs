@@ -22,31 +22,45 @@ internal static class FlowchartConvergenceRouteRepair
     internal static void Apply(FlowchartLayoutResult Layout, DiagramContract Contract,
         HashSet<string>? AttemptedRouteStates = null)
     {
-        if (Layout.EdgeRoutes.Count == 0) return;
+        if (Layout.EdgeRoutes.Count == 0)
+        {
+            return;
+        }
+
         AttemptedRouteStates ??= new(StringComparer.Ordinal);
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds)
             .ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         HashSet<(string Source, string Target)> BlockPairs = CompleteAdjacentRankBlockPairs(Contract, Bounds, Direction);
         FlowchartRouteSpatialIndex Spatial = new(Layout);
-        var ScoreContext = new FlowchartLayoutScore.IncrementalContext(
+        FlowchartLayoutScore.IncrementalContext ScoreContext = new FlowchartLayoutScore.IncrementalContext(
             Contract, Layout, IncludeArrangementCheck: false);
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes.ToList())
         {
             string StateKey = RouteStateKey(Route, Spatial);
-            if (!AttemptedRouteStates.Add(StateKey)) continue;
+            if (!AttemptedRouteStates.Add(StateKey))
+            {
+                continue;
+            }
+
             if (Route.Points.Count < 3 || !Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
                 || !Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target)
                 || IncomingCount(Contract, Route.TargetId) < 2
                 || IsHinted(Contract, Route) || BlockPairs.Contains((Route.SourceId, Route.TargetId))
                 || IsFan(Contract, Bounds, Route, Direction)
                 || Contract.Nodes.Any(Node => (Node.Id == Route.SourceId || Node.Id == Route.TargetId)
-                    && FlowchartDagrePresentation.IsDiamondShape(Node.Shape))) continue;
+                    && FlowchartDagrePresentation.IsDiamondShape(Node.Shape)))
+            {
+                continue;
+            }
 
             (double SourceCross, double SourceFlow, double SourceHalfCross, double SourceHalfFlow) = Axes(Source, Direction);
             (double TargetCross, double TargetFlow, double TargetHalfCross, double TargetHalfFlow) = Axes(Target, Direction);
-            if (Math.Abs(SourceCross - TargetCross) <= EPSILON) continue;
+            if (Math.Abs(SourceCross - TargetCross) <= EPSILON)
+            {
+                continue;
+            }
 
             (double X, double Y) TopCentre = Point(TargetCross, TargetFlow - TargetHalfFlow, Direction);
             bool TopFree = !Layout.EdgeRoutes.Any(Other => Other != Route && Other.TargetId == Route.TargetId
@@ -61,9 +75,12 @@ internal static class FlowchartConvergenceRouteRepair
             (double X, double Y) End = TopFree ? TopCentre : Point(
                 TargetCross + (SourceIsLeft ? -TargetHalfCross : TargetHalfCross), TargetFlow, Direction);
             List<FlowchartLayoutPoint> Candidate = [New(Start), New(Corner), New(End)];
-            if (!Legal(Candidate, Route, Layout, Contract, Bounds, Spatial)) continue;
+            if (!Legal(Candidate, Route, Layout, Contract, Bounds, Spatial))
+            {
+                continue;
+            }
 
-            List<FlowchartLayoutPoint> Original = Route.Points.Select(Copy).ToList();
+            List<FlowchartLayoutPoint> Original = [.. Route.Points.Select(Copy)];
             string OriginalExit = Route.ExitSide;
             string OriginalEntry = Route.EntrySide;
             IReadOnlyCollection<FlowchartLayoutEdgeRoute> BeforeInteractions =
@@ -74,7 +91,7 @@ internal static class FlowchartConvergenceRouteRepair
             Route.ExitSide = TopFree ? CrossSide(!SourceIsLeft, Direction) : DownstreamSide(Direction);
             Route.EntrySide = TopFree ? UpstreamSide(Direction) : CrossSide(SourceIsLeft, Direction);
             HashSet<FlowchartLayoutEdgeRoute> CandidateInteractions =
-                Spatial.QueryRoutes(Candidate, Route).ToHashSet();
+                [.. Spatial.QueryRoutes(Candidate, Route)];
             CandidateInteractions.UnionWith(BeforeInteractions);
             FlowchartLayoutScore.CandidateMeasurement After =
                 ScoreContext.MeasureCandidateSummary(Route, CandidateInteractions);
@@ -82,8 +99,8 @@ internal static class FlowchartConvergenceRouteRepair
                 && (Before.Score.HasValue
                     ? After.Score.HasValue && After.Cost < Before.Cost - 0.001
                     : After.RejectingFaults < Before.RejectingFaults
-                        || After.RejectingFaults == Before.RejectingFaults
-                            && Corners(Candidate) < Corners(Original));
+                        || (After.RejectingFaults == Before.RejectingFaults
+                            && Corners(Candidate) < Corners(Original)));
             if (!Keep)
             {
                 Route.Points.Clear(); Route.Points.AddRange(Original);
@@ -91,7 +108,7 @@ internal static class FlowchartConvergenceRouteRepair
             }
             else
             {
-                HashSet<FlowchartLayoutEdgeRoute> Touched = Spatial.QueryRoutes(Original, Route).ToHashSet();
+                HashSet<FlowchartLayoutEdgeRoute> Touched = [.. Spatial.QueryRoutes(Original, Route)];
                 Touched.UnionWith(CandidateInteractions);
                 ScoreContext.CommitCurrent(Route, Touched);
                 Spatial.ReplaceRoute(Route);
@@ -106,8 +123,14 @@ internal static class FlowchartConvergenceRouteRepair
     {
         int Count = 0;
         for (int Index = 1; Index < Points.Count - 1; Index++)
+        {
             if ((Math.Abs(Points[Index].Y - Points[Index - 1].Y) < EPSILON)
-                != (Math.Abs(Points[Index + 1].Y - Points[Index].Y) < EPSILON)) Count++;
+                != (Math.Abs(Points[Index + 1].Y - Points[Index].Y) < EPSILON))
+            {
+                Count++;
+            }
+        }
+
         return Count;
     }
 
@@ -123,24 +146,40 @@ internal static class FlowchartConvergenceRouteRepair
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartRouteSpatialIndex Spatial)
     {
         if (Points.Count != 3 || Distance(Points[0], Points[1]) + EPSILON < MinimumRun
-            || Distance(Points[1], Points[2]) + EPSILON < MinimumRun) return false;
+            || Distance(Points[1], Points[2]) + EPSILON < MinimumRun)
+        {
+            return false;
+        }
+
         foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
         {
             if (Box.NodeId == Route.SourceId || Box.NodeId == Route.TargetId
                 || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, Route.SourceId)
-                || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, Route.TargetId)) continue;
+                || FlowchartCompoundEndpointHelper.Contains(Contract, Box.NodeId, Route.TargetId))
+            {
+                continue;
+            }
+
             for (int Index = 1; Index < Points.Count; Index++)
+            {
                 if (FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
-                    Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Box)) return false;
+                    Points[Index - 1].X, Points[Index - 1].Y, Points[Index].X, Points[Index].Y, Box))
+                {
+                    return false;
+                }
+            }
         }
-        List<(double X, double Y)> Candidate = Points.Select(Point => (Point.X, Point.Y)).ToList();
-        List<(double X, double Y)> Original = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+        List<(double X, double Y)> Candidate = [.. Points.Select(Point => (Point.X, Point.Y))];
+        List<(double X, double Y)> Original = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
         foreach (FlowchartLayoutEdgeRoute Other in Spatial.QueryRoutes(Points, Route))
         {
-            List<(double X, double Y)> OtherPoints = Other.Points.Select(Point => (Point.X, Point.Y)).ToList();
-            var Before = FlowchartBranchRouteOrder.Intersections(Original, OtherPoints);
-            var After = FlowchartBranchRouteOrder.Intersections(Candidate, OtherPoints);
-            if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + EPSILON) return false;
+            List<(double X, double Y)> OtherPoints = [.. Other.Points.Select(Point => (Point.X, Point.Y))];
+            (int Crossings, double Overlap) Before = FlowchartBranchRouteOrder.Intersections(Original, OtherPoints);
+            (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(Candidate, OtherPoints);
+            if (After.Crossings > Before.Crossings || After.Overlap > Before.Overlap + EPSILON)
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -156,54 +195,72 @@ internal static class FlowchartConvergenceRouteRepair
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds,
         FlowchartLayoutEdgeRoute Route, FlowchartDirection Direction)
     {
-        List<FlowchartLayoutNodeBounds> Out = Contract.Edges.Where(Visible)
+        List<FlowchartLayoutNodeBounds> Out = [.. Contract.Edges.Where(Visible)
             .Where(Edge => Edge.SourceId == Route.SourceId && Bounds.ContainsKey(Edge.TargetId))
-            .Select(Edge => Bounds[Edge.TargetId]).ToList();
+            .Select(Edge => Bounds[Edge.TargetId])];
         // A same-rank peer set is structurally a fan. Preserve it here even
         // when its current placement has not yet reached the expected side;
         // otherwise fixing convergence merely exposes a new fan-side fault.
-        if (Out.Count >= 2 && SameRank(Out, Direction)) return true;
-        List<FlowchartLayoutNodeBounds> In = Contract.Edges.Where(Visible)
+        if (Out.Count >= 2 && SameRank(Out, Direction))
+        {
+            return true;
+        }
+
+        List<FlowchartLayoutNodeBounds> In = [.. Contract.Edges.Where(Visible)
             .Where(Edge => Edge.TargetId == Route.TargetId && Bounds.ContainsKey(Edge.SourceId))
-            .Select(Edge => Bounds[Edge.SourceId]).ToList();
+            .Select(Edge => Bounds[Edge.SourceId])];
         return In.Count >= 2 && SameRank(In, Direction);
     }
 
     private static HashSet<(string Source, string Target)> CompleteAdjacentRankBlockPairs(DiagramContract Contract,
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds> Bounds, FlowchartDirection Direction)
     {
-        var Result = new HashSet<(string, string)>();
-        var Edges = Contract.Edges.Where(Visible)
-            .Where(Edge => Bounds.ContainsKey(Edge.SourceId) && Bounds.ContainsKey(Edge.TargetId)).ToList();
-        List<double> Ranks = Bounds.Values.Select(Box => Math.Round(Axes(Box, Direction).Flow, 3))
-            .Distinct().Order().ToList();
-        var RankIndex = Ranks.Select((Rank, Index) => (Rank, Index)).ToDictionary(Item => Item.Rank, Item => Item.Index);
-        foreach (var RankPair in Edges.GroupBy(Edge =>
+        HashSet<(string, string)> Result = [];
+        List<EdgeContract> Edges = [.. Contract.Edges.Where(Visible).Where(Edge => Bounds.ContainsKey(Edge.SourceId) && Bounds.ContainsKey(Edge.TargetId))];
+        List<double> Ranks = [.. Bounds.Values.Select(Box => Math.Round(Axes(Box, Direction).Flow, 3))
+            .Distinct().Order()];
+        Dictionary<double, int> RankIndex = Ranks.Select((Rank, Index) => (Rank, Index)).ToDictionary(Item => Item.Rank, Item => Item.Index);
+        foreach (IGrouping<(double Source, double Target), EdgeContract> RankPair in Edges.GroupBy(Edge =>
                  (Source: Math.Round(Axes(Bounds[Edge.SourceId], Direction).Flow, 3),
                   Target: Math.Round(Axes(Bounds[Edge.TargetId], Direction).Flow, 3))))
         {
-            if (Math.Abs(RankIndex[RankPair.Key.Source] - RankIndex[RankPair.Key.Target]) != 1) continue;
-            List<(string Source, string Target)> Pairs = RankPair.Select(Edge => (Edge.SourceId, Edge.TargetId)).Distinct().ToList();
-            var RemainingSources = Pairs.Select(Pair => Pair.Source).ToHashSet(StringComparer.Ordinal);
+            if (Math.Abs(RankIndex[RankPair.Key.Source] - RankIndex[RankPair.Key.Target]) != 1)
+            {
+                continue;
+            }
+
+            List<(string Source, string Target)> Pairs = [.. RankPair.Select(Edge => (Edge.SourceId, Edge.TargetId)).Distinct()];
+            HashSet<string> RemainingSources = Pairs.Select(Pair => Pair.Source).ToHashSet(StringComparer.Ordinal);
             while (RemainingSources.Count > 0)
             {
-                var Sources = new HashSet<string>(StringComparer.Ordinal) { RemainingSources.Order(StringComparer.Ordinal).First() };
-                var Targets = new HashSet<string>(StringComparer.Ordinal);
+                HashSet<string> Sources = new HashSet<string>(StringComparer.Ordinal) { RemainingSources.Order(StringComparer.Ordinal).First() };
+                HashSet<string> Targets = new HashSet<string>(StringComparer.Ordinal);
                 bool Changed;
                 do
                 {
                     Changed = false;
                     foreach ((string Source, string Target) in Pairs)
                     {
-                        if (Sources.Contains(Source) && Targets.Add(Target)) Changed = true;
-                        if (Targets.Contains(Target) && Sources.Add(Source)) Changed = true;
+                        if (Sources.Contains(Source) && Targets.Add(Target))
+                        {
+                            Changed = true;
+                        }
+
+                        if (Targets.Contains(Target) && Sources.Add(Source))
+                        {
+                            Changed = true;
+                        }
                     }
                 } while (Changed);
                 RemainingSources.ExceptWith(Sources);
                 int Present = Pairs.Count(Pair => Sources.Contains(Pair.Source) && Targets.Contains(Pair.Target));
                 if (Sources.Count >= 2 && Targets.Count >= 2 && Present == Sources.Count * Targets.Count)
-                    foreach (var Pair in Pairs.Where(Pair => Sources.Contains(Pair.Source) && Targets.Contains(Pair.Target)))
+                {
+                    foreach ((string Source, string Target) Pair in Pairs.Where(Pair => Sources.Contains(Pair.Source) && Targets.Contains(Pair.Target)))
+                    {
                         Result.Add(Pair);
+                    }
+                }
             }
         }
         return Result;

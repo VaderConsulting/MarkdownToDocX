@@ -61,12 +61,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.ConeSpanner {
 #if SHARPKIT //https://github.com/SharpKit/SharpKit/issues/4 integer rounding issue
             return ((int)((2 * Math.PI - coneAngle / 2) / coneAngle)) + 1;
 #else
-            (int)((2 * Math.PI - coneAngle / 2) / coneAngle) + 1;
+            (int)(((2 * Math.PI) - (coneAngle / 2)) / coneAngle) + 1;
 #endif
 
 
         protected override void RunInternal() {
-            double offset =  2*Math.PI - coneAngle/2;
+            double offset =  (2*Math.PI) - (coneAngle/2);
             if (!Bidirectional) {
                 double angle;
                 for (int i = 0; (angle = coneAngle*i) <= offset; i++) {

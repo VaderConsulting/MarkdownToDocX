@@ -12,11 +12,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
-            PropertyChangedEventHandler? handler = PropertyChanged;
-            if (handler != null)
-            {
-                handler(this, new PropertyChangedEventArgs(propertyName));
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
          bool _isVisible;
@@ -105,11 +101,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
         //[NotifyPropertyChangedInvocator]
         protected virtual void OnPropertyChanged(string propertyName = null)//[CallerMemberName]
         {
-            PropertyChangedEventHandler? handler = PropertyChanged;
-            if (handler != null)
-            {
-                handler(this, new PropertyChangedEventArgs(propertyName));
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 
@@ -133,11 +125,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
         //[NotifyPropertyChangedInvocator]
         protected virtual void OnPropertyChanged(string propertyName = null)//[CallerMemberName]
         {
-            PropertyChangedEventHandler? handler = PropertyChanged;
-            if (handler != null)
-            {
-                handler(this, new PropertyChangedEventArgs(propertyName));
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 
@@ -161,11 +149,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout
         //[NotifyPropertyChangedInvocator]
         protected virtual void OnPropertyChanged(string propertyName = null)//[CallerMemberName]
         {
-            PropertyChangedEventHandler? handler = PropertyChanged;
-            if (handler != null)
-            {
-                handler(this, new PropertyChangedEventArgs(propertyName));
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

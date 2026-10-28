@@ -191,9 +191,12 @@ public static class FlowchartRouteObstacleHelper
         double InsetPx = 2.0)
     {
         if (NodeBounds.Geometry is { } Geometry)
+        {
             return Geometry.ObstacleGeometry.IntersectsSegmentInterior(
                 StartX - NodeBounds.CenterX, NodeBounds.CenterY - StartY,
                 EndX - NodeBounds.CenterX, NodeBounds.CenterY - EndY);
+        }
+
         double Left = NodeBounds.CenterX - (NodeBounds.Width / 2.0) + InsetPx;
         double Right = NodeBounds.CenterX + (NodeBounds.Width / 2.0) - InsetPx;
         double Top = NodeBounds.CenterY + (NodeBounds.Height / 2.0) - InsetPx;

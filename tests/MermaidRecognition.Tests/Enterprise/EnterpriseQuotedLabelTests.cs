@@ -11,7 +11,7 @@ public sealed class EnterpriseQuotedLabelTests
     public void Comments_RespectQuotedLabelsAndEscapesAcrossStatementKinds(string Raw, string Expected)
     {
         string Source = $"enterprise\n group g \"{Raw}\" %% ignored\n application-component a \"{Raw}\" in g %% ignored\n application-component b \"Target\"\n a -flow-> b \"{Raw}\" %% ignored";
-        var Result = EnterpriseParser.ParseDocument(Source);
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument(Source);
         Assert.That(Result.HasErrors, Is.False, string.Join("; ", Result.Diagnostics.Select(Diagnostic => Diagnostic.Message)));
         Assert.That(Result.Document.Groups["g"].Label, Is.EqualTo(Expected));
         Assert.That(Result.Document.Elements["a"].Label, Is.EqualTo(Expected));
@@ -21,7 +21,7 @@ public sealed class EnterpriseQuotedLabelTests
     [Test]
     public void TitleComment_StartsAtPercentPairEvenInsideTitleQuotes()
     {
-        var Result = EnterpriseParser.ParseDocument("enterprise\n title A \"quoted %% trailing comment\"\n application-component a \"Value %% retained\"");
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("enterprise\n title A \"quoted %% trailing comment\"\n application-component a \"Value %% retained\"");
         Assert.That(Result.HasErrors, Is.False);
         Assert.That(Result.Document.Title, Is.EqualTo("A \"quoted"));
         Assert.That(Result.Document.Elements["a"].Label, Is.EqualTo("Value %% retained"));

@@ -291,7 +291,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
         // ReSharper disable UnusedMember.Local
         void DrawActiveEdgesAndVisibleGraph() {
             // ReSharper restore UnusedMember.Local
-            List<ICurve> l = new List<ICurve>();
+            List<ICurve> l = [];
             foreach (VisibilityEdge pe in visibilityGraph.Edges)
             {
                 l.Add(new LineSegment(pe.SourcePoint, pe.TargetPoint));
@@ -305,7 +305,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             l.Add(new Ellipse(0.1, 0.1, q));
 
 
-            LayoutAlgorithmSettings.Show(l.ToArray());
+            LayoutAlgorithmSettings.Show([.. l]);
         }
 #endif
 

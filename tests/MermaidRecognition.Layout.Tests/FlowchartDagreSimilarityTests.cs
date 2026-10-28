@@ -27,7 +27,7 @@ public sealed class FlowchartDagreSimilarityTests
         string ReferencePath = FindRepoFile(Path.Combine("DagreReference", "reference.json"));
         string SourcePath = FindRepoFile(Path.Combine("DagreReference", "sources.json"));
         Dictionary<string, string> Sources = ReadSources(SourcePath);
-        List<DiagramComparison> Comparisons = new List<DiagramComparison>();
+        List<DiagramComparison> Comparisons = [];
         using (JsonDocument Document = JsonDocument.Parse(File.ReadAllText(ReferencePath)))
         {
             foreach (JsonElement Element in Document.RootElement.EnumerateArray())
@@ -138,7 +138,7 @@ public sealed class FlowchartDagreSimilarityTests
 
         bool Horizontal = IsHorizontal(Contract.Direction);
         List<PlacedNode> ReferenceNodes = ReadNodes(Reference);
-        List<PlacedNode> OurNodes = new List<PlacedNode>();
+        List<PlacedNode> OurNodes = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Layout.NodeBounds)
         {
             OurNodes.Add(new PlacedNode
@@ -209,7 +209,7 @@ public sealed class FlowchartDagreSimilarityTests
 
     private static List<PlacedNode> ReadNodes(JsonElement Reference)
     {
-        List<PlacedNode> Nodes = new List<PlacedNode>();
+        List<PlacedNode> Nodes = [];
         foreach (JsonElement Node in Reference.GetProperty("nodes").EnumerateArray())
         {
             Nodes.Add(new PlacedNode
@@ -243,8 +243,8 @@ public sealed class FlowchartDagreSimilarityTests
             return LeftCross.CompareTo(RightCross);
         });
 
-        List<List<string>> Ranks = new List<List<string>>();
-        List<PlacedNode> Current = new List<PlacedNode>();
+        List<List<string>> Ranks = [];
+        List<PlacedNode> Current = [];
         foreach (PlacedNode Node in Ordered)
         {
             if (Current.Count == 0)
@@ -262,7 +262,7 @@ public sealed class FlowchartDagreSimilarityTests
             else
             {
                 Ranks.Add(IdsInOrder(Current, Horizontal));
-                Current = new List<PlacedNode> { Node };
+                Current = [Node];
             }
         }
 
@@ -283,7 +283,7 @@ public sealed class FlowchartDagreSimilarityTests
             double RightCross = Horizontal ? Right.Y : Right.X;
             return LeftCross.CompareTo(RightCross);
         });
-        List<string> Ids = new List<string>();
+        List<string> Ids = [];
         foreach (PlacedNode Node in Ordered)
         {
             Ids.Add(Node.Id);
@@ -514,7 +514,7 @@ public sealed class FlowchartDagreSimilarityTests
         }
 
         List<Polyline> ReferenceEdges = ReadEdges(Reference, ReferenceNodes);
-        List<Polyline> OurEdges = new List<Polyline>();
+        List<Polyline> OurEdges = [];
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             Polyline Line = new Polyline
@@ -683,7 +683,7 @@ public sealed class FlowchartDagreSimilarityTests
     {
         List<Polyline> ReferenceEdges = ReadEdges(Reference, ReferenceNodes);
         ReferenceCrossings = CountCrossings(ReferenceEdges);
-        List<Polyline> OurEdges = new List<Polyline>();
+        List<Polyline> OurEdges = [];
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             Polyline Line = new Polyline
@@ -783,7 +783,7 @@ public sealed class FlowchartDagreSimilarityTests
 
     private static List<Polyline> ReadEdges(JsonElement Reference, List<PlacedNode> ReferenceNodes)
     {
-        List<Polyline> Edges = new List<Polyline>();
+        List<Polyline> Edges = [];
         foreach (JsonElement Edge in Reference.GetProperty("edges").EnumerateArray())
         {
             Polyline Line = new Polyline();
@@ -814,7 +814,7 @@ public sealed class FlowchartDagreSimilarityTests
 
     private static List<PlacedNode> ReadClusters(JsonElement Reference)
     {
-        List<PlacedNode> Clusters = new List<PlacedNode>();
+        List<PlacedNode> Clusters = [];
         foreach (JsonElement Cluster in Reference.GetProperty("clusters").EnumerateArray())
         {
             string Id = Cluster.GetProperty("id").GetString() ?? string.Empty;
@@ -1099,8 +1099,8 @@ public sealed class FlowchartDagreSimilarityTests
     private static double WorstCentreOffset(List<PlacedNode> ReferenceNodes, List<PlacedNode> OurNodes)
     {
         Dictionary<string, PlacedNode> Ours = Index(OurNodes);
-        List<PlacedNode> Reference = new List<PlacedNode>();
-        List<PlacedNode> OursAligned = new List<PlacedNode>();
+        List<PlacedNode> Reference = [];
+        List<PlacedNode> OursAligned = [];
         foreach (PlacedNode Node in ReferenceNodes)
         {
             if (!Ours.TryGetValue(Node.Id, out PlacedNode? Match))
@@ -1323,6 +1323,6 @@ public sealed class FlowchartDagreSimilarityTests
 
         public bool Used { get; set; }
 
-        public List<PlacedNode> Points { get; } = new List<PlacedNode>();
+        public List<PlacedNode> Points { get; } = [];
     }
 }

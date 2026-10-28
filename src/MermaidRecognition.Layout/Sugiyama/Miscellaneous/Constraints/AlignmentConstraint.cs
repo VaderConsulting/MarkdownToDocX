@@ -16,7 +16,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Constraints
     /// </remarks>
     /// <param name="nodes"></param>
     public class AlignmentConstraint(IEnumerable<Node> nodes) : IConstraint {
-        List<Node> nodes = nodes.ToList();
+        List<Node> nodes = [.. nodes];
 
         void leastSquaresLineFit(out double a, out double b) {
             double mx = 0, my = 0, sx2 = 0, sy2 = 0, sxy=0, n = nodes.Count;
@@ -30,10 +30,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Constraints
             }
             mx /= n;
             my /= n;
-            double B = 0.5*((sy2 - n * my * my) - (sx2 - n * mx * mx)) / (n * mx * my - sxy);
-            b = Math.Sqrt(B * B + 1) - B;
+            double B = 0.5*((sy2 - (n * my * my)) - (sx2 - (n * mx * mx))) / ((n * mx * my) - sxy);
+            b = Math.Sqrt((B * B) + 1) - B;
             //b = - Math.Sqrt(B * B + 1) - B;
-            a = my - b * mx;
+            a = my - (b * mx);
         }
 
         #region IConstraint Members
@@ -47,8 +47,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Constraints
             // project to the line y = a + b x
             foreach (Node v in nodes) {
                 double x0 = v.Center.X, y0 = v.Center.Y;
-                double x = (b * y0 + x0 ) / (b * b + 1.0);
-                double y = a + b * x;
+                double x = ((b * y0) + x0 ) / ((b * b) + 1.0);
+                double y = a + (b * x);
                 Point p = new Point(x, y);
                 d = (v.Center - p).Length;
                 v.Center = p;

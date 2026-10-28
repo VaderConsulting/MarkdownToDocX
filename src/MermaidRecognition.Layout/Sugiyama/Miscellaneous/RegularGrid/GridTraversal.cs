@@ -98,7 +98,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.RegularGrid
 
         public List<string> SplitTileNameOnDirectories(int ix, int iy) {
             List<string> ret = [];
-            ulong tileIndex = (ulong) iy*_numberOfTilesOnSide + (ulong) ix;
+            ulong tileIndex = ((ulong) iy*_numberOfTilesOnSide) + (ulong) ix;
             const ulong maxInDirectory = 500; // there will be no more than 500 files in each sub-directory
             do {
                 if (tileIndex < maxInDirectory) {
@@ -106,7 +106,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.RegularGrid
                     break;
                 }
                 ulong k = tileIndex/maxInDirectory;
-                ulong remainder = tileIndex - k*maxInDirectory;
+                ulong remainder = tileIndex - (k*maxInDirectory);
                 ret.Add(remainder.ToString());
                 tileIndex = k;
             } while (true);
@@ -115,6 +115,6 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.RegularGrid
             return ret;
         }
 
-        public Point GetTileCenter(int ix, int iy) => _boundingBox.LeftBottom + new Point(ix * TileWidth + 0.5 * TileWidth, iy * TileHeight + 0.5 * TileHeight);
+        public Point GetTileCenter(int ix, int iy) => _boundingBox.LeftBottom + new Point((ix * TileWidth) + (0.5 * TileWidth), (iy * TileHeight) + (0.5 * TileHeight));
     }
 }

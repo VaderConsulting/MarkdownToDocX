@@ -135,7 +135,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
         /// <summary>
         /// color strings for debugging
         /// </summary>
-        public static readonly string[] Colors = {
+        public static readonly string[] Colors = [
                                 "DeepSkyBlue", "IndianRed", "Orange", "Gold", "DarkRed", "Plum",
                                                        "Red", "Violet", "Indigo", "Yellow", "OrangeRed", "Tomato", "Purple"
                                                        , "SaddleBrown", "Green", "Navy", "Aqua", "Pink", "Bisque", "Black",
@@ -165,7 +165,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers {
                                                        "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Transparent",
                                                        "Turquoise", "Aquamarine", "Azure", "Beige", "Wheat", "White",
                                                        "WhiteSmoke", "YellowGreen", "Khaki", "AntiqueWhite"
-                          };
+                          ];
 
         ///<summary>
         /// the pattern of dashes

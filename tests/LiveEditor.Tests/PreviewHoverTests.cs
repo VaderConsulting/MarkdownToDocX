@@ -214,9 +214,11 @@ public sealed class PreviewHoverTests
         Source.Append("direction TB\r\n");
         Source.Append("group box \"Box\" {\r\n}\r\n");
         Source.Append("note margin \"Note\" below box\r\n");
-        Dictionary<string, string> ExpectedById = new Dictionary<string, string>(StringComparer.Ordinal);
-        ExpectedById["box"] = "Box is a grouping";
-        ExpectedById["margin"] = "Note is a note";
+        Dictionary<string, string> ExpectedById = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["box"] = "Box is a grouping",
+            ["margin"] = "Note is a note"
+        };
         string PreviousId = "margin";
         int Number = 0;
         foreach (EnterpriseElementMetadata Metadata in EnterpriseElementCatalog.Elements.Values)
@@ -398,7 +400,7 @@ public sealed class PreviewHoverTests
             int Start = Path + " d=\"M".Length;
             int End = Body.IndexOf('"', Start);
             string Data = Body.Substring(Start, End - Start);
-            string[] Parts = Data.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] Parts = Data.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
             if (Parts.Length >= 2)
             {
                 double.TryParse(Parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out CentreX);

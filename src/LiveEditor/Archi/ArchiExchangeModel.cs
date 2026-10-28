@@ -15,11 +15,11 @@ internal sealed class ArchiExchangeModel
 
     private string _Version = EnterpriseParser.DEFAULT_VERSION;
 
-    private readonly List<ArchiExchangeElement> _Elements = new List<ArchiExchangeElement>();
+    private readonly List<ArchiExchangeElement> _Elements = [];
 
-    private readonly List<ArchiExchangeRelationship> _Relationships = new List<ArchiExchangeRelationship>();
+    private readonly List<ArchiExchangeRelationship> _Relationships = [];
 
-    private readonly List<string> _Warnings = new List<string>();
+    private readonly List<string> _Warnings = [];
 
     /// <summary>Gets or sets the Archi model display name.</summary>
     public string ModelName

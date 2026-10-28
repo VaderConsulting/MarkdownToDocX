@@ -25,23 +25,23 @@ public static partial class DiagramGridLayout
     internal static IEnumerable<CellJointRouteCandidate> CellJointRouteAssignments(DiagramContract Contract,
         List<GridNode> Placed, bool Horizontal, IReadOnlySet<string> Nominated)
     {
-        var Before = FlowchartCellRepair.Capture(Placed);
-        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge)
-            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)).ToArray();
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Placed);
+        IReadOnlySet<EdgeContract> Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        EdgeContract[] Edges = [.. Contract.Edges.Where(Edge => !Back.Contains(Edge)
+            && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
         // Recognition retains a node-shaped alias when a link names a group.
         // Dagre deliberately gives that identity only a cluster, not a placed
         // leaf. Build leaf units from actual cell owners, then add each group
         // envelope once. Keep ToDictionary strict for real ownership defects.
-        var Units = Placed.Select(Node => Node.Id).Concat(Contract.Groups.Select(Group => Group.Id))
+        Dictionary<string, GridNode[]> Units = Placed.Select(Node => Node.Id).Concat(Contract.Groups.Select(Group => Group.Id))
             .ToDictionary(Id => Id, Id => Placed.Where(Node => Node.Id == Id || IsInsideGroup(Contract, Node.Id, Id)).ToArray(), StringComparer.Ordinal);
-        var Incoming = Edges.GroupBy(Edge => Edge.TargetId).ToDictionary(Group => Group.Key,
+        Dictionary<string, string[]> Incoming = Edges.GroupBy(Edge => Edge.TargetId).ToDictionary(Group => Group.Key,
             Group => Group.Select(Edge => Edge.SourceId).Distinct(StringComparer.Ordinal).ToArray(), StringComparer.Ordinal);
-        var Outgoing = Edges.GroupBy(Edge => Edge.SourceId).ToDictionary(Group => Group.Key,
+        Dictionary<string, string[]> Outgoing = Edges.GroupBy(Edge => Edge.SourceId).ToDictionary(Group => Group.Key,
             Group => Group.Select(Edge => Edge.TargetId).Distinct(StringComparer.Ordinal).ToArray(), StringComparer.Ordinal);
-        var Families = new List<List<CellJointRouteCandidate>>();
-        var Seen = new HashSet<string>(StringComparer.Ordinal);
-        var UnitRegions = Units.Where(Pair => Pair.Value.Length != 0).ToDictionary(Pair => Pair.Key,
+        List<List<CellJointRouteCandidate>> Families = [];
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, FlowchartCellRegion> UnitRegions = Units.Where(Pair => Pair.Value.Length != 0).ToDictionary(Pair => Pair.Key,
             Pair => CellRouteEnvelope(Pair.Value.Select(Node => Before.Regions[Node.Id]).ToArray()), StringComparer.Ordinal);
         foreach (string Root in Units.Keys.Where(Id => Units[Id].Length != 0 && Nominated.Contains(Id))
             .OrderBy(Id => CellSourceOrder(Contract, UnitRegions, Id, Horizontal)))
@@ -51,105 +51,171 @@ public static partial class DiagramGridLayout
             List<CellJointRouteCandidate>? FanTranslations = null;
             if (Arms.Length > 1)
             {
-                var Fan = new HashSet<string>(StringComparer.Ordinal) { Root };
+                HashSet<string> Fan = new HashSet<string>(StringComparer.Ordinal) { Root };
                 foreach (string Arm in Arms)
+                {
                     Fan.UnionWith(JointLinearPath(Arm, Incoming, Outgoing, Units));
-                var Members = Fan.Where(Units.ContainsKey).SelectMany(Id => Units[Id]).Distinct().ToArray();
-                var Options = new List<CellJointRouteCandidate>();
-                var RootRegion = CellRouteEnvelope(Units[Root].Select(Node => Before.Regions[Node.Id]).ToArray());
-                var FanRegion = CellRouteEnvelope(Members.Select(Node => Before.Regions[Node.Id]).ToArray());
-                var MemberIds = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+                }
+
+                GridNode[] Members = [.. Fan.Where(Units.ContainsKey).SelectMany(Id => Units[Id]).Distinct()];
+                List<CellJointRouteCandidate> Options = [];
+                FlowchartCellRegion RootRegion = CellRouteEnvelope(Units[Root].Select(Node => Before.Regions[Node.Id]).ToArray());
+                FlowchartCellRegion FanRegion = CellRouteEnvelope(Members.Select(Node => Before.Regions[Node.Id]).ToArray());
+                HashSet<string> MemberIds = Members.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
                 bool InteractsOutside = Edges.Any(Edge => Fan.Contains(Edge.SourceId) != Fan.Contains(Edge.TargetId))
                     || Placed.Any(Node => !MemberIds.Contains(Node.Id) && FanRegion.Overlaps(Before.Regions[Node.Id]));
-                var Deltas = new List<(int Rows, int Columns)>();
-                foreach (var Edge in Edges.Where(Edge => Fan.Contains(Edge.SourceId) != Fan.Contains(Edge.TargetId)))
+                List<(int Rows, int Columns)> Deltas = [];
+                foreach (EdgeContract? Edge in Edges.Where(Edge => Fan.Contains(Edge.SourceId) != Fan.Contains(Edge.TargetId)))
                 {
                     string Peer = Fan.Contains(Edge.SourceId) ? Edge.TargetId : Edge.SourceId;
-                    if (!Units.TryGetValue(Peer, out var PeerNodes) || PeerNodes.Length == 0) continue;
-                    var PeerRegion = CellRouteEnvelope(PeerNodes.Select(Node => Before.Regions[Node.Id]).ToArray());
+                    if (!Units.TryGetValue(Peer, out GridNode[]? PeerNodes) || PeerNodes.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    FlowchartCellRegion PeerRegion = CellRouteEnvelope(PeerNodes.Select(Node => Before.Regions[Node.Id]).ToArray());
                     int Delta = Horizontal ? PeerRegion.StartRow - RootRegion.StartRow : PeerRegion.StartColumn - RootRegion.StartColumn;
                     Deltas.Add(Horizontal ? (Delta, 0) : (0, Delta));
                 }
                 for (int Distance = 1; Distance <= FlowchartLayoutRules.RepairCandidateMoves; Distance++)
+                {
                     Deltas.AddRange([(-Distance, 0), (Distance, 0), (0, -Distance), (0, Distance)]);
+                }
                 // Translating an isolated, unobstructed whole component cannot
                 // straighten any relative terminal. Keep budget for assignments
                 // that can change its routes instead of compacting it by origin.
-                foreach (var Delta in Deltas.Where(Delta => InteractsOutside && Delta != (0, 0)).Distinct())
+                foreach ((int Rows, int Columns) Delta in Deltas.Where(Delta => InteractsOutside && Delta != (0, 0)).Distinct())
                 {
-                    var Targets = Members.ToDictionary(Node => Node.Id, Node => FlowchartCellRepair.Translate(
+                    Dictionary<string, FlowchartCellRegion> Targets = Members.ToDictionary(Node => Node.Id, Node => FlowchartCellRepair.Translate(
                         Before.Regions[Node.Id], Delta.Rows, Delta.Columns), StringComparer.Ordinal);
-                    var Option = PrepareJointCellOption("fan", Root, Targets, Contract, Placed, Before, Seen);
-                    if (Option != null) Options.Add(Option);
-                    if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                    CellJointRouteCandidate? Option = PrepareJointCellOption("fan", Root, Targets, Contract, Placed, Before, Seen);
+                    if (Option != null)
+                    {
+                        Options.Add(Option);
+                    }
+
+                    if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves)
+                    {
+                        break;
+                    }
                 }
-                if (Options.Count != 0) FanTranslations = Options;
+                if (Options.Count != 0)
+                {
+                    FanTranslations = Options;
+                }
             }
 
             // A nominated middle node extends to its unique predecessor as well
             // as its output tail. Parallel links do not split a logical chain.
-            var Prefix = new HashSet<string>(StringComparer.Ordinal) { Root };
+            HashSet<string> Prefix = new HashSet<string>(StringComparer.Ordinal) { Root };
             string First = Root;
             while (Incoming.TryGetValue(First, out var Parents) && Parents.Length == 1
                 && Outgoing.TryGetValue(Parents[0], out var Children) && Children.Length == 1
-                && Units.ContainsKey(Parents[0]) && Prefix.Add(Parents[0])) First = Parents[0];
-            var Chain = JointLinearPath(First, Incoming, Outgoing, Units);
+                && Units.ContainsKey(Parents[0]) && Prefix.Add(Parents[0]))
+            {
+                First = Parents[0];
+            }
+
+            IReadOnlyList<string> Chain = JointLinearPath(First, Incoming, Outgoing, Units);
             AddHintedChain(Root, Chain);
             AddAlignments("chain", Root, Chain);
             if (Chain.Count > 1 && First != Root)
             {
                 // The straight prefix was not nominated by its own line. Keep
                 // it with the bent tail instead of moving that tail in isolation.
-                var Members = Chain.SelectMany(Id => Units[Id]).Distinct().ToArray();
-                var ChainIds = Chain.ToHashSet(StringComparer.Ordinal);
-                var Deltas = new List<(int Rows, int Columns)>();
-                foreach (var Edge in Edges.Where(Edge => ChainIds.Contains(Edge.SourceId) != ChainIds.Contains(Edge.TargetId)))
+                GridNode[] Members = [.. Chain.SelectMany(Id => Units[Id]).Distinct()];
+                HashSet<string> ChainIds = Chain.ToHashSet(StringComparer.Ordinal);
+                List<(int Rows, int Columns)> Deltas = [];
+                foreach (EdgeContract? Edge in Edges.Where(Edge => ChainIds.Contains(Edge.SourceId) != ChainIds.Contains(Edge.TargetId)))
                 {
                     string Inside = ChainIds.Contains(Edge.SourceId) ? Edge.SourceId : Edge.TargetId;
                     string Outside = ChainIds.Contains(Edge.SourceId) ? Edge.TargetId : Edge.SourceId;
-                    if (!UnitRegions.TryGetValue(Inside, out var From) || !UnitRegions.TryGetValue(Outside, out var To)) continue;
+                    if (!UnitRegions.TryGetValue(Inside, out FlowchartCellRegion? From) || !UnitRegions.TryGetValue(Outside, out FlowchartCellRegion? To))
+                    {
+                        continue;
+                    }
+
                     int Delta = Horizontal ? To.StartRow - From.StartRow : To.StartColumn - From.StartColumn;
                     Deltas.Add(Horizontal ? (Delta, 0) : (0, Delta));
                 }
                 if (Deltas.Count != 0)
                 {
                     for (int Distance = 1; Distance <= FlowchartLayoutRules.RepairCandidateMoves; Distance++)
-                        Deltas.AddRange([(-Distance, 0), (Distance, 0), (0, -Distance), (0, Distance)]);
-                    var Translations = new List<CellJointRouteCandidate>();
-                    foreach (var Delta in Deltas.Where(Delta => Delta != (0, 0)).Distinct())
                     {
-                        var Targets = Members.ToDictionary(Node => Node.Id,
-                            Node => FlowchartCellRepair.Translate(Before.Regions[Node.Id], Delta.Rows, Delta.Columns), StringComparer.Ordinal);
-                        var Option = PrepareJointCellOption("chain-move", Root, Targets, Contract, Placed, Before, Seen);
-                        if (Option != null) Translations.Add(Option);
-                        if (Translations.Count >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                        Deltas.AddRange([(-Distance, 0), (Distance, 0), (0, -Distance), (0, Distance)]);
                     }
-                    if (Translations.Count != 0) Families.Add(Translations);
+
+                    List<CellJointRouteCandidate> Translations = [];
+                    foreach ((int Rows, int Columns) Delta in Deltas.Where(Delta => Delta != (0, 0)).Distinct())
+                    {
+                        Dictionary<string, FlowchartCellRegion> Targets = Members.ToDictionary(Node => Node.Id,
+                            Node => FlowchartCellRepair.Translate(Before.Regions[Node.Id], Delta.Rows, Delta.Columns), StringComparer.Ordinal);
+                        CellJointRouteCandidate? Option = PrepareJointCellOption("chain-move", Root, Targets, Contract, Placed, Before, Seen);
+                        if (Option != null)
+                        {
+                            Translations.Add(Option);
+                        }
+
+                        if (Translations.Count >= FlowchartLayoutRules.RepairCandidateMoves)
+                        {
+                            break;
+                        }
+                    }
+                    if (Translations.Count != 0)
+                    {
+                        Families.Add(Translations);
+                    }
                 }
             }
             // A fork's root and one whole arm may move together without forcing
             // every sibling onto one column. The final score includes siblings.
             foreach (string Arm in Arms)
+            {
                 AddAlignments("fan-arm", Root, new[] { Root }.Concat(JointLinearPath(Arm, Incoming, Outgoing, Units)).ToArray());
-            if (FanTranslations != null) Families.Add(FanTranslations);
+            }
+
+            if (FanTranslations != null)
+            {
+                Families.Add(FanTranslations);
+            }
         }
         for (int Index = 0; Index < FlowchartLayoutRules.RepairCandidateMoves; Index++)
-            foreach (var Family in Families) if (Index < Family.Count) yield return Family[Index];
+        {
+            foreach (List<CellJointRouteCandidate> Family in Families)
+            {
+                if (Index < Family.Count)
+                {
+                    yield return Family[Index];
+                }
+            }
+        }
 
         void AddHintedChain(string Root, IReadOnlyList<string> Path)
         {
-            if (Path.Count < 2) return;
-            var Relative = new Dictionary<string, (int Row, int Column)>(StringComparer.Ordinal) { [Path[0]] = (0, 0) };
+            if (Path.Count < 2)
+            {
+                return;
+            }
+
+            Dictionary<string, (int Row, int Column)> Relative = new Dictionary<string, (int Row, int Column)>(StringComparer.Ordinal) { [Path[0]] = (0, 0) };
             for (int Index = 1; Index < Path.Count; Index++)
             {
-                var Links = Edges.Where(Edge => Edge.SourceId == Path[Index - 1] && Edge.TargetId == Path[Index]).ToArray();
+                EdgeContract[] Links = [.. Edges.Where(Edge => Edge.SourceId == Path[Index - 1] && Edge.TargetId == Path[Index])];
                 if (Links.Length != 1 || Links[0].RoutingHint is not { IsActive: true, Travel: null } Hint
-                    || !Hint.Leave.HasValue && !Hint.Enter.HasValue) return;
+                    || (!Hint.Leave.HasValue && !Hint.Enter.HasValue))
+                {
+                    return;
+                }
+
                 string Enter = Hint.Enter.HasValue ? HintSide(Hint.Enter.Value) : string.Empty;
                 string Side = Hint.Leave.HasValue ? HintSide(Hint.Leave.Value)
                     : Enter switch { "left" => "right", "right" => "left", "top" => "bottom", _ => "top" };
-                if (Enter.Length != 0 && Enter != (Side switch { "left" => "right", "right" => "left", "top" => "bottom", _ => "top" })) return;
-                var Previous = Relative[Path[Index - 1]]; var Source = UnitRegions[Path[Index - 1]]; var Target = UnitRegions[Path[Index]];
+                if (Enter.Length != 0 && Enter != (Side switch { "left" => "right", "right" => "left", "top" => "bottom", _ => "top" }))
+                {
+                    return;
+                }
+
+                (int Row, int Column) Previous = Relative[Path[Index - 1]]; FlowchartCellRegion Source = UnitRegions[Path[Index - 1]]; FlowchartCellRegion Target = UnitRegions[Path[Index]];
                 Relative[Path[Index]] = Side switch
                 {
                     "top" => (Previous.Row - Target.RowSpan, Previous.Column),
@@ -158,7 +224,7 @@ public static partial class DiagramGridLayout
                     _ => (Previous.Row, Previous.Column + Source.ColumnSpan)
                 };
             }
-            var Options = new List<CellJointRouteCandidate>();
+            List<CellJointRouteCandidate> Options = [];
             // Every anchor is an existing starting cell. This proposes the
             // complete chain in its declared terminal directions, never a
             // centre nudge or an edited routing/placement hint.
@@ -166,21 +232,42 @@ public static partial class DiagramGridLayout
             {
                 int Rows = UnitRegions[Anchor].StartRow - Relative[Anchor].Row;
                 int Columns = UnitRegions[Anchor].StartColumn - Relative[Anchor].Column;
-                var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal); bool Consistent = true;
+                Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal); bool Consistent = true;
                 foreach (string Id in Path)
-                foreach (var Node in Units[Id])
                 {
-                    var Target = FlowchartCellRepair.Translate(Before.Regions[Node.Id], Relative[Id].Row + Rows - UnitRegions[Id].StartRow,
+                    foreach (GridNode? Node in Units[Id])
+                {
+                        FlowchartCellRegion Target = FlowchartCellRepair.Translate(Before.Regions[Node.Id], Relative[Id].Row + Rows - UnitRegions[Id].StartRow,
                         Relative[Id].Column + Columns - UnitRegions[Id].StartColumn);
-                    if (Targets.TryGetValue(Node.Id, out var Existing) && Existing != Target) Consistent = false;
-                    Targets[Node.Id] = Target;
+                    if (Targets.TryGetValue(Node.Id, out FlowchartCellRegion? Existing) && Existing != Target)
+                        {
+                            Consistent = false;
+                        }
+
+                        Targets[Node.Id] = Target;
                 }
-                if (!Consistent) continue;
-                var Option = PrepareJointCellOption("hint-chain", Root, Targets, Contract, Placed, Before, Seen);
-                if (Option != null) Options.Add(Option);
-                if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                }
+
+                if (!Consistent)
+                {
+                    continue;
+                }
+
+                CellJointRouteCandidate? Option = PrepareJointCellOption("hint-chain", Root, Targets, Contract, Placed, Before, Seen);
+                if (Option != null)
+                {
+                    Options.Add(Option);
+                }
+
+                if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves)
+                {
+                    break;
+                }
             }
-            if (Options.Count != 0) Families.Add(Options);
+            if (Options.Count != 0)
+            {
+                Families.Add(Options);
+            }
         }
 
         // Chosen sides are private search state. Construct every neighbour and
@@ -191,25 +278,40 @@ public static partial class DiagramGridLayout
             var Peers = Parents.Concat(Outgoing.GetValueOrDefault(Root, [])).Where(Id => Id != Root && UnitRegions.ContainsKey(Id))
                 .Distinct(StringComparer.Ordinal).ToArray();
             string[] Sides = ["left", "right", "top", "bottom"];
-            if (Peers.Length < 2 || Peers.Length > Sides.Length) return;
-            if (Peers.Any(Peer => Units[Peer].Intersect(Units[Root]).Any())) return;
-            var Options = new List<CellJointRouteCandidate>();
-            var Preferred = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            if (Peers.Length < 2 || Peers.Length > Sides.Length)
+            {
+                return;
+            }
+
+            if (Peers.Any(Peer => Units[Peer].Intersect(Units[Root]).Any()))
+            {
+                return;
+            }
+
+            List<CellJointRouteCandidate> Options = [];
+            Dictionary<string, string[]> Preferred = new Dictionary<string, string[]>(StringComparer.Ordinal);
             bool Reverse = FlowchartDirectionNormalizer.Normalize(Contract.Direction) is FlowchartDirection.RightToLeft or FlowchartDirection.BottomToTop;
             foreach (string Peer in Peers)
             {
                 bool IncomingPeer = Parents.Contains(Peer, StringComparer.Ordinal);
                 string Primary = Horizontal ? IncomingPeer != Reverse ? "left" : "right" : IncomingPeer != Reverse ? "top" : "bottom";
                 string Secondary = Horizontal ? IncomingPeer ? "top" : "bottom" : IncomingPeer ? "left" : "right";
-                Preferred[Peer] = new[] { Primary, Secondary }.Concat(Sides).Distinct(StringComparer.Ordinal).ToArray();
+                Preferred[Peer] = [.. new[] { Primary, Secondary }.Concat(Sides).Distinct(StringComparer.Ordinal)];
             }
-            var Chosen = new Dictionary<string, string>(StringComparer.Ordinal);
+            Dictionary<string, string> Chosen = new Dictionary<string, string>(StringComparer.Ordinal);
             Visit(0);
-            if (Options.Count != 0) Families.Add(Options);
+            if (Options.Count != 0)
+            {
+                Families.Add(Options);
+            }
 
             void Visit(int Index)
             {
-                if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves) return;
+                if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves)
+                {
+                    return;
+                }
+
                 if (Index != Peers.Length)
                 {
                     string Peer = Peers[Index];
@@ -219,29 +321,43 @@ public static partial class DiagramGridLayout
                     }
                     return;
                 }
-                var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+                Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
                 foreach (string Peer in Peers)
                 {
-                    var Hub = UnitRegions[Root]; var Region = UnitRegions[Peer];
+                    FlowchartCellRegion Hub = UnitRegions[Root]; FlowchartCellRegion Region = UnitRegions[Peer];
                     int Row = Chosen[Peer] switch { "top" => Hub.StartRow - Region.RowSpan, "bottom" => Hub.EndRow, _ => Hub.StartRow };
                     int Column = Chosen[Peer] switch { "left" => Hub.StartColumn - Region.ColumnSpan, "right" => Hub.EndColumn, _ => Hub.StartColumn };
-                    var Members = new HashSet<string>(StringComparer.Ordinal) { Peer };
+                    HashSet<string> Members = new HashSet<string>(StringComparer.Ordinal) { Peer };
                     if (Parents.Contains(Peer, StringComparer.Ordinal))
                     {
                         string Current = Peer;
                         while (Incoming.TryGetValue(Current, out var Upstream) && Upstream.Length == 1 && Upstream[0] != Root
-                            && Outgoing.GetValueOrDefault(Upstream[0], []).Length == 1 && Members.Add(Upstream[0])) Current = Upstream[0];
+                            && Outgoing.GetValueOrDefault(Upstream[0], []).Length == 1 && Members.Add(Upstream[0]))
+                        {
+                            Current = Upstream[0];
+                        }
                     }
-                    else Members.UnionWith(JointLinearPath(Peer, Incoming, Outgoing, Units).Where(Id => Id != Root));
-                    foreach (var Node in Members.Where(Units.ContainsKey).SelectMany(Id => Units[Id]).Distinct())
+                    else
                     {
-                        var Target = FlowchartCellRepair.Translate(Before.Regions[Node.Id], Row - Region.StartRow, Column - Region.StartColumn);
-                        if (Targets.TryGetValue(Node.Id, out var Existing) && Existing != Target) return;
+                        Members.UnionWith(JointLinearPath(Peer, Incoming, Outgoing, Units).Where(Id => Id != Root));
+                    }
+
+                    foreach (GridNode? Node in Members.Where(Units.ContainsKey).SelectMany(Id => Units[Id]).Distinct())
+                    {
+                        FlowchartCellRegion Target = FlowchartCellRepair.Translate(Before.Regions[Node.Id], Row - Region.StartRow, Column - Region.StartColumn);
+                        if (Targets.TryGetValue(Node.Id, out FlowchartCellRegion? Existing) && Existing != Target)
+                        {
+                            return;
+                        }
+
                         Targets[Node.Id] = Target;
                     }
                 }
-                var Option = PrepareJointCellOption("fan-sides", Root, Targets, Contract, Placed, Before, Seen);
-                if (Option != null) Options.Add(Option);
+                CellJointRouteCandidate? Option = PrepareJointCellOption("fan-sides", Root, Targets, Contract, Placed, Before, Seen);
+                if (Option != null)
+                {
+                    Options.Add(Option);
+                }
             }
         }
 
@@ -249,31 +365,53 @@ public static partial class DiagramGridLayout
         // the same original snapshot; no centre or live pixel is an input.
         void AddAlignments(string Kind, string Root, IReadOnlyList<string> Path)
         {
-            if (Path.Count < 2) return;
-            var PathUnits = Path.Where(Id => Units.TryGetValue(Id, out var Nodes) && Nodes.Length != 0).ToArray();
-            var Regions = PathUnits.ToDictionary(Id => Id,
+            if (Path.Count < 2)
+            {
+                return;
+            }
+
+            var PathUnits = Path.Where(Id => Units.TryGetValue(Id, out GridNode[]? Nodes) && Nodes.Length != 0).ToArray();
+            Dictionary<string, FlowchartCellRegion> Regions = PathUnits.ToDictionary(Id => Id,
                 Id => CellRouteEnvelope(Units[Id].Select(Node => Before.Regions[Node.Id]).ToArray()), StringComparer.Ordinal);
-            var Options = new List<CellJointRouteCandidate>();
+            List<CellJointRouteCandidate> Options = [];
             foreach (int Anchor in Regions.Values.Select(Region => Horizontal ? Region.StartRow : Region.StartColumn).Distinct())
             {
-                var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+                Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
                 bool Consistent = true;
                 foreach (string Id in PathUnits)
                 {
                     int Delta = Anchor - (Horizontal ? Regions[Id].StartRow : Regions[Id].StartColumn);
-                    foreach (var Node in Units[Id])
+                    foreach (GridNode? Node in Units[Id])
                     {
-                        var Target = FlowchartCellRepair.Translate(Before.Regions[Node.Id], Horizontal ? Delta : 0, Horizontal ? 0 : Delta);
-                        if (Targets.TryGetValue(Node.Id, out var Existing) && Existing != Target) Consistent = false;
+                        FlowchartCellRegion Target = FlowchartCellRepair.Translate(Before.Regions[Node.Id], Horizontal ? Delta : 0, Horizontal ? 0 : Delta);
+                        if (Targets.TryGetValue(Node.Id, out FlowchartCellRegion? Existing) && Existing != Target)
+                        {
+                            Consistent = false;
+                        }
+
                         Targets[Node.Id] = Target;
                     }
                 }
-                if (!Consistent) continue;
-                var Option = PrepareJointCellOption(Kind, Root, Targets, Contract, Placed, Before, Seen);
-                if (Option != null) Options.Add(Option);
-                if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves) break;
+                if (!Consistent)
+                {
+                    continue;
+                }
+
+                CellJointRouteCandidate? Option = PrepareJointCellOption(Kind, Root, Targets, Contract, Placed, Before, Seen);
+                if (Option != null)
+                {
+                    Options.Add(Option);
+                }
+
+                if (Options.Count >= FlowchartLayoutRules.RepairCandidateMoves)
+                {
+                    break;
+                }
             }
-            if (Options.Count != 0) Families.Add(Options);
+            if (Options.Count != 0)
+            {
+                Families.Add(Options);
+            }
         }
     }
 
@@ -286,12 +424,16 @@ public static partial class DiagramGridLayout
     private static IReadOnlyList<string> JointLinearPath(string Start, IReadOnlyDictionary<string, string[]> Incoming,
         IReadOnlyDictionary<string, string[]> Outgoing, IReadOnlyDictionary<string, GridNode[]> Units)
     {
-        var Path = new List<string>(); var Seen = new HashSet<string>(StringComparer.Ordinal); string Current = Start;
-        while (Units.TryGetValue(Current, out var Nodes) && Nodes.Length != 0 && Seen.Add(Current))
+        List<string> Path = []; HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal); string Current = Start;
+        while (Units.TryGetValue(Current, out GridNode[]? Nodes) && Nodes.Length != 0 && Seen.Add(Current))
         {
             Path.Add(Current);
             if (!Outgoing.TryGetValue(Current, out var Next) || Next.Length != 1
-                || Incoming.GetValueOrDefault(Next[0], []).Length != 1) break;
+                || Incoming.GetValueOrDefault(Next[0], []).Length != 1)
+            {
+                break;
+            }
+
             Current = Next[0];
         }
         return Path;
@@ -313,33 +455,65 @@ public static partial class DiagramGridLayout
         // These are the same immutable eligibility checks used by the route
         // search. Do not build/validate a whole fan that it must reject for a
         // locked frame or the existing coupled-line bound.
-        if (!CanExamineJointTargets(Contract, Placed, Before, Targets)) return null;
-        foreach (var Pair in Targets.ToArray())
+        if (!CanExamineJointTargets(Contract, Placed, Before, Targets))
         {
-            var Original = Before.Regions[Pair.Key];
+            return null;
+        }
+
+        foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Targets.ToArray())
+        {
+            FlowchartCellRegion Original = Before.Regions[Pair.Key];
             int Rows = Pair.Value.StartRow - Original.StartRow, Columns = Pair.Value.StartColumn - Original.StartColumn;
-            if (Rows == 0 && Columns == 0) continue;
-            foreach (var Dependent in CellHintDependentUnit(Contract, Placed, Pair.Key))
+            if (Rows == 0 && Columns == 0)
             {
-                var Target = FlowchartCellRepair.Translate(Before.Regions[Dependent.Id], Rows, Columns);
-                if (Targets.TryGetValue(Dependent.Id, out var Existing) && Existing != Target) return null;
+                continue;
+            }
+
+            foreach (GridNode Dependent in CellHintDependentUnit(Contract, Placed, Pair.Key))
+            {
+                FlowchartCellRegion Target = FlowchartCellRepair.Translate(Before.Regions[Dependent.Id], Rows, Columns);
+                if (Targets.TryGetValue(Dependent.Id, out FlowchartCellRegion? Existing) && Existing != Target)
+                {
+                    return null;
+                }
+
                 Targets[Dependent.Id] = Target;
             }
         }
-        var Changes = Targets.Where(Pair => Pair.Value != Before.Regions[Pair.Key])
+        Dictionary<string, FlowchartCellRegion> Changes = Targets.Where(Pair => Pair.Value != Before.Regions[Pair.Key])
             .ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
-        if (Changes.Count == 0) return null;
-        var Nodes = Placed.Where(Node => Changes.ContainsKey(Node.Id)).ToArray();
+        if (Changes.Count == 0)
+        {
+            return null;
+        }
+
+        GridNode[] Nodes = [.. Placed.Where(Node => Changes.ContainsKey(Node.Id))];
         // Single-node proposals already have their own complete candidate
         // family. Joint alternatives must actually change several regions.
-        if (Nodes.Length < 2) return null;
+        if (Nodes.Length < 2)
+        {
+            return null;
+        }
+
         if (!CanExamineJointTargets(Contract, Placed, Before, Changes)
-            || HasExternalCellHintDependent(Contract, Root, Nodes)) return null;
+            || HasExternalCellHintDependent(Contract, Root, Nodes))
+        {
+            return null;
+        }
+
         string Signature = string.Join(";", Changes.OrderBy(Pair => Pair.Key, StringComparer.Ordinal)
             .Select(Pair => Pair.Key + ":" + Pair.Value.StartRow + "," + Pair.Value.StartColumn));
-        if (Seen.Contains(Signature)) return null;
-        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, Changes);
-        if (Plan == null) return null;
+        if (Seen.Contains(Signature))
+        {
+            return null;
+        }
+
+        FlowchartCellRepair.Assignment? Plan = FlowchartCellRepair.PlanAssignment(Nodes, Changes);
+        if (Plan == null)
+        {
+            return null;
+        }
+
         Seen.Add(Signature);
         return new(Kind + "|" + Signature, Root, Plan);
     }
@@ -353,7 +527,7 @@ public static partial class DiagramGridLayout
     private static bool CanExamineJointTargets(DiagramContract Contract, List<GridNode> Placed,
         FlowchartLogicalGrid.Snapshot Before, IReadOnlyDictionary<string, FlowchartCellRegion> Targets)
     {
-        var Ids = Targets.Where(Pair => Pair.Value != Before.Regions[Pair.Key]).Select(Pair => Pair.Key).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> Ids = Targets.Where(Pair => Pair.Value != Before.Regions[Pair.Key]).Select(Pair => Pair.Key).ToHashSet(StringComparer.Ordinal);
         return Ids.Count != 0 && !Placed.Any(Node => Ids.Contains(Node.Id)
                 && (Node.PlacementHintLocked || RouteRepairStage.HasHintedContainingGroup(Contract, Node.Id)))
             && Contract.Edges.Count(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)

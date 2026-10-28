@@ -86,7 +86,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             get {
                 double t2 = t * t;
                 double t3 = t2 * t;
-                return l * t3 + e * t2 + c * t + b[0];
+                return (l * t3) + (e * t2) + (c * t) + b[0];
             }
         }
 
@@ -152,15 +152,15 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double f = 1.0 - t;
             for (int i = 0; i < 3; i++)
             {
-                b1[i] = b[i] * f + b[i + 1] * t;
+                b1[i] = (b[i] * f) + (b[i + 1] * t);
             }
 
             for (int i = 0; i < 2; i++)
             {
-                b2[i] = b1[i] * f + b1[i + 1] * t;
+                b2[i] = (b1[i] * f) + (b1[i + 1] * t);
             }
 
-            return b2[0] * f + b2[1] * t;
+            return (b2[0] * f) + (b2[1] * t);
 
         }
         /// <summary>
@@ -168,13 +168,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point Derivative(double t) => 3 * l * t * t + 2 * e * t + c;
+        public Point Derivative(double t) => (3 * l * t * t) + (2 * e * t) + c;
         /// <summary>
         /// second derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point SecondDerivative(double t) => 6 * l * t + 2 * e;
+        public Point SecondDerivative(double t) => (6 * l * t) + (2 * e);
 
         /// <summary>
         /// third derivative
@@ -197,7 +197,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             b[2] = b2;
             b[3] = b3;
             c = 3 * (b[1] - b[0]);
-            e = 3 * (b[2] - b[1]) - c;
+            e = (3 * (b[2] - b[1])) - c;
             l = b[3] - b[0] - c - e;
         }
 
@@ -243,7 +243,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             b[2] += delta;
             b[3] += delta;
             c = 3 * (b[1] - b[0]);
-            e = 3 * (b[2] - b[1]) - c;
+            e = (3 * (b[2] - b[1])) - c;
             l = b[3] - b[0] - c - e;
 
             pBoxNode = null;
@@ -337,11 +337,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double closest = 0;
             double minDist = double.MaxValue;
             for (int i = 0; i < 9; i++) {
-                Point p = targetPoint - this[i * t + low];
+                Point p = targetPoint - this[(i * t) + low];
                 double d = p * p;
                 if (d < minDist) {
                     minDist = d;
-                    closest = i * t + low;
+                    closest = (i * t) + low;
                 }
             }
             return ClosestPointOnCurve.ClosestPoint(this, targetPoint, closest, low, high);
@@ -370,7 +370,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         }
 
 
-        double F(double t) => Xp(t) * Ypp(t) - Yp(t) * Xpp(t);
+        double F(double t) => (Xp(t) * Ypp(t)) - (Yp(t) * Xpp(t));
 
         /// <summary>
         /// G(t) is the denomenator of the curvature
@@ -380,7 +380,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         double G(double t) {
             double xp = Xp(t);
             double yp = Yp(t);
-            double den = (xp * xp + yp * yp);
+            double den = ((xp * xp) + (yp * yp));
             return Math.Sqrt(den * den * den);
         }
 
@@ -389,28 +389,28 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        double Xp(double t) => 3 * l.X * t * t + 2 * e.X * t + c.X;
+        double Xp(double t) => (3 * l.X * t * t) + (2 * e.X * t) + c.X;
 
         /// <summary>
         /// the second derivativ of y-coordinate
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        double Ypp(double t) => 6 * l.Y * t + 2 * e.Y;
+        double Ypp(double t) => (6 * l.Y * t) + (2 * e.Y);
 
         /// <summary>
         /// the first derivative of y-coord
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        double Yp(double t) => 3 * l.Y * t * t + 2 * e.Y * t + c.Y;
+        double Yp(double t) => (3 * l.Y * t * t) + (2 * e.Y * t) + c.Y;
 
         /// <summary>
         /// the seconde derivative of x coord
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        double Xpp(double t) => 6 * l.X * t + 2 * e.X;
+        double Xpp(double t) => (6 * l.X * t) + (2 * e.X);
 
         /// <summary>
         /// the third derivative of x coordinate
@@ -435,16 +435,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         public double CurvatureDerivative(double t) {
             // we need to calculate the derivative of f/g where f=xp* ypp-yp*xpp and g=(xp*xp+yp*yp)^(3/2)
             double h = G(t);
-            return (Fp(t) * h - Gp(t) * F(t)) / (h * h);
+            return ((Fp(t) * h) - (Gp(t) * F(t))) / (h * h);
         }
 
 
 
 
-        double Fp(double t) => Xp(t) * Yppp(t) - Yp(t) * Xppp(t);
+        double Fp(double t) => (Xp(t) * Yppp(t)) - (Yp(t) * Xppp(t));
 
-        double Fpp(double t) => Xpp(t) * Yppp(t) // + Xp(t) * Ypppp(t)=0
-                - Ypp(t) * Xppp(t);//- Yp(t) * Xpppp(t)=0
+        double Fpp(double t) => (Xpp(t) * Yppp(t)) // + Xp(t) * Ypppp(t)=0
+                - (Ypp(t) * Xppp(t));//- Yp(t) * Xpppp(t)=0
 
 
         /// <summary>
@@ -510,12 +510,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         /// <returns></returns>
         public double CurvatureSecondDerivative(double t) {
             double g = G(t);
-            return (Qp(t) * g - 2 * Q(t) * Gp(t)) / (g * g * g);
+            return ((Qp(t) * g) - (2 * Q(t) * Gp(t))) / (g * g * g);
         }
 
-        double Q(double t) => Fp(t) * G(t) - Gp(t) * F(t);
+        double Q(double t) => (Fp(t) * G(t)) - (Gp(t) * F(t));
 
-        double Qp(double t) => Fpp(t) * G(t) - Gpp(t) * F(t);
+        double Qp(double t) => (Fpp(t) * G(t)) - (Gpp(t) * F(t));
 
         double Gpp(double t) {
             double xp = Xp(t);
@@ -524,9 +524,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double ypp = Ypp(t);
             double xppp = Xppp(t);
             double yppp = Yppp(t);
-            double u = Math.Sqrt(xp * xp + yp * yp);
-            double v = xp * xpp + yp * ypp;
-            return 3 * ((v * v) / u + u * (xpp * xpp + xp * xppp + ypp * ypp + yp * yppp));
+            double u = Math.Sqrt((xp * xp) + (yp * yp));
+            double v = (xp * xpp) + (yp * ypp);
+            return 3 * (((v * v) / u) + (u * ((xpp * xpp) + (xp * xppp) + (ypp * ypp) + (yp * yppp))));
 
         }
 
@@ -535,7 +535,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             double yp = Yp(t);
             double xpp = Xpp(t);
             double ypp = Ypp(t);
-            return 3 * Math.Sqrt(xp * xp + yp * yp) * (xp * xpp + yp * ypp);
+            return 3 * Math.Sqrt((xp * xp) + (yp * yp)) * ((xp * xpp) + (yp * ypp));
         }
 
 
@@ -573,12 +573,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
         int EvaluateError(double length, double t) {
             //todo: this is a slow version!
             double f = 1 - t;
-            Point mb0 = f*b[0] + t*b[1];
-            Point mb1 = f*b[1] + t*b[2];
-            Point mb2 = f*b[2] + t*b[3];
-            Point mmb0 = f * mb0 + t * mb1;
-            Point mmb1 = f * mb1 + t * mb2;
-            Point mmmb0 = f * mmb0 + t * mmb1;
+            Point mb0 = (f*b[0]) + (t*b[1]);
+            Point mb1 = (f*b[1]) + (t*b[2]);
+            Point mb2 = (f*b[2]) + (t*b[3]);
+            Point mmb0 = (f * mb0) + (t * mb1);
+            Point mmb1 = (f * mb1) + (t * mb2);
+            Point mmmb0 = (f * mmb0) + (t * mmb1);
 
             double lengthAtT = LengthOnControlPolygon(b[0], mb0, mmb0, mmmb0);
             

@@ -18,91 +18,112 @@ internal static partial class EnterpriseBandPlacement
     /// <returns>Whether one complete measured gap-growth assignment was accepted.</returns>
     internal static bool ReserveRoutingSpace(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartRenderContext? Context = null)
     {
-        var Classes = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
+        Dictionary<string, Classification> Classes = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
             .ToDictionary(Node => Node.Id, Node => Classify(Enum.Parse<MermaidRecognition.Kinds.Enterprise.EnterpriseElementType>(
                 ((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)), StringComparer.Ordinal);
-        var Bands = Classes.Where(Pair => Pair.Value.Conventional)
-            .GroupBy(Pair => Pair.Value.Band).OrderBy(Group => Group.Key).ToArray();
-        var Grid = Nodes[0].CellNode!.Grid;
-        var Regions = Grid.Capture().Regions;
-        var Growth = new List<FlowchartCellGapGrowth>();
+        IGrouping<int, KeyValuePair<string, Classification>>[] Bands = [.. Classes.Where(Pair => Pair.Value.Conventional)
+            .GroupBy(Pair => Pair.Value.Band).OrderBy(Group => Group.Key)];
+        FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        IReadOnlyDictionary<string, FlowchartCellRegion> Regions = Grid.Capture().Regions;
+        List<FlowchartCellGapGrowth> Growth = [];
         for (int Index = 1; Index < Bands.Length; Index++)
         {
             int FirstBand = Bands[Index - 1].Key, NextBand = Bands[Index].Key;
-            var Lines = Contract.Edges.Where(Edge => Crosses(Edge, FirstBand, NextBand)).ToArray();
+            EdgeContract[] Lines = [.. Contract.Edges.Where(Edge => Crosses(Edge, FirstBand, NextBand))];
             int End = Bands[Index - 1].Max(Pair => Regions[Pair.Key].EndRow);
             int Start = Bands[Index].Min(Pair => Regions[Pair.Key].StartRow);
             double Available = Grid.Origin(new(Start, 0, 1, 1)).Y
                 - Grid.Origin(new(End - 1, 0, 1, 1)).Y - Grid.Configuration.CellHeight;
-            double Required = Lines.Length == 0 ? 0 : 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX
-                + (Lines.Length - 1) * FlowchartLayoutRules.TrackSpacing;
+            double Required = Lines.Length == 0 ? 0 : (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
+                + ((Lines.Length - 1) * FlowchartLayoutRules.TrackSpacing);
             double Shortfall = Math.Max(0, Required - Available);
-            ReportCapacity(Context, $"BAND_CAPACITY|{FirstBand}->{NextBand}|lines={Lines.Length}|capacity={Math.Max(0, (int)Math.Floor((Available - 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) / FlowchartLayoutRules.TrackSpacing) + 1)}|available={Available:R}|required={Required:R}|shortfall={Shortfall:R}|routes={string.Join(",", Lines.Select(Line => Line.Id))}");
-            if (Shortfall > 0) Growth.Add(new(false, End - 1, Shortfall, DiagramGridMetrics.GRID_UNIT_PX));
-        }
-        var Frames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Grid.Capture());
-        foreach (var Frame in Frames)
-        {
-            var LayerRange = Range(Frame.Id);
-            if (LayerRange == null || LayerRange.Value.First == LayerRange.Value.Last) continue;
-            var Lines = Contract.Edges.Where(Edge => !MemberId(Edge.SourceId, Frame.Id) && !MemberId(Edge.TargetId, Frame.Id)
-                && Bands.Zip(Bands.Skip(1), (A, B) => (A.Key, BKey: B.Key)).Any(Pair => LayerRange.Value.First <= Pair.Key
-                    && LayerRange.Value.Last >= Pair.BKey && Crosses(Edge, Pair.Key, Pair.BKey))).ToArray();
-            if (Lines.Length == 0) continue;
-            var Members = Nodes.Where(Node => MemberId(Node.Id, Frame.Id)).ToArray();
-            var Foreign = Nodes.Where(Node => !MemberId(Node.Id, Frame.Id)).Select(Node =>
+            ReportCapacity(Context, $"BAND_CAPACITY|{FirstBand}->{NextBand}|lines={Lines.Length}|capacity={Math.Max(0, (int)Math.Floor((Available - (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)) / FlowchartLayoutRules.TrackSpacing) + 1)}|available={Available:R}|required={Required:R}|shortfall={Shortfall:R}|routes={string.Join(",", Lines.Select(Line => Line.Id))}");
+            if (Shortfall > 0)
             {
-                var Region = Regions[Node.Id]; var Origin = Grid.Origin(Region); var Size = Grid.Measure(Region);
+                Growth.Add(new(false, End - 1, Shortfall, DiagramGridMetrics.GRID_UNIT_PX));
+            }
+        }
+        List<DiagramGridLayout.GridFrame> Frames = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Grid.Capture());
+        foreach (DiagramGridLayout.GridFrame Frame in Frames)
+        {
+            (int First, int Last)? LayerRange = Range(Frame.Id);
+            if (LayerRange == null || LayerRange.Value.First == LayerRange.Value.Last)
+            {
+                continue;
+            }
+
+            EdgeContract[] Lines = [.. Contract.Edges.Where(Edge => !MemberId(Edge.SourceId, Frame.Id) && !MemberId(Edge.TargetId, Frame.Id)
+                && Bands.Zip(Bands.Skip(1), (A, B) => (A.Key, BKey: B.Key)).Any(Pair => LayerRange.Value.First <= Pair.Key
+                    && LayerRange.Value.Last >= Pair.BKey && Crosses(Edge, Pair.Key, Pair.BKey)))];
+            if (Lines.Length == 0)
+            {
+                continue;
+            }
+
+            DiagramGridLayout.GridNode[] Members = [.. Nodes.Where(Node => MemberId(Node.Id, Frame.Id))];
+            (double X, double Y, double Width, double Height)[] Foreign = [.. Nodes.Where(Node => !MemberId(Node.Id, Frame.Id)).Select(Node =>
+            {
+                FlowchartCellRegion Region = Regions[Node.Id]; (double X, double Y) Origin = Grid.Origin(Region); (double Width, double Height) Size = Grid.Measure(Region);
                 return (Origin.X, Origin.Y, Size.Width, Size.Height);
-            }).Where(Box => Box.Y < Math.Max(Frame.Top, Frame.Bottom) && Box.Y + Box.Height > Math.Min(Frame.Top, Frame.Bottom)).ToArray();
-            double Required = 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + (Lines.Length - 1) * FlowchartLayoutRules.TrackSpacing;
-            var Options = new[]
+            }).Where(Box => Box.Y < Math.Max(Frame.Top, Frame.Bottom) && Box.Y + Box.Height > Math.Min(Frame.Top, Frame.Bottom))];
+            double Required = (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) + ((Lines.Length - 1) * FlowchartLayoutRules.TrackSpacing);
+            (string Side, int After, double Available)[] Options = [.. new[]
             {
                 (Side: "left", After: Members.Min(Node => Regions[Node.Id].StartColumn) - 1,
                     Available: Foreign.Where(Box => Box.X + Box.Width <= Frame.Left).Select(Box => Frame.Left - Box.X - Box.Width).DefaultIfEmpty(double.PositiveInfinity).Min()),
                 (Side: "right", After: Members.Max(Node => Regions[Node.Id].EndColumn) - 1,
                     Available: Foreign.Where(Box => Box.X >= Frame.Right).Select(Box => Box.X - Frame.Right).DefaultIfEmpty(double.PositiveInfinity).Min())
             }.Where(Option => !Regions.Values.Any(Region => Region.StartColumn <= Option.After && Option.After < Region.EndColumn - 1))
-                .OrderBy(Option => Math.Max(0, Required - Option.Available)).ThenBy(Option => Option.Side, StringComparer.Ordinal).ToArray();
+                .OrderBy(Option => Math.Max(0, Required - Option.Available)).ThenBy(Option => Option.Side, StringComparer.Ordinal)];
             if (Options.Length == 0) { ReportCapacity(Context, $"BAND_WALL_CAPACITY|{Frame.Id}|lines={Lines.Length}|status=no-external-gap"); continue; }
-            var Best = Options[0]; double Shortfall = Math.Max(0, Required - Best.Available);
+            (string Side, int After, double Available) Best = Options[0]; double Shortfall = Math.Max(0, Required - Best.Available);
             ReportCapacity(Context, $"BAND_WALL_CAPACITY|{Frame.Id}|lines={Lines.Length}|side={Best.Side}|available={Best.Available:R}|required={Required:R}|shortfall={Shortfall:R}");
-            if (Shortfall > 0) Growth.Add(new(true, Best.After, Shortfall, DiagramGridMetrics.GRID_UNIT_PX));
+            if (Shortfall > 0)
+            {
+                Growth.Add(new(true, Best.After, Shortfall, DiagramGridMetrics.GRID_UNIT_PX));
+            }
         }
-        Growth = Growth.GroupBy(Item => (Item.Horizontal, Item.After)).Select(Group => Group.OrderByDescending(Item => Item.Shortfall).First()).ToList();
+        Growth = [.. Growth.GroupBy(Item => (Item.Horizontal, Item.After)).Select(Group => Group.OrderByDescending(Item => Item.Shortfall).First())];
         return Growth.Count > 0 && FlowchartCellRepair.PlanAssignment(Nodes,
             new Dictionary<string, FlowchartCellRegion>(), Growth)?.TryApply() == true;
 
-        /// <summary>Tests whether declared endpoints lie on opposite sides of this band boundary.</summary>
+        // <summary>Tests whether declared endpoints lie on opposite sides of this band boundary.</summary>
         bool Crosses(EdgeContract Edge, int First, int Next)
         {
-            var A = Range(Edge.SourceId); var B = Range(Edge.TargetId);
-            return A != null && B != null && (A.Value.Last <= First && B.Value.First >= Next
-                || B.Value.Last <= First && A.Value.First >= Next);
+            (int First, int Last)? A = Range(Edge.SourceId); (int First, int Last)? B = Range(Edge.TargetId);
+            return A != null && B != null && ((A.Value.Last <= First && B.Value.First >= Next)
+                || (B.Value.Last <= First && A.Value.First >= Next));
         }
 
-        /// <summary>Resolves the semantic range of a node or a solid frame from its typed descendants.</summary>
+        // <summary>Resolves the semantic range of a node or a solid frame from its typed descendants.</summary>
         (int First, int Last)? Range(string Id)
         {
-            if (Classes.TryGetValue(Id, out var Item) && Item.Conventional) return (Item.Band, Item.Band);
-            var Members = Contract.Nodes.Where(Node => IsMember(Node.ParentGroupId, Id)).Select(Node => Classes.GetValueOrDefault(Node.Id))
-                .Where(Item => Item is { Conventional: true }).ToArray();
+            if (Classes.TryGetValue(Id, out Classification? Item) && Item.Conventional)
+            {
+                return (Item.Band, Item.Band);
+            }
+
+            Classification?[] Members = [.. Contract.Nodes.Where(Node => IsMember(Node.ParentGroupId, Id)).Select(Node => Classes.GetValueOrDefault(Node.Id)).Where(Item => Item is { Conventional: true })];
             return Members.Length == 0 ? null : (Members.Min(Item => Item!.Band), Members.Max(Item => Item!.Band));
         }
 
-        /// <summary>Follows declared ancestry; no frame pixels are converted back into cell ownership.</summary>
+        // <summary>Follows declared ancestry; no frame pixels are converted back into cell ownership.</summary>
         bool IsMember(string? Parent, string Id)
         {
-            var Seen = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
             while (Parent != null && Seen.Add(Parent))
             {
-                if (Parent == Id) return true;
+                if (Parent == Id)
+                {
+                    return true;
+                }
+
                 Parent = Contract.Groups.FirstOrDefault(Group => Group.Id == Parent)?.ParentGroupId;
             }
             return false;
         }
 
-        /// <summary>Includes frame identities themselves when comparing solid walls with relationship endpoints.</summary>
+        // <summary>Includes frame identities themselves when comparing solid walls with relationship endpoints.</summary>
         bool MemberId(string Id, string FrameId) => Id == FrameId || IsMember(
             Contract.Nodes.FirstOrDefault(Node => Node.Id == Id)?.ParentGroupId ?? Contract.Groups.FirstOrDefault(Group => Group.Id == Id)?.ParentGroupId, FrameId);
     }

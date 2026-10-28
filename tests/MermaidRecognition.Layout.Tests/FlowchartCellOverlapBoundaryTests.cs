@@ -12,12 +12,12 @@ public sealed class FlowchartCellOverlapBoundaryTests
     [TestCase(true)]
     public void DisjointRegionsDoNotMoveToFitLegacyRankBands(bool Horizontal)
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1)); Grid.TryPlace("B", new(Horizontal ? 1 : 0, Horizontal ? 0 : 1, 1, 1));
-        var A = new DiagramGridLayout.GridNode { Id = "A", Rank = 0, PlacementHintLocked = true };
-        var B = new DiagramGridLayout.GridNode { Id = "B", Rank = 1 };
+        DiagramGridLayout.GridNode A = new DiagramGridLayout.GridNode { Id = "A", Rank = 0, PlacementHintLocked = true };
+        DiagramGridLayout.GridNode B = new DiagramGridLayout.GridNode { Id = "B", Rank = 1 };
         A.BindCells(Grid); B.BindCells(Grid);
-        var Before = Grid.Capture(); var Pixels = (A.X, A.Y, B.X, B.Y);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); (double, double, double, double) Pixels = (A.X, A.Y, B.X, B.Y);
         typeof(DiagramGridLayout).GetMethod("SeparateOverlaps", BindingFlags.Static | BindingFlags.NonPublic)!
             .Invoke(null, [new List<DiagramGridLayout.GridNode> { A, B }, Horizontal]);
         Assert.That(Grid.Capture(), Is.SameAs(Before));

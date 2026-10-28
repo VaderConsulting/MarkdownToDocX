@@ -29,9 +29,7 @@ public static class FlowchartSvgMarkerTangentFactsHelper
 
         List<RenderedArrowPolygon> ArrowPolygons = ExtractRenderedArrowPolygons(Svg);
 
-        List<EdgeContract> VisibleEdges = Contract.Edges
-            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        List<EdgeContract> VisibleEdges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
 
 
 
@@ -65,7 +63,7 @@ public static class FlowchartSvgMarkerTangentFactsHelper
                 {
                     RenderedArrowPolygon Arrow = ArrowPolygons[ArrowIndex];
                     ArrowIndex++;
-                    ResolveTaggedStroke(Svg, Edge, Arrow, true, out string? PathData, out var LineSegment);
+                    ResolveTaggedStroke(Svg, Edge, Arrow, true, out string? PathData, out (double X1, double Y1, double X2, double Y2)? LineSegment);
                     bool Aligned = ValidateArrowPolygonAlignsWithStroke(
                         Arrow,
                         PathData,
@@ -91,7 +89,7 @@ public static class FlowchartSvgMarkerTangentFactsHelper
                 {
                     RenderedArrowPolygon Arrow = ArrowPolygons[ArrowIndex];
                     ArrowIndex++;
-                    ResolveTaggedStroke(Svg, Edge, Arrow, false, out string? PathData, out var LineSegment);
+                    ResolveTaggedStroke(Svg, Edge, Arrow, false, out string? PathData, out (double X1, double Y1, double X2, double Y2)? LineSegment);
                     bool Aligned = ValidateArrowPolygonAlignsWithStroke(
                         Arrow,
                         PathData,
@@ -133,7 +131,7 @@ public static class FlowchartSvgMarkerTangentFactsHelper
                     LineSegment = null;
                 }
             }
-            foreach (var Line in ExtractRenderedEdgeLineSegments(Stroke.Value))
+            foreach ((double X1, double Y1, double X2, double Y2) Line in ExtractRenderedEdgeLineSegments(Stroke.Value))
             {
                 double StartDistance = DistanceToArrow((Line.X1, Line.Y1), Arrow);
                 double EndDistance = DistanceToArrow((Line.X2, Line.Y2), Arrow);

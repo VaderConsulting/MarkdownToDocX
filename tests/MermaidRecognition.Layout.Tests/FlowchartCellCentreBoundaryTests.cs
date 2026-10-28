@@ -12,12 +12,16 @@ public sealed class FlowchartCellCentreBoundaryTests
     [TestCase(true)]
     public void SnapBoundaryPreservesAuthoritativeHalfCellCentre(bool Routing)
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(-2, 1, 1, 1));
-        var Node = new DiagramGridLayout.GridNode { Id = "A" }; Node.BindCells(Grid);
-        if (Routing) Node.CellNode!.UseRoutingCoordinates(600);
-        var Before = Grid.Capture(); var Position = (Node.X, Node.Y);
-        var Legacy = new DiagramGridLayout.GridNode { Id = "legacy", X = 17, Y = 47 };
+        DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = "A" }; Node.BindCells(Grid);
+        if (Routing)
+        {
+            Node.CellNode!.UseRoutingCoordinates(600);
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); (double X, double Y) Position = (Node.X, Node.Y);
+        DiagramGridLayout.GridNode Legacy = new DiagramGridLayout.GridNode { Id = "legacy", X = 17, Y = 47 };
         typeof(DiagramGridLayout).GetMethod("SnapGridNodeCentres", BindingFlags.Static | BindingFlags.NonPublic)!
             .Invoke(null, [new[] { Node, Legacy }]);
         Assert.That(Grid.Capture(), Is.SameAs(Before));

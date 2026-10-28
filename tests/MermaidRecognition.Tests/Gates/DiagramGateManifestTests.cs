@@ -63,6 +63,6 @@ public sealed class DiagramGateManifestTests
 
         public string FixtureDirectory { get; set; } = string.Empty;
 
-        public List<string> Fixtures { get; set; } = new List<string>();
+        public List<string> Fixtures { get; set; } = [];
     }
 }

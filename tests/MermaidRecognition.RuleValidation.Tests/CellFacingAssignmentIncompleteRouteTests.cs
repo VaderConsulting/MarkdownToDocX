@@ -13,26 +13,26 @@ public sealed class CellFacingAssignmentIncompleteRouteTests
     [TestCase(0), TestCase(1)]
     public void A115IncompleteTrialCannotEnterFacingAssignment(int PointCount)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue()
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == "A115");
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, ObserveCompletedState: State =>
         {
-            var Layout = (FlowchartLayoutResult)State.GetType().GetProperty("Copy")!.GetValue(State)!;
+            FlowchartLayoutResult Layout = (FlowchartLayoutResult)State.GetType().GetProperty("Copy")!.GetValue(State)!;
             Assert.That(Layout.EdgeRoutes.All(Route => Route.Points.Count >= 2), Is.True,
                 "The current production pipeline must complete A115 before the discarded-trial input is injected.");
             // Preserve a real side-repair opportunity while a different trial path is incomplete.
-            var Convergence = Layout.EdgeRoutes.GroupBy(Item => Item.TargetId).First(Group => Group.Count() > 1).First();
+            FlowchartLayoutEdgeRoute Convergence = Layout.EdgeRoutes.GroupBy(Item => Item.TargetId).First(Group => Group.Count() > 1).First();
             Convergence.EntrySide = "invalid-trial-side";
-            var Route = Layout.EdgeRoutes.First(Item => Item != Convergence);
+            FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.First(Item => Item != Convergence);
             Route.Points.RemoveRange(PointCount, Route.Points.Count - PointCount);
             Assert.That(FlowchartRouteRuleChecker.Check(
                 (MermaidRecognition.Contract.DiagramContract)State.GetType().GetProperty("Contract")!.GetValue(State)!, Layout)
                 .Any(Finding => Finding.Rule == "4.11"), Is.True, "The guard must be exercised inside a nonempty side search.");
             string Before = System.Text.Json.JsonSerializer.Serialize(Layout);
-            var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId);
-            var Stage = typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!;
-            var Repair = Stage.GetMethod("RepairFinalFacingSides", BindingFlags.NonPublic | BindingFlags.Static)!;
+            Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId);
+            Type Stage = typeof(DiagramGridLayout).GetNestedType("ModelRouteCompletionStage", BindingFlags.NonPublic)!;
+            MethodInfo Repair = Stage.GetMethod("RepairFinalFacingSides", BindingFlags.NonPublic | BindingFlags.Static)!;
             Assert.DoesNotThrow(() => Repair.Invoke(null, [State, Bounds, null]));
             Assert.That(System.Text.Json.JsonSerializer.Serialize(Layout), Is.EqualTo(Before),
                 "Side optimisation must not mutate an incomplete trial; the enclosing candidate owns its recovery.");

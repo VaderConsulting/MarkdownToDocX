@@ -3,6 +3,7 @@ using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
 using MermaidRecognition.Kinds.Enterprise;
 using NUnit.Framework;
+using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.RuleValidation.Tests;
 
@@ -24,12 +25,12 @@ public sealed class FacingSideRegressionTests : ProductionCatalogueTestFixture
     [TestCase("A159")]
     public void FinalAssignmentsPreserveFanAndConvergenceSides(string Id)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue()
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout)
             .Where(Finding => Finding.Rule is "4.11" or "5.8" or "4.2" or "4.9" or "10" or "3.1" or "4.1" or "3.2/4.7"), Is.Empty);
     }

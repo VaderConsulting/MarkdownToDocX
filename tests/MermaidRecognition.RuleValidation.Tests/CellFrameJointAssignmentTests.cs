@@ -13,18 +13,18 @@ public sealed class CellFrameJointAssignmentTests
     [Test]
     public void A164KeepsEveryDeclaredHintWithinTheFrameBudget()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A164");
-        var Messages = new List<string>();
-        var OriginalHints = CellFrameHintEvidence.FromSource(Scenario);
-        var Previous = DiagramGridLayout.GroupFrameFitPassObserver;
+        List<string> Messages = [];
+        Dictionary<string, string> OriginalHints = CellFrameHintEvidence.FromSource(Scenario);
+        Action<string>? Previous = DiagramGridLayout.GroupFrameFitPassObserver;
         DiagramGridLayout.GroupFrameFitPassObserver = Messages.Add;
         try
         {
             CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (Contract, Layout) =>
             {
                 Assert.That(CellFrameHintEvidence.Capture(Contract), Is.EquivalentTo(OriginalHints));
-                var Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
+                FlowchartLayoutScore.Result Score = FlowchartLayoutScore.Measure(Contract, Layout, IncludeArrangementCheck: false);
                 Assert.That(Score.HintsHonoured, Is.EqualTo(Score.HintsTotal));
                 Assert.That(RouteRuleCatalogueAuditTests.UnrelatedFrameOverlaps(Contract, Layout), Is.Empty);
             },
@@ -32,24 +32,30 @@ public sealed class CellFrameJointAssignmentTests
                     || Node.CellHintValidator(Node.CellNode!.Grid.Capture().Regions)), Is.True));
         }
         finally { DiagramGridLayout.GroupFrameFitPassObserver = Previous; }
-        var Candidates = Messages.Where(Message => Message.StartsWith("CELL_FRAME_CANDIDATE_DETAIL|", StringComparison.Ordinal))
-            .Select(Message => JsonDocument.Parse(Message.Split('|', 2)[1])).ToArray();
+        JsonDocument[] Candidates = [.. Messages.Where(Message => Message.StartsWith("CELL_FRAME_CANDIDATE_DETAIL|", StringComparison.Ordinal)).Select(Message => JsonDocument.Parse(Message.Split('|', 2)[1]))];
         try
         {
             Assert.That(Candidates, Is.Not.Empty);
-            foreach (var Candidate in Candidates)
+            foreach (JsonDocument? Candidate in Candidates)
+            {
                 TestContext.Out.WriteLine("CELL_FRAME_COMBINATION|" + Candidate.RootElement.GetRawText());
+            }
+
             Assert.That(Candidates.Max(Item => Item.RootElement.GetProperty("Candidate").GetInt32()),
                 Is.LessThanOrEqualTo(FlowchartLayoutRules.RepairCandidateMoves));
             Assert.That(Candidates.Any(Item => Item.RootElement.GetProperty("Faults").GetArrayLength() != 0), Is.True);
-            var Winner = Candidates.First(Item => Item.RootElement.GetProperty("Faults").GetArrayLength() == 0).RootElement;
-            var Moves = Winner.GetProperty("Moves").EnumerateArray().ToDictionary(Move => Move.GetProperty("Id").GetString()!,
+            JsonElement Winner = Candidates.First(Item => Item.RootElement.GetProperty("Faults").GetArrayLength() == 0).RootElement;
+            Dictionary<string, (int Rows, int Columns)> Moves = Winner.GetProperty("Moves").EnumerateArray().ToDictionary(Move => Move.GetProperty("Id").GetString()!,
                 Move => (Rows: Move.GetProperty("NewRow").GetInt32() - Move.GetProperty("OldRow").GetInt32(),
                     Columns: Move.GetProperty("NewColumn").GetInt32() - Move.GetProperty("OldColumn").GetInt32()));
             Assert.That(Moves.Keys, Does.Contain("defMeta").And.Contain("sendNotif"));
             Assert.That(Moves["defMeta"], Is.EqualTo(Moves["sendNotif"]));
             Assert.That(Winner.GetProperty("Rows").EnumerateObject().Any(), Is.True);
         }
-        finally { foreach (var Candidate in Candidates) Candidate.Dispose(); }
+        finally { foreach (JsonDocument? Candidate in Candidates)
+            {
+                Candidate.Dispose();
+            }
+        }
     }
 }

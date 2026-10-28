@@ -27,13 +27,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
 
         static bool AddLevel(LgData lgData, IZoomLevelCalculator nodeZoomLevelCalculator, int nodeCountOnLevel, LgEdgeInfo[] edgeInfos) {
             int zoomLevel = (int) nodeZoomLevelCalculator.SortedLgNodeInfos[nodeCountOnLevel - 1].ZoomLevel;
-            List<LgEdgeInfo> edgeInfosOfLevel = edgeInfos.TakeWhile(ei => ei.ZoomLevel <= zoomLevel).ToList();
+            List<LgEdgeInfo> edgeInfosOfLevel = [.. edgeInfos.TakeWhile(ei => ei.ZoomLevel <= zoomLevel)];
             lgData.AddLevel();
             return edgeInfosOfLevel.Count() == lgData.GeometryEdgesToLgEdgeInfos.Count;
         }
 
         static LgEdgeInfo[] SortEdgeInfosByZoomLevel(LgData lgData) {
-            LgEdgeInfo[] edgeInfos = lgData.GeometryEdgesToLgEdgeInfos.Values.ToArray();
+            LgEdgeInfo[] edgeInfos = [.. lgData.GeometryEdgesToLgEdgeInfos.Values];
             Array.Sort(edgeInfos, (a, b) => a.ZoomLevel.CompareTo(b.ZoomLevel));
             return edgeInfos;
         }
@@ -88,7 +88,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         static void RankTheGraph(LgData lgData,
                                           GeometryGraph mainGeometryGraph, GeometryGraph geomGraph) {
 
-            Node[] nodeArray = geomGraph.Nodes.ToArray();
+            Node[] nodeArray = [.. geomGraph.Nodes];
             GeometryGraph flatGraph = new GeometryGraph {
                 Nodes = new SimpleNodeCollection(nodeArray),
                 Edges =

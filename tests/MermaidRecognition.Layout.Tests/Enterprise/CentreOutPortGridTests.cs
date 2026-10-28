@@ -112,13 +112,13 @@ public sealed class CentreOutPortGridTests
     [Test]
     public void DefaultSide_OffersTheCentreAndOneSpacingEitherSide()
     {
-        Assert.That(DiagramGridMetrics.SideGridOffsets(60), Is.EqualTo(new[] { 15.0, 30.0, 45.0 }));
+        Assert.That(DiagramGridMetrics.SideGridOffsets(60), Is.EqualTo([15.0, 30.0, 45.0]));
     }
 
     [Test]
     public void LongSide_CountsItsPointsOutFromTheCentre()
     {
-        double[] Expected = Enumerable.Range(0, 9).Select(Index => 20.0 + Index * SPACING).ToArray();
+        double[] Expected = [.. Enumerable.Range(0, 9).Select(Index => 20.0 + (Index * SPACING))];
         Assert.That(DiagramGridMetrics.SideGridOffsets(160), Is.EqualTo(Expected));
     }
 
@@ -127,7 +127,7 @@ public sealed class CentreOutPortGridTests
     [TestCase(160)]
     public void SingleLine_UsesTheSideCentre(double Length)
     {
-        Assert.That(DiagramGridMetrics.CentreOutPortOffsets(1, Length), Is.EqualTo(new[] { Length / 2 }));
+        Assert.That(DiagramGridMetrics.CentreOutPortOffsets(1, Length), Is.EqualTo([Length / 2]));
     }
 
     [TestCase(60)]
@@ -136,7 +136,7 @@ public sealed class CentreOutPortGridTests
     {
         double Centre = Length / 2;
         Assert.That(DiagramGridMetrics.CentreOutPortOffsets(3, Length),
-            Is.EqualTo(new[] { Centre - SPACING, Centre, Centre + SPACING }));
+            Is.EqualTo([Centre - SPACING, Centre, Centre + SPACING]));
     }
 
     [TestCase(60)]
@@ -145,7 +145,7 @@ public sealed class CentreOutPortGridTests
     {
         double Centre = Length / 2;
         Assert.That(DiagramGridMetrics.CentreOutPortOffsets(2, Length),
-            Is.EqualTo(new[] { Centre - SPACING, Centre + SPACING }));
+            Is.EqualTo([Centre - SPACING, Centre + SPACING]));
     }
 
     [TestCase(4, 90)]
@@ -159,7 +159,9 @@ public sealed class CentreOutPortGridTests
         Assert.That(Offsets.All(Offset => Grid.Contains(Offset)), Is.True, string.Join(", ", Offsets));
         Assert.That(Offsets.Contains(Length / 2), Is.EqualTo(Count % 2 == 1));
         for (int Index = 0; Index < Count; Index++)
+        {
             Assert.That(Offsets[Index] + Offsets[^(Index + 1)], Is.EqualTo(Length).Within(1e-9));
+        }
     }
 
     [TestCase(1, 30)]
@@ -177,10 +179,10 @@ public sealed class CentreOutPortGridTests
     [Test]
     public void CompleteSample_CustomerToShipOnTime_IsOneStraightVerticalSegment()
     {
-        var (Layout, Routes) = LayOut(COMPLETE_SAMPLE);
-        var Route = Routes.Single(Edge => Edge.Relationship.SourceId == "customer" && Edge.Relationship.TargetId == "ship");
-        var Customer = Layout.Nodes["customer"];
-        var Ship = Layout.Nodes["ship"];
+        (EnterpriseLayoutResult? Layout, List<EnterpriseRoutedEdge>? Routes) = LayOut(COMPLETE_SAMPLE);
+        EnterpriseRoutedEdge Route = Routes.Single(Edge => Edge.Relationship.SourceId == "customer" && Edge.Relationship.TargetId == "ship");
+        EnterpriseLayoutNode Customer = Layout.Nodes["customer"];
+        EnterpriseLayoutNode Ship = Layout.Nodes["ship"];
         string Points = $"{Describe(Route.SvgPoints)}; customer {Bounds(Customer)}; ship {Bounds(Ship)}";
         Assert.That(Route.SvgPoints, Has.Count.EqualTo(2), Points);
         Assert.That(Route.SvgPoints[0].X, Is.EqualTo(Route.SvgPoints[1].X).Within(0.5), Points);
@@ -243,13 +245,13 @@ public sealed class CentreOutPortGridTests
     [Test]
     public void CompleteSample_WebShopRightSide_UsesTheSideGrid()
     {
-        var (Layout, Routes) = LayOut(COMPLETE_SAMPLE);
-        var WebShop = Layout.Nodes["webShop"];
+        (EnterpriseLayoutResult? Layout, List<EnterpriseRoutedEdge>? Routes) = LayOut(COMPLETE_SAMPLE);
+        EnterpriseLayoutNode WebShop = Layout.Nodes["webShop"];
         double Right = WebShop.AbsoluteX + WebShop.Width;
-        double[] Ports = EndsOn(Routes, "webShop")
+        double[] Ports = [.. EndsOn(Routes, "webShop")
             .Where(Point => Math.Abs(Point.X - Right) < 1.0)
             .Select(Point => Point.Y - WebShop.AbsoluteY)
-            .OrderBy(Offset => Offset).ToArray();
+            .OrderBy(Offset => Offset)];
         double[] Grid = DiagramGridMetrics.SideGridOffsets(WebShop.Height);
         Assert.Multiple(() =>
         {
@@ -269,9 +271,9 @@ public sealed class CentreOutPortGridTests
     [Test]
     public void CompleteSample_EveryRectangularPort_LiesOnTheSideGrid()
     {
-        var (Layout, Routes) = LayOut(COMPLETE_SAMPLE);
-        List<string> Failures = new List<string>();
-        foreach (var Route in Routes)
+        (EnterpriseLayoutResult? Layout, List<EnterpriseRoutedEdge>? Routes) = LayOut(COMPLETE_SAMPLE);
+        List<string> Failures = [];
+        foreach (EnterpriseRoutedEdge Route in Routes)
         {
             CheckPort(Layout, Route.Relationship.SourceId, Route.SvgPoints[0], Route, Failures);
             CheckPort(Layout, Route.Relationship.TargetId, Route.SvgPoints[^1], Route, Failures);
@@ -283,9 +285,17 @@ public sealed class CentreOutPortGridTests
     private static void CheckPort(EnterpriseLayoutResult Layout, string NodeId, (double X, double Y) Point,
         EnterpriseRoutedEdge Route, List<string> Failures)
     {
-        if (!Layout.Nodes.TryGetValue(NodeId, out var Node) || Node.Element == null) return;
+        if (!Layout.Nodes.TryGetValue(NodeId, out EnterpriseLayoutNode? Node) || Node.Element == null)
+        {
+            return;
+        }
+
         if (EnterpriseElementCatalog.Elements[Node.Element.ElementType].BoxKind
-            is not (EnterpriseBoxKind.Rectangle or EnterpriseBoxKind.Object or EnterpriseBoxKind.Box3d)) return;
+            is not (EnterpriseBoxKind.Rectangle or EnterpriseBoxKind.Object or EnterpriseBoxKind.Box3d))
+        {
+            return;
+        }
+
         double Left = Node.AbsoluteX, Top = Node.AbsoluteY, Right = Left + Node.Width, Bottom = Top + Node.Height;
         double Offset, Length;
         if (Math.Abs(Point.Y - Top) < 1.0 || Math.Abs(Point.Y - Bottom) < 1.0)
@@ -304,26 +314,35 @@ public sealed class CentreOutPortGridTests
         }
 
         if (!DiagramGridMetrics.SideGridOffsets(Length).Any(Grid => Math.Abs(Grid - Offset) < 0.5))
+        {
             Failures.Add($"{Route.Relationship.SourceId}->{Route.Relationship.TargetId} at {NodeId}: offset {Offset:0.##} of {Length:0.##}");
+        }
     }
 
     private static IEnumerable<(double X, double Y)> EndsOn(IEnumerable<EnterpriseRoutedEdge> Routes, string NodeId)
     {
-        foreach (var Route in Routes)
+        foreach (EnterpriseRoutedEdge Route in Routes)
         {
-            if (Route.Relationship.SourceId == NodeId) yield return Route.SvgPoints[0];
-            if (Route.Relationship.TargetId == NodeId) yield return Route.SvgPoints[^1];
+            if (Route.Relationship.SourceId == NodeId)
+            {
+                yield return Route.SvgPoints[0];
+            }
+
+            if (Route.Relationship.TargetId == NodeId)
+            {
+                yield return Route.SvgPoints[^1];
+            }
         }
     }
 
     private static (EnterpriseLayoutResult Layout, List<EnterpriseRoutedEdge> Routes) LayOut(string Diagram)
     {
-        var Document = EnterpriseValidator.Analyze(Diagram).Document;
-        var Layout = EnterpriseLayoutEngine.Layout(Document);
+        EnterpriseDocument Document = EnterpriseValidator.Analyze(Diagram).Document;
+        EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
         // Route the way the SVG renderer does, reusing the layout's routing context.
-        var Routes = (Layout.RoutingContext == null
+        List<EnterpriseRoutedEdge> Routes = [.. (Layout.RoutingContext == null
             ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
-            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, Layout.RoutingContext)).ToList();
+            : EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes, Layout.RoutingContext))];
         return (Layout, Routes);
     }
 

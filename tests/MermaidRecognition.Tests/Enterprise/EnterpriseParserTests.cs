@@ -499,7 +499,7 @@ public sealed class EnterpriseParserTests
     [TestCase("declared -serving-> missing", "declared->missing")]
     public void Parse_UnknownEndpoint_KeepsRelationshipOnOneDiagnosticLine(string Relationship, string Identity)
     {
-        var Result = EnterpriseParser.ParseDocument("enterprise\napplication-component declared \"Declared\"\n" + Relationship);
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument("enterprise\napplication-component declared \"Declared\"\n" + Relationship);
         Assert.That(Result.Diagnostics, Has.Count.EqualTo(1));
         Assert.That(Result.Diagnostics[0].Message, Does.Contain(Identity));
         Assert.That(Result.Diagnostics[0].Message, Does.Not.Contain("\n"));

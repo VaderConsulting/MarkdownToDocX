@@ -17,27 +17,30 @@ public static partial class DiagramGridLayout
     /// <returns>Fresh projected frames in the nodes' existing coordinate direction.</returns>
     internal static List<GridFrame> ProjectCellFrames(DiagramContract Contract, List<GridNode> Placed, FlowchartLogicalGrid.Snapshot State)
     {
-        var Views = new List<GridNode>();
-        foreach (var Node in Placed)
+        List<GridNode> Views = [];
+        foreach (GridNode Node in Placed)
         {
-            var Box = Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State, PageCoordinates: true);
+            FlowchartLayoutNodeBounds Box = Node.CellNode!.Bounds(State.Regions[Node.Id], Node.GeometryProvider, State, PageCoordinates: true);
             // These are disposable frame-builder views derived forward from
             // cells. They never own reservations and are never copied back.
             Views.Add(new GridNode { Id = Node.Id, GroupId = Node.GroupId, IsDiamond = Node.IsDiamond,
                 Shape = Node.Shape, GeometryProvider = Node.GeometryProvider, Rank = Node.Rank, Column = Node.Column,
                 X = Box.CenterX, Y = Box.CenterY, Width = checked((int)Box.Width), Height = checked((int)Box.Height) });
         }
-        var Frames = new List<GridFrame>();
+        List<GridFrame> Frames = [];
         BuildFrames(Contract, Views, Frames);
         // Empty groups have no member centre from which to infer an origin.
         // Build every frame in the page convention, then apply the exact same
         // explicit reflection as its nodes, including empty hinted chains.
         if (Placed[0].CellNode!.RoutingOrigin is { } Flip)
-            foreach (var Frame in Frames)
+        {
+            foreach (GridFrame Frame in Frames)
             {
                 Frame.Top = checked((int)(Flip - Frame.Top));
                 Frame.Bottom = checked((int)(Flip - Frame.Bottom));
             }
+        }
+
         return Frames;
     }
 
@@ -51,8 +54,8 @@ public static partial class DiagramGridLayout
     private static void FitCellFrames(DiagramContract Contract, List<GridNode> Placed,
         List<GridFrame> Frames, string Trigger, FlowchartRenderContext Context)
     {
-        var Original = FlowchartCellRepair.Capture(Placed);
-        var OriginalFrames = Frames.ToArray();
+        FlowchartLogicalGrid.Snapshot Original = FlowchartCellRepair.Capture(Placed);
+        GridFrame[] OriginalFrames = [.. Frames];
         bool Settled = false;
         try
         {
@@ -113,42 +116,55 @@ public static partial class DiagramGridLayout
         IReadOnlyDictionary<string, FlowchartLayoutNodeBounds>? PreparedBounds = null)
     {
         List<CellFrameConflict> Conflicts = [];
-        foreach (var Frame in Frames)
+        foreach (GridFrame Frame in Frames)
         {
-            foreach (var Other in Frames.Where(Other => string.CompareOrdinal(Frame.Id, Other.Id) < 0))
+            foreach (GridFrame? Other in Frames.Where(Other => string.CompareOrdinal(Frame.Id, Other.Id) < 0))
+            {
                 if (!IsInsideGroup(Contract, Frame.Id, Other.Id) && !IsInsideGroup(Contract, Other.Id, Frame.Id)
                     && Frame.Left < Other.Right && Other.Left < Frame.Right
                     && Math.Min(Frame.Top, Frame.Bottom) < Math.Max(Other.Top, Other.Bottom)
                     && Math.Min(Other.Top, Other.Bottom) < Math.Max(Frame.Top, Frame.Bottom))
+                {
                     Conflicts.Add(new("frames|" + Frame.Id + "|" + Other.Id, Frame.Id, Other.Id,
                         Math.Min(Frame.Right - Other.Left, Other.Right - Frame.Left),
                         Math.Min(Math.Max(Frame.Top, Frame.Bottom) - Math.Min(Other.Top, Other.Bottom),
                             Math.Max(Other.Top, Other.Bottom) - Math.Min(Frame.Top, Frame.Bottom))));
-            foreach (var Node in Placed.Where(Node => !IsInsideGroup(Contract, Node.Id, Frame.Id)))
+                }
+            }
+
+            foreach (GridNode? Node in Placed.Where(Node => !IsInsideGroup(Contract, Node.Id, Frame.Id)))
             {
-                var Box = PreparedBounds?.GetValueOrDefault(Node.Id);
+                FlowchartLayoutNodeBounds? Box = PreparedBounds?.GetValueOrDefault(Node.Id);
                 double X = Box?.CenterX ?? Node.X, Y = Box?.CenterY ?? Node.Y;
                 double Width = Box?.Width ?? Node.Width, Height = Box?.Height ?? Node.Height;
                 int Gap = RequiredGap;
-                if (Contract.Edges.Any(Edge => Edge.SourceId == Node.Id
-                        && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id))
-                    || Edge.TargetId == Node.Id
-                        && (Edge.SourceId == Frame.Id || IsInsideGroup(Contract, Edge.SourceId, Frame.Id))))
+                if (Contract.Edges.Any(Edge => (Edge.SourceId == Node.Id
+                        && (Edge.TargetId == Frame.Id || IsInsideGroup(Contract, Edge.TargetId, Frame.Id)))
+                    || (Edge.TargetId == Node.Id
+                        && (Edge.SourceId == Frame.Id || IsInsideGroup(Contract, Edge.SourceId, Frame.Id)))))
+                {
                     Gap = Math.Max(Gap, 2 * DiagramGridMetrics.GRID_UNIT_PX);
+                }
+
                 string? Parent = ParentGroup(Contract, Frame.Id);
                 if (Parent != null && IsInsideGroup(Contract, Node.Id, Parent))
+                {
                     Gap = Math.Max(Gap, DiagramGridMetrics.CeilToGrid(
                         FlowchartSubgraphGapThresholds.ResolveDirectMemberNestedGapPx(FlowchartRenderOptions.FromContract(Contract))));
-                if (X + Width / 2.0 > Frame.Left - Gap && X - Width / 2.0 < Frame.Right + Gap
-                    && Y + Height / 2.0 > Math.Min(Frame.Top, Frame.Bottom) - Gap
-                    && Y - Height / 2.0 < Math.Max(Frame.Top, Frame.Bottom) + Gap)
+                }
+
+                if (X + (Width / 2.0) > Frame.Left - Gap && X - (Width / 2.0) < Frame.Right + Gap
+                    && Y + (Height / 2.0) > Math.Min(Frame.Top, Frame.Bottom) - Gap
+                    && Y - (Height / 2.0) < Math.Max(Frame.Top, Frame.Bottom) + Gap)
+                {
                     Conflicts.Add(new("node|" + Frame.Id + "|" + Node.Id, Frame.Id, Node.Id,
-                        Math.Min(X + Width / 2 - Frame.Left + Gap, Frame.Right + Gap - X + Width / 2),
-                        Math.Min(Y + Height / 2 - Math.Min(Frame.Top, Frame.Bottom) + Gap,
-                            Math.Max(Frame.Top, Frame.Bottom) + Gap - Y + Height / 2)));
+                        Math.Min(X + (Width / 2) - Frame.Left + Gap, Frame.Right + Gap - X + (Width / 2)),
+                        Math.Min(Y + (Height / 2) - Math.Min(Frame.Top, Frame.Bottom) + Gap,
+                            Math.Max(Frame.Top, Frame.Bottom) + Gap - Y + (Height / 2))));
+                }
             }
         }
-        return Conflicts.OrderBy(Conflict => Conflict.Key, StringComparer.Ordinal).ToList();
+        return [.. Conflicts.OrderBy(Conflict => Conflict.Key, StringComparer.Ordinal)];
     }
 
     /// <summary>Checks complete projected cell candidates against the same hard frame-conflict identities as live fitting.</summary>
@@ -188,7 +204,7 @@ public static partial class DiagramGridLayout
     /// <returns>Whether a fixed dependent would lose its placement relative to its moved peer.</returns>
     private static bool HasExternalCellHintDependent(DiagramContract Contract, string Unit, GridNode[] Moving)
     {
-        var Ids = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> Ids = Moving.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
         Ids.UnionWith(Contract.Groups.Where(Group => Group.Id == Unit || IsInsideGroup(Contract, Group.Id, Unit)).Select(Group => Group.Id));
         return Contract.Nodes.Any(Node => !Ids.Contains(Node.Id) && Node.PlacementHint?.IsActive == true
                 && Ids.Contains(Node.PlacementHint.PeerId ?? string.Empty))
@@ -216,9 +232,18 @@ public static partial class DiagramGridLayout
         _ = FlowchartCellRepair.Capture(Placed);
         bool Routing = Placed[0].CellNode!.UsesRoutingCoordinates;
         if (Placed.Any(Node => Node.CellNode!.UsesRoutingCoordinates != Routing))
+        {
             throw new InvalidOperationException("A frame cannot mix placement and routing coordinate views.");
+        }
+
         Frames.Clear();
-        if (Routing) BuildFramesYUp(Contract, Placed, Frames);
-        else BuildFrames(Contract, Placed, Frames);
+        if (Routing)
+        {
+            BuildFramesYUp(Contract, Placed, Frames);
+        }
+        else
+        {
+            BuildFrames(Contract, Placed, Frames);
+        }
     }
 }

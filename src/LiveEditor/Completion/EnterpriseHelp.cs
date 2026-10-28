@@ -68,13 +68,15 @@ internal static class EnterpriseHelp
         string Name = string.IsNullOrWhiteSpace(WrittenName) ? Metadata.KebabName : WrittenName;
         string Summary = SummaryFor(Name, Metadata);
         string ExampleId = ExampleIdentifier(ElementShapePainterName(Metadata.KebabName));
-        List<string> Lines = new List<string>();
-        Lines.Add(Name + " <id> [\"label\"]");
-        Lines.Add("    [in <container>]");
-        Lines.Add("    [above|below|left-of|right-of <peer> [+n] | push <N|S|E|W>]");
-        Lines.Add(string.Empty);
-        Lines.AddRange(Wrap(Summary, NOTE_WIDTH));
-        Lines.Add(string.Empty);
+        List<string> Lines =
+        [
+            Name + " <id> [\"label\"]",
+            "    [in <container>]",
+            "    [above|below|left-of|right-of <peer> [+n] | push <N|S|E|W>]",
+            string.Empty,
+            .. Wrap(Summary, NOTE_WIDTH),
+            string.Empty,
+        ];
         int NameWidth = FieldWidth("id", "\"label\"", "container", "above", "below", "left-of", "right-of", "peer", "+n", "push");
         AppendField(Lines, "id", "Required. Identifier unique within this diagram.", NameWidth);
         AppendField(Lines, "\"label\"", "Optional. Displayed name; defaults to the identifier.", NameWidth);
@@ -112,8 +114,8 @@ internal static class EnterpriseHelp
     /// <summary>Relationship names this type can start, against any target type in the rules.</summary>
     public static List<string> OutgoingRelationshipNames(string Version, string SourceType)
     {
-        List<string> Names = new List<string>();
-        HashSet<char> Letters = new HashSet<char>();
+        List<string> Names = [];
+        HashSet<char> Letters = [];
         EnterpriseRulesCatalog Rules = EnterpriseRulesCatalog.Instance;
         string VersionName = string.IsNullOrWhiteSpace(Version) ? EnterpriseParser.DEFAULT_VERSION : Version;
         foreach (string TargetType in Rules.Types)
@@ -140,14 +142,16 @@ internal static class EnterpriseHelp
     /// <summary>Documentation for one relationship name.</summary>
     public static string RelationshipDocumentation(EnterpriseRelationshipMetadata Metadata, string SourceType)
     {
-        List<string> Lines = new List<string>();
-        Lines.Add(RelationshipSignature(Metadata.Name));
-        Lines.Add(string.Empty);
-        Lines.AddRange(Wrap(RelationshipSummary(Metadata.Name) + " Extra dashes before > lengthen the link, the same way a Mermaid arrow does.", NOTE_WIDTH));
-        Lines.Add(string.Empty);
-        Lines.AddRange(Wrap("Permitted because " + SourceType + " can start this relationship.", NOTE_WIDTH));
-        Lines.Add("The target list keeps only elements that accept it.");
-        Lines.Add(string.Empty);
+        List<string> Lines =
+        [
+            RelationshipSignature(Metadata.Name),
+            string.Empty,
+            .. Wrap(RelationshipSummary(Metadata.Name) + " Extra dashes before > lengthen the link, the same way a Mermaid arrow does.", NOTE_WIDTH),
+            string.Empty,
+            .. Wrap("Permitted because " + SourceType + " can start this relationship.", NOTE_WIDTH),
+            "The target list keeps only elements that accept it.",
+            string.Empty,
+        ];
         int NameWidth = FieldWidth("qualifier", "target", "\"label\"", "routing");
         if (HasQualifier(Metadata.Name))
         {
@@ -174,7 +178,7 @@ internal static class EnterpriseHelp
     /// <summary>Documentation for an access, influence, or association qualifier.</summary>
     public static string QualifierDocumentation(string Kind, string Option)
     {
-        List<string> Lines = new List<string>();
+        List<string> Lines = [];
         if (string.Equals(Kind, "access", StringComparison.OrdinalIgnoreCase))
         {
             Lines.Add("source -access(qualifier)-> target [\"label\"]");
@@ -210,7 +214,7 @@ internal static class EnterpriseHelp
     /// <summary>Documentation for a placement word.</summary>
     public static string PlacementDocumentation(string Hint)
     {
-        List<string> Lines = new List<string>();
+        List<string> Lines = [];
         if (string.Equals(Hint, "push", StringComparison.Ordinal))
         {
             Lines.Add("push <N|S|E|W>");
@@ -320,7 +324,7 @@ internal static class EnterpriseHelp
     /// <summary>Text for a reference row, including connections already drawn to it.</summary>
     public static string ConnectionNote(EnterpriseDocument Document, string SourceId, string TargetId)
     {
-        List<string> Notes = new List<string>();
+        List<string> Notes = [];
         foreach (EnterpriseRelationship Relationship in Document.Relationships)
         {
             bool SameEnds = string.Equals(Relationship.SourceId, SourceId, StringComparison.Ordinal)
@@ -541,8 +545,7 @@ internal static class EnterpriseHelp
     private static string ElementQuickInfo(EnterpriseElement Element)
     {
         string TypeName = EnterpriseElementCatalog.GetKebabName(Element.ElementType);
-        List<string> Lines = new List<string>();
-        Lines.Add("Displayed name: " + Element.Label);
+        List<string> Lines = ["Displayed name: " + Element.Label];
         if (!string.IsNullOrEmpty(Element.ParentId))
         {
             Lines.Add("Container: " + Element.ParentId);
@@ -609,7 +612,7 @@ internal static class EnterpriseHelp
 
     private static List<string> Wrap(string Text, int Width)
     {
-        List<string> Lines = new List<string>();
+        List<string> Lines = [];
         if (string.IsNullOrEmpty(Text))
         {
             return Lines;

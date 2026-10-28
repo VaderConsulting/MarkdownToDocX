@@ -24,14 +24,17 @@ internal static class FlowchartCellInitialPlacement
     internal static void Bind(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, int Width, int Height,
         bool Horizontal, FlowchartRenderContext Context)
     {
-        var Config = FlowchartLogicalGridConfiguration.FromRules();
+        FlowchartLogicalGridConfiguration Config = FlowchartLogicalGridConfiguration.FromRules();
         int Columns = Math.Max(1, (int)Math.Ceiling((Width + Config.ColumnGap) / (Config.CellWidth + Config.ColumnGap)));
         int Rows = Math.Max(1, (int)Math.Ceiling((Height + Config.RowGap) / (Config.CellHeight + Config.RowGap)));
         int ColumnPitch = Math.Max(Rows, Columns);
-        var Grid = Create(Config, Nodes.Select(Node => new FlowchartCellPlacementSeed(
+        FlowchartLogicalGrid Grid = Create(Config, Nodes.Select(Node => new FlowchartCellPlacementSeed(
             Node.Id, Node.Rank, Node.Column, Node.IsDiamond ? 2 * ColumnPitch : Rows,
             Node.IsDiamond ? ColumnPitch : Columns)).ToArray(), Horizontal);
-        foreach (var Node in Nodes) Node.BindCells(Grid, Context);
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            Node.BindCells(Grid, Context);
+        }
     }
 
     /// <summary>Assigns all existing cell-bound nodes from their current logical ranks and columns in one repair transaction.</summary>
@@ -40,21 +43,33 @@ internal static class FlowchartCellInitialPlacement
     /// <returns>Whether the complete exclusive plan was published, with no pixel writes or partial application.</returns>
     internal static bool TryAssign(IReadOnlyList<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        var Original = FlowchartCellRepair.Capture(Nodes);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
-        foreach (var Node in Nodes.Where(Node => Node.PlacementHintLocked)) Targets.Add(Node.Id, Original.Regions[Node.Id]);
+        FlowchartLogicalGrid.Snapshot Original = FlowchartCellRepair.Capture(Nodes);
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+        foreach (DiagramGridLayout.GridNode? Node in Nodes.Where(Node => Node.PlacementHintLocked))
+        {
+            Targets.Add(Node.Id, Original.Regions[Node.Id]);
+        }
+
         int RowPitch = Original.Regions.Values.Max(Region => Region.RowSpan);
         int ColumnPitch = Original.Regions.Values.Max(Region => Region.ColumnSpan);
-        foreach (var Node in Nodes.Where(Node => !Node.PlacementHintLocked).OrderBy(Node => Node.Rank)
+        foreach (DiagramGridLayout.GridNode? Node in Nodes.Where(Node => !Node.PlacementHintLocked).OrderBy(Node => Node.Rank)
             .ThenBy(Node => Node.Column).ThenBy(Node => Node.Id, StringComparer.Ordinal))
         {
-            var Before = Original.Regions[Node.Id];
+            FlowchartCellRegion Before = Original.Regions[Node.Id];
             int Row = checked((Horizontal ? Node.Column : Node.Rank) * RowPitch);
             int Column = checked((Horizontal ? Node.Rank : Node.Column) * ColumnPitch);
-            var Region = new FlowchartCellRegion(Row, Column, Before.RowSpan, Before.ColumnSpan);
+            FlowchartCellRegion Region = new FlowchartCellRegion(Row, Column, Before.RowSpan, Before.ColumnSpan);
             while (Targets.Values.Any(Other => Other.Overlaps(Region)))
             {
-                if (Horizontal) Row = checked(Row + RowPitch); else Column = checked(Column + ColumnPitch);
+                if (Horizontal)
+                {
+                    Row = checked(Row + RowPitch);
+                }
+                else
+                {
+                    Column = checked(Column + ColumnPitch);
+                }
+
                 Region = new(Row, Column, Before.RowSpan, Before.ColumnSpan);
             }
             Targets.Add(Node.Id, Region);
@@ -73,37 +88,48 @@ internal static class FlowchartCellInitialPlacement
         IReadOnlyList<FlowchartCellPlacementSeed> Inputs, bool Horizontal)
     {
         ArgumentNullException.ThrowIfNull(Inputs);
-        var Grid = new FlowchartLogicalGrid(Configuration);
-        var Ordered = Inputs.OrderBy(Input => Input.Rank).ThenBy(Input => Input.Column)
-            .ThenBy(Input => Input.Id, StringComparer.Ordinal).ToArray();
-        var Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
-        foreach (var Input in Ordered)
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(Configuration);
+        FlowchartCellPlacementSeed[] Ordered = [.. Inputs.OrderBy(Input => Input.Rank).ThenBy(Input => Input.Column).ThenBy(Input => Input.Id, StringComparer.Ordinal)];
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(StringComparer.Ordinal);
+        foreach (FlowchartCellPlacementSeed? Input in Ordered)
         {
             ArgumentException.ThrowIfNullOrEmpty(Input.Id);
             _ = new FlowchartCellRegion(0, 0, Input.RowSpan, Input.ColumnSpan);
         }
         int RowPitch = Ordered.Select(Input => Input.RowSpan).DefaultIfEmpty(1).Max();
         int ColumnPitch = Ordered.Select(Input => Input.ColumnSpan).DefaultIfEmpty(1).Max();
-        foreach (var Input in Ordered)
+        foreach (FlowchartCellPlacementSeed? Input in Ordered)
         {
             int Row = checked((Horizontal ? Input.Column : Input.Rank) * RowPitch);
             int Column = checked((Horizontal ? Input.Rank : Input.Column) * ColumnPitch);
-            var Region = new FlowchartCellRegion(Row, Column, Input.RowSpan, Input.ColumnSpan);
+            FlowchartCellRegion Region = new FlowchartCellRegion(Row, Column, Input.RowSpan, Input.ColumnSpan);
             while (Targets.Values.Any(Existing => Existing.Overlaps(Region)))
             {
                 // Only logical coordinates change. This ordering seed neither
                 // fits frames nor interprets hints; those are subsequent stages.
-                if (Horizontal) Row = checked(Row + RowPitch);
-                else Column = checked(Column + ColumnPitch);
+                if (Horizontal)
+                {
+                    Row = checked(Row + RowPitch);
+                }
+                else
+                {
+                    Column = checked(Column + ColumnPitch);
+                }
+
                 Region = new(Row, Column, Input.RowSpan, Input.ColumnSpan);
             }
             Targets.Add(Input.Id, Region);
         }
         // The new grid remains private until all complete target rectangles
         // have been built and validated; no production node is bound here.
-        foreach (var Target in Targets)
+        foreach (KeyValuePair<string, FlowchartCellRegion> Target in Targets)
+        {
             if (!Grid.TryPlace(Target.Key, Target.Value))
+            {
                 throw new InvalidOperationException("The complete initial cell plan contains shared occupancy.");
+            }
+        }
+
         return Grid;
     }
 }

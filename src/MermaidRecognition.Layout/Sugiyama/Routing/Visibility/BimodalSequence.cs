@@ -41,7 +41,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             double leftVal=Sequence(0);
             double rightVal=Sequence(Length-1);
             double k=(rightVal-leftVal)/(Length-1);
-            return delegate(int i) { return Math.Min(Sequence(i), leftVal + k * i); };
+            return delegate(int i) { return Math.Min(Sequence(i), leftVal + (k * i)); };
         }
 
         internal int FindMaximum() {
@@ -58,7 +58,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
             double leftVal = Sequence(0);
             double rightVal = Sequence(Length - 1);
             double k = (rightVal - leftVal) / (Length - 1);
-            return delegate(int i) { return Math.Max(Sequence(i), leftVal + k * i); };
+            return delegate(int i) { return Math.Max(Sequence(i), leftVal + (k * i)); };
         }
     }
 }

@@ -20,7 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
         /// <param name="rectangles"></param>
         /// <param name="aspectRatio"></param>
         public OptimalColumnPacking(IEnumerable<RectangleToPack<TData>> rectangles, double aspectRatio)
-            : base(rectangles.ToList(), aspectRatio)
+            : base([.. rectangles], aspectRatio)
         {
             ValidateArg.IsNotNull(rectangles, "rectangles");
             Debug.Assert(rectangles.Any(), "Expected more than one rectangle in rectangles");

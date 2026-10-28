@@ -19,9 +19,9 @@ internal sealed class EnterpriseLayoutNode
 
     private readonly EnterpriseNote? _Note;
 
-    private readonly List<string> _LabelLines = new List<string>();
+    private readonly List<string> _LabelLines = [];
 
-    private readonly List<EnterpriseLayoutNode> _Children = new List<EnterpriseLayoutNode>();
+    private readonly List<EnterpriseLayoutNode> _Children = [];
 
     private double _Width;
 

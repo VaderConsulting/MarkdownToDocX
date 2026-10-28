@@ -15,8 +15,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.MDS {
             double sin = Math.Sin(angle * Math.PI / 180);
             double cos = Math.Cos(angle * Math.PI / 180);
             for (int i = 0; i < x.Length; i++) {
-                double xNew = cos * x[i] + sin * y[i];
-                double yNew = cos * y[i] - sin * x[i];
+                double xNew = (cos * x[i]) + (sin * y[i]);
+                double yNew = (cos * y[i]) - (sin * x[i]);
                 x[i] = xNew;
                 y[i] = yNew;
             }

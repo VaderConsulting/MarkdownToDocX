@@ -15,8 +15,8 @@ internal sealed class MermaidDiagramAssist
 
     private static readonly Dictionary<string, StatementWord[]> Words = BuildWords();
 
-    private static readonly StatementWord[] DiagramOpeners = new StatementWord[]
-    {
+    private static readonly StatementWord[] DiagramOpeners =
+    [
         new StatementWord("enterprise\r\n", "Diagram", "Archimate-style enterprise diagram."),
         new StatementWord("flowchart TD\r\n", "Diagram", "Flowchart, top to bottom."),
         new StatementWord("flowchart LR\r\n", "Diagram", "Flowchart, left to right."),
@@ -31,16 +31,16 @@ internal sealed class MermaidDiagramAssist
         new StatementWord("timeline\r\n", "Diagram", "Events in sections."),
         new StatementWord("sankey-beta\r\n", "Diagram", "Flows from source to target."),
         new StatementWord("architecture-beta\r\n", "Diagram", "Groups, services, and junctions.")
-    };
+    ];
 
-    private static readonly StatementWord[] Directions = new StatementWord[]
-    {
+    private static readonly StatementWord[] Directions =
+    [
         new StatementWord("TB", "Direction", "Top to bottom."),
         new StatementWord("TD", "Direction", "Top to bottom."),
         new StatementWord("BT", "Direction", "Bottom to top."),
         new StatementWord("LR", "Direction", "Left to right."),
         new StatementWord("RL", "Direction", "Right to left.")
-    };
+    ];
 
     /// <summary>Suggestions for the token being typed.</summary>
     public CompletionContext BuildMembers(string Source, int CaretIndex)
@@ -587,9 +587,10 @@ internal sealed class MermaidDiagramAssist
 
     private static Dictionary<string, StatementWord[]> BuildWords()
     {
-        Dictionary<string, StatementWord[]> Result = new Dictionary<string, StatementWord[]>(StringComparer.Ordinal);
-        Result["flowchart"] = new StatementWord[]
+        Dictionary<string, StatementWord[]> Result = new Dictionary<string, StatementWord[]>(StringComparer.Ordinal)
         {
+            ["flowchart"] =
+        [
             new StatementWord("subgraph ", "Statement", "Starts a group of nodes. Close it with end."),
             new StatementWord("end", "Statement", "Closes the current subgraph."),
             new StatementWord("direction ", "Statement", "Sets TB, TD, BT, LR, or RL for the current group."),
@@ -600,9 +601,9 @@ internal sealed class MermaidDiagramAssist
             new StatementWord("click ", "Statement", "Opens an address or calls a function when a node is clicked."),
             new StatementWord("accTitle ", "Statement", "Accessible title."),
             new StatementWord("accDescr ", "Statement", "Accessible description.")
-        };
-        Result["sequence"] = new StatementWord[]
-        {
+        ],
+            ["sequence"] =
+        [
             new StatementWord("participant ", "Statement", "Declares a participant."),
             new StatementWord("actor ", "Statement", "Declares a participant drawn as an actor."),
             new StatementWord("box ", "Statement", "Groups the following participants until end."),
@@ -622,93 +623,94 @@ internal sealed class MermaidDiagramAssist
             new StatementWord("autonumber", "Statement", "Numbers the messages."),
             new StatementWord("accTitle ", "Statement", "Accessible title."),
             new StatementWord("accDescr ", "Statement", "Accessible description.")
-        };
-        Result["class"] = new StatementWord[]
-        {
+        ],
+            ["class"] =
+        [
             new StatementWord("class ", "Statement", "Declares a class."),
             new StatementWord("namespace ", "Statement", "Groups classes until end."),
             new StatementWord("note ", "Statement", "A note for a class."),
             new StatementWord("direction ", "Statement", "Sets TB, TD, BT, LR, or RL."),
             new StatementWord("accTitle ", "Statement", "Accessible title."),
             new StatementWord("accDescr ", "Statement", "Accessible description.")
-        };
-        Result["state"] = new StatementWord[]
-        {
+        ],
+            ["state"] =
+        [
             new StatementWord("state ", "Statement", "Declares a state."),
             new StatementWord("[*]", "Statement", "The start or end state."),
             new StatementWord("note ", "Statement", "A note on a state."),
             new StatementWord("direction ", "Statement", "Sets TB, TD, BT, LR, or RL."),
             new StatementWord("accTitle ", "Statement", "Accessible title."),
             new StatementWord("accDescr ", "Statement", "Accessible description.")
-        };
-        Result["er"] = new StatementWord[]
-        {
+        ],
+            ["er"] =
+        [
             new StatementWord("PK", "Attribute", "Primary key."),
             new StatementWord("FK", "Attribute", "Foreign key."),
             new StatementWord("UK", "Attribute", "Unique key."),
             new StatementWord("accTitle ", "Statement", "Accessible title."),
             new StatementWord("accDescr ", "Statement", "Accessible description.")
-        };
-        Result["journey"] = new StatementWord[]
-        {
+        ],
+            ["journey"] =
+        [
             new StatementWord("title ", "Statement", "Title of the journey."),
             new StatementWord("section ", "Statement", "A group of scored tasks.")
-        };
-        Result["gantt"] = new StatementWord[]
-        {
+        ],
+            ["gantt"] =
+        [
             new StatementWord("title ", "Statement", "Title of the chart."),
             new StatementWord("dateFormat ", "Statement", "How dates are written, for example YYYY-MM-DD."),
             new StatementWord("axisFormat ", "Statement", "How dates are drawn on the axis."),
             new StatementWord("section ", "Statement", "A group of tasks."),
             new StatementWord("excludes ", "Statement", "Days that are not working days."),
             new StatementWord("todayMarker ", "Statement", "How today is marked.")
-        };
-        Result["pie"] = new StatementWord[]
-        {
+        ],
+            ["pie"] =
+        [
             new StatementWord("title ", "Statement", "Title of the pie."),
             new StatementWord("showData", "Statement", "Prints the values beside the slices.")
-        };
-        Result["mindmap"] = new StatementWord[]
-        {
+        ],
+            ["mindmap"] =
+        [
             new StatementWord("accTitle ", "Statement", "Accessible title."),
             new StatementWord("accDescr ", "Statement", "Accessible description.")
-        };
-        Result["timeline"] = new StatementWord[]
-        {
+        ],
+            ["timeline"] =
+        [
             new StatementWord("title ", "Statement", "Title of the timeline."),
             new StatementWord("section ", "Statement", "A group of events.")
-        };
-        Result["sankey"] = new StatementWord[]
-        {
+        ],
+            ["sankey"] =
+        [
             new StatementWord("source,target,value", "Row", "Each following row is a source, a target, and a number.")
-        };
-        Result["architecture"] = new StatementWord[]
-        {
+        ],
+            ["architecture"] =
+        [
             new StatementWord("group ", "Statement", "A named group. Other items can sit in it."),
             new StatementWord("service ", "Statement", "A service, with an icon and a label."),
             new StatementWord("junction ", "Statement", "A junction between edges.")
+        ],
+            ["*"] = Array.Empty<StatementWord>()
         };
-        Result["*"] = Array.Empty<StatementWord>();
         return Result;
     }
 
     private static StatementWord[] FlowLinks()
     {
-        return new StatementWord[]
-        {
+        return
+        [
             new StatementWord("--> ", "Link", "Arrow to the next node."),
             new StatementWord("--- ", "Link", "Line with no arrow."),
             new StatementWord("-.-> ", "Link", "Dotted arrow."),
             new StatementWord("==> ", "Link", "Thick arrow."),
             new StatementWord("--o ", "Link", "Line ending in a circle."),
             new StatementWord("--x ", "Link", "Line ending in a cross.")
-        };
+        ];
     }
 
     private static StatementWord[] SequenceLinks()
     {
-        return new StatementWord[]
-        {
+        return
+        [
             new StatementWord("->>", "Message", "Solid arrow."),
             new StatementWord("-->>", "Message", "Dotted arrow."),
             new StatementWord("->", "Message", "Solid line without an arrow head."),
@@ -716,39 +718,39 @@ internal sealed class MermaidDiagramAssist
             new StatementWord("-x", "Message", "Solid line with a cross."),
             new StatementWord("--x", "Message", "Dotted line with a cross."),
             new StatementWord("-)", "Message", "Async message.")
-        };
+        ];
     }
 
     private static StatementWord[] ClassLinks()
     {
-        return new StatementWord[]
-        {
+        return
+        [
             new StatementWord("<|--", "Relation", "Inheritance."),
             new StatementWord("*--", "Relation", "Composition."),
             new StatementWord("o--", "Relation", "Aggregation."),
             new StatementWord("-->", "Relation", "Association."),
             new StatementWord("<..", "Relation", "Dashed inheritance."),
             new StatementWord("..>", "Relation", "Dependency.")
-        };
+        ];
     }
 
     private static StatementWord[] StateLinks()
     {
-        return new StatementWord[]
-        {
+        return
+        [
             new StatementWord("-->", "Transition", "Transition to the next state.")
-        };
+        ];
     }
 
     private static StatementWord[] ErLinks()
     {
-        return new StatementWord[]
-        {
+        return
+        [
             new StatementWord("||--o{", "Relationship", "Exactly one to zero or many."),
             new StatementWord("||--|{", "Relationship", "Exactly one to one or many."),
             new StatementWord("}o--o{", "Relationship", "Zero or many to zero or many."),
             new StatementWord("|o--o{", "Relationship", "Zero or one to zero or many.")
-        };
+        ];
     }
 
     private sealed class StatementWord

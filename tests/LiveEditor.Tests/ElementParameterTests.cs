@@ -12,8 +12,8 @@ namespace LiveEditor.Tests;
 [TestFixture]
 public sealed class ElementParameterTests
 {
-    private static readonly string[] DeclarationParameters = new string[]
-    {
+    private static readonly string[] DeclarationParameters =
+    [
         "<id>",
         "[\"label\"]",
         "[in <container>]",
@@ -25,11 +25,11 @@ public sealed class ElementParameterTests
         "[+n]",
         "push",
         "<N|S|E|W>"
-    };
+    ];
 
-    private static readonly string[] ClauseWords = new string[] { "in", "above", "below", "left-of", "right-of", "push" };
+    private static readonly string[] ClauseWords = ["in", "above", "below", "left-of", "right-of", "push"];
 
-    private static readonly string[] PushDirections = new string[] { "N", "S", "E", "W" };
+    private static readonly string[] PushDirections = ["N", "S", "E", "W"];
 
     [Test]
     public void EveryNodeTypeDocumentsAndOffersItsParameters()
@@ -181,7 +181,7 @@ public sealed class ElementParameterTests
 
     private static HashSet<string> RelationshipNamesFromRules(string RulesType)
     {
-        HashSet<char> Letters = new HashSet<char>();
+        HashSet<char> Letters = [];
         EnterpriseRulesCatalog Rules = EnterpriseRulesCatalog.Instance;
         foreach (string TargetType in Rules.Types)
         {

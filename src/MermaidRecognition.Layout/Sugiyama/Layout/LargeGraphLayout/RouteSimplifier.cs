@@ -39,8 +39,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         internal bool Run() {
             // it is critical to enumerate to an array here, because the quiery will change during the foreach loop below
             VisibilityVertex[] candidates =
-                new List<VisibilityVertex>(_pathRouter.GetAllVertices().Where(v => (!_fixedPoints.Contains(v.Point)) &&
-                                                                                 v.Degree == 2 && (!v.IsTerminal))).ToArray();
+                [.. _pathRouter.GetAllVertices().Where(v => (!_fixedPoints.Contains(v.Point)) &&
+                                                                                 v.Degree == 2 && (!v.IsTerminal))];
             bool ret = false;
             foreach (VisibilityVertex v in candidates) {
                 List<VisibilityVertex> neighb = GetNeighbors(v);
@@ -110,7 +110,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         static bool AngleIsTooSmall(double t) {
             const double minAngle = 2 * Math.PI / 17; // make it slightly more than 20 degrees
             Debug.Assert(t >= 0 && 2*Math.PI >= t);
-            return t < minAngle || 2*Math.PI - t < minAngle;
+            return t < minAngle || (2*Math.PI) - t < minAngle;
         }
 
 
@@ -182,9 +182,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         List<VisibilityVertex> GetNeighbors(VisibilityVertex v) {
-            List<VisibilityVertex> neighbors = new List<VisibilityVertex>();
-            neighbors.AddRange(v.InEdges.Select(e => e.Source));
-            neighbors.AddRange(v.OutEdges.Select(e => e.Target));
+            List<VisibilityVertex> neighbors = [.. v.InEdges.Select(e => e.Source), .. v.OutEdges.Select(e => e.Target)];
             return neighbors;
         }
     }

@@ -81,7 +81,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     positions[pointToIndex[p].SerialNumber] = p;
                 }
 
-                Metrolines.Add(line.ToArray());
+                Metrolines.Add([.. line]);
             }
         }
 
@@ -195,7 +195,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 if (!labelCached) {
                     ulong hc = (ulong)nodes.Count;
                     for (int i = 0; i < nodes.Count; i++) {
-                        hc = unchecked(hc * 314159 + (ulong)nodes[i]);
+                        hc = unchecked((hc * 314159) + (ulong)nodes[i]);
                     }
 
                     label = (int)hc;

@@ -16,7 +16,7 @@ namespace MermaidRecognition.Layout.Sugiyama.DebugHelpers{
         /// 
         /// </summary>
         /// <param name="debugCurves"></param>
-        DebugCurveCollection(IEnumerable<DebugCurve> debugCurves) => DebugCurvesArray = debugCurves.ToArray();
+        DebugCurveCollection(IEnumerable<DebugCurve> debugCurves) => DebugCurvesArray = [.. debugCurves];
 
         /// <summary>
         /// 

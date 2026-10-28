@@ -10,7 +10,7 @@ namespace MermaidRecognition.Kinds.State;
 /// </summary>
 public sealed class StateDiagramParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "stateDiagram-v2", "stateDiagram" };
+    private static readonly string[] Headers = ["stateDiagram-v2", "stateDiagram"];
 
     private static readonly Regex TransitionRegex = new Regex(
         @"^(?<src>\S+)\s*-->\s*(?<tgt>\S+)(?:\s*:\s*(?<label>.*))?$",

@@ -27,8 +27,8 @@ public static class NativeFlowchartSvgRenderer
         Dictionary<string, (int X, int Y)> Positions = AssignGridPositions(Contract);
         int MaxX = Positions.Count > 0 ? Positions.Values.Max(P => P.X) : 0;
         int MaxY = Positions.Count > 0 ? Positions.Values.Max(P => P.Y) : 0;
-        int Width = MARGIN * 2 + NODE_WIDTH + MaxX * (NODE_WIDTH + HORIZONTAL_GAP);
-        int Height = MARGIN * 2 + NODE_HEIGHT + MaxY * (NODE_HEIGHT + VERTICAL_GAP);
+        int Width = (MARGIN * 2) + NODE_WIDTH + (MaxX * (NODE_WIDTH + HORIZONTAL_GAP));
+        int Height = (MARGIN * 2) + NODE_HEIGHT + (MaxY * (NODE_HEIGHT + VERTICAL_GAP));
 
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"");
@@ -50,10 +50,10 @@ public static class NativeFlowchartSvgRenderer
                 continue;
             }
 
-            int X1 = MARGIN + SourcePos.X * (NODE_WIDTH + HORIZONTAL_GAP) + NODE_WIDTH / 2;
-            int Y1 = MARGIN + SourcePos.Y * (NODE_HEIGHT + VERTICAL_GAP) + NODE_HEIGHT / 2;
-            int X2 = MARGIN + TargetPos.X * (NODE_WIDTH + HORIZONTAL_GAP) + NODE_WIDTH / 2;
-            int Y2 = MARGIN + TargetPos.Y * (NODE_HEIGHT + VERTICAL_GAP) + NODE_HEIGHT / 2;
+            int X1 = MARGIN + (SourcePos.X * (NODE_WIDTH + HORIZONTAL_GAP)) + (NODE_WIDTH / 2);
+            int Y1 = MARGIN + (SourcePos.Y * (NODE_HEIGHT + VERTICAL_GAP)) + (NODE_HEIGHT / 2);
+            int X2 = MARGIN + (TargetPos.X * (NODE_WIDTH + HORIZONTAL_GAP)) + (NODE_WIDTH / 2);
+            int Y2 = MARGIN + (TargetPos.Y * (NODE_HEIGHT + VERTICAL_GAP)) + (NODE_HEIGHT / 2);
 
             Builder.Append("<line x1=\"");
             Builder.Append(X1);
@@ -73,14 +73,14 @@ public static class NativeFlowchartSvgRenderer
                 continue;
             }
 
-            int Left = MARGIN + Pos.X * (NODE_WIDTH + HORIZONTAL_GAP);
-            int Top = MARGIN + Pos.Y * (NODE_HEIGHT + VERTICAL_GAP);
+            int Left = MARGIN + (Pos.X * (NODE_WIDTH + HORIZONTAL_GAP));
+            int Top = MARGIN + (Pos.Y * (NODE_HEIGHT + VERTICAL_GAP));
             string Label = string.IsNullOrEmpty(Node.Label) ? Node.Id : Node.Label;
 
             if (IsDecisionShape(Node))
             {
-                int CentreX = Left + NODE_WIDTH / 2;
-                int CentreY = Top + NODE_HEIGHT / 2;
+                int CentreX = Left + (NODE_WIDTH / 2);
+                int CentreY = Top + (NODE_HEIGHT / 2);
                 Builder.Append("<polygon points=\"");
                 Builder.Append(CentreX);
                 Builder.Append(',');
@@ -113,9 +113,9 @@ public static class NativeFlowchartSvgRenderer
             }
 
             Builder.Append("<text x=\"");
-            Builder.Append(Left + NODE_WIDTH / 2);
+            Builder.Append(Left + (NODE_WIDTH / 2));
             Builder.Append("\" y=\"");
-            Builder.Append(Top + NODE_HEIGHT / 2 + 4);
+            Builder.Append(Top + (NODE_HEIGHT / 2) + 4);
             Builder.Append("\" text-anchor=\"middle\" font-size=\"12\">");
             Builder.Append(EscapeXml(Label));
             Builder.Append("</text>");

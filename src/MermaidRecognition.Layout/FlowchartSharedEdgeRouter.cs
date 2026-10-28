@@ -100,11 +100,18 @@ public static class FlowchartSharedEdgeRouter
         foreach (FlowchartResolvedGuide Guide in Guides)
         {
             if (Guide.Points.Count < 2 || Guide.Edge.RoutingHint?.IsActive == true)
+            {
                 continue;
+            }
+
             if (IsDesignedRoute(Guide.RouteKind))
+            {
                 FixedRoutes.Add((Guide, new List<(double X, double Y)>(Guide.Points)));
+            }
             else if (HasSharedPortSet(Guide.Edge, Contract))
+            {
                 FixedFanPorts.Add((Guide, Guide.Points[0], Guide.Points[^1]));
+            }
         }
 
         AssignFacingPorts(Contract, BoundsById, NodeById, Guides);
@@ -179,7 +186,11 @@ public static class FlowchartSharedEdgeRouter
         }
         foreach ((FlowchartResolvedGuide Guide, (double X, double Y) Start, (double X, double Y) End) in FixedFanPorts)
         {
-            if (Guide.Points.Count < 2) continue;
+            if (Guide.Points.Count < 2)
+            {
+                continue;
+            }
+
             Guide.Points[0] = Start;
             Guide.Points[^1] = End;
         }
@@ -245,9 +256,16 @@ public static class FlowchartSharedEdgeRouter
         foreach (EdgeContract Candidate in Contract.Edges)
         {
             if (Candidate.SourceId == Edge.SourceId
-                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) Outgoing++;
+                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                Outgoing++;
+            }
+
             if (Candidate.TargetId == Edge.TargetId
-                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)) Incoming++;
+                && !string.Equals(Candidate.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
+            {
+                Incoming++;
+            }
         }
         return Outgoing > 1 || Incoming > 1;
     }
@@ -1313,7 +1331,7 @@ public static class FlowchartSharedEdgeRouter
                 continue;
             }
 
-            Dictionary<PortFace, List<PortUse>> ByFace = new Dictionary<PortFace, List<PortUse>>();
+            Dictionary<PortFace, List<PortUse>> ByFace = [];
             foreach (PortUse Use in Pair.Value)
             {
                 PortFace Face = ClassifyFace(NodeBounds, Use.X, Use.Y);
@@ -2913,9 +2931,9 @@ public static class FlowchartSharedEdgeRouter
                 }
 
                 Dictionary<FlowchartResolvedGuide, List<(double X, double Y)>> Saved =
-                    new Dictionary<FlowchartResolvedGuide, List<(double X, double Y)>>();
+                    [];
                 Dictionary<FlowchartResolvedGuide, FlowchartEdgeRouteKind> SavedKinds =
-                    new Dictionary<FlowchartResolvedGuide, FlowchartEdgeRouteKind>();
+                    [];
                 foreach (FlowchartResolvedGuide Guide in Guides)
                 {
                     Saved[Guide] = CopyPoints(Guide.Points);

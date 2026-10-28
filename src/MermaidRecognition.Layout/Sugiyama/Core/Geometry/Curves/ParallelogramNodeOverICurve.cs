@@ -65,7 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
             Point e = seg[end];
 
             double d0 = DistToSegm(seg[start + d], s, e);
-            double d1 = DistToSegm(seg[start + d * (n-1)], s, e);
+            double d1 = DistToSegm(seg[start + (d * (n-1))], s, e);
             //double d1d1 = seg.d1(start) * seg.d1(end);
 
             return d0 < eps
@@ -141,7 +141,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
             double delta = (end - start) / 64;
             for (int i = 1; i < 64; i++) {
-                if (!box.Contains(seg[start + delta * i]))
+                if (!box.Contains(seg[start + (delta * i)]))
                 {
                     return false;
                 }

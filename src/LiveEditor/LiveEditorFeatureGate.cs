@@ -64,4 +64,6 @@ internal static partial class LiveEditorFeatureGate
     public static bool AC_CoArchiDirtyBadge = true;
 
     public static bool AD_InsertFromArchi = true;
+
+    public static bool AE_AzureResourceGraphImport = true;
 }

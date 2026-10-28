@@ -31,7 +31,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             //is dir inside or outside
             Point d = dir - center;
             double angle = Point.Angle(aAxis, d);
-            Point s = aAxis*Math.Cos(angle) + bAxis*Math.Sin(angle);
+            Point s = (aAxis*Math.Cos(angle)) + (bAxis*Math.Sin(angle));
             if(s.Length < d.Length){
                 double al = aAxis.Length;
                 double bl = bAxis.Length;
@@ -122,7 +122,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <param name="t">the parameter of the derivative</param>
         /// <returns></returns>
         public Point this[double t]{
-            get { return center + Math.Cos(t)*aAxis + Math.Sin(t)*bAxis; }
+            get { return center + (Math.Cos(t)*aAxis) + (Math.Sin(t)*bAxis); }
         }
 
         /// <summary>
@@ -130,21 +130,21 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// </summary>
         /// <param name="t">the p</param>
         /// <returns></returns>
-        public Point Derivative(double t) => -Math.Sin(t) * aAxis + Math.Cos(t) * bAxis;
+        public Point Derivative(double t) => (-Math.Sin(t) * aAxis) + (Math.Cos(t) * bAxis);
 
         /// <summary>
         /// second derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point SecondDerivative(double t) => -Math.Cos(t) * aAxis - Math.Sin(t) * bAxis;
+        public Point SecondDerivative(double t) => (-Math.Cos(t) * aAxis) - (Math.Sin(t) * bAxis);
 
         /// <summary>
         /// third derivative
         /// </summary>
         /// <param name="t"></param>
         /// <returns></returns>
-        public Point ThirdDerivative(double t) => Math.Sin(t) * aAxis - Math.Cos(t) * bAxis;
+        public Point ThirdDerivative(double t) => (Math.Sin(t) * aAxis) - (Math.Cos(t) * bAxis);
 
         /// <summary>
         /// a tree of ParallelogramNodes covering the edge
@@ -172,11 +172,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             ParallelogramInternalTreeNode pBNode = new ParallelogramInternalTreeNode(seg, eps);
             pBNode.AddChild(CreateParallelogramNodeForCurveSeg(start, 0.5*(start + end), seg, eps));
             pBNode.AddChild(CreateParallelogramNodeForCurveSeg(0.5*(start + end), end, seg, eps));
-            List<Parallelogram> boxes = new List<Parallelogram>
-            {
+            List<Parallelogram> boxes =
+            [
                 pBNode.Children[0].Parallelogram,
                 pBNode.Children[1].Parallelogram
-            };
+            ];
             pBNode.Parallelogram = Parallelogram.GetParallelogramOfAGroup(boxes);
             return pBNode;
         }
@@ -269,7 +269,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
                 return false;
             }
 
-            double d1 = ParallelogramNodeOverICurve.DistToSegm(seg[start + d*(n - 1)], s, e);
+            double d1 = ParallelogramNodeOverICurve.DistToSegm(seg[start + (d*(n - 1))], s, e);
             //double d1d1 = seg.d1(start) * seg.d1(end);
 
             return d1 <= eps; // && d1d1 > 0;
@@ -430,8 +430,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// <returns>the transformed ellipse</returns>
         public ICurve Transform(PlaneTransformation transformation){
             if(transformation != null){
-                Point ap = transformation*aAxis - transformation.Offset;
-                Point bp = transformation*bAxis - transformation.Offset;
+                Point ap = (transformation*aAxis) - transformation.Offset;
+                Point bp = (transformation*bAxis) - transformation.Offset;
                 return new Ellipse(parStart, parEnd, ap, bp, transformation*center);
             }
             return this;
@@ -451,7 +451,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             double closest = low;
             double minDist = double.MaxValue;
             for (int i = 0; i <= numberOfTestPoints; i++) {
-                double par = low + i * t;
+                double par = low + (i * t);
                 Point p = targetPoint - this[par];
                 double d = p * p;
                 if (d < minDist) {
@@ -507,7 +507,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
             double closest = ParStart;
             double minDist = double.MaxValue;
             for (int i = 0; i <= numberOfTestPoints; i++){
-                double par = ParStart + i*t;
+                double par = ParStart + (i*t);
                 Point p = targetPoint - this[par];
                 double d = p*p;
                 if(d < minDist){
@@ -580,7 +580,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves{
         /// returns true if the ellipse goes counterclockwise
         /// </summary>
         /// <returns></returns>
-        public bool OrientedCounterclockwise() => AxisA.X * AxisB.Y - AxisB.X * AxisA.Y > 0;
+        public bool OrientedCounterclockwise() => (AxisA.X * AxisB.Y) - (AxisB.X * AxisA.Y) > 0;
 
 
         ///<summary>

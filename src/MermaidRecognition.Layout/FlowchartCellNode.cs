@@ -18,8 +18,11 @@ internal sealed class FlowchartCellNode
         this.Grid = Grid;
         this.NodeId = NodeId;
         this.Diamond = Diamond;
-        if (Diamond) Grid.Require(NodeId, Region => Grid.Measure(Region).Width >= Grid.Configuration.CellWidth
+        if (Diamond)
+        {
+            Grid.Require(NodeId, Region => Grid.Measure(Region).Width >= Grid.Configuration.CellWidth
             && Grid.Measure(Region).Height >= Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR);
+        }
     }
 
     /// <summary>The only mutable source of node occupancy and derived extents.</summary>
@@ -31,11 +34,11 @@ internal sealed class FlowchartCellNode
     /// <summary>The exact occupied rectangle; it is never inferred from the view's centre.</summary>
     internal FlowchartCellRegion Region => Grid.RegionOf(NodeId);
     /// <summary>Horizontal centre of the reserved rectangle in page coordinates.</summary>
-    internal double X => Grid.Origin(Region).X + Grid.Measure(Region).Width / 2;
+    internal double X => Grid.Origin(Region).X + (Grid.Measure(Region).Width / 2);
     /// <summary>Vertical centre of the reserved rectangle in page-down coordinates.</summary>
     internal double Y => RoutingFlip is { } Flip ? Flip - PageY : PageY;
     /// <summary>Page-down centre before the existing routing coordinate adapter.</summary>
-    private double PageY => Grid.Origin(Region).Y + Grid.Measure(Region).Height / 2;
+    private double PageY => Grid.Origin(Region).Y + (Grid.Measure(Region).Height / 2);
     /// <summary>Shared reflection origin supplied by the existing coordinate boundary, never inferred from a node position.</summary>
     private double? RoutingFlip { get; set; }
     /// <summary>Identifies the existing view boundary so frame fitting uses the same axis as its members.</summary>
@@ -47,7 +50,11 @@ internal sealed class FlowchartCellNode
     /// <param name="Flip">Diagram-wide reflection origin computed by the established coordinate adapter.</param>
     internal void UseRoutingCoordinates(double Flip)
     {
-        if (!double.IsFinite(Flip)) throw new ArgumentOutOfRangeException(nameof(Flip));
+        if (!double.IsFinite(Flip))
+        {
+            throw new ArgumentOutOfRangeException(nameof(Flip));
+        }
+
         RoutingFlip = Flip;
     }
     /// <summary>Visible width, including internal gaps for a rectangular node.</summary>
@@ -62,8 +69,8 @@ internal sealed class FlowchartCellNode
     /// <param name="Region">Complete proposed rectangle.</param>
     /// <returns>Whole base silhouette scale for a diamond.</returns>
     private double ScaleFor(FlowchartCellRegion Region) => Math.Floor(Math.Min(
-        (Region.ColumnSpan * Grid.Configuration.CellWidth + (Region.ColumnSpan - 1.0) * Grid.Configuration.ColumnGap) / Grid.Configuration.CellWidth,
-        (Region.RowSpan * Grid.Configuration.CellHeight + (Region.RowSpan - 1.0) * Grid.Configuration.RowGap)
+        ((Region.ColumnSpan * Grid.Configuration.CellWidth) + ((Region.ColumnSpan - 1.0) * Grid.Configuration.ColumnGap)) / Grid.Configuration.CellWidth,
+        ((Region.RowSpan * Grid.Configuration.CellHeight) + ((Region.RowSpan - 1.0) * Grid.Configuration.RowGap))
             / (Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR)));
 
     /// <summary>Builds the current renderer-facing bounds without retaining any independent pixel position or size.</summary>
@@ -80,13 +87,13 @@ internal sealed class FlowchartCellNode
     internal FlowchartLayoutNodeBounds Bounds(FlowchartCellRegion Target, INodeGeometryProvider? Provider = null, FlowchartLogicalGrid.Snapshot? State = null,
         bool PageCoordinates = false)
     {
-        var Origin = Grid.Origin(Target, State); var Size = Grid.Measure(Target, State);
-        double PageCentre = Origin.Y + Size.Height / 2;
+        (double X, double Y) Origin = Grid.Origin(Target, State); (double Width, double Height) Size = Grid.Measure(Target, State);
+        double PageCentre = Origin.Y + (Size.Height / 2);
         double W = Diamond ? ScaleFor(Target) * Grid.Configuration.CellWidth : Size.Width;
         double H = Diamond ? ScaleFor(Target) * Grid.Configuration.CellHeight * FlowchartDagrePresentation.DIAMOND_HEIGHT_FACTOR : Size.Height;
         return new()
         {
-            NodeId = NodeId, CenterX = Origin.X + Size.Width / 2,
+            NodeId = NodeId, CenterX = Origin.X + (Size.Width / 2),
             CenterY = !PageCoordinates && RoutingFlip is { } Flip ? Flip - PageCentre : PageCentre,
             Width = W, Height = H, Geometry = Provider?.Create(W, H)
         };

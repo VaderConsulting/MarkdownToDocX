@@ -48,13 +48,12 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
             Layout,
             Direction);
 
-        List<FlowchartEdgeRouteDiagnosticFinding> StructuralFindings = Findings
+        List<FlowchartEdgeRouteDiagnosticFinding> StructuralFindings = [.. Findings
             .Where(Finding => Finding.Kind == FlowchartEdgeRouteDiagnosticKind.LongDiagonalCrossing
                 || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.UnnecessaryHardElbow
                 || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.CentreSpineRegression
                 || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.HookOrOvershoot
-                || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.NodePassThrough)
-            .ToList();
+                || Finding.Kind == FlowchartEdgeRouteDiagnosticKind.NodePassThrough)];
 
         if (StructuralFindings.Count > 0)
         {
@@ -118,7 +117,7 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
 
         // Declare a straight three-rank spine atomically. Automatic fan-side
         // placement may legitimately put the skip edge's ends in one row.
-        var Owners = Layout.CellNodes!;
+        IReadOnlyList<DiagramGridLayout.GridNode> Owners = Layout.CellNodes!;
         int Pitch = Owners.Max(Node => Node.CellNode!.Region.RowSpan);
         Assert.That(FlowchartCellRepair.TryAssign(Owners, new Dictionary<string, FlowchartCellRegion>
         {
@@ -130,7 +129,7 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         EdgeContract ValidateRejectEdge = Contract.Edges.First(
             Edge => Edge.SourceId == "A" && Edge.TargetId == "Z");
-        var Middle = Layout.NodeBounds.Single(Box => Box.NodeId == "M");
+        FlowchartLayoutNodeBounds Middle = Layout.NodeBounds.Single(Box => Box.NodeId == "M");
 
         List<(double X, double Y)> BadDiagonalRoute =
         [
@@ -206,8 +205,8 @@ public sealed class FlowchartEdgeRouteDiagnosticTests
 
         List<(double X, double Y)> ThroughBodyRoute =
         [
-            (ParseBounds.CenterX - ParseBounds.Width / 2 - DiagramGridMetrics.GRID_UNIT_PX, ParseBounds.CenterY),
-            (ParseBounds.CenterX + ParseBounds.Width / 2 + DiagramGridMetrics.GRID_UNIT_PX, ParseBounds.CenterY)
+            (ParseBounds.CenterX - (ParseBounds.Width / 2) - DiagramGridMetrics.GRID_UNIT_PX, ParseBounds.CenterY),
+            (ParseBounds.CenterX + (ParseBounds.Width / 2) + DiagramGridMetrics.GRID_UNIT_PX, ParseBounds.CenterY)
         ];
 
         List<FlowchartEdgeRouteDiagnosticFinding> Findings = FlowchartEdgeRouteDiagnosticAnalyzer.AnalyzeEdgeRoute(

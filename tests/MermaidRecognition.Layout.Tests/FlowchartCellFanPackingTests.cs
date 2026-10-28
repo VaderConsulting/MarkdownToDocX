@@ -13,7 +13,7 @@ public sealed class FlowchartCellFanPackingTests
     [TestCase(30, true)]
     public void LargeFanUsesWholeCellColumnsAndRows(int Count, bool Horizontal)
     {
-        var (Nodes, Hub, Leaves, Grid) = Fixture(Count);
+        (List<DiagramGridLayout.GridNode>? Nodes, DiagramGridLayout.GridNode? Hub, List<DiagramGridLayout.GridNode>? Leaves, FlowchartLogicalGrid? Grid) = Fixture(Count);
         int TrackGap = ((Count + DiagramGridMetrics.TRACKS_PER_GAP - 1) / DiagramGridMetrics.TRACKS_PER_GAP) * DiagramGridMetrics.GRID_UNIT_PX;
         Assert.That(FlowchartFanPacking.ApplyCellFan(Nodes, Hub, Leaves, true, Horizontal, false, TrackGap, 6), Is.True);
         Assert.That(Leaves.Select(Node => Grid.RegionOf(Node.Id).StartColumn).Distinct().Count(), Is.GreaterThan(1));
@@ -37,7 +37,7 @@ public sealed class FlowchartCellFanPackingTests
     [TestCase(true, false, true)]
     public void FanGridKeepsDeclaredDirection(bool Horizontal, bool FanOut, bool Reverse)
     {
-        var (Nodes, Hub, Leaves, _) = Fixture(8);
+        (List<DiagramGridLayout.GridNode>? Nodes, DiagramGridLayout.GridNode? Hub, List<DiagramGridLayout.GridNode>? Leaves, FlowchartLogicalGrid _) = Fixture(8);
         Assert.That(FlowchartFanPacking.ApplyCellFan(Nodes, Hub, Leaves, FanOut, Horizontal, Reverse, 60, 6), Is.True);
         double Delta = Leaves.Average(Node => Horizontal ? Node.X : Node.Y) - (Horizontal ? Hub.X : Hub.Y);
         Assert.That(Math.Sign(Delta), Is.EqualTo(Reverse == FanOut ? -1 : 1));
@@ -47,8 +47,8 @@ public sealed class FlowchartCellFanPackingTests
     [Test]
     public void RejectedFanCandidatesLeaveExactLiveStateUntouched()
     {
-        var (Nodes, Hub, Leaves, Grid) = Fixture(20); Hub.PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        (List<DiagramGridLayout.GridNode>? Nodes, DiagramGridLayout.GridNode? Hub, List<DiagramGridLayout.GridNode>? Leaves, FlowchartLogicalGrid? Grid) = Fixture(20); Hub.PlacementHintLocked = true;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartFanPacking.ApplyCellFan(Nodes, Hub, Leaves, true, false, false, 120, 6), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -59,14 +59,14 @@ public sealed class FlowchartCellFanPackingTests
     private static (List<DiagramGridLayout.GridNode> Nodes, DiagramGridLayout.GridNode Hub,
         List<DiagramGridLayout.GridNode> Leaves, FlowchartLogicalGrid Grid) Fixture(int Count)
     {
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("Hub", new(0, 0, 1, 1));
-        var Hub = new DiagramGridLayout.GridNode { Id = "Hub" }; Hub.BindCells(Grid);
-        var Nodes = new List<DiagramGridLayout.GridNode> { Hub }; var Leaves = new List<DiagramGridLayout.GridNode>();
+        DiagramGridLayout.GridNode Hub = new DiagramGridLayout.GridNode { Id = "Hub" }; Hub.BindCells(Grid);
+        List<DiagramGridLayout.GridNode> Nodes = [Hub]; List<DiagramGridLayout.GridNode> Leaves = [];
         for (int Index = 0; Index < Count; Index++)
         {
             string Id = "L" + Index; Grid.TryPlace(Id, new(Index + 1, 0, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id }; Node.BindCells(Grid); Nodes.Add(Node); Leaves.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id }; Node.BindCells(Grid); Nodes.Add(Node); Leaves.Add(Node);
         }
         return (Nodes, Hub, Leaves, Grid);
     }

@@ -39,7 +39,7 @@ public sealed class DiagramSupportTests
             "treemap",
             "c4"
         };
-        string[] Hidden = new string[] { "requirement", "kanban", "sankey" };
+        string[] Hidden = ["requirement", "kanban", "sankey"];
 
         StringBuilder Mismatches = new StringBuilder();
         Assert.That(SampleCatalog.Groups.Count, Is.EqualTo(Expected.Count));

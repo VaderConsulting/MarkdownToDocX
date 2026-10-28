@@ -6,14 +6,14 @@ namespace MermaidRecognition.Tests.Pie;
 public sealed class PieRecognitionFixtureTests
 {
     private static readonly string[] FixtureNames =
-    {
+    [
         "simple",
         "title-showData",
         "init-leading",
         "comment",
         "pie-accessibility",
         "edge-values",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)

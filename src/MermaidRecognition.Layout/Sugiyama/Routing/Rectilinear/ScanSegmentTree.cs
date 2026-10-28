@@ -74,7 +74,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         // Find the lowest perpendicular scanseg that intersects the segment endpoints.
         internal ScanSegment FindLowestIntersector(Point start, Point end) {
             RBNode<ScanSegment> node = FindLowestIntersectorNode(start, end);
-            return (null != node) ? node.Item : null;
+            return node?.Item;
         }
 
         internal RBNode<ScanSegment> FindLowestIntersectorNode(Point start, Point end) {
@@ -130,7 +130,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                     node = segmentTree.Previous(node);
                 }
             }
-            return (null != node) ? node.Item : null;
+            return node?.Item;
         }
 
         bool CompareIntersector(ScanSegment seg) =>

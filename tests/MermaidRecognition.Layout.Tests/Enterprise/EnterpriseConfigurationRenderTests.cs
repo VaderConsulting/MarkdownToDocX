@@ -10,8 +10,8 @@ public sealed class EnterpriseConfigurationRenderTests
     public void SupportedTypography_ScalesContentAndKeepsMeasuredGeometry()
     {
         string Source = "enterprise\napplication-component first";
-        var Plain = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(Source)).Root!;
-        var Configured = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(
+        XElement Plain = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(Source)).Root!;
+        XElement Configured = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(
             "%%{init: {\"themeVariables\":{\"fontSize\":\"24px\",\"fontFamily\":\"Verdana\",\"background\":\"#eeeeee\"},\"unknown\":true}}%%\n" + Source)).Root!;
         Assert.That((double)Configured.Attribute("width")!, Is.EqualTo((double)Plain.Attribute("width")! * 2));
         Assert.That((string?)Configured.Attribute("viewBox"), Is.EqualTo((string?)Plain.Attribute("viewBox")));

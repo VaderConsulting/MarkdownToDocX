@@ -117,7 +117,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         static ICurve CreatObstaceOnLabel(Label label) {
             Curve c = new Curve();
-            double obstacleBottom = label.Center.Y - label.Height/4;
+            double obstacleBottom = label.Center.Y - (label.Height/4);
             c.AddSegment(new LineSegment(new Point(label.BoundingBox.Left, obstacleBottom),
                                          new Point(label.BoundingBox.Right, obstacleBottom)));
             Curve.ContinueWithLineSegment(c, label.BoundingBox.RightTop);
@@ -197,8 +197,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (i = 0; i < pairArray.Length - 1; i++)
             {
                 solver.AddLeftRightSeparationConstraint(i, i + 1,
-                                                        (prevLabelWidth +
-                                                         (prevLabelWidth = GetMaxLabelWidth(pairArray[i + 1])))/2 +
+                                                        ((prevLabelWidth +
+                                                         (prevLabelWidth = GetMaxLabelWidth(pairArray[i + 1])))/2) +
                                                         settings.NodeSeparation);
             }
 

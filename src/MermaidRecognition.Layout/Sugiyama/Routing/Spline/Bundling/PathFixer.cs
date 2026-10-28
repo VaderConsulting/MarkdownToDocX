@@ -20,7 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         IEnumerable<Polyline> Polylines => metroGraphData.Edges.Select(e => (Polyline)e.Curve);
 
         IEnumerable<PointPair> Edges() {
-            Set<PointPair> set = new Set<PointPair>();
+            Set<PointPair> set = [];
             foreach (Polyline poly in Polylines)
             {
                 for (PolylinePoint pp = poly.StartPoint; pp.Next != null; pp = pp.Next)
@@ -38,7 +38,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return false;
             }
 
-            Dictionary<PointPair, List<Point>> splittingPoints = new Dictionary<PointPair, List<Point>>();
+            Dictionary<PointPair, List<Point>> splittingPoints = [];
             RTree<Point> treeOfVertices = new RTree<Point>();
             foreach (PolylinePoint vertex in Vertices()) {
                 Rectangle r = new Rectangle(vertex.Point);

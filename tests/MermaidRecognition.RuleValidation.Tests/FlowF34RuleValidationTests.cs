@@ -78,13 +78,11 @@ public sealed class FlowF34RuleValidationTests
 
 
 
-        List<string> F34FailureRules = Result.ValidationReport.Failures
+        List<string> F34FailureRules = [.. Result.ValidationReport.Failures
 
             .Where(Failure => Failure.DiagramId == "F34")
 
-            .Select(Failure => Failure.RuleId)
-
-            .ToList();
+            .Select(Failure => Failure.RuleId)];
 
 
 

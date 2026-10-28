@@ -77,10 +77,9 @@ public static class FlowchartSubgraphSiblingGapHelper
                 }
             }
 
-            List<GroupContract> OrderedGroups = Entry.Value
+            List<GroupContract> OrderedGroups = [.. Entry.Value
                 .Where(Group => RectByGroupId.ContainsKey(Group.Id))
-                .OrderBy(Group => GetGroupFlowLeadingEdge(RectByGroupId[Group.Id], HorizontalFlow))
-                .ToList();
+                .OrderBy(Group => GetGroupFlowLeadingEdge(RectByGroupId[Group.Id], HorizontalFlow))];
 
             if (!HorizontalFlow
                 && Diagram.Layout.TryGetValue("HasParallelColumnLayout", out object? HasParallelValue)

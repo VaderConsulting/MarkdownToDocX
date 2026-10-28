@@ -50,7 +50,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Visibility {
 
             System.Diagnostics.Debug.Assert(result && -ApproximateComparer.Tolerance <= x && x <= 1 + ApproximateComparer.Tolerance);
               
-              return pivot + y * ray;
+              return pivot + (y * ray);
           }
 
       }

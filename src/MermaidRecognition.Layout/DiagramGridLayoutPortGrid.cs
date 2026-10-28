@@ -30,8 +30,8 @@ public static partial class DiagramGridLayout
             return null;
         }
 
-        int[] Fixed = Enumerable.Repeat(-1, Group.Count).ToArray();
-        HashSet<int> Taken = new HashSet<int>();
+        int[] Fixed = [.. Enumerable.Repeat(-1, Group.Count)];
+        HashSet<int> Taken = [];
         for (int Index = 0; Index < Group.Count; Index++)
         {
             if (!Group[Index].KeepsCentre)
@@ -133,7 +133,7 @@ public static partial class DiagramGridLayout
         double OwnCentre = Vertical ? Box.CenterY : Box.CenterX;
         double OtherCentre = Vertical ? Other.CenterY : Other.CenterX;
         List<SideGridPoint> OtherPoints = SideGridPoints(Other, Facing, Nodes, out _);
-        double[] OtherCrosses = OtherPoints.Select(Point => GridPointCross(Other, Facing, Point, Nodes)).ToArray();
+        double[] OtherCrosses = [.. OtherPoints.Select(Point => GridPointCross(Other, Facing, Point, Nodes))];
         double BestSum = double.PositiveInfinity;
         double BestMax = double.PositiveInfinity;
         double BestCross = double.PositiveInfinity;
@@ -150,7 +150,7 @@ public static partial class DiagramGridLayout
             double Sum = Math.Round(Own + Peer, 3);
             double Max = Math.Round(Math.Max(Own, Peer), 3);
             double Key = Math.Round(Cross, 3);
-            if (Sum < BestSum || Sum == BestSum && (Max < BestMax || Max == BestMax && Key < BestCross))
+            if (Sum < BestSum || (Sum == BestSum && (Max < BestMax || (Max == BestMax && Key < BestCross))))
             {
                 BestSum = Sum;
                 BestMax = Max;
@@ -168,5 +168,5 @@ public static partial class DiagramGridLayout
     /// <returns>True for boxes, frames and other side-allocated shapes.</returns>
     private static bool UsesSideGrid(BoxRef Box, Dictionary<string, NodeContract> Nodes) =>
         Box.IsFrame || !Nodes.TryGetValue(Box.Id, out NodeContract? Node)
-            || !FlowchartDagrePresentation.IsDiamondShape(Node.Shape) && !IsCircleShape(Node.Shape);
+            || (!FlowchartDagrePresentation.IsDiamondShape(Node.Shape) && !IsCircleShape(Node.Shape));
 }

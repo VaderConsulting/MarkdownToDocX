@@ -565,7 +565,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 // FindOrAddEdge splits an existing edge so may not return the portion bracketed by outerVertex and interiorVertex.
                 FindOrAddEdge(outerVertex, interiorVertex);
                 VisibilityEdge edge = VisGraph.FindEdge(outerVertex.Point, interiorVertex.Point);
-                Shape[] crossingsArray = crossings.Select(c => c.Group.InputShape).ToArray();
+                Shape[] crossingsArray = [.. crossings.Select(c => c.Group.InputShape)];
                 edge.IsPassable = delegate { return crossingsArray.Any(s => s.IsTransparent); };
             }
         }

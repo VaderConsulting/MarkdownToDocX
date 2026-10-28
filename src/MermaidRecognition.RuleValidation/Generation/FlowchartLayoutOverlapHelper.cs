@@ -36,9 +36,7 @@ public static class FlowchartLayoutOverlapHelper
     /// </summary>
     public static void ApplyNodeBodyOverlapFacts(DiagramActualResult Diagram)
     {
-        List<NodeActualResult> RenderedNodes = Diagram.Nodes
-            .Where(Node => Node.IsRendered && Node.Bounds.Width > 0 && Node.Bounds.Height > 0)
-            .ToList();
+        List<NodeActualResult> RenderedNodes = [.. Diagram.Nodes.Where(Node => Node.IsRendered && Node.Bounds.Width > 0 && Node.Bounds.Height > 0)];
 
         bool AnyOverlap = false;
         for (int LeftIndex = 0; LeftIndex < RenderedNodes.Count; LeftIndex++)

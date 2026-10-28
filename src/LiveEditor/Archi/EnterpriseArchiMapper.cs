@@ -246,7 +246,7 @@ internal static class EnterpriseArchiMapper
             ById[Element.MermaidId] = Element;
         }
 
-        List<ArchiExchangeElement> Ordered = new List<ArchiExchangeElement>();
+        List<ArchiExchangeElement> Ordered = [];
         HashSet<string> Visiting = new HashSet<string>(StringComparer.Ordinal);
         HashSet<string> Visited = new HashSet<string>(StringComparer.Ordinal);
 

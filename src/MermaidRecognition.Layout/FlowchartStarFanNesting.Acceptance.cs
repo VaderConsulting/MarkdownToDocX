@@ -16,26 +16,53 @@ internal static partial class FlowchartStarFanNesting
     internal static bool TryPublish(DiagramContract Contract, FlowchartLayoutResult Layout,
         IReadOnlyDictionary<FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute> Proposed)
     {
-        var Before = Measure(Layout.EdgeRoutes);
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout).GroupBy(Finding => (Finding.Rule, Finding.Subject))
+        (int Bends, int Crossings, double Shared) Before = Measure(Layout.EdgeRoutes);
+        Dictionary<(string Rule, string Subject), int> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout).GroupBy(Finding => (Finding.Rule, Finding.Subject))
             .ToDictionary(Group => Group.Key, Group => Group.Count());
-        var OldScore = FlowchartLayoutScore.Measure(Contract, Layout, false).Cost;
-        var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
-        var Saved = Proposed.Keys.ToDictionary(Route => Route, Clone);
+        FlowchartLayoutScore.ComparisonCost OldScore = FlowchartLayoutScore.Measure(Contract, Layout, false).Cost;
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+        Dictionary<FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute> Saved = Proposed.Keys.ToDictionary(Route => Route, Clone);
         bool Keep = false;
         try
         {
-            foreach (var Pair in Proposed) Copy(Pair.Value, Pair.Key);
-            var After = Measure(Layout.EdgeRoutes);
-            if (After.Bends > Before.Bends || After.Crossings > Before.Crossings || After.Shared > Before.Shared) return false;
+            foreach (KeyValuePair<FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute> Pair in Proposed)
+            {
+                Copy(Pair.Value, Pair.Key);
+            }
+
+            (int Bends, int Crossings, double Shared) After = Measure(Layout.EdgeRoutes);
+            if (After.Bends > Before.Bends || After.Crossings > Before.Crossings || After.Shared > Before.Shared)
+            {
+                return false;
+            }
+
             if (Proposed.Keys.Any(Route => !FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route,
-                Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))) return false;
+                Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())))
+            {
+                return false;
+            }
+
             if (FlowchartRouteRuleChecker.Check(Contract, Layout).GroupBy(Finding => (Finding.Rule, Finding.Subject))
-                .Any(Group => Group.Count() > Findings.GetValueOrDefault(Group.Key))) return false;
-            if (FlowchartLayoutScore.Measure(Contract, Layout, false).Cost >= OldScore) return false;
+                .Any(Group => Group.Count() > Findings.GetValueOrDefault(Group.Key)))
+            {
+                return false;
+            }
+
+            if (FlowchartLayoutScore.Measure(Contract, Layout, false).Cost >= OldScore)
+            {
+                return false;
+            }
+
             Keep = true; return true;
         }
-        finally { if (!Keep) foreach (var Pair in Saved) Copy(Pair.Value, Pair.Key); }
+        finally { if (!Keep)
+            {
+                foreach (KeyValuePair<FlowchartLayoutEdgeRoute, FlowchartLayoutEdgeRoute> Pair in Saved)
+                {
+                    Copy(Pair.Value, Pair.Key);
+                }
+            }
+        }
     }
 
     /// <summary>Builds an independent route record so a discarded search owns no live points or cached guides.</summary>
@@ -43,7 +70,7 @@ internal static partial class FlowchartStarFanNesting
     /// <returns>Deep terminal/path copy with the original declared identity.</returns>
     internal static FlowchartLayoutEdgeRoute Clone(FlowchartLayoutEdgeRoute Route)
     {
-        var Result = new FlowchartLayoutEdgeRoute { EdgeId = Route.EdgeId, SourceId = Route.SourceId, TargetId = Route.TargetId };
+        FlowchartLayoutEdgeRoute Result = new FlowchartLayoutEdgeRoute { EdgeId = Route.EdgeId, SourceId = Route.SourceId, TargetId = Route.TargetId };
         Copy(Route, Result); return Result;
     }
 

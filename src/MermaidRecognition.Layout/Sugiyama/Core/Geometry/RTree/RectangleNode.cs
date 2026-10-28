@@ -81,10 +81,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
                 }
 
                 left = value;
-                if (left != null)
-                {
-                    left.Parent = this;
-                }
+                left?.Parent = this;
             }
         }
 
@@ -102,10 +99,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
                 }
 
                 right = value;
-                if (right != null)
-                {
-                    right.Parent = this;
-                }
+                right?.Parent = this;
             }
         }
 
@@ -390,8 +384,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             int seed1 = ChooseSeeds(nodes, ref b0, ref seed0);
 
             //We have two seeds at hand. Build two groups.
-            List<RectangleNode<TData>> gr0 = new List<RectangleNode<TData>>();
-            List<RectangleNode<TData>> gr1 = new List<RectangleNode<TData>>();
+            List<RectangleNode<TData>> gr0 = [];
+            List<RectangleNode<TData>> gr1 = [];
 
             gr0.Add(nodes[seed0]);
             gr1.Add(nodes[seed1]);

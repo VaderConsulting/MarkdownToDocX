@@ -24,16 +24,6 @@ namespace LiveEditor
             RootLayout = new TableLayoutPanel();
             SettingsTabs = new TabControl();
             GeneralTabPage = new TabPage();
-            DiagramLayoutTabPage = new TabPage();
-            DiagramLayoutPanel = new TableLayoutPanel();
-            LayoutFeatureIntroLabel = new Label();
-            IncrementalRoutingCheckBox = new CheckBox();
-            RouteAwareConstructionCheckBox = new CheckBox();
-            WidthConstrainedLayoutCheckBox = new CheckBox();
-            TargetWidthLabel = new Label();
-            TargetWidthNumeric = new NumericUpDown();
-            WidthHelpLabel = new Label();
-            PendingFeaturesLabel = new Label();
             SettingsLayout = new TableLayoutPanel();
             AutoIndentCheckBox = new CheckBox();
             InsertSpacesCheckBox = new CheckBox();
@@ -59,15 +49,22 @@ namespace LiveEditor
             EditorOptions = new FlowLayoutPanel();
             EditorLeftRadio = new RadioButton();
             EditorRightRadio = new RadioButton();
+            DiagramLayoutTabPage = new TabPage();
+            DiagramLayoutPanel = new TableLayoutPanel();
+            LayoutFeatureIntroLabel = new Label();
+            IncrementalRoutingCheckBox = new CheckBox();
+            RouteAwareConstructionCheckBox = new CheckBox();
+            WidthConstrainedLayoutCheckBox = new CheckBox();
+            TargetWidthLabel = new Label();
+            TargetWidthNumeric = new NumericUpDown();
+            WidthHelpLabel = new Label();
+            PendingFeaturesLabel = new Label();
             ButtonPanel = new FlowLayoutPanel();
             CancelSettingsButton = new Button();
             OkSettingsButton = new Button();
             RootLayout.SuspendLayout();
             SettingsTabs.SuspendLayout();
             GeneralTabPage.SuspendLayout();
-            DiagramLayoutTabPage.SuspendLayout();
-            DiagramLayoutPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)TargetWidthNumeric).BeginInit();
             SettingsLayout.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)IndentSizeNumeric).BeginInit();
             ((System.ComponentModel.ISupportInitialize)FontSizeNumeric).BeginInit();
@@ -78,11 +75,14 @@ namespace LiveEditor
             ToolbarOptions.SuspendLayout();
             EditorGroup.SuspendLayout();
             EditorOptions.SuspendLayout();
+            DiagramLayoutTabPage.SuspendLayout();
+            DiagramLayoutPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)TargetWidthNumeric).BeginInit();
             ButtonPanel.SuspendLayout();
             SuspendLayout();
-            //
+            // 
             // RootLayout
-            //
+            // 
             RootLayout.ColumnCount = 1;
             RootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             RootLayout.Controls.Add(SettingsTabs, 0, 0);
@@ -93,12 +93,12 @@ namespace LiveEditor
             RootLayout.Name = "RootLayout";
             RootLayout.RowCount = 2;
             RootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            RootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            RootLayout.Size = new Size(572, 568);
+            RootLayout.RowStyles.Add(new RowStyle());
+            RootLayout.Size = new Size(576, 584);
             RootLayout.TabIndex = 0;
-            //
+            // 
             // SettingsTabs
-            //
+            // 
             SettingsTabs.Controls.Add(GeneralTabPage);
             SettingsTabs.Controls.Add(DiagramLayoutTabPage);
             SettingsTabs.Dock = DockStyle.Fill;
@@ -106,167 +106,27 @@ namespace LiveEditor
             SettingsTabs.Margin = new Padding(0);
             SettingsTabs.Name = "SettingsTabs";
             SettingsTabs.SelectedIndex = 0;
-            SettingsTabs.Size = new Size(572, 504);
+            SettingsTabs.Size = new Size(576, 520);
             SettingsTabs.TabIndex = 0;
-            //
+            // 
             // GeneralTabPage
-            //
+            // 
             GeneralTabPage.AutoScroll = true;
             GeneralTabPage.Controls.Add(SettingsLayout);
             GeneralTabPage.Location = new Point(4, 29);
             GeneralTabPage.Name = "GeneralTabPage";
             GeneralTabPage.Padding = new Padding(12);
-            GeneralTabPage.Size = new Size(564, 471);
+            GeneralTabPage.Size = new Size(568, 487);
             GeneralTabPage.TabIndex = 0;
             GeneralTabPage.Text = "General";
             GeneralTabPage.UseVisualStyleBackColor = true;
-            //
-            // DiagramLayoutTabPage
-            //
-            DiagramLayoutTabPage.AutoScroll = true;
-            DiagramLayoutTabPage.Controls.Add(DiagramLayoutPanel);
-            DiagramLayoutTabPage.Location = new Point(4, 29);
-            DiagramLayoutTabPage.Name = "DiagramLayoutTabPage";
-            DiagramLayoutTabPage.Padding = new Padding(12);
-            DiagramLayoutTabPage.Size = new Size(564, 471);
-            DiagramLayoutTabPage.TabIndex = 1;
-            DiagramLayoutTabPage.Text = "Diagram layout";
-            DiagramLayoutTabPage.UseVisualStyleBackColor = true;
-            //
-            // DiagramLayoutPanel
-            //
-            DiagramLayoutPanel.AutoSize = true;
-            DiagramLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            DiagramLayoutPanel.ColumnCount = 2;
-            DiagramLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            DiagramLayoutPanel.Controls.Add(LayoutFeatureIntroLabel, 0, 0);
-            DiagramLayoutPanel.Controls.Add(IncrementalRoutingCheckBox, 0, 1);
-            DiagramLayoutPanel.Controls.Add(RouteAwareConstructionCheckBox, 0, 2);
-            DiagramLayoutPanel.Controls.Add(WidthConstrainedLayoutCheckBox, 0, 3);
-            DiagramLayoutPanel.Controls.Add(TargetWidthLabel, 0, 4);
-            DiagramLayoutPanel.Controls.Add(TargetWidthNumeric, 1, 4);
-            DiagramLayoutPanel.Controls.Add(WidthHelpLabel, 0, 5);
-            DiagramLayoutPanel.Controls.Add(PendingFeaturesLabel, 0, 6);
-            DiagramLayoutPanel.Dock = DockStyle.Top;
-            DiagramLayoutPanel.Location = new Point(12, 12);
-            DiagramLayoutPanel.Margin = new Padding(0);
-            DiagramLayoutPanel.Name = "DiagramLayoutPanel";
-            DiagramLayoutPanel.RowCount = 7;
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            DiagramLayoutPanel.Size = new Size(540, 310);
-            DiagramLayoutPanel.TabIndex = 0;
-            //
-            // LayoutFeatureIntroLabel
-            //
-            LayoutFeatureIntroLabel.AutoSize = true;
-            DiagramLayoutPanel.SetColumnSpan(LayoutFeatureIntroLabel, 2);
-            LayoutFeatureIntroLabel.Location = new Point(3, 5);
-            LayoutFeatureIntroLabel.Margin = new Padding(3, 5, 3, 16);
-            LayoutFeatureIntroLabel.MaximumSize = new Size(500, 0);
-            LayoutFeatureIntroLabel.Name = "LayoutFeatureIntroLabel";
-            LayoutFeatureIntroLabel.Size = new Size(440, 40);
-            LayoutFeatureIntroLabel.TabIndex = 0;
-            LayoutFeatureIntroLabel.Text = "Experimental layout switches for native Enterprise previews. Changes apply when you choose OK.";
-            //
-            // IncrementalRoutingCheckBox
-            //
-            IncrementalRoutingCheckBox.AutoSize = true;
-            DiagramLayoutPanel.SetColumnSpan(IncrementalRoutingCheckBox, 2);
-            IncrementalRoutingCheckBox.Location = new Point(3, 66);
-            IncrementalRoutingCheckBox.Margin = new Padding(3, 5, 3, 5);
-            IncrementalRoutingCheckBox.Name = "IncrementalRoutingCheckBox";
-            IncrementalRoutingCheckBox.Size = new Size(262, 24);
-            IncrementalRoutingCheckBox.TabIndex = 1;
-            IncrementalRoutingCheckBox.Text = "Incremental diagram routing (AF)";
-            IncrementalRoutingCheckBox.UseVisualStyleBackColor = true;
-            //
-            // RouteAwareConstructionCheckBox
-            //
-            RouteAwareConstructionCheckBox.AutoSize = true;
-            DiagramLayoutPanel.SetColumnSpan(RouteAwareConstructionCheckBox, 2);
-            RouteAwareConstructionCheckBox.Location = new Point(3, 100);
-            RouteAwareConstructionCheckBox.Margin = new Padding(3, 5, 3, 5);
-            RouteAwareConstructionCheckBox.Name = "RouteAwareConstructionCheckBox";
-            RouteAwareConstructionCheckBox.Size = new Size(312, 24);
-            RouteAwareConstructionCheckBox.TabIndex = 2;
-            RouteAwareConstructionCheckBox.Text = "Route-aware diagram construction (AG)";
-            RouteAwareConstructionCheckBox.UseVisualStyleBackColor = true;
-            //
-            // WidthConstrainedLayoutCheckBox
-            //
-            WidthConstrainedLayoutCheckBox.AutoSize = true;
-            DiagramLayoutPanel.SetColumnSpan(WidthConstrainedLayoutCheckBox, 2);
-            WidthConstrainedLayoutCheckBox.Location = new Point(3, 134);
-            WidthConstrainedLayoutCheckBox.Margin = new Padding(3, 5, 3, 5);
-            WidthConstrainedLayoutCheckBox.Name = "WidthConstrainedLayoutCheckBox";
-            WidthConstrainedLayoutCheckBox.Size = new Size(252, 24);
-            WidthConstrainedLayoutCheckBox.TabIndex = 3;
-            WidthConstrainedLayoutCheckBox.Text = "Width-constrained layout (AH)";
-            WidthConstrainedLayoutCheckBox.UseVisualStyleBackColor = true;
-            WidthConstrainedLayoutCheckBox.CheckedChanged += WidthConstrainedLayoutCheckBox_CheckedChanged;
-            //
-            // TargetWidthLabel
-            //
-            TargetWidthLabel.Anchor = AnchorStyles.Left;
-            TargetWidthLabel.AutoSize = true;
-            TargetWidthLabel.Location = new Point(3, 174);
-            TargetWidthLabel.Margin = new Padding(3, 5, 14, 5);
-            TargetWidthLabel.Name = "TargetWidthLabel";
-            TargetWidthLabel.Size = new Size(184, 20);
-            TargetWidthLabel.TabIndex = 4;
-            TargetWidthLabel.Text = "Target width (layout pixels)";
-            //
-            // TargetWidthNumeric
-            //
-            TargetWidthNumeric.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-            TargetWidthNumeric.Increment = new decimal(new int[] { 100, 0, 0, 0 });
-            TargetWidthNumeric.Location = new Point(204, 168);
-            TargetWidthNumeric.Margin = new Padding(3, 5, 3, 5);
-            TargetWidthNumeric.Maximum = new decimal(new int[] { 20000, 0, 0, 0 });
-            TargetWidthNumeric.Minimum = new decimal(new int[] { 200, 0, 0, 0 });
-            TargetWidthNumeric.Name = "TargetWidthNumeric";
-            TargetWidthNumeric.Size = new Size(333, 27);
-            TargetWidthNumeric.TabIndex = 4;
-            TargetWidthNumeric.ThousandsSeparator = true;
-            TargetWidthNumeric.Value = new decimal(new int[] { 1200, 0, 0, 0 });
-            //
-            // WidthHelpLabel
-            //
-            WidthHelpLabel.AutoSize = true;
-            DiagramLayoutPanel.SetColumnSpan(WidthHelpLabel, 2);
-            WidthHelpLabel.Location = new Point(3, 211);
-            WidthHelpLabel.Margin = new Padding(3, 11, 3, 5);
-            WidthHelpLabel.MaximumSize = new Size(500, 0);
-            WidthHelpLabel.Name = "WidthHelpLabel";
-            WidthHelpLabel.Size = new Size(500, 40);
-            WidthHelpLabel.TabIndex = 5;
-            WidthHelpLabel.Text = "Prefer a readable width by wrapping eligible rows. Groups, direction and placement hints can require a wider diagram.";
-            //
-            // PendingFeaturesLabel
-            //
-            PendingFeaturesLabel.AutoSize = true;
-            DiagramLayoutPanel.SetColumnSpan(PendingFeaturesLabel, 2);
-            PendingFeaturesLabel.Location = new Point(3, 267);
-            PendingFeaturesLabel.Margin = new Padding(3, 11, 3, 5);
-            PendingFeaturesLabel.MaximumSize = new Size(500, 0);
-            PendingFeaturesLabel.Name = "PendingFeaturesLabel";
-            PendingFeaturesLabel.Size = new Size(500, 40);
-            PendingFeaturesLabel.TabIndex = 6;
-            PendingFeaturesLabel.Text = "AF and AG choices are saved for upcoming routing and construction operations, which are still in development.";
             // 
             // SettingsLayout
             // 
             SettingsLayout.AutoSize = true;
             SettingsLayout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             SettingsLayout.ColumnCount = 2;
-            SettingsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            SettingsLayout.ColumnStyles.Add(new ColumnStyle());
             SettingsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             SettingsLayout.Controls.Add(AutoIndentCheckBox, 0, 0);
             SettingsLayout.Controls.Add(InsertSpacesCheckBox, 0, 1);
@@ -298,7 +158,7 @@ namespace LiveEditor
             SettingsLayout.RowStyles.Add(new RowStyle());
             SettingsLayout.RowStyles.Add(new RowStyle());
             SettingsLayout.RowStyles.Add(new RowStyle());
-            SettingsLayout.Size = new Size(465, 497);
+            SettingsLayout.Size = new Size(544, 433);
             SettingsLayout.TabIndex = 0;
             // 
             // AutoIndentCheckBox
@@ -346,7 +206,7 @@ namespace LiveEditor
             IndentSizeNumeric.Maximum = new decimal(new int[] { 16, 0, 0, 0 });
             IndentSizeNumeric.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             IndentSizeNumeric.Name = "IndentSizeNumeric";
-            IndentSizeNumeric.Size = new Size(208, 23);
+            IndentSizeNumeric.Size = new Size(287, 23);
             IndentSizeNumeric.TabIndex = 2;
             IndentSizeNumeric.Value = new decimal(new int[] { 2, 0, 0, 0 });
             // 
@@ -384,7 +244,7 @@ namespace LiveEditor
             FontSizeNumeric.Maximum = new decimal(new int[] { 32, 0, 0, 0 });
             FontSizeNumeric.Minimum = new decimal(new int[] { 8, 0, 0, 0 });
             FontSizeNumeric.Name = "FontSizeNumeric";
-            FontSizeNumeric.Size = new Size(208, 23);
+            FontSizeNumeric.Size = new Size(287, 23);
             FontSizeNumeric.TabIndex = 4;
             FontSizeNumeric.Value = new decimal(new int[] { 11, 0, 0, 0 });
             // 
@@ -408,7 +268,7 @@ namespace LiveEditor
             RenderDelayNumeric.Maximum = new decimal(new int[] { 5000, 0, 0, 0 });
             RenderDelayNumeric.Minimum = new decimal(new int[] { 50, 0, 0, 0 });
             RenderDelayNumeric.Name = "RenderDelayNumeric";
-            RenderDelayNumeric.Size = new Size(208, 23);
+            RenderDelayNumeric.Size = new Size(287, 23);
             RenderDelayNumeric.TabIndex = 5;
             RenderDelayNumeric.Value = new decimal(new int[] { 350, 0, 0, 0 });
             // 
@@ -432,7 +292,7 @@ namespace LiveEditor
             HighlightDelayNumeric.Maximum = new decimal(new int[] { 5000, 0, 0, 0 });
             HighlightDelayNumeric.Minimum = new decimal(new int[] { 50, 0, 0, 0 });
             HighlightDelayNumeric.Name = "HighlightDelayNumeric";
-            HighlightDelayNumeric.Size = new Size(208, 23);
+            HighlightDelayNumeric.Size = new Size(287, 23);
             HighlightDelayNumeric.TabIndex = 6;
             HighlightDelayNumeric.Value = new decimal(new int[] { 250, 0, 0, 0 });
             // 
@@ -509,7 +369,7 @@ namespace LiveEditor
             ToolbarGroup.Margin = new Padding(3, 11, 3, 5);
             ToolbarGroup.Name = "ToolbarGroup";
             ToolbarGroup.Padding = new Padding(9, 5, 9, 8);
-            ToolbarGroup.Size = new Size(459, 58);
+            ToolbarGroup.Size = new Size(538, 58);
             ToolbarGroup.TabIndex = 8;
             ToolbarGroup.TabStop = false;
             ToolbarGroup.Text = "Toolbar";
@@ -524,7 +384,7 @@ namespace LiveEditor
             ToolbarOptions.Location = new Point(9, 21);
             ToolbarOptions.Margin = new Padding(0);
             ToolbarOptions.Name = "ToolbarOptions";
-            ToolbarOptions.Size = new Size(441, 29);
+            ToolbarOptions.Size = new Size(520, 29);
             ToolbarOptions.TabIndex = 0;
             ToolbarOptions.WrapContents = false;
             // 
@@ -563,7 +423,7 @@ namespace LiveEditor
             EditorGroup.Margin = new Padding(3, 5, 3, 5);
             EditorGroup.Name = "EditorGroup";
             EditorGroup.Padding = new Padding(9, 5, 9, 8);
-            EditorGroup.Size = new Size(459, 58);
+            EditorGroup.Size = new Size(538, 58);
             EditorGroup.TabIndex = 9;
             EditorGroup.TabStop = false;
             EditorGroup.Text = "Editor";
@@ -578,7 +438,7 @@ namespace LiveEditor
             EditorOptions.Location = new Point(9, 21);
             EditorOptions.Margin = new Padding(0);
             EditorOptions.Name = "EditorOptions";
-            EditorOptions.Size = new Size(441, 29);
+            EditorOptions.Size = new Size(520, 29);
             EditorOptions.TabIndex = 0;
             EditorOptions.WrapContents = false;
             // 
@@ -606,6 +466,146 @@ namespace LiveEditor
             EditorRightRadio.Text = "Right";
             EditorRightRadio.UseVisualStyleBackColor = true;
             // 
+            // DiagramLayoutTabPage
+            // 
+            DiagramLayoutTabPage.AutoScroll = true;
+            DiagramLayoutTabPage.Controls.Add(DiagramLayoutPanel);
+            DiagramLayoutTabPage.Location = new Point(4, 29);
+            DiagramLayoutTabPage.Name = "DiagramLayoutTabPage";
+            DiagramLayoutTabPage.Padding = new Padding(12);
+            DiagramLayoutTabPage.Size = new Size(566, 479);
+            DiagramLayoutTabPage.TabIndex = 1;
+            DiagramLayoutTabPage.Text = "Diagram layout";
+            DiagramLayoutTabPage.UseVisualStyleBackColor = true;
+            // 
+            // DiagramLayoutPanel
+            // 
+            DiagramLayoutPanel.AutoSize = true;
+            DiagramLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            DiagramLayoutPanel.ColumnCount = 2;
+            DiagramLayoutPanel.ColumnStyles.Add(new ColumnStyle());
+            DiagramLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            DiagramLayoutPanel.Controls.Add(LayoutFeatureIntroLabel, 0, 0);
+            DiagramLayoutPanel.Controls.Add(IncrementalRoutingCheckBox, 0, 1);
+            DiagramLayoutPanel.Controls.Add(RouteAwareConstructionCheckBox, 0, 2);
+            DiagramLayoutPanel.Controls.Add(WidthConstrainedLayoutCheckBox, 0, 3);
+            DiagramLayoutPanel.Controls.Add(TargetWidthLabel, 0, 4);
+            DiagramLayoutPanel.Controls.Add(TargetWidthNumeric, 1, 4);
+            DiagramLayoutPanel.Controls.Add(WidthHelpLabel, 0, 5);
+            DiagramLayoutPanel.Controls.Add(PendingFeaturesLabel, 0, 6);
+            DiagramLayoutPanel.Dock = DockStyle.Top;
+            DiagramLayoutPanel.Location = new Point(12, 12);
+            DiagramLayoutPanel.Margin = new Padding(0);
+            DiagramLayoutPanel.Name = "DiagramLayoutPanel";
+            DiagramLayoutPanel.RowCount = 7;
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.RowStyles.Add(new RowStyle());
+            DiagramLayoutPanel.Size = new Size(542, 312);
+            DiagramLayoutPanel.TabIndex = 0;
+            // 
+            // LayoutFeatureIntroLabel
+            // 
+            LayoutFeatureIntroLabel.AutoSize = true;
+            DiagramLayoutPanel.SetColumnSpan(LayoutFeatureIntroLabel, 2);
+            LayoutFeatureIntroLabel.Location = new Point(3, 5);
+            LayoutFeatureIntroLabel.Margin = new Padding(3, 5, 3, 16);
+            LayoutFeatureIntroLabel.MaximumSize = new Size(500, 0);
+            LayoutFeatureIntroLabel.Name = "LayoutFeatureIntroLabel";
+            LayoutFeatureIntroLabel.Size = new Size(466, 40);
+            LayoutFeatureIntroLabel.TabIndex = 0;
+            LayoutFeatureIntroLabel.Text = "Experimental layout switches for native Enterprise previews. Changes apply when you choose OK.";
+            // 
+            // IncrementalRoutingCheckBox
+            // 
+            IncrementalRoutingCheckBox.AutoSize = true;
+            DiagramLayoutPanel.SetColumnSpan(IncrementalRoutingCheckBox, 2);
+            IncrementalRoutingCheckBox.Location = new Point(3, 66);
+            IncrementalRoutingCheckBox.Margin = new Padding(3, 5, 3, 5);
+            IncrementalRoutingCheckBox.Name = "IncrementalRoutingCheckBox";
+            IncrementalRoutingCheckBox.Size = new Size(252, 24);
+            IncrementalRoutingCheckBox.TabIndex = 1;
+            IncrementalRoutingCheckBox.Text = "Incremental diagram routing (AF)";
+            IncrementalRoutingCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // RouteAwareConstructionCheckBox
+            // 
+            RouteAwareConstructionCheckBox.AutoSize = true;
+            DiagramLayoutPanel.SetColumnSpan(RouteAwareConstructionCheckBox, 2);
+            RouteAwareConstructionCheckBox.Location = new Point(3, 100);
+            RouteAwareConstructionCheckBox.Margin = new Padding(3, 5, 3, 5);
+            RouteAwareConstructionCheckBox.Name = "RouteAwareConstructionCheckBox";
+            RouteAwareConstructionCheckBox.Size = new Size(295, 24);
+            RouteAwareConstructionCheckBox.TabIndex = 2;
+            RouteAwareConstructionCheckBox.Text = "Route-aware diagram construction (AG)";
+            RouteAwareConstructionCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // WidthConstrainedLayoutCheckBox
+            // 
+            WidthConstrainedLayoutCheckBox.AutoSize = true;
+            DiagramLayoutPanel.SetColumnSpan(WidthConstrainedLayoutCheckBox, 2);
+            WidthConstrainedLayoutCheckBox.Location = new Point(3, 134);
+            WidthConstrainedLayoutCheckBox.Margin = new Padding(3, 5, 3, 5);
+            WidthConstrainedLayoutCheckBox.Name = "WidthConstrainedLayoutCheckBox";
+            WidthConstrainedLayoutCheckBox.Size = new Size(234, 24);
+            WidthConstrainedLayoutCheckBox.TabIndex = 3;
+            WidthConstrainedLayoutCheckBox.Text = "Width-constrained layout (AH)";
+            WidthConstrainedLayoutCheckBox.UseVisualStyleBackColor = true;
+            WidthConstrainedLayoutCheckBox.CheckedChanged += WidthConstrainedLayoutCheckBox_CheckedChanged;
+            // 
+            // TargetWidthLabel
+            // 
+            TargetWidthLabel.Anchor = AnchorStyles.Left;
+            TargetWidthLabel.AutoSize = true;
+            TargetWidthLabel.Location = new Point(3, 171);
+            TargetWidthLabel.Margin = new Padding(3, 5, 14, 5);
+            TargetWidthLabel.Name = "TargetWidthLabel";
+            TargetWidthLabel.Size = new Size(188, 20);
+            TargetWidthLabel.TabIndex = 4;
+            TargetWidthLabel.Text = "Target width (layout pixels)";
+            // 
+            // TargetWidthNumeric
+            // 
+            TargetWidthNumeric.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            TargetWidthNumeric.Increment = new decimal(new int[] { 100, 0, 0, 0 });
+            TargetWidthNumeric.Location = new Point(208, 168);
+            TargetWidthNumeric.Margin = new Padding(3, 5, 3, 5);
+            TargetWidthNumeric.Maximum = new decimal(new int[] { 20000, 0, 0, 0 });
+            TargetWidthNumeric.Minimum = new decimal(new int[] { 200, 0, 0, 0 });
+            TargetWidthNumeric.Name = "TargetWidthNumeric";
+            TargetWidthNumeric.Size = new Size(331, 27);
+            TargetWidthNumeric.TabIndex = 4;
+            TargetWidthNumeric.ThousandsSeparator = true;
+            TargetWidthNumeric.Value = new decimal(new int[] { 1200, 0, 0, 0 });
+            // 
+            // WidthHelpLabel
+            // 
+            WidthHelpLabel.AutoSize = true;
+            DiagramLayoutPanel.SetColumnSpan(WidthHelpLabel, 2);
+            WidthHelpLabel.Location = new Point(3, 211);
+            WidthHelpLabel.Margin = new Padding(3, 11, 3, 5);
+            WidthHelpLabel.MaximumSize = new Size(500, 0);
+            WidthHelpLabel.Name = "WidthHelpLabel";
+            WidthHelpLabel.Size = new Size(493, 40);
+            WidthHelpLabel.TabIndex = 5;
+            WidthHelpLabel.Text = "Prefer a readable width by wrapping eligible rows. Groups, direction and placement hints can require a wider diagram.";
+            // 
+            // PendingFeaturesLabel
+            // 
+            PendingFeaturesLabel.AutoSize = true;
+            DiagramLayoutPanel.SetColumnSpan(PendingFeaturesLabel, 2);
+            PendingFeaturesLabel.Location = new Point(3, 267);
+            PendingFeaturesLabel.Margin = new Padding(3, 11, 3, 5);
+            PendingFeaturesLabel.MaximumSize = new Size(500, 0);
+            PendingFeaturesLabel.Name = "PendingFeaturesLabel";
+            PendingFeaturesLabel.Size = new Size(463, 40);
+            PendingFeaturesLabel.TabIndex = 6;
+            PendingFeaturesLabel.Text = "AF and AG choices are saved for upcoming routing and construction operations, which are still in development.";
+            // 
             // ButtonPanel
             // 
             ButtonPanel.Anchor = AnchorStyles.Right;
@@ -614,7 +614,7 @@ namespace LiveEditor
             ButtonPanel.Controls.Add(CancelSettingsButton);
             ButtonPanel.Controls.Add(OkSettingsButton);
             ButtonPanel.FlowDirection = FlowDirection.RightToLeft;
-            ButtonPanel.Location = new Point(271, 449);
+            ButtonPanel.Location = new Point(382, 536);
             ButtonPanel.Margin = new Padding(0, 16, 0, 0);
             ButtonPanel.Name = "ButtonPanel";
             ButtonPanel.Size = new Size(194, 48);
@@ -653,7 +653,7 @@ namespace LiveEditor
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = CancelSettingsButton;
-            ClientSize = new Size(600, 600);
+            ClientSize = new Size(604, 616);
             Controls.Add(RootLayout);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             Margin = new Padding(3, 4, 3, 4);
@@ -669,11 +669,6 @@ namespace LiveEditor
             SettingsTabs.ResumeLayout(false);
             GeneralTabPage.ResumeLayout(false);
             GeneralTabPage.PerformLayout();
-            DiagramLayoutTabPage.ResumeLayout(false);
-            DiagramLayoutTabPage.PerformLayout();
-            DiagramLayoutPanel.ResumeLayout(false);
-            DiagramLayoutPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)TargetWidthNumeric).EndInit();
             SettingsLayout.ResumeLayout(false);
             SettingsLayout.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)IndentSizeNumeric).EndInit();
@@ -690,10 +685,14 @@ namespace LiveEditor
             EditorGroup.PerformLayout();
             EditorOptions.ResumeLayout(false);
             EditorOptions.PerformLayout();
+            DiagramLayoutTabPage.ResumeLayout(false);
+            DiagramLayoutTabPage.PerformLayout();
+            DiagramLayoutPanel.ResumeLayout(false);
+            DiagramLayoutPanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)TargetWidthNumeric).EndInit();
             ButtonPanel.ResumeLayout(false);
             ButtonPanel.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion

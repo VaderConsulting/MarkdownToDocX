@@ -61,7 +61,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
             }
             else if (Count <= 2)
             {
-                rootNode = IntervalNode<TData>.CreateIntervalNodeOnEnumeration(rootNode.GetAllLeafNodes().Concat(new[] {node}));
+                rootNode = IntervalNode<TData>.CreateIntervalNodeOnEnumeration(rootNode.GetAllLeafNodes().Concat([node]));
             }
             else
             {
@@ -123,14 +123,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// return all the data elements stored at the leaves of the BSPTree in an IEnumerable
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<TData> GetAllLeaves() => rootNode != null && Count > 0 ? rootNode.GetAllLeaves() : new TData[0];
+        public IEnumerable<TData> GetAllLeaves() => rootNode != null && Count > 0 ? rootNode.GetAllLeaves() : [];
 
         /// <summary>
         /// Get all data items with rectangles intersecting the specified rectangular region
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        public IEnumerable<TData> GetAllIntersecting(Interval queryRegion) => rootNode == null || Count == 0 ? new TData[0] : rootNode.GetNodeItemsIntersectingInterval(queryRegion);
+        public IEnumerable<TData> GetAllIntersecting(Interval queryRegion) => rootNode == null || Count == 0 ? [] : rootNode.GetNodeItemsIntersectingInterval(queryRegion);
 
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
         /// </summary>
         /// <param name="queryRegion"></param>
         /// <returns></returns>
-        internal IEnumerable<IntervalNode<TData>> GetAllLeavesIntersectingInterval(Interval queryRegion) => rootNode == null || Count == 0 ? new IntervalNode<TData>[0] : rootNode.GetLeafIntervalNodesIntersectingInterval(queryRegion);
+        internal IEnumerable<IntervalNode<TData>> GetAllLeavesIntersectingInterval(Interval queryRegion) => rootNode == null || Count == 0 ? [] : rootNode.GetLeafIntervalNodesIntersectingInterval(queryRegion);
 
         /// <summary>
         /// Does minimal work to determine if any objects in the tree intersect with the query region
@@ -220,8 +220,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RTree
                 return true;
             }
 
-            bool ret= node.Left != null && node.Right != null  ||
-                   node.Left == null && node.Right == null;
+            bool ret= (node.Left != null && node.Right != null)  ||
+                   (node.Left == null && node.Right == null);
             if (!ret)
             {
                 return false;

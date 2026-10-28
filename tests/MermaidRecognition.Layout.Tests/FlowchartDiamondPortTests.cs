@@ -17,7 +17,7 @@ public sealed class FlowchartDiamondPortTests
     {
         IReadOnlyList<(int X, int Y)> Ports = FlowchartDiamondPorts.Vertices(WIDTH_PX, HEIGHT_PX);
 
-        Assert.That(Ports, Is.EqualTo(new[] { (0, 30), (75, 0), (0, -30), (-75, 0) }));
+        Assert.That(Ports, Is.EqualTo([(0, 30), (75, 0), (0, -30), (-75, 0)]));
     }
 
     [Test]
@@ -31,7 +31,7 @@ public sealed class FlowchartDiamondPortTests
             out IReadOnlyList<(int X, int Y)> Ports);
 
         Assert.That(Found, Is.True);
-        Assert.That(Ports, Is.EqualTo(new[] { (38, 15) }));
+        Assert.That(Ports, Is.EqualTo([(38, 15)]));
     }
 
     [Test]
@@ -45,7 +45,7 @@ public sealed class FlowchartDiamondPortTests
             out IReadOnlyList<(int X, int Y)> Ports);
 
         Assert.That(Found, Is.True);
-        Assert.That(Ports, Is.EqualTo(new[] { (25, 20), (50, 10) }));
+        Assert.That(Ports, Is.EqualTo([(25, 20), (50, 10)]));
     }
 
     [Test]
@@ -59,7 +59,7 @@ public sealed class FlowchartDiamondPortTests
             out IReadOnlyList<(int X, int Y)> Ports);
 
         Assert.That(Found, Is.True);
-        Assert.That(Ports, Is.EqualTo(new[] { (19, 23), (38, 15), (56, 8) }));
+        Assert.That(Ports, Is.EqualTo([(19, 23), (38, 15), (56, 8)]));
     }
 
     [Test]
@@ -73,7 +73,7 @@ public sealed class FlowchartDiamondPortTests
             out IReadOnlyList<(int X, int Y)> Ports);
 
         Assert.That(Found, Is.True);
-        Assert.That(Ports, Is.EqualTo(new[] { (15, 24), (30, 18), (45, 12), (60, 6) }));
+        Assert.That(Ports, Is.EqualTo([(15, 24), (30, 18), (45, 12), (60, 6)]));
     }
 
     [Test]
@@ -110,7 +110,7 @@ public sealed class FlowchartDiamondPortTests
             out IReadOnlyList<(int X, int Y)> Ports);
 
         Assert.That(Found, Is.True);
-        Assert.That(Ports, Is.EqualTo(new[] { (20, 30), (40, 20), (60, 10) }));
+        Assert.That(Ports, Is.EqualTo([(20, 30), (40, 20), (60, 10)]));
     }
 
     [Test]
@@ -233,10 +233,10 @@ public sealed class FlowchartDiamondPortTests
             "adding ports must not reverse two destinations and create a local crossing");
         Assert.That(FlowchartDiamondPorts.TryGetEdgePorts(WIDTH_PX, HEIGHT_PX,
             FlowchartDiamondEdge.TopRight, 6, out IReadOnlyList<(int X, int Y)> Available), Is.True);
-        Assert.That(Available, Is.EqualTo(new[]
-        {
+        Assert.That(Available, Is.EqualTo(
+        [
             (11, 26), (21, 21), (32, 17), (43, 13), (54, 9), (64, 4)
-        }));
+        ]));
     }
 
     [Test]

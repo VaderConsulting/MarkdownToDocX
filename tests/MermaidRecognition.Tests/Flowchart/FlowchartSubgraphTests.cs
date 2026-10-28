@@ -21,7 +21,7 @@ public class FlowchartSubgraphTests
         Assert.That(NodeY.ParentGroupId, Is.EqualTo("Inner"));
         GroupContract Group = Contract.Groups.Single(Group => Group.Id == "Inner");
         Assert.That(Group.Title, Is.EqualTo("Inner title"));
-        Assert.That(Group.ChildNodeIds, Is.EquivalentTo(new[] { "X", "Y" }));
+        Assert.That(Group.ChildNodeIds, Is.EquivalentTo(["X", "Y"]));
     }
 
     [Test]
@@ -40,7 +40,7 @@ public class FlowchartSubgraphTests
         GroupContract Group = Contract.Groups.Single();
         Assert.That(Group.Id, Is.EqualTo("SG"));
         Assert.That(Group.Title, Is.EqualTo("Processing"));
-        Assert.That(Group.ChildNodeIds, Is.EquivalentTo(new[] { "A", "B", "C" }));
+        Assert.That(Group.ChildNodeIds, Is.EquivalentTo(["A", "B", "C"]));
 
         NodeContract NodeA = Contract.Nodes.Single(Node => Node.Id == "A");
         NodeContract NodeIn = Contract.Nodes.Single(Node => Node.Id == "IN");
@@ -69,8 +69,8 @@ public class FlowchartSubgraphTests
         GroupContract Outer = Contract.Groups.Single(Group => Group.Id == "Outer");
 
         Assert.That(InnerTop.ParentGroupId, Is.EqualTo("Inner"));
-        Assert.That(Inner.ChildNodeIds, Is.EquivalentTo(new[] { "InnerTop", "InnerBottom" }));
-        Assert.That(Outer.ChildNodeIds, Is.EquivalentTo(new[] { "Start", "End" }));
+        Assert.That(Inner.ChildNodeIds, Is.EquivalentTo(["InnerTop", "InnerBottom"]));
+        Assert.That(Outer.ChildNodeIds, Is.EquivalentTo(["Start", "End"]));
     }
 
     [Test]
@@ -98,8 +98,8 @@ public class FlowchartSubgraphTests
         Assert.That(Contract.Nodes.Single(Node => Node.Id == "C").ParentGroupId, Is.EqualTo("L2"));
         Assert.That(Contract.Nodes.Single(Node => Node.Id == "D").ParentGroupId, Is.EqualTo("L2"));
         Assert.That(Contract.Nodes.Single(Node => Node.Id == "E").ParentGroupId, Is.EqualTo("L0"));
-        Assert.That(Contract.Groups.Single(Group => Group.Id == "L0").ChildNodeIds, Is.EquivalentTo(new[] { "A", "B", "E" }));
-        Assert.That(Contract.Groups.Single(Group => Group.Id == "L2").ChildNodeIds, Is.EquivalentTo(new[] { "C", "D" }));
+        Assert.That(Contract.Groups.Single(Group => Group.Id == "L0").ChildNodeIds, Is.EquivalentTo(["A", "B", "E"]));
+        Assert.That(Contract.Groups.Single(Group => Group.Id == "L2").ChildNodeIds, Is.EquivalentTo(["C", "D"]));
     }
 
     [Test]

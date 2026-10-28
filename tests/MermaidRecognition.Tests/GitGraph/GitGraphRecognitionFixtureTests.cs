@@ -6,14 +6,14 @@ namespace MermaidRecognition.Tests.GitGraph;
 public sealed class GitGraphRecognitionFixtureTests
 {
     private static readonly string[] FixtureNames =
-    {
+    [
         "simple",
         "init-leading",
         "branch-history",
         "merge",
         "commit-args",
         "accessibility",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)

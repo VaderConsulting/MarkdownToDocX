@@ -56,7 +56,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Routing
 
         public List<Point> GetPathFromRoot(Point s)
         {
-            List<Point> path = new List<Point>();
+            List<Point> path = [];
             if (!_points.Contains(s))
             {
                 return null;

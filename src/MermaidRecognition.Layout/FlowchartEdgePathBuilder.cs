@@ -153,7 +153,7 @@ public static class FlowchartEdgePathBuilder
             return false;
         }
 
-        List<EdgeContract> Group = Loops.Where(Candidate => LoopSpansOverlap(Candidate, Edge, BoundsById)).ToList();
+        List<EdgeContract> Group = [.. Loops.Where(Candidate => LoopSpansOverlap(Candidate, Edge, BoundsById))];
         if (Group.Count < 2)
         {
             return false;
@@ -161,7 +161,7 @@ public static class FlowchartEdgePathBuilder
 
         bool RightToLeft = Direction == FlowchartDirection.RightToLeft;
         double DownstreamSign = RightToLeft ? -1.0 : 1.0;
-        List<EdgeContract> Ordered = Group.OrderBy(Candidate => LoopLeavesFromTop(Candidate, Contract, Loops) ? 0 : 1).ThenBy(Candidate => Math.Abs(BoundsById[Candidate.SourceId].CenterX - BoundsById[Candidate.TargetId].CenterX)).ThenBy(Candidate => Candidate.CreationIndex).ToList();
+        List<EdgeContract> Ordered = [.. Group.OrderBy(Candidate => LoopLeavesFromTop(Candidate, Contract, Loops) ? 0 : 1).ThenBy(Candidate => Math.Abs(BoundsById[Candidate.SourceId].CenterX - BoundsById[Candidate.TargetId].CenterX)).ThenBy(Candidate => Candidate.CreationIndex)];
 
         double GroupLeft = double.MaxValue;
         double GroupRight = double.MinValue;
@@ -349,7 +349,7 @@ public static class FlowchartEdgePathBuilder
         }
 
         FlowchartLayoutNodeBounds Bounds = BoundsById[NodeId];
-        List<(EdgeContract Loop, double OtherX)> Ordered = TopEnds.OrderBy(End => End.OtherX).ThenBy(End => End.Loop.CreationIndex).ToList();
+        List<(EdgeContract Loop, double OtherX)> Ordered = [.. TopEnds.OrderBy(End => End.OtherX).ThenBy(End => End.Loop.CreationIndex)];
         int Index = Ordered.FindIndex(End => ReferenceEquals(End.Loop, Edge));
         if (Index < 0 || Ordered.Count < 2)
         {

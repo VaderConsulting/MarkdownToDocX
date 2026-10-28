@@ -11,14 +11,24 @@ internal static class EnterpriseSvgConfiguration
     internal static string Apply(string Svg, EnterpriseDocument Document)
     {
         if (!Document.Configuration.Keys.Any(Key => Key is "themeVariables.fontFamily" or "fontFamily"
-            or "themeVariables.background" or "themeVariables.fontSize" or "fontSize")) return Svg;
-        var Xml = XDocument.Parse(Svg);
-        var Root = Xml.Root!;
+            or "themeVariables.background" or "themeVariables.fontSize" or "fontSize"))
+        {
+            return Svg;
+        }
+
+        XDocument Xml = XDocument.Parse(Svg);
+        XElement Root = Xml.Root!;
         if (Document.Configuration.TryGetValue("themeVariables.fontFamily", out string? Family)
             || Document.Configuration.TryGetValue("fontFamily", out Family))
+        {
             Root.SetAttributeValue("font-family", Family);
+        }
+
         if (Document.Configuration.TryGetValue("themeVariables.background", out string? Background))
+        {
             Root.Elements().FirstOrDefault(Element => Element.Name.LocalName == "rect")?.SetAttributeValue("fill", Background);
+        }
+
         if (Document.Configuration.TryGetValue("themeVariables.fontSize", out string? Font)
             || Document.Configuration.TryGetValue("fontSize", out Font))
         {
@@ -27,8 +37,10 @@ internal static class EnterpriseSvgConfiguration
             {
                 // Scale the viewport and all content together, retaining measured label clearance.
                 foreach (string Dimension in new[] { "width", "height" })
+                {
                     Root.SetAttributeValue(Dimension, (double.Parse(Root.Attribute(Dimension)!.Value,
                         CultureInfo.InvariantCulture) * Size / 12).ToString("0.###", CultureInfo.InvariantCulture));
+                }
             }
         }
         return Xml.ToString(SaveOptions.DisableFormatting);

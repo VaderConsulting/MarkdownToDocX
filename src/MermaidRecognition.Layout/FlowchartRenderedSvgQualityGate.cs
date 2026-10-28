@@ -2830,9 +2830,7 @@ public static class FlowchartRenderedSvgQualityGate
         IReadOnlyList<SvgNodeRect> GroupRects,
         List<FlowchartLayoutQualityFailure> Violations)
     {
-        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
-        Boxes.AddRange(NodeRects);
-        Boxes.AddRange(GroupRects);
+        List<SvgNodeRect> Boxes = [.. NodeRects, .. GroupRects];
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             for (int Index = 1; Index < Stroke.Samples.Count; Index++)
@@ -2922,9 +2920,7 @@ public static class FlowchartRenderedSvgQualityGate
         IReadOnlyList<SvgNodeRect> GroupRects,
         List<FlowchartLayoutQualityFailure> Violations)
     {
-        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
-        Boxes.AddRange(NodeRects);
-        Boxes.AddRange(GroupRects);
+        List<SvgNodeRect> Boxes = [.. NodeRects, .. GroupRects];
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             if (Stroke.Samples.Count < 2)
@@ -3469,9 +3465,7 @@ public static class FlowchartRenderedSvgQualityGate
             return;
         }
 
-        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
-        Boxes.AddRange(NodeRects);
-        Boxes.AddRange(GroupRects);
+        List<SvgNodeRect> Boxes = [.. NodeRects, .. GroupRects];
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             foreach ((double X, double Y) in Stroke.Samples)
@@ -3524,9 +3518,7 @@ public static class FlowchartRenderedSvgQualityGate
         IReadOnlyList<SvgNodeRect> GroupRects,
         List<FlowchartLayoutQualityFailure> Violations)
     {
-        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
-        Boxes.AddRange(NodeRects);
-        Boxes.AddRange(GroupRects);
+        List<SvgNodeRect> Boxes = [.. NodeRects, .. GroupRects];
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             if (Stroke.Samples.Count < 3)
@@ -3884,9 +3876,7 @@ public static class FlowchartRenderedSvgQualityGate
         IReadOnlyList<SvgNodeRect> GroupRects,
         List<FlowchartLayoutQualityFailure> Violations)
     {
-        List<SvgNodeRect> Boxes = new List<SvgNodeRect>(NodeRects.Count + GroupRects.Count);
-        Boxes.AddRange(NodeRects);
-        Boxes.AddRange(GroupRects);
+        List<SvgNodeRect> Boxes = [.. NodeRects, .. GroupRects];
         foreach (ParsedEdgeStroke Stroke in Strokes)
         {
             if (Stroke.Samples.Count < 4)

@@ -105,16 +105,16 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.NonOverlappingBoundar
             //var node = (FastIncrementalLayout.Node)mNode.AlgorithmData;
             //this.w2 = node.width / 2.0 + padding;
             //this.h2 = node.height / 2.0 + padding;
-            w2 = mNode.Width / 2.0 + padding;
-            h2 = mNode.Height / 2.0 + padding;
+            w2 = (mNode.Width / 2.0) + padding;
+            h2 = (mNode.Height / 2.0) + padding;
             Parent = parent;
 
-            boundary = new Polyline(new Point[]{
+            boundary = new Polyline([
                 new Point(-w2, -h2),
                 new Point(-w2, h2),
                 new Point(w2, h2),
                 new Point(w2, -h2)
-            })
+            ])
             {
                 Closed = true
             };
@@ -189,7 +189,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.NonOverlappingBoundar
         /// </summary>
         private Polyline ComputeConvexHull()
         {
-            List<Point> points = new List<Point>();
+            List<Point> points = [];
             foreach (Node v in cluster.Nodes) 
             {
                 CvxHull r = new RCHull(null, v, 0);

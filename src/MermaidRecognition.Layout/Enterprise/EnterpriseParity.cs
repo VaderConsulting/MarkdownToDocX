@@ -76,7 +76,7 @@ public static class EnterpriseParity
 
         Dictionary<string, EnterpriseSvgRect> EnterpriseRects = CollectSvgRects(EnterpriseContract, EnterpriseLayout, EnterpriseFrame);
         Dictionary<string, EnterpriseSvgRect> FlowchartRects = CollectSvgRects(Parsed, FlowchartLayout, FlowchartFrame);
-        List<string> Mismatches = new List<string>();
+        List<string> Mismatches = [];
         foreach (KeyValuePair<string, EnterpriseSvgRect> Entry in FlowchartRects)
         {
             if (!EnterpriseRects.TryGetValue(Entry.Key, out EnterpriseSvgRect? EnterpriseRect))
@@ -270,7 +270,7 @@ public static class EnterpriseParity
         }
 
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
-        List<EnterpriseFlowchartPathFact> Facts = new List<EnterpriseFlowchartPathFact>();
+        List<EnterpriseFlowchartPathFact> Facts = [];
         foreach (EdgeContract Edge in Contract.Edges)
         {
             if (!FlowchartEdgeRouteResolver.TryResolveLayoutGuidePoints(
@@ -286,7 +286,7 @@ public static class EnterpriseParity
                 continue;
             }
 
-            List<(double X, double Y)> SvgPoints = new List<(double X, double Y)>();
+            List<(double X, double Y)> SvgPoints = [];
             foreach ((double LayoutX, double LayoutY) in LayoutPoints)
             {
                 SvgPoints.Add(Frame.LayoutToSvg(LayoutX, LayoutY));

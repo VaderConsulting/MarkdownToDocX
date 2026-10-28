@@ -61,7 +61,10 @@ public static class EnterpriseFlowchartContractMapper
 
         foreach (EnterpriseNote Note in Document.Notes.Values)
         {
-            if (!WrittenNodes.Contains(Note.Id)) AddNoteNode(Contract, Document, Note, Containers, WrittenNodes);
+            if (!WrittenNodes.Contains(Note.Id))
+            {
+                AddNoteNode(Contract, Document, Note, Containers, WrittenNodes);
+            }
         }
 
         int CreationIndex = 0;
@@ -160,7 +163,7 @@ public static class EnterpriseFlowchartContractMapper
             Id = ContainerId,
             Title = string.Join("\n", EnterpriseNodeSizer.Wrap(ContainerTitle(Document, ContainerId))),
             ParentGroupId = ParentContainerId(Document, ContainerId, Containers),
-            Direction = Document.Groups.TryGetValue(ContainerId, out var DeclaredGroup)
+            Direction = Document.Groups.TryGetValue(ContainerId, out EnterpriseGroup? DeclaredGroup)
                 ? DeclaredGroup.Direction?.ToString().ToUpperInvariant() : null,
             PlacementHint = DeclaredGroup?.PlacementHint
         };
@@ -192,7 +195,11 @@ public static class EnterpriseFlowchartContractMapper
         HashSet<string> Containers,
         HashSet<string> WrittenNodes)
     {
-        if (!WrittenNodes.Add(Note.Id)) return;
+        if (!WrittenNodes.Add(Note.Id))
+        {
+            return;
+        }
+
         (double Width, double Height) Size = EnterpriseNodeSizer.MeasureNote(Note);
         NodeContract Node = new NodeContract
         {
@@ -276,7 +283,10 @@ public static class EnterpriseFlowchartContractMapper
 
         foreach (EnterpriseNote Note in Document.Notes.Values)
         {
-            if (!string.IsNullOrEmpty(Note.ParentId)) Containers.Add(Note.ParentId);
+            if (!string.IsNullOrEmpty(Note.ParentId))
+            {
+                Containers.Add(Note.ParentId);
+            }
         }
 
         return Containers;
@@ -327,7 +337,7 @@ public static class EnterpriseFlowchartContractMapper
 
     internal static List<string> ChildIds(EnterpriseDocument Document, string ContainerId)
     {
-        List<string> Children = new List<string>();
+        List<string> Children = [];
         foreach (EnterpriseGroup Group in Document.Groups.Values)
         {
             if (string.Equals(Group.ParentId, ContainerId, StringComparison.Ordinal))
@@ -348,7 +358,10 @@ public static class EnterpriseFlowchartContractMapper
         foreach (EnterpriseNote Note in Document.Notes.Values)
         {
             if (string.Equals(Note.ParentId, ContainerId, StringComparison.Ordinal)
-                && !Children.Contains(Note.Id)) Children.Add(Note.Id);
+                && !Children.Contains(Note.Id))
+            {
+                Children.Add(Note.Id);
+            }
         }
 
         return Children;

@@ -4,6 +4,8 @@ using System.Windows.Forms;
 using MDConverter;
 using MDConverter.Options;
 
+using MermaidRecognition.Config;
+
 namespace md2docx;
 
 internal static class Program
@@ -53,8 +55,11 @@ internal static class Program
                     Console.Error.WriteLine("--layout requires grid or open.");
                     return 1;
                 }
-                if (!MermaidRecognition.Config.DiagramLayoutSettings.TryParse(Args[++I], out var Layout))
+                if (!MermaidRecognition.Config.DiagramLayoutSettings.TryParse(Args[++I], out DiagramLayoutMode Layout))
+                {
                     Console.Error.WriteLine("Warning: Unknown layout value \"" + Args[I] + "\"; using grid.");
+                }
+
                 DefaultLayout = Layout;
                 continue;
             }

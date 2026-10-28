@@ -10,7 +10,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
     /// </summary>
     internal static class ShapeCreatorForRoutingToParents {
         public static IEnumerable<Shape> GetShapes(IEnumerable<Edge> inParentEdges, List<Edge> outParentEdges) {
-            Dictionary<Node, Shape> nodesToShapes = new Dictionary<Node, Shape>();
+            Dictionary<Node, Shape> nodesToShapes = [];
             foreach (Edge edge in inParentEdges) {
                 ProcessAncestorDescendantCouple((Cluster)edge.Target, edge.Source, nodesToShapes);
                 InsertEdgePortsToShapes(nodesToShapes, edge);
@@ -91,7 +91,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         static Cluster Parent(Node node) => node.ClusterParents.First();
 
         internal static bool NumberOfActiveNodesIsUnderThreshold(List<Edge> inParentEdges, List<Edge> outParentEdges, int threshold) {
-            Set<Node> usedNodeSet = new Set<Node>();
+            Set<Node> usedNodeSet = [];
             foreach (Edge edge in inParentEdges)
             {
                 if (SetOfActiveNodesIsLargerThanThreshold((Cluster)edge.Target, edge.Source, usedNodeSet, threshold))

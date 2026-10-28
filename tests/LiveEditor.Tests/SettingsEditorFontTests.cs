@@ -9,26 +9,26 @@ using NUnit.Framework;
 namespace LiveEditor.Tests;
 
 [TestFixture, Apartment(ApartmentState.STA), NonParallelizable]
-public sealed class SettingsEditorFontTests
+public sealed partial class SettingsEditorFontTests
 {
     [TestCase(9F)]
     [TestCase(14.5F)]
     public void AcceptingSettingsLeavesTheEditorGutterPaintable(float FontSize)
     {
         IntPtr PreviousContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
-        List<Exception> Failures = new();
+        List<Exception> Failures = [];
         ThreadExceptionEventHandler Handler = (_, E) => Failures.Add(E.Exception);
         Application.ThreadException += Handler;
         try
         {
-            var Settings = new SessionSettings { EditorFontSize = 9F };
+            SessionSettings Settings = new SessionSettings { EditorFontSize = 9F };
             using Form Host = new Form { ShowInTaskbar = false, ClientSize = new Size(800, 500) };
             using CodeEditor Editor = new CodeEditor { Dock = DockStyle.Fill, HighlightDelayMilliseconds = 5000 };
             float ReportedFontSize = 0F;
             Editor.FontSizeChanged += (_, Size) => ReportedFontSize = Size;
             Host.Controls.Add(Editor);
             Editor.ApplyFont(Settings.EditorFontSize, Settings.EditorWordWrap);
-            var Gutter = (LineNumberGutter)Editor.Controls.Find("LineNumberColumn", true)[0];
+            LineNumberGutter Gutter = (LineNumberGutter)Editor.Controls.Find("LineNumberColumn", true)[0];
             Host.Show();
             Editor.Editor.Text = "enterprise\n  application-component shop \"Shop\"\n";
             Application.DoEvents();
@@ -69,6 +69,6 @@ public sealed class SettingsEditorFontTests
         }
     }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr Context);
+    [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+    private static partial IntPtr SetThreadDpiAwarenessContext(IntPtr Context);
 }

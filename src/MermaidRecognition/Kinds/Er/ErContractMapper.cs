@@ -174,7 +174,7 @@ public static class ErContractMapper
                 Match Match = ClassApplyRegex.Match(RawLine);
                 if (Match.Success)
                 {
-                    Database.ApplyClassToTargets(new[] { Match.Groups[1].Value }, Match.Groups[2].Value);
+                    Database.ApplyClassToTargets([Match.Groups[1].Value], Match.Groups[2].Value);
                 }
             }
         }

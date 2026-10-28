@@ -331,7 +331,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             Point l = (v - u).Normalize() + (v - w).Normalize();
             if (l.Length < ApproximateComparer.IntersectionEpsilon) {
-                a = b = v + padding * uvPerp;
+                a = b = v + (padding * uvPerp);
                 return 1;
             }
             Point d = l.Normalize() * padding;
@@ -339,9 +339,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
             //look for a in the form d+x*dp
             //we have:  Padding=(d+x*dp)*uvPerp
-            double xp = (padding - d * uvPerp) / (dp * uvPerp);
-            a = d + xp * dp + v;
-            b = d - xp * dp + v;
+            double xp = (padding - (d * uvPerp)) / (dp * uvPerp);
+            a = d + (xp * dp) + v;
+            b = d - (xp * dp) + v;
             return 2; //number of points to add 
         }
 
@@ -400,7 +400,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private Polyline PolygonOnLeftLabel() {
             Polyline poly = new Polyline();
-            double t = Left + (1 - labelCornersPreserveCoefficient) * LabelWidth;
+            double t = Left + ((1 - labelCornersPreserveCoefficient) * LabelWidth);
             poly.AddPoint(new Point(t, Top));
             poly.AddPoint(RightTop);
             poly.AddPoint(RightBottom);
@@ -412,7 +412,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 
         private Polyline PolygonOnRightLabel() {
             Polyline poly = new Polyline();
-            double t = Right - (1 - labelCornersPreserveCoefficient) * LabelWidth;
+            double t = Right - ((1 - labelCornersPreserveCoefficient) * LabelWidth);
             poly.AddPoint(t, Top);
             poly.AddPoint(Right, Y);
             poly.AddPoint(t, Bottom);
@@ -424,7 +424,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         }
 
 
-        internal ICurve NodeBoundary => Node != null ? Node.BoundaryCurve : null;
+        internal ICurve NodeBoundary => Node?.BoundaryCurve;
 
 
         double padding;

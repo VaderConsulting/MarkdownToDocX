@@ -67,7 +67,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             Width = labelWidth;
             Height = labelHeight;
             GeometryParent = parentP;
-            PlacementStrategyPriority = new[] {PlacementStrategy.AlongCurve, PlacementStrategy.Horizontal};
+            PlacementStrategyPriority = [PlacementStrategy.AlongCurve, PlacementStrategy.Horizontal];
         }
 
         /// <summary>
@@ -211,10 +211,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             Horizontal
         }
 
-        IEnumerable<PlacementStrategy> placementStrategyPriority = new[] {
+        IEnumerable<PlacementStrategy> placementStrategyPriority = [
                                                                              PlacementStrategy.Horizontal,
                                                                              PlacementStrategy.AlongCurve
-                                                                         };
+                                                                         ];
 
         double placementOffset = 0.5;
 

@@ -14,9 +14,9 @@ internal sealed partial class PreviewHoverIndex
 {
     private const double EDGE_TOLERANCE = 8.0;
 
-    private readonly List<HoverShape> _Shapes = new List<HoverShape>();
+    private readonly List<HoverShape> _Shapes = [];
 
-    private readonly List<HoverStroke> _Strokes = new List<HoverStroke>();
+    private readonly List<HoverStroke> _Strokes = [];
 
     private double _Width;
 
@@ -200,7 +200,7 @@ internal sealed partial class PreviewHoverIndex
             if (Close > Open)
             {
                 string Body = Svg.Substring(Open, Close - Open);
-                string[] Parts = Body.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] Parts = Body.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
                 if (Parts.Length >= 2)
                 {
                     ShiftX = ParseNumber(Parts[0]);
@@ -286,7 +286,7 @@ internal sealed partial class PreviewHoverIndex
             return;
         }
 
-        List<HoverSegment> Segments = new List<HoverSegment>();
+        List<HoverSegment> Segments = [];
         int Path = 0;
         while (Path < Body.Length)
         {
@@ -699,7 +699,7 @@ internal sealed partial class PreviewHoverIndex
             }
 
             string Points = ReadStringAttribute(Body.Substring(Found, End - Found), "points");
-            List<double> Numbers = new List<double>();
+            List<double> Numbers = [];
             StringBuilder Number = new StringBuilder();
             for (int CharacterIndex = 0; CharacterIndex < Points.Length; CharacterIndex++)
             {
@@ -777,7 +777,7 @@ internal sealed partial class PreviewHoverIndex
 
     private static void IncludePaths(string Body, double ShiftX, double ShiftY, ref double Left, ref double Top, ref double Right, ref double Bottom)
     {
-        List<HoverSegment> Segments = new List<HoverSegment>();
+        List<HoverSegment> Segments = [];
         int Index = 0;
         while (Index < Body.Length)
         {
@@ -830,9 +830,9 @@ internal sealed partial class PreviewHoverIndex
 
     private static void Flatten(string Data, double ShiftX, double ShiftY, List<HoverSegment> Segments)
     {
-        List<double> Numbers = new List<double>();
-        List<char> Commands = new List<char>();
-        List<int> CommandAt = new List<int>();
+        List<double> Numbers = [];
+        List<char> Commands = [];
+        List<int> CommandAt = [];
         StringBuilder Number = new StringBuilder();
         for (int Index = 0; Index < Data.Length; Index++)
         {
@@ -941,8 +941,8 @@ internal sealed partial class PreviewHoverIndex
             {
                 while (Cursor + 3 < To)
                 {
-                    double X1 = CurrentX * 2.0 - LastControlX;
-                    double Y1 = CurrentY * 2.0 - LastControlY;
+                    double X1 = (CurrentX * 2.0) - LastControlX;
+                    double Y1 = (CurrentY * 2.0) - LastControlY;
                     double X2 = Take(Numbers, ref Cursor, Relative, CurrentX);
                     double Y2 = Take(Numbers, ref Cursor, Relative, CurrentY);
                     double X = Take(Numbers, ref Cursor, Relative, CurrentX);
@@ -1100,7 +1100,7 @@ internal sealed partial class PreviewHoverIndex
         double Ratio = 0;
         if (LengthSquared > 0)
         {
-            Ratio = ((X - Segment.X1) * DeltaX + (Y - Segment.Y1) * DeltaY) / LengthSquared;
+            Ratio = (((X - Segment.X1) * DeltaX) + ((Y - Segment.Y1) * DeltaY)) / LengthSquared;
             if (Ratio < 0)
             {
                 Ratio = 0;
@@ -1177,7 +1177,7 @@ internal sealed partial class PreviewHoverIndex
     {
         public string Text = string.Empty;
 
-        public List<HoverSegment> Segments = new List<HoverSegment>();
+        public List<HoverSegment> Segments = [];
     }
 
     private struct HoverSegment

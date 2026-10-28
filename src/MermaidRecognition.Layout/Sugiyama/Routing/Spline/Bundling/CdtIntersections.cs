@@ -76,7 +76,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         Dictionary<Polyline, Tuple<Point, Point>> FindCloseObstaclesForBundle(CdtTriangle startTriangle, Point start,
                                                                               Point end, Set<Polyline> obstaclesToIgnore,
                                                                               double upperBound) {
-            Dictionary<Polyline, Tuple<Point, Point>> obstacles = new Dictionary<Polyline, Tuple<Point, Point>>();
+            Dictionary<Polyline, Tuple<Point, Point>> obstacles = [];
             if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out List<CdtTriangle>? list))
             {
                 return null;
@@ -87,7 +87,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return obstacles;
             }
 
-            HashSet<CdtSite> checkedSites = new HashSet<CdtSite>();
+            HashSet<CdtSite> checkedSites = [];
 
             foreach (CdtTriangle t in list) {
                 foreach (CdtSite s in t.Sites) {
@@ -116,8 +116,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                             continue;
                         }
 
-                        r1 = pp.Point + (pp.NextOnPolyline.Point - pp.Point)*par11;
-                        r2 = start + (end - start)*par12;
+                        r1 = pp.Point + ((pp.NextOnPolyline.Point - pp.Point)*par11);
+                        r2 = start + ((end - start)*par12);
                     }
                     else {
                         dist = d22;
@@ -126,8 +126,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                             continue;
                         }
 
-                        r1 = pp.Point + (pp.PrevOnPolyline.Point - pp.Point)*par21;
-                        r2 = start + (end - start)*par22;
+                        r1 = pp.Point + ((pp.PrevOnPolyline.Point - pp.Point)*par21);
+                        r2 = start + ((end - start)*par22);
                     }
                     //if (dist > upperBound) continue;
 
@@ -142,13 +142,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Dictionary<Polyline, double> FindCloseObstaclesForHub(CdtTriangle startTriangle, Point start, Point end, Set<Polyline> obstaclesToIgnore, double upperBound) {
-            Dictionary<Polyline, double> obstacles = new Dictionary<Polyline, double>();
+            Dictionary<Polyline, double> obstacles = [];
             if (!ThreadLineSegmentThroughTriangles(startTriangle, start, end, obstaclesToIgnore, out List<CdtTriangle>? nearestTriangles))
             {
                 return null;
             }
 
-            HashSet<CdtSite> checkedSites = new HashSet<CdtSite>();
+            HashSet<CdtSite> checkedSites = [];
 
             foreach (CdtTriangle t in nearestTriangles) {
                 foreach (CdtSite s in t.Sites) {

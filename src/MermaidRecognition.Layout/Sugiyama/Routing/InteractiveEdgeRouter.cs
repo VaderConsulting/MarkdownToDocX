@@ -133,10 +133,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             internal set
             {
                 loosePadding = value;
-                if (ObstacleCalculator != null)
-                {
-                    ObstacleCalculator.LoosePadding = value;
-                }
+                ObstacleCalculator?.LoosePadding = value;
             }
         }
 
@@ -285,7 +282,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             tangent = tangent.Rotate(Math.PI/2);
 
             double len = loosePolyline.BoundingBox.Diagonal;
-            LineSegment ls = new LineSegment(location, location + len*tangent);
+            LineSegment ls = new LineSegment(location, location + (len*tangent));
             Point p = Curve.GetAllIntersections(ls, loosePolyline, false)[0].IntersectionPoint;
 
             Point del = tangent*(p - location).Length*0.5;
@@ -357,7 +354,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         List<Polygon> GetAddedPolygonesAndMaybeExtendActiveRectangle() {
             Rectangle rect = activeRectangle;
-            List<Polygon> addedPolygones = new List<Polygon>();
+            List<Polygon> addedPolygones = [];
             bool added;
             do {
                 added = false;
@@ -459,8 +456,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             return false;
         }
 
-        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) => relaxedPolylinePoint.PolylinePoint.Point = 0.2 * relaxedPolylinePoint.OriginalPosition +
-                                                       0.8 * relaxedPolylinePoint.PolylinePoint.Point;
+        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) => relaxedPolylinePoint.PolylinePoint.Point = (0.2 * relaxedPolylinePoint.OriginalPosition) +
+                                                       (0.8 * relaxedPolylinePoint.PolylinePoint.Point);
 
         bool StickingSegmentDoesNotIntersectTightObstacles(RelaxedPolylinePoint relaxedPoint) => !PolylineSegmentIntersectsTightHierarchy(relaxedPoint.PolylinePoint.Point,
                                                          relaxedPoint.Prev.PolylinePoint.Point) &&
@@ -504,7 +501,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         internal static List<IntersectionInfo> IntersectionsOfLineAndRectangleNodeOverPolyline(LineSegment ls,
                                                                                                RectangleNode<Polyline>
                                                                                                    rectNode) {
-            List<IntersectionInfo> ret = new List<IntersectionInfo>();
+            List<IntersectionInfo> ret = [];
             IntersectionsOfLineAndRectangleNodeOverPolyline(ls, rectNode, ret);
             return ret;
         }
@@ -720,7 +717,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             k *= mult; //that was the last k
             if (k < 0.5 && k > kMin) {
                 //one time try a smoother seg
-                k = 0.5*(k + k*mult);
+                k = 0.5*(k + (k*mult));
                 seg = Curve.CreateBezierSeg(k*u, k*v, a, b, c);
                 if (!ObstacleCalculator.ObstaclesIntersectICurve(seg)) {
                     b.PreviousBezierSegmentFitCoefficient = k*u;
@@ -775,10 +772,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 }
                 else
                 {
-                    if (cornerTable != null)
-                    {
-                        cornerTable.Clear();
-                    }
+                    cornerTable?.Clear();
                 }
 
             }
@@ -1570,7 +1564,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         internal static Polyline GetFirstHitPolyline(Point point, RectangleNode<Polyline> rectangleNode) {
             RectangleNode<Polyline> rectNode = GetFirstHitRectangleNode(point, rectangleNode);
-            return rectNode != null ? rectNode.UserData : null;
+            return rectNode?.UserData;
         }
 
         static RectangleNode<Polyline> GetFirstHitRectangleNode(Point point, RectangleNode<Polyline> rectangleNode) {
@@ -1765,7 +1759,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             ICurve curve = port.Curve;
             //creating a hook
             Ellipse ellipse = new Ellipse(port.HookSize, port.HookSize, _polyline.End);
-            IntersectionInfo[] intersections = Curve.GetAllIntersections(curve, ellipse, true).ToArray();
+            IntersectionInfo[] intersections = [.. Curve.GetAllIntersections(curve, ellipse, true)];
             Debug.Assert(intersections.Length == 2);
             if (Point.GetTriangleOrientation(intersections[0].IntersectionPoint, _polyline.End, _polyline.EndPoint.Prev.Point) == TriangleOrientation.Counterclockwise)
             {
@@ -1802,7 +1796,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 normal =-normal;
             }
 
-            Point pointBeforeLast = x.IntersectionPoint + normal * port.HookSize;
+            Point pointBeforeLast = x.IntersectionPoint + (normal * port.HookSize);
             if (!Point.LineLineIntersection(pointBeforeLast, pointBeforeLast + tangentAtIntersection, _polyline.End, _polyline.End + polylineTangent, out Point pointAfterX))
             {
                 return;

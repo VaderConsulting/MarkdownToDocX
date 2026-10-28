@@ -235,8 +235,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
             return false;
         }
 
-        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) => relaxedPolylinePoint.PolylinePoint.Point = 0.2 * relaxedPolylinePoint.OriginalPosition +
-                                                       0.8 * relaxedPolylinePoint.PolylinePoint.Point;
+        static void PullCloserRelaxedPoint(RelaxedPolylinePoint relaxedPolylinePoint) => relaxedPolylinePoint.PolylinePoint.Point = (0.2 * relaxedPolylinePoint.OriginalPosition) +
+                                                       (0.8 * relaxedPolylinePoint.PolylinePoint.Point);
 
         bool StickingSegmentDoesNotIntersectTightObstacles(RelaxedPolylinePoint relaxedPoint) => !LineIntersectsTightObstacles(new LineSegment(relaxedPoint.PolylinePoint.Point,
                                                               relaxedPoint.Prev.PolylinePoint.Point)) && (
@@ -296,22 +296,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
 #if TEST_MSAGL
         void ShowPolylineAndObstacles(){
             List<ICurve> ls = CreateListWithObstaclesAndPolyline();
-            SugiyamaLayoutSettings.Show(ls.ToArray());
+            SugiyamaLayoutSettings.Show([.. ls]);
         }
 
         List<ICurve> CreateListWithObstaclesAndPolyline(){
-            List<ICurve> ls = new List<ICurve>();
-            foreach (Polyline poly in obstacleCalculator.TightObstacles)
-            {
-                ls.Add(poly);
-            }
-
-            foreach (Polyline poly in obstacleCalculator.LooseObstacles)
-            {
-                ls.Add(poly);
-            }
-
-            ls.Add(Polyline);
+            List<ICurve> ls = [.. obstacleCalculator.TightObstacles, .. obstacleCalculator.LooseObstacles, Polyline];
             return ls;
         }
 #endif
@@ -347,7 +336,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
                 k *= mult; //that was the last k
                 if (k < 0.5) {
                     //one time try a smoother seg
-                    k = 0.5 * (k + k * mult);
+                    k = 0.5 * (k + (k * mult));
                     seg = Curve.CreateBezierSeg(k * u, k * v, a, b, c);
                     if (!obstacleCalculator.ObstaclesIntersectICurve(seg)) {
                         b.PreviousBezierSegmentFitCoefficient = k * u;

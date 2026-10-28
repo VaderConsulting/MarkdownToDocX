@@ -20,7 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.LayoutEditing
                 edge.UnderlyingPolyline =
                     SmoothedPolyline.FromPoints(
                         new[] {edge.Source.Center}.Concat(Polyline.PolylineFromCurve(asCurve)).
-                            Concat(new[] {edge.Target.Center}));
+                            Concat([edge.Target.Center]));
             }
             UnderlyingPolyline = edge.UnderlyingPolyline.Clone();
 

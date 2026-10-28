@@ -52,7 +52,7 @@ public sealed class FlowchartLayoutScoreTests
     public void IncrementalScore_RechecksChangedRouteFaultsAgainstTheFullScorer()
     {
         (DiagramContract Contract, FlowchartLayoutResult Layout) = BuildLayout(90, 30);
-        var Context = new FlowchartLayoutScore.IncrementalContext(
+        FlowchartLayoutScore.IncrementalContext Context = new FlowchartLayoutScore.IncrementalContext(
             Contract, Layout, IncludeArrangementCheck: false);
         FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single();
         Route.Points[^1].X = 15;
@@ -93,7 +93,7 @@ public sealed class FlowchartLayoutScoreTests
     [Test]
     public void CrossingCount_UsesIndependentRoutesAndIgnoresSharedGraphEndpoints()
     {
-        var Layout = new FlowchartLayoutResult();
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
         Layout.EdgeRoutesMutable.Add(Route("vertical", "a", "b", (5, 0), (5, 10)));
         Layout.EdgeRoutesMutable.Add(Route("horizontal", "c", "d", (0, 5), (10, 5)));
         Layout.EdgeRoutesMutable.Add(Route("shared", "a", "e", (5, 0), (15, 0)));
@@ -104,7 +104,7 @@ public sealed class FlowchartLayoutScoreTests
     [Test]
     public void CrossingCount_HandlesManyRoutePairs()
     {
-        var Layout = new FlowchartLayoutResult();
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
         const int TrackCount = 32;
         for (int Index = 0; Index < TrackCount; Index++)
         {
@@ -142,7 +142,7 @@ public sealed class FlowchartLayoutScoreTests
     private static (DiagramContract Contract, FlowchartLayoutResult Layout) BuildLayout(
         double SourceEndpointY, double TargetEndpointY)
     {
-        var Contract = new DiagramContract { Kind = "flowchart", Direction = "TB" };
+        DiagramContract Contract = new DiagramContract { Kind = "flowchart", Direction = "TB" };
         Contract.NodesMutable.Add(new NodeContract { Id = "source", Shape = "rect" });
         Contract.NodesMutable.Add(new NodeContract { Id = "target", Shape = "rect" });
         Contract.EdgesMutable.Add(new EdgeContract
@@ -150,12 +150,12 @@ public sealed class FlowchartLayoutScoreTests
             Id = "edge", SourceId = "source", TargetId = "target", MarkerEnd = EdgeEndpointMarker.Point
         });
 
-        var Layout = new FlowchartLayoutResult();
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
         Layout.NodeBoundsMutable.Add(new FlowchartLayoutNodeBounds
             { NodeId = "source", CenterX = 0, CenterY = 120, Width = 120, Height = 60 });
         Layout.NodeBoundsMutable.Add(new FlowchartLayoutNodeBounds
             { NodeId = "target", CenterX = 0, CenterY = 0, Width = 120, Height = 60 });
-        var Route = new FlowchartLayoutEdgeRoute
+        FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute
         {
             EdgeId = "edge", SourceId = "source", TargetId = "target",
             ExitSide = "bottom", EntrySide = "top"
@@ -169,7 +169,7 @@ public sealed class FlowchartLayoutScoreTests
     private static FlowchartLayoutEdgeRoute Route(string EdgeId, string SourceId, string TargetId,
         (double X, double Y) Start, (double X, double Y) End)
     {
-        var Route = new FlowchartLayoutEdgeRoute { EdgeId = EdgeId, SourceId = SourceId, TargetId = TargetId };
+        FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = EdgeId, SourceId = SourceId, TargetId = TargetId };
         Route.Points.Add(new FlowchartLayoutPoint { X = Start.X, Y = Start.Y });
         Route.Points.Add(new FlowchartLayoutPoint { X = End.X, Y = End.Y });
         return Route;

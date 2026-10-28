@@ -15,9 +15,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
         Particle[] particles;
         internal InternalKdNode root; 
         List<LeafKdNode> leaves;
-        private Particle[] particlesBy(Particle.Dim d) => (from Particle p in particles
+        private Particle[] particlesBy(Particle.Dim d) => [.. (from Particle p in particles
                                                            orderby p.pos(d)
-                                                           select p).ToArray();
+                                                           select p)];
 
         /// <summary>
         /// Create a KDTree over the specified particles, with the leaf partitions each containing bucketSize particles.
@@ -27,9 +27,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
         public KDTree(Particle[] particles, int bucketSize)
         {
             this.particles = particles;
-            Particle[][] ps = new Particle[][] {
+            Particle[][] ps = [
                 particlesBy(Particle.Dim.Horizontal),
-                particlesBy(Particle.Dim.Vertical)};
+                particlesBy(Particle.Dim.Vertical)];
             leaves = [];
             LeafKdNode l = new LeafKdNode(ps);
             leaves.Add(l);
@@ -155,8 +155,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental.Multipole
                     ? Particle.Dim.Vertical : Particle.Dim.Horizontal;
                 int n = Size(), nLeft = n / 2, nRight = n - nLeft;
                 Particle[][]
-                    leftParticles = new Particle[][] { new Particle[nLeft], new Particle[nLeft] },
-                    rightParticles = new Particle[][] { new Particle[nRight], new Particle[nRight] };
+                    leftParticles = [new Particle[nLeft], new Particle[nLeft]],
+                    rightParticles = [new Particle[nRight], new Particle[nRight]];
                 int lCtr = 0, rCtr = 0;
                 for (int i = 0; i < n; ++i)
                 {

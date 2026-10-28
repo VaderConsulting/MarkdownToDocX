@@ -18,8 +18,8 @@ public sealed class DiagramParseResult
     /// <param name="Diagnostics">Human-readable diagnostics, one message each.</param>
     public DiagramParseResult(IReadOnlyList<DiagramItem>? Items, IReadOnlyList<string>? Diagnostics)
     {
-        _Items = Items == null ? new List<DiagramItem>() : new List<DiagramItem>(Items);
-        _Diagnostics = Diagnostics == null ? new List<string>() : new List<string>(Diagnostics);
+        _Items = Items == null ? [] : new List<DiagramItem>(Items);
+        _Diagnostics = Diagnostics == null ? [] : new List<string>(Diagnostics);
     }
 
     /// <summary>Gets the declared items. At most one per source line.</summary>

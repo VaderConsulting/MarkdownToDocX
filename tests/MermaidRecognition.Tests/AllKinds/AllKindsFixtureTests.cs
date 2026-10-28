@@ -9,7 +9,7 @@ namespace MermaidRecognition.Tests.AllKinds;
 public sealed class AllKindsFixtureTests
 {
     private static readonly KindFixtureCase[] Cases =
-    {
+    [
         new KindFixtureCase("TimelineRecognition", "timeline", "simple"),
         new KindFixtureCase("JourneyRecognition", "journey", "simple"),
         new KindFixtureCase("QuadrantRecognition", "quadrantChart", "simple"),
@@ -27,7 +27,7 @@ public sealed class AllKindsFixtureTests
         new KindFixtureCase("GanttRecognition", "gantt", "section"),
         new KindFixtureCase("MindmapRecognition", "mindmap", "simple"),
         new KindFixtureCase("GitGraphRecognition", "gitGraph", "simple"),
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureCases))]
     public void Fixture_HasNoBodyFallback(KindFixtureCase Case)

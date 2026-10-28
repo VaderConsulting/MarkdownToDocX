@@ -231,7 +231,7 @@ public static class FlowchartLayoutPostProcessor
             if (NodeCount > 0)
             {
                 AverageCenterY /= NodeCount;
-                List<string> NodeIds = MutableById.Keys.ToList();
+                List<string> NodeIds = [.. MutableById.Keys];
                 foreach (string NodeId in NodeIds)
                 {
                     FlowchartLayoutNodeBounds Bounds = MutableById[NodeId];
@@ -259,7 +259,7 @@ public static class FlowchartLayoutPostProcessor
             if (NodeCount > 0)
             {
                 AverageCenterX /= NodeCount;
-                List<string> NodeIds = MutableById.Keys.ToList();
+                List<string> NodeIds = [.. MutableById.Keys];
                 foreach (string NodeId in NodeIds)
                 {
                     FlowchartLayoutNodeBounds Bounds = MutableById[NodeId];
@@ -275,7 +275,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static (double LeadingEdge, double Extent) GetComponentPackBounds(
@@ -527,7 +527,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static bool TryGetFacingSuccessorBounds(
@@ -640,7 +640,7 @@ public static class FlowchartLayoutPostProcessor
                 PushDelta);
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static void PushTargetAwayFromSource(
@@ -882,13 +882,12 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<string> TargetIds = Contract.Edges
+            List<string> TargetIds = [.. Contract.Edges
                 .Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                     && !BackEdges.Contains(Edge))
                 .Select(Edge => Edge.TargetId)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
+                .Distinct(StringComparer.Ordinal)];
 
             if (TargetIds.Count < MinimumTargetCount || TargetIds.Count > MaximumTargetCount)
             {
@@ -992,7 +991,7 @@ public static class FlowchartLayoutPostProcessor
         }
 
         IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        List<EdgeContract> ForwardEdges = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) && !BackEdges.Contains(Edge) && !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal)).ToList();
+        List<EdgeContract> ForwardEdges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase) && !BackEdges.Contains(Edge) && !string.Equals(Edge.SourceId, Edge.TargetId, StringComparison.Ordinal))];
         bool Changed = false;
 
         foreach (NodeContract Node in Contract.Nodes)
@@ -1002,8 +1001,8 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<string> SourceIds = ForwardEdges.Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)).Select(Edge => Edge.SourceId).Distinct(StringComparer.Ordinal).ToList();
-            List<string> TargetIds = ForwardEdges.Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)).Select(Edge => Edge.TargetId).Distinct(StringComparer.Ordinal).ToList();
+            List<string> SourceIds = [.. ForwardEdges.Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)).Select(Edge => Edge.SourceId).Distinct(StringComparer.Ordinal)];
+            List<string> TargetIds = [.. ForwardEdges.Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)).Select(Edge => Edge.TargetId).Distinct(StringComparer.Ordinal)];
             if (SourceIds.Count < 2 || SourceIds.Count != TargetIds.Count)
             {
                 continue;
@@ -1026,8 +1025,8 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<double> SourceCrosses = SourceIds.Select(SourceId => GetCrossCenter(MutableById[SourceId], HorizontalFlow)).OrderBy(Cross => Cross).ToList();
-            List<FlowchartLayoutNodeBounds> OrderedTargets = TargetIds.Select(TargetId => MutableById[TargetId]).OrderBy(Bounds => GetCrossCenter(Bounds, HorizontalFlow)).ToList();
+            List<double> SourceCrosses = [.. SourceIds.Select(SourceId => GetCrossCenter(MutableById[SourceId], HorizontalFlow)).OrderBy(Cross => Cross)];
+            List<FlowchartLayoutNodeBounds> OrderedTargets = [.. TargetIds.Select(TargetId => MutableById[TargetId]).OrderBy(Bounds => GetCrossCenter(Bounds, HorizontalFlow))];
 
             bool RoomForTargets = true;
             for (int Index = 1; Index < OrderedTargets.Count; Index++)
@@ -1059,7 +1058,7 @@ public static class FlowchartLayoutPostProcessor
             return new List<FlowchartLayoutNodeBounds>(Source);
         }
 
-        return Source.Select(Bounds => MutableById[Bounds.NodeId]).ToList();
+        return [.. Source.Select(Bounds => MutableById[Bounds.NodeId])];
     }
 
     private static double GetCrossCenter(FlowchartLayoutNodeBounds Bounds, bool HorizontalFlow)
@@ -1101,12 +1100,11 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<EdgeContract> OutgoingEdges = Contract.Edges
+            List<EdgeContract> OutgoingEdges = [.. Contract.Edges
                 .Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                     && !BackEdges.Contains(Edge))
-                .OrderBy(Edge => Edge.CreationIndex)
-                .ToList();
+                .OrderBy(Edge => Edge.CreationIndex)];
 
             if (OutgoingEdges.Count < 2)
             {
@@ -1149,7 +1147,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static List<FlowchartLayoutNodeBounds> SpreadFanInSourcesByCreationOrder(
@@ -1176,12 +1174,11 @@ public static class FlowchartLayoutPostProcessor
         IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         foreach (NodeContract Node in Contract.Nodes)
         {
-            List<EdgeContract> IncomingEdges = Contract.Edges
+            List<EdgeContract> IncomingEdges = [.. Contract.Edges
                 .Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                     && !BackEdges.Contains(Edge))
-                .OrderBy(Edge => Edge.CreationIndex)
-                .ToList();
+                .OrderBy(Edge => Edge.CreationIndex)];
 
             if (IncomingEdges.Count < 2)
             {
@@ -1224,7 +1221,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static List<FlowchartLayoutNodeBounds> OrderDecisionFanOutTargets(
@@ -1256,12 +1253,11 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<EdgeContract> OutgoingEdges = Contract.Edges
+            List<EdgeContract> OutgoingEdges = [.. Contract.Edges
                 .Where(Edge => string.Equals(Edge.SourceId, Node.Id, StringComparison.Ordinal)
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                     && !BackEdges.Contains(Edge))
-                .OrderBy(Edge => Edge.CreationIndex)
-                .ToList();
+                .OrderBy(Edge => Edge.CreationIndex)];
 
             if (OutgoingEdges.Count < 2)
             {
@@ -1306,7 +1302,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     /// <summary>
@@ -1440,7 +1436,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static List<FlowchartLayoutNodeBounds> ApplyLrRetryCycleNodeLayout(
@@ -1488,7 +1484,7 @@ public static class FlowchartLayoutPostProcessor
             }
             else if (!string.Equals(HubNodeId, Edge.SourceId, StringComparison.Ordinal))
             {
-                return MutableById.Values.ToList();
+                return [.. MutableById.Values];
             }
 
             LabelledOutgoing.Add(Edge);
@@ -1496,7 +1492,7 @@ public static class FlowchartLayoutPostProcessor
 
         if (HubNodeId is null || LabelledOutgoing.Count != 2)
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         bool HasRetryLoop = false;
@@ -1530,14 +1526,14 @@ public static class FlowchartLayoutPostProcessor
 
         if (!HasRetryLoop || !MutableById.TryGetValue(HubNodeId, out FlowchartLayoutNodeBounds HubBounds))
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         LabelledOutgoing.Sort((Left, Right) => Left.CreationIndex.CompareTo(Right.CreationIndex));
         if (!MutableById.TryGetValue(LabelledOutgoing[0].TargetId, out FlowchartLayoutNodeBounds FirstTarget)
             || !MutableById.TryGetValue(LabelledOutgoing[1].TargetId, out FlowchartLayoutNodeBounds SecondTarget))
         {
-            return MutableById.Values.ToList();
+            return [.. MutableById.Values];
         }
 
         double HubY = HubBounds.CenterY;
@@ -1593,7 +1589,7 @@ public static class FlowchartLayoutPostProcessor
             };
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static bool IsDecisionShape(string? Shape)
@@ -1634,13 +1630,12 @@ public static class FlowchartLayoutPostProcessor
 
         foreach (NodeContract Node in Contract.Nodes)
         {
-            List<string> SourceIds = Contract.Edges
+            List<string> SourceIds = [.. Contract.Edges
                 .Where(Edge => string.Equals(Edge.TargetId, Node.Id, StringComparison.Ordinal)
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                     && !BackEdges.Contains(Edge))
                 .Select(Edge => Edge.SourceId)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
+                .Distinct(StringComparer.Ordinal)];
 
             if (SourceIds.Count < MinimumSourceCount)
             {
@@ -1735,11 +1730,10 @@ public static class FlowchartLayoutPostProcessor
         out double MiddleSourceCross)
     {
         MiddleSourceCross = 0.0;
-        List<EdgeContract> IncomingEdges = Contract.Edges
+        List<EdgeContract> IncomingEdges = [.. Contract.Edges
             .Where(Edge => string.Equals(Edge.TargetId, TargetId, StringComparison.Ordinal)
                 && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(Edge => Edge.CreationIndex)
-            .ToList();
+            .OrderBy(Edge => Edge.CreationIndex)];
 
         if (IncomingEdges.Count < 3)
         {
@@ -1762,12 +1756,11 @@ public static class FlowchartLayoutPostProcessor
         string? SharedHubId = null;
         foreach (string SourceNodeId in SourceNodeIds)
         {
-            List<string> PredecessorIds = Contract.Edges
+            List<string> PredecessorIds = [.. Contract.Edges
                 .Where(Edge => string.Equals(Edge.TargetId, SourceNodeId, StringComparison.Ordinal)
                     && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
                 .Select(Edge => Edge.SourceId)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
+                .Distinct(StringComparer.Ordinal)];
 
             if (PredecessorIds.Count != 1)
             {
@@ -1859,7 +1852,7 @@ public static class FlowchartLayoutPostProcessor
                 PushDelta);
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     /// <summary>
@@ -1888,7 +1881,7 @@ public static class FlowchartLayoutPostProcessor
             MutableById[Bounds.NodeId] = Bounds;
         }
 
-        List<FlowchartLayoutNodeBounds> Nodes = MutableById.Values.ToList();
+        List<FlowchartLayoutNodeBounds> Nodes = [.. MutableById.Values];
         Dictionary<string, string> RankBandRootByNodeId =
             new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (FlowchartLayoutNodeBounds Bounds in Nodes)
@@ -1931,9 +1924,7 @@ public static class FlowchartLayoutPostProcessor
                 continue;
             }
 
-            List<string> OrderedNodeIds = NodeIds
-                .OrderBy(NodeId => GetCrossAxisCenter(MutableById[NodeId], HorizontalFlow))
-                .ToList();
+            List<string> OrderedNodeIds = [.. NodeIds.OrderBy(NodeId => GetCrossAxisCenter(MutableById[NodeId], HorizontalFlow))];
 
             for (int Index = 1; Index < OrderedNodeIds.Count; Index++)
             {
@@ -1992,7 +1983,7 @@ public static class FlowchartLayoutPostProcessor
             }
         }
 
-        return MutableById.Values.ToList();
+        return [.. MutableById.Values];
     }
 
     private static double GetCrossAxisCenterToCenterStep(

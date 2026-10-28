@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -20,16 +21,19 @@ public sealed class RoutedBandTrialReuseTests
             + "application-component a \"Application\" in frame\nnode t \"Technology\" in frame\n"
             + "b -association-> a\na -association-> t\npeer -association-> a";
         long Hits = 0;
-        var Previous = FlowchartRenderContext.OperationCountObserver;
-        var PreviousWrap = DiagramGridLayout.BandWrapCandidateObserver;
+        Action<string, long>? Previous = FlowchartRenderContext.OperationCountObserver;
+        Action<int, FlowchartLayoutResult, FlowchartLayoutScore.ComparisonCost, bool>? PreviousWrap = DiagramGridLayout.BandWrapCandidateObserver;
         try
         {
-            var Reference = Capture(Source, false);
+            (string Snapshot, string[] Widths) Reference = Capture(Source, false);
             FlowchartRenderContext.OperationCountObserver = (Name, Count) =>
             {
-                if (Name == "completed-band-trial-cache-hits") Hits += Count;
+                if (Name == "completed-band-trial-cache-hits")
+                {
+                    Hits += Count;
+                }
             };
-            var Cached = Capture(Source, true);
+            (string Snapshot, string[] Widths) Cached = Capture(Source, true);
             Assert.Multiple(() =>
             {
                 Assert.That(Hits, Is.GreaterThan(0), "The fixture must actually reuse a completed trial.");
@@ -51,11 +55,11 @@ public sealed class RoutedBandTrialReuseTests
     {
         string Source = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == "A167").Source;
-        var Previous = DiagramGridLayout.BandWrapCandidateObserver;
+        Action<int, FlowchartLayoutResult, FlowchartLayoutScore.ComparisonCost, bool>? Previous = DiagramGridLayout.BandWrapCandidateObserver;
         try
         {
-            var Reference = Capture(Source, false);
-            var Cached = Capture(Source, true);
+            (string Snapshot, string[] Widths) Reference = Capture(Source, false);
+            (string Snapshot, string[] Widths) Cached = Capture(Source, true);
             Assert.Multiple(() =>
             {
                 Assert.That(Cached.Widths, Is.EqualTo(Reference.Widths));
@@ -71,14 +75,14 @@ public sealed class RoutedBandTrialReuseTests
     /// <returns>Exact finished state and ordered width comparisons.</returns>
     private static (string Snapshot, string[] Widths) Capture(string Source, bool Reuse)
     {
-        var Analysis = EnterpriseValidator.Analyze(Source);
+        EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source);
         Assert.That(Analysis.HasErrors, Is.False, string.Join("; ", Analysis.Diagnostics.Select(Item => Item.Message)));
-        var Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document);
-        var Widths = new List<string>();
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Analysis.Document);
+        List<string> Widths = [];
         DiagramGridLayout.BandWrapCandidateObserver = (Width, Layout, Cost, Legal) =>
             Widths.Add(Width + "|" + Cost + "|" + Legal);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
-            new() { UseCellRegions = true, DisableBandTrialReuseForTests = !Reuse }, out var Layout), Is.True);
+            new() { UseCellRegions = true, DisableBandTrialReuseForTests = !Reuse }, out FlowchartLayoutResult? Layout), Is.True);
         return (CellProductionParityTests.Snapshot(Contract, Layout), Widths.ToArray());
     }
 }

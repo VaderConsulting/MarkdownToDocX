@@ -46,7 +46,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Miscellaneous.Ranking
                 index++;
             }
 
-            OverlapRemoval.RemoveOverlaps(graph.Nodes.ToArray(), settings.NodeSeparation);
+            OverlapRemoval.RemoveOverlaps([.. graph.Nodes], settings.NodeSeparation);
         }
 
         /// <summary>

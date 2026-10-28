@@ -39,10 +39,8 @@ public sealed class EnterpriseLegendTests
         string WithoutLegend = Regex.Replace(WithLegend, @"(?ms)^---\s*.*?^---\s*", string.Empty);
         XDocument On = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(WithLegend));
         XDocument Off = XDocument.Parse(EnterpriseRenderBridge.RenderEnterpriseSvg(WithoutLegend));
-        string[] OnElements = On.Descendants().Where(Element => Element.Attribute("data-id") != null)
-            .Select(Element => Element.ToString(SaveOptions.DisableFormatting)).ToArray();
-        string[] OffElements = Off.Descendants().Where(Element => Element.Attribute("data-id") != null)
-            .Select(Element => Element.ToString(SaveOptions.DisableFormatting)).ToArray();
+        string[] OnElements = [.. On.Descendants().Where(Element => Element.Attribute("data-id") != null).Select(Element => Element.ToString(SaveOptions.DisableFormatting))];
+        string[] OffElements = [.. Off.Descendants().Where(Element => Element.Attribute("data-id") != null).Select(Element => Element.ToString(SaveOptions.DisableFormatting))];
         Assert.That(OnElements, Is.EqualTo(OffElements));
     }
 
@@ -71,7 +69,11 @@ public sealed class EnterpriseLegendTests
         while (Cursor != null)
         {
             string Candidate = Path.Combine(Cursor.FullName, FileName);
-            if (File.Exists(Candidate)) return Candidate;
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+
             Cursor = Cursor.Parent;
         }
         throw new FileNotFoundException(FileName);

@@ -121,8 +121,8 @@ public static class FlowchartGroupedVertexEdgePathBuilder
             return false;
         }
 
-        List<string> SourceList = Sources.OrderBy(Id => Id, StringComparer.Ordinal).ToList();
-        List<string> TargetList = Targets.OrderBy(Id => Id, StringComparer.Ordinal).ToList();
+        List<string> SourceList = [.. Sources.OrderBy(Id => Id, StringComparer.Ordinal)];
+        List<string> TargetList = [.. Targets.OrderBy(Id => Id, StringComparer.Ordinal)];
 
         string SourceA = SourceList[0];
         string SourceB = SourceList[1];

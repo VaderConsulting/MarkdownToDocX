@@ -41,11 +41,14 @@ internal static partial class FlowchartLayoutScore
         int? SharedEndpointCrossings = null, double? RouteLength = null)
     {
         (double Width, double Height) = Bounds(Layout);
-        var Violations = CachedViolations == null
-            ? new List<FlowchartLayoutQualityFailure>()
+        List<FlowchartLayoutQualityFailure> Violations = CachedViolations == null
+            ? []
             : new List<FlowchartLayoutQualityFailure>(CachedViolations);
         if (CachedViolations == null)
+        {
             DiagramGridQuality.Collect(Contract, Layout, Violations, IncludeArrangementCheck);
+        }
+
         int Overlaps = Violations.Count(Failure => Failure.Kind == "NodeOverlap");
         int CrossingCount = Crossings ?? CountCrossings(Layout);
         int SharedEndpointCrossingCount = SharedEndpointCrossings ?? CountSharedEndpointCrossings(Layout);
@@ -54,14 +57,13 @@ internal static partial class FlowchartLayoutScore
         int Disconnections = DisconnectionsOverride ?? CountDisconnections(Contract, Layout);
         (int HintsHonoured, int HintsTotal, double HintScore) = MeasureHints(Contract, Layout);
         double EmptyShare = EmptyAreaShare(Layout, Width, Height);
-        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract)
-            .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
+        HashSet<(string SourceId, string TargetId)> Back = [.. FlowchartBackEdgeHelper.FindBackEdges(Contract).Select(Edge => (Edge.SourceId, Edge.TargetId))];
         bool Rejected = Overlaps > 0 || Violations.Any(Failure => Rejects(Failure, Contract, Layout, Back));
         double OptimizationScore = Calculate(Width, Height, CrossingCount, ForcedMinimum, EmptyShare)
-            + SharedEndpointCrossingCount * FlowchartLayoutRules.CrossingScore
-            + BendCount * FlowchartLayoutRules.BendScore
-            + Disconnections * FlowchartLayoutRules.DisconnectedEndScore + HintScore;
-        var Cost = new ComparisonCost(OptimizationScore,
+            + (SharedEndpointCrossingCount * FlowchartLayoutRules.CrossingScore)
+            + (BendCount * FlowchartLayoutRules.BendScore)
+            + (Disconnections * FlowchartLayoutRules.DisconnectedEndScore) + HintScore;
+        ComparisonCost Cost = new ComparisonCost(OptimizationScore,
             (RouteLength ?? Layout.EdgeRoutes.Sum(Route => DrawnLength(Route.Points)))
                 / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight,
             BendCount, (Math.Max(0, CrossingCount - ForcedMinimum) + SharedEndpointCrossingCount)
@@ -121,12 +123,12 @@ internal static partial class FlowchartLayoutScore
             _contract = Contract;
             _layout = Layout;
             _includeArrangementCheck = IncludeArrangementCheck;
-            _routes = Layout.EdgeRoutes.ToArray();
-            _routeLengths = _routes.Select(Route => DrawnLength(Route.Points)).ToArray();
+            _routes = [.. Layout.EdgeRoutes];
+            _routeLengths = [.. _routes.Select(Route => DrawnLength(Route.Points))];
             _totalLength = _routeLengths.Sum();
             _routeIndexes = _routes.Select((Route, Index) => (Route, Index))
                 .ToDictionary(Item => Item.Route, Item => Item.Index);
-            _routePoints = _routes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()).ToArray();
+            _routePoints = [.. _routes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y)).ToArray())];
             _routeCrossings = new int[_routes.Length];
             _routeSharedEndpointCrossings = new int[_routes.Length];
             _routeBends = new int[_routes.Length];
@@ -141,9 +143,8 @@ internal static partial class FlowchartLayoutScore
             _emptyShare = EmptyAreaShare(Layout, _width, _height);
             (_, _, double HintScore) = MeasureHints(Contract, Layout);
             _staticScore = Calculate(_width, _height, _forcedMinimum, _forcedMinimum, _emptyShare) + HintScore;
-            _backEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract)
-                .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
-            var InitialViolations = new List<FlowchartLayoutQualityFailure>();
+            _backEdges = [.. FlowchartBackEdgeHelper.FindBackEdges(Contract).Select(Edge => (Edge.SourceId, Edge.TargetId))];
+            List<FlowchartLayoutQualityFailure> InitialViolations = [];
             DiagramGridQuality.Collect(Contract, Layout, InitialViolations, IncludeArrangementCheck);
             _staticViolations = InitialViolations.Where(Failure => !IsRouteFault(Failure)).ToArray();
             _staticOverlaps = _staticViolations.Count(Failure => Failure.Kind == "NodeOverlap");
@@ -154,13 +155,16 @@ internal static partial class FlowchartLayoutScore
             _routeViolations = new IReadOnlyList<FlowchartLayoutQualityFailure>[_routes.Length];
             for (int Index = 0; Index < _routes.Length; Index++)
             {
-                var RouteFailures = new List<FlowchartLayoutQualityFailure>();
+                List<FlowchartLayoutQualityFailure> RouteFailures = [];
                 DiagramGridQuality.CollectRouteFailures(Layout, _routes[Index], RouteFailures);
                 _routeViolations[Index] = RouteFailures;
                 _routeFaults[Index] = RouteFailures.Count(Failure => Failure.Kind != "ArrangementKept");
                 _routeRejected[Index] = RouteFailures.Any(Failure => Rejects(Failure, Contract, Layout, _backEdges));
                 OtherFaults += _routeFaults[Index];
-                if (_routeRejected[Index]) OtherRejected++;
+                if (_routeRejected[Index])
+                {
+                    OtherRejected++;
+                }
             }
             _otherRouteFaults = OtherFaults;
             _otherRejectedRoutes = OtherRejected;
@@ -198,7 +202,7 @@ internal static partial class FlowchartLayoutScore
         {
             int Index = FindRoute(ChangedRoute);
             int[] OtherIndices = ResolveOtherIndices(Index, InteractingRoutes);
-            (double X, double Y)[] ChangedPoints = ChangedRoute.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            (double X, double Y)[] ChangedPoints = [.. ChangedRoute.Points.Select(Point => (Point.X, Point.Y))];
             int CandidateCrossings = _crossings - _routeCrossings[Index]
                 + CountRouteCrossings(Index, ChangedRoute, ChangedPoints, OtherIndices);
             int CandidateBends = _bends - _routeBends[Index] + CountCorners(ChangedRoute.Points);
@@ -208,18 +212,24 @@ internal static partial class FlowchartLayoutScore
                 - CountRouteSharedEndpointCrossings(Index)
                 + CountRouteSharedEndpointCrossings(Index, ChangedRoute, ChangedPoints, OtherIndices);
             if (_includeArrangementCheck)
+            {
                 return MeasureCore(_contract, _layout, true, CandidateCrossings, CandidateBends,
                     ForcedMinimumOverride: _forcedMinimum, DisconnectionsOverride: CandidateDisconnections,
                     SharedEndpointCrossings: CandidateSharedEndpointCrossings,
                     RouteLength: _totalLength - _routeLengths[Index] + DrawnLength(ChangedRoute.Points));
+            }
 
-            var Violations = new List<FlowchartLayoutQualityFailure>(_staticViolations);
+            List<FlowchartLayoutQualityFailure> Violations = new List<FlowchartLayoutQualityFailure>(_staticViolations);
             for (int RouteIndex = 0; RouteIndex < _routes.Length; RouteIndex++)
             {
                 if (RouteIndex == Index)
+                {
                     DiagramGridQuality.CollectRouteFailures(_layout, ChangedRoute, Violations);
+                }
                 else
+                {
                     Violations.AddRange(_routeViolations[RouteIndex]);
+                }
             }
             return MeasureCore(_contract, _layout, _includeArrangementCheck,
                 CandidateCrossings, CandidateBends, Violations, _forcedMinimum, CandidateDisconnections,
@@ -232,7 +242,7 @@ internal static partial class FlowchartLayoutScore
         {
             int Index = FindRoute(ChangedRoute);
             int[] OtherIndices = ResolveOtherIndices(Index, InteractingRoutes);
-            (double X, double Y)[] ChangedPoints = ChangedRoute.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            (double X, double Y)[] ChangedPoints = [.. ChangedRoute.Points.Select(Point => (Point.X, Point.Y))];
             int CandidateCrossings = _crossings - _routeCrossings[Index]
                 + CountRouteCrossings(Index, ChangedRoute, ChangedPoints, OtherIndices);
             int CandidateBends = _bends - _routeBends[Index] + CountCorners(ChangedRoute.Points);
@@ -241,7 +251,7 @@ internal static partial class FlowchartLayoutScore
             int CandidateSharedEndpointCrossings = _sharedEndpointCrossings
                 - CountRouteSharedEndpointCrossings(Index)
                 + CountRouteSharedEndpointCrossings(Index, ChangedRoute, ChangedPoints, OtherIndices);
-            var CandidateViolations = new List<FlowchartLayoutQualityFailure>();
+            List<FlowchartLayoutQualityFailure> CandidateViolations = [];
             DiagramGridQuality.CollectRouteFailures(_layout, ChangedRoute, CandidateViolations);
             int Faults = _staticFaults + _otherRouteFaults - _routeFaults[Index]
                 + CandidateViolations.Count(Failure => Failure.Kind != "ArrangementKept");
@@ -255,11 +265,11 @@ internal static partial class FlowchartLayoutScore
             double OptimizationScore = _staticScore
                 + Calculate(_width, _height, _forcedMinimum, _forcedMinimum, CandidateEmptyShare)
                 - Calculate(_width, _height, _forcedMinimum, _forcedMinimum, _emptyShare)
-                + Math.Max(0, CandidateCrossings - _forcedMinimum) * FlowchartLayoutRules.CrossingScore
-                + CandidateSharedEndpointCrossings * FlowchartLayoutRules.CrossingScore
-                + CandidateBends * FlowchartLayoutRules.BendScore
-                + CandidateDisconnections * FlowchartLayoutRules.DisconnectedEndScore;
-            var Cost = new ComparisonCost(OptimizationScore,
+                + (Math.Max(0, CandidateCrossings - _forcedMinimum) * FlowchartLayoutRules.CrossingScore)
+                + (CandidateSharedEndpointCrossings * FlowchartLayoutRules.CrossingScore)
+                + (CandidateBends * FlowchartLayoutRules.BendScore)
+                + (CandidateDisconnections * FlowchartLayoutRules.DisconnectedEndScore);
+            ComparisonCost Cost = new ComparisonCost(OptimizationScore,
                 (_totalLength - _routeLengths[Index] + DrawnLength(ChangedRoute.Points))
                     / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight,
                 CandidateBends, (Math.Max(0, CandidateCrossings - _forcedMinimum) + CandidateSharedEndpointCrossings)
@@ -277,7 +287,7 @@ internal static partial class FlowchartLayoutScore
         {
             int Index = FindRoute(ChangedRoute);
             int[] OtherIndices = ResolveOtherIndices(Index, InteractingRoutes);
-            (double X, double Y)[] ChangedPoints = ChangedRoute.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+            (double X, double Y)[] ChangedPoints = [.. ChangedRoute.Points.Select(Point => (Point.X, Point.Y))];
             int NewRouteCrossings = 0;
             int NewRouteSharedEndpointCrossings = 0;
             foreach (int OtherIndex in OtherIndices)
@@ -310,7 +320,7 @@ internal static partial class FlowchartLayoutScore
                 _disconnectBounds, _disconnectShapes, _disconnectEdges);
             _disconnections += NewDisconnections - _routeDisconnections[Index];
             _routeDisconnections[Index] = NewDisconnections;
-            var UpdatedFaults = new List<FlowchartLayoutQualityFailure>();
+            List<FlowchartLayoutQualityFailure> UpdatedFaults = [];
             DiagramGridQuality.CollectRouteFailures(_layout, ChangedRoute, UpdatedFaults);
             _routeViolations[Index] = UpdatedFaults;
             int OldRouteFaults = _routeFaults[Index];
@@ -323,7 +333,11 @@ internal static partial class FlowchartLayoutScore
 
         private int FindRoute(FlowchartLayoutEdgeRoute Route)
         {
-            if (_routeIndexes.TryGetValue(Route, out int Index)) return Index;
+            if (_routeIndexes.TryGetValue(Route, out int Index))
+            {
+                return Index;
+            }
+
             throw new ArgumentException("The changed route is not part of this score context.", nameof(Route));
         }
 
@@ -331,9 +345,11 @@ internal static partial class FlowchartLayoutScore
             IReadOnlyCollection<FlowchartLayoutEdgeRoute>? InteractingRoutes)
         {
             if (InteractingRoutes == null)
-                return Enumerable.Range(0, _routes.Length).Where(Index => Index != ChangedIndex).ToArray();
-            return InteractingRoutes.Select(FindRoute).Where(Index => Index != ChangedIndex)
-                .Distinct().ToArray();
+            {
+                return [.. Enumerable.Range(0, _routes.Length).Where(Index => Index != ChangedIndex)];
+            }
+
+            return [.. InteractingRoutes.Select(FindRoute).Where(Index => Index != ChangedIndex).Distinct()];
         }
 
         private int CountRouteCrossings(int ChangedIndex, FlowchartLayoutEdgeRoute ChangedRoute,
@@ -341,7 +357,10 @@ internal static partial class FlowchartLayoutScore
         {
             int Result = 0;
             foreach (int OtherIndex in OtherIndices)
+            {
                 Result += PairCrossings(ChangedRoute, ChangedPoints, _routes[OtherIndex], _routePoints[OtherIndex]);
+            }
+
             return Result;
         }
 
@@ -353,14 +372,17 @@ internal static partial class FlowchartLayoutScore
         {
             int Result = 0;
             foreach (int OtherIndex in OtherIndices)
+            {
                 Result += PairSharedEndpointCrossings(
                     ChangedRoute, ChangedPoints, _routes[OtherIndex], _routePoints[OtherIndex]);
+            }
+
             return Result;
         }
 
         private static bool IsRouteFault(FlowchartLayoutQualityFailure Failure) =>
             Failure.Kind == "LineShape"
-                || Failure.Kind == "WholePixel" && Failure.Description.Contains("->", StringComparison.Ordinal);
+                || (Failure.Kind == "WholePixel" && Failure.Description.Contains("->", StringComparison.Ordinal));
     }
 
     private static int PairCrossings(FlowchartLayoutEdgeRoute A, FlowchartLayoutEdgeRoute B)
@@ -371,7 +393,11 @@ internal static partial class FlowchartLayoutScore
         FlowchartLayoutEdgeRoute B, IReadOnlyList<(double X, double Y)> BPoints)
     {
         if (A.SourceId == B.SourceId || A.SourceId == B.TargetId
-            || A.TargetId == B.SourceId || A.TargetId == B.TargetId) return 0;
+            || A.TargetId == B.SourceId || A.TargetId == B.TargetId)
+        {
+            return 0;
+        }
+
         return FlowchartBranchRouteOrder.Intersections(APoints, BPoints).Crossings;
     }
 
@@ -379,8 +405,13 @@ internal static partial class FlowchartLayoutScore
     {
         int Result = 0;
         for (int Left = 0; Left < Layout.EdgeRoutes.Count; Left++)
-        for (int Right = Left + 1; Right < Layout.EdgeRoutes.Count; Right++)
-            Result += PairSharedEndpointCrossings(Layout.EdgeRoutes[Left], Layout.EdgeRoutes[Right]);
+        {
+            for (int Right = Left + 1; Right < Layout.EdgeRoutes.Count; Right++)
+            {
+                Result += PairSharedEndpointCrossings(Layout.EdgeRoutes[Left], Layout.EdgeRoutes[Right]);
+            }
+        }
+
         return Result;
     }
 
@@ -394,8 +425,15 @@ internal static partial class FlowchartLayoutScore
     {
         if (A.SourceId != B.SourceId && A.SourceId != B.TargetId
             && A.TargetId != B.SourceId && A.TargetId != B.TargetId)
+        {
             return 0;
-        if (A.SourceId == B.SourceId && A.TargetId == B.TargetId) return 0;
+        }
+
+        if (A.SourceId == B.SourceId && A.TargetId == B.TargetId)
+        {
+            return 0;
+        }
+
         return FlowchartBranchRouteOrder.Intersections(APoints, BPoints).Crossings;
     }
 
@@ -403,23 +441,50 @@ internal static partial class FlowchartLayoutScore
         FlowchartLayoutResult Layout,
         IReadOnlySet<(string SourceId, string TargetId)> Back)
     {
-        if (Failure.Kind is "NodeOverlap" or "ArrangementKept") return false;
+        if (Failure.Kind is "NodeOverlap" or "ArrangementKept")
+        {
+            return false;
+        }
+
         if (Failure.Kind != "LineShape" || !Failure.Description.Contains("more than two corners", StringComparison.Ordinal)
-            || Failure.InvolvedIds.Count < 2) return true;
+            || Failure.InvolvedIds.Count < 2)
+        {
+            return true;
+        }
+
         if (Contract.Edges.Any(Edge => Edge.SourceId == Failure.InvolvedIds[0]
-            && Edge.TargetId == Failure.InvolvedIds[1] && Edge.RoutingHint?.IsActive == true)) return false;
+            && Edge.TargetId == Failure.InvolvedIds[1] && Edge.RoutingHint?.IsActive == true))
+        {
+            return false;
+        }
+
         if (Contract.Groups.Any(Group => Group.Id == Failure.InvolvedIds[0]
-            || Group.Id == Failure.InvolvedIds[1])) return false;
-        if (!Back.Contains((Failure.InvolvedIds[0], Failure.InvolvedIds[1]))) return true;
+            || Group.Id == Failure.InvolvedIds[1]))
+        {
+            return false;
+        }
+
+        if (!Back.Contains((Failure.InvolvedIds[0], Failure.InvolvedIds[1])))
+        {
+            return true;
+        }
+
         FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Edge =>
             Edge.SourceId == Failure.InvolvedIds[0] && Edge.TargetId == Failure.InvolvedIds[1]);
-        if (Route == null) return true;
+        if (Route == null)
+        {
+            return true;
+        }
+
         int Corners = 0;
         for (int Index = 1; Index < Route.Points.Count - 1; Index++)
         {
             bool BeforeHorizontal = Math.Abs(Route.Points[Index].Y - Route.Points[Index - 1].Y) < 0.5;
             bool AfterHorizontal = Math.Abs(Route.Points[Index + 1].Y - Route.Points[Index].Y) < 0.5;
-            if (BeforeHorizontal != AfterHorizontal) Corners++;
+            if (BeforeHorizontal != AfterHorizontal)
+            {
+                Corners++;
+            }
         }
         return Corners > 3;
     }
@@ -429,7 +494,7 @@ internal static partial class FlowchartLayoutScore
     /// <returns>The unchanged placement terms of the layout score, with no invented route penalties.</returns>
     internal static double MeasurePlacement(FlowchartLayoutResult Layout)
     {
-        var (Width, Height) = Bounds(Layout);
+        (double Width, double Height) = Bounds(Layout);
         return Calculate(Width, Height, 0, EmptyAreaShare(Layout, Width, Height));
     }
 
@@ -446,23 +511,23 @@ internal static partial class FlowchartLayoutScore
         double EmptyHighRate = FlowchartLayoutRules.EmptyPointsHigh / EmptyScoreStepPercent;
         double Empty = EmptyPercent <= FlowchartLayoutRules.EmptyThreshold
             ? EmptyPercent * EmptyLowRate
-            : FlowchartLayoutRules.EmptyThreshold * EmptyLowRate
-                + (EmptyPercent - FlowchartLayoutRules.EmptyThreshold) * EmptyHighRate;
+            : (FlowchartLayoutRules.EmptyThreshold * EmptyLowRate)
+                + ((EmptyPercent - FlowchartLayoutRules.EmptyThreshold) * EmptyHighRate);
         double OverWidthPx = Math.Max(0.0, Width - FlowchartLayoutRules.DiagramUsableWidthPx);
         double OverWidthPercent = OverWidthPx / Math.Max(1.0, FlowchartLayoutRules.DiagramUsableWidthPx) * 100.0;
         double WrapWidthPenalty = OverWidthPercent / EmptyScoreStepPercent * 2.0;
-        return Empty + WrapWidthPenalty + Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore;
+        return Empty + WrapWidthPenalty + (Math.Max(0, Crossings - ForcedMinimum) * FlowchartLayoutRules.CrossingScore);
     }
 
     internal static int ForcedCrossingMinimum(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
-        var Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
         bool Horizontal = FlowchartDirectionNormalizer.Normalize(Contract.Direction)
             is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft;
         double Rank(FlowchartLayoutNodeBounds Box) => Math.Round(Horizontal ? Box.CenterX : Box.CenterY);
-        List<double> Ranks = Bounds.Values.Select(Rank).Distinct().Order().ToList();
-        var RankIndex = Ranks.Select((Value, Index) => (Value, Index)).ToDictionary(Item => Item.Value, Item => Item.Index);
-        var Pairs = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+        List<double> Ranks = [.. Bounds.Values.Select(Rank).Distinct().Order()];
+        Dictionary<double, int> RankIndex = Ranks.Select((Value, Index) => (Value, Index)).ToDictionary(Item => Item.Value, Item => Item.Index);
+        IEnumerable<IGrouping<(double SourceRank, double TargetRank), (string SourceId, string TargetId, double SourceRank, double TargetRank)>> Pairs = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
                 && !Edge.Metadata.ContainsKey("enterprisePlainConnection")
                 && Bounds.ContainsKey(Edge.SourceId) && Bounds.ContainsKey(Edge.TargetId)
                 && Math.Abs(RankIndex[Rank(Bounds[Edge.SourceId])] - RankIndex[Rank(Bounds[Edge.TargetId])]) == 1)
@@ -470,29 +535,44 @@ internal static partial class FlowchartLayoutScore
                 TargetRank: Rank(Bounds[Edge.TargetId])))
             .Distinct().GroupBy(Edge => (Edge.SourceRank, Edge.TargetRank));
         int Result = 0;
-        foreach (var RankPair in Pairs)
+        foreach (IGrouping<(double SourceRank, double TargetRank), (string SourceId, string TargetId, double SourceRank, double TargetRank)> RankPair in Pairs)
         {
-            var Edges = RankPair.Select(Edge => (Edge.SourceId, Edge.TargetId)).ToHashSet();
-            var RemainingSources = Edges.Select(Edge => Edge.SourceId).ToHashSet(StringComparer.Ordinal);
+            HashSet<(string SourceId, string TargetId)> Edges = [.. RankPair.Select(Edge => (Edge.SourceId, Edge.TargetId))];
+            HashSet<string> RemainingSources = Edges.Select(Edge => Edge.SourceId).ToHashSet(StringComparer.Ordinal);
             while (RemainingSources.Count > 0)
             {
                 string Seed = RemainingSources.Order(StringComparer.Ordinal).First();
-                var Sources = new HashSet<string>(StringComparer.Ordinal) { Seed };
-                var Targets = new HashSet<string>(StringComparer.Ordinal);
+                HashSet<string> Sources = new HashSet<string>(StringComparer.Ordinal) { Seed };
+                HashSet<string> Targets = new HashSet<string>(StringComparer.Ordinal);
                 bool Changed;
                 do
                 {
                     Changed = false;
                     foreach ((string SourceId, string TargetId) in Edges)
                     {
-                        if (Sources.Contains(SourceId) && Targets.Add(TargetId)) Changed = true;
-                        if (Targets.Contains(TargetId) && Sources.Add(SourceId)) Changed = true;
+                        if (Sources.Contains(SourceId) && Targets.Add(TargetId))
+                        {
+                            Changed = true;
+                        }
+
+                        if (Targets.Contains(TargetId) && Sources.Add(SourceId))
+                        {
+                            Changed = true;
+                        }
                     }
                 } while (Changed);
                 RemainingSources.ExceptWith(Sources);
-                if (Sources.Count < 2 || Targets.Count < 2) continue;
+                if (Sources.Count < 2 || Targets.Count < 2)
+                {
+                    continue;
+                }
+
                 int Present = Edges.Count(Edge => Sources.Contains(Edge.SourceId) && Targets.Contains(Edge.TargetId));
-                if (Present != Sources.Count * Targets.Count) continue;
+                if (Present != Sources.Count * Targets.Count)
+                {
+                    continue;
+                }
+
                 Result += ChooseTwo(Sources.Count) * ChooseTwo(Targets.Count);
             }
         }
@@ -503,18 +583,21 @@ internal static partial class FlowchartLayoutScore
 
     private static (double Width, double Height) Bounds(FlowchartLayoutResult Layout)
     {
-        var X = new List<double>();
-        var Y = new List<double>();
+        List<double> X = [];
+        List<double> Y = [];
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Concat(Layout.ClusterBounds))
         {
-            X.Add(Box.CenterX - Box.Width / 2.0); X.Add(Box.CenterX + Box.Width / 2.0);
-            Y.Add(Box.CenterY - Box.Height / 2.0); Y.Add(Box.CenterY + Box.Height / 2.0);
+            X.Add(Box.CenterX - (Box.Width / 2.0)); X.Add(Box.CenterX + (Box.Width / 2.0));
+            Y.Add(Box.CenterY - (Box.Height / 2.0)); Y.Add(Box.CenterY + (Box.Height / 2.0));
         }
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
-        foreach (FlowchartLayoutPoint Point in Route.Points)
+        {
+            foreach (FlowchartLayoutPoint Point in Route.Points)
         {
             X.Add(Point.X); Y.Add(Point.Y);
         }
+        }
+
         return X.Count == 0 ? (0.0, 0.0) : (X.Max() - X.Min(), Y.Max() - Y.Min());
     }
 
@@ -522,20 +605,26 @@ internal static partial class FlowchartLayoutScore
     {
         // A candidate score compares every route pair. Convert each route once
         // here instead of allocating two point lists for every pair.
-        var Routes = Layout.EdgeRoutes
+        (string SourceId, string TargetId, (double X, double Y)[] Points)[] Routes = [.. Layout.EdgeRoutes
             .Select(Route => (Route.SourceId, Route.TargetId,
-                Points: Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))
-            .ToArray();
+                Points: Route.Points.Select(Point => (Point.X, Point.Y)).ToArray()))];
         int Result = 0;
         for (int Left = 0; Left < Routes.Length; Left++)
-        for (int Right = Left + 1; Right < Routes.Length; Right++)
         {
-            var A = Routes[Left];
-            var B = Routes[Right];
+            for (int Right = Left + 1; Right < Routes.Length; Right++)
+        {
+                (string SourceId, string TargetId, (double X, double Y)[] Points) A = Routes[Left];
+                (string SourceId, string TargetId, (double X, double Y)[] Points) B = Routes[Right];
             if (A.SourceId == B.SourceId || A.SourceId == B.TargetId
-                || A.TargetId == B.SourceId || A.TargetId == B.TargetId) continue;
-            Result += FlowchartBranchRouteOrder.Intersections(A.Points, B.Points).Crossings;
+                || A.TargetId == B.SourceId || A.TargetId == B.TargetId)
+                {
+                    continue;
+                }
+
+                Result += FlowchartBranchRouteOrder.Intersections(A.Points, B.Points).Crossings;
         }
+        }
+
         return Result;
     }
 
@@ -544,7 +633,7 @@ internal static partial class FlowchartLayoutScore
 
     private static int CountDisconnections(DiagramContract Contract, FlowchartLayoutResult Layout)
     {
-        var (Bounds, Shapes, Edges) = DisconnectionIndexes(Contract, Layout);
+        (Dictionary<string, FlowchartLayoutNodeBounds>? Bounds, Dictionary<string, string?>? Shapes, Dictionary<string, EdgeContract>? Edges) = DisconnectionIndexes(Contract, Layout);
         return Layout.EdgeRoutes.Sum(Route =>
             CountRouteDisconnections(Route, Bounds, Shapes, Edges));
     }
@@ -583,14 +672,18 @@ internal static partial class FlowchartLayoutScore
         {
             Shapes.TryGetValue(Route.SourceId, out string? Shape);
             if (!EndpointAttached(Route.Points[0], Route.Points[1], Source, Shape, Edge.MarkerStart))
+            {
                 Result++;
+            }
         }
 
         if (Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
         {
             Shapes.TryGetValue(Route.TargetId, out string? Shape);
             if (!EndpointAttached(Route.Points[^1], Route.Points[^2], Target, Shape, Edge.MarkerEnd))
+            {
                 Result++;
+            }
         }
         return Result;
     }
@@ -601,10 +694,10 @@ internal static partial class FlowchartLayoutScore
         bool BoxOutline = Shape is null or "" or "rect" or "rounded" or "round" or "stadium";
         if (BoxOutline && Marker != EdgeEndpointMarker.Cross)
         {
-            double Left = Bounds.CenterX - Bounds.Width / 2.0;
-            double Right = Bounds.CenterX + Bounds.Width / 2.0;
-            double Bottom = Bounds.CenterY - Bounds.Height / 2.0;
-            double Top = Bounds.CenterY + Bounds.Height / 2.0;
+            double Left = Bounds.CenterX - (Bounds.Width / 2.0);
+            double Right = Bounds.CenterX + (Bounds.Width / 2.0);
+            double Bottom = Bounds.CenterY - (Bounds.Height / 2.0);
+            double Top = Bounds.CenterY + (Bounds.Height / 2.0);
             const double BoxTolerance = 1.0;
             bool OnVertical = (Math.Abs(Endpoint.X - Left) <= BoxTolerance
                     || Math.Abs(Endpoint.X - Right) <= BoxTolerance)
@@ -623,7 +716,7 @@ internal static partial class FlowchartLayoutScore
             {
                 double Dx = (Endpoint.X - Bounds.CenterX) / RadiusX;
                 double Dy = (Endpoint.Y - Bounds.CenterY) / RadiusY;
-                return Math.Abs(Dx * Dx + Dy * Dy - 1.0) <= 0.08;
+                return Math.Abs((Dx * Dx) + (Dy * Dy) - 1.0) <= 0.08;
             }
         }
 
@@ -646,7 +739,10 @@ internal static partial class FlowchartLayoutScore
             double BeforeY = Points[Index].Y - Points[Index - 1].Y;
             double AfterX = Points[Index + 1].X - Points[Index].X;
             double AfterY = Points[Index + 1].Y - Points[Index].Y;
-            if (Math.Abs(BeforeX * AfterY - BeforeY * AfterX) > 0.001) Result++;
+            if (Math.Abs((BeforeX * AfterY) - (BeforeY * AfterX)) > 0.001)
+            {
+                Result++;
+            }
         }
         return Result;
     }
@@ -661,7 +757,10 @@ internal static partial class FlowchartLayoutScore
             .Concat(Contract.Groups.Select(Group => Group.PlacementHint)).OfType<PlacementHintContract>())
         {
             Total++;
-            if (Hint.IsActive && Hint.UnhonouredReason == null) Honoured++;
+            if (Hint.IsActive && Hint.UnhonouredReason == null)
+            {
+                Honoured++;
+            }
         }
 
         foreach (EdgeContract Edge in Contract.Edges.Where(Edge => Edge.RoutingHint != null))
@@ -669,17 +768,29 @@ internal static partial class FlowchartLayoutScore
             Total++;
             RoutingHintContract Hint = Edge.RoutingHint!;
             FlowchartLayoutEdgeRoute? Route = Layout.EdgeRoutes.FirstOrDefault(Item =>
-                !string.IsNullOrEmpty(Edge.Id) && Item.EdgeId == Edge.Id
-                || string.IsNullOrEmpty(Edge.Id) && Item.SourceId == Edge.SourceId && Item.TargetId == Edge.TargetId);
+                (!string.IsNullOrEmpty(Edge.Id) && Item.EdgeId == Edge.Id)
+                || (string.IsNullOrEmpty(Edge.Id) && Item.SourceId == Edge.SourceId && Item.TargetId == Edge.TargetId));
             bool Matches = Hint.IsActive && Hint.UnhonouredReason == null && Route != null;
             if (Matches && Hint.Leave.HasValue)
+            {
                 Matches = Route!.ExitSide == DiagramGridLayout.HintSide(Hint.Leave.Value);
+            }
+
             if (Matches && Hint.Enter.HasValue)
+            {
                 Matches = Route!.EntrySide == DiagramGridLayout.HintSide(Hint.Enter.Value);
+            }
+
             if (Matches && Hint.Travel.HasValue)
+            {
                 Matches = DiagramGridRouteBuilder.HasTravelDirection(
                     Route!.Points.Select(Point => (Point.X, Point.Y)).ToList(), Hint.Travel.Value);
-            if (Matches) Honoured++;
+            }
+
+            if (Matches)
+            {
+                Honoured++;
+            }
         }
 
         int PlacementHonoured = Contract.Nodes.Count(Node => Node.PlacementHint?.IsActive == true
@@ -688,21 +799,25 @@ internal static partial class FlowchartLayoutScore
                 && Group.PlacementHint.UnhonouredReason == null);
         int LineHonoured = Honoured - PlacementHonoured;
         return (Honoured, Total,
-            PlacementHonoured * FlowchartLayoutRules.NodeGroupHintScore
-                + LineHonoured * FlowchartLayoutRules.LineHintScore);
+            (PlacementHonoured * FlowchartLayoutRules.NodeGroupHintScore)
+                + (LineHonoured * FlowchartLayoutRules.LineHintScore));
     }
 
     private static double EmptyAreaShare(FlowchartLayoutResult Layout, double Width, double Height)
     {
-        if (Width <= 0.0 || Height <= 0.0) return 0.0;
+        if (Width <= 0.0 || Height <= 0.0)
+        {
+            return 0.0;
+        }
+
         const double Cell = DiagramGridMetrics.GRID_UNIT_PX;
         double Left = Layout.NodeBounds.Concat(Layout.ClusterBounds)
-            .Min(Box => Box.CenterX - Box.Width / 2.0);
+            .Min(Box => Box.CenterX - (Box.Width / 2.0));
         double Bottom = Layout.NodeBounds.Concat(Layout.ClusterBounds)
-            .Min(Box => Box.CenterY - Box.Height / 2.0);
+            .Min(Box => Box.CenterY - (Box.Height / 2.0));
         int Columns = Math.Max(1, (int)Math.Ceiling(Width / Cell));
         int Rows = Math.Max(1, (int)Math.Ceiling(Height / Cell));
-        var Rectangles = new List<(int Left, int Right, int Bottom, int Top)>();
+        List<(int Left, int Right, int Bottom, int Top)> Rectangles = [];
         void Mark(double MinX, double MinY, double MaxX, double MaxY)
         {
             int FirstColumn = Math.Max(0, (int)Math.Floor((MinX - Left) / Cell));
@@ -710,32 +825,39 @@ internal static partial class FlowchartLayoutScore
             int FirstRow = Math.Max(0, (int)Math.Floor((MinY - Bottom) / Cell));
             int LastRow = Math.Min(Rows - 1, (int)Math.Floor((MaxY - Bottom) / Cell));
             if (FirstColumn <= LastColumn && FirstRow <= LastRow)
+            {
                 Rectangles.Add((FirstColumn, LastColumn + 1, FirstRow, LastRow + 1));
+            }
         }
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Concat(Layout.ClusterBounds))
-            Mark(Box.CenterX - Box.Width / 2.0, Box.CenterY - Box.Height / 2.0,
-                Box.CenterX + Box.Width / 2.0, Box.CenterY + Box.Height / 2.0);
+        {
+            Mark(Box.CenterX - (Box.Width / 2.0), Box.CenterY - (Box.Height / 2.0),
+                Box.CenterX + (Box.Width / 2.0), Box.CenterY + (Box.Height / 2.0));
+        }
+
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
-        for (int Index = 1; Index < Route.Points.Count; Index++)
+        {
+            for (int Index = 1; Index < Route.Points.Count; Index++)
         {
             FlowchartLayoutPoint A = Route.Points[Index - 1], B = Route.Points[Index];
-            Mark(Math.Min(A.X, B.X) - Cell / 2.0, Math.Min(A.Y, B.Y) - Cell / 2.0,
-                Math.Max(A.X, B.X) + Cell / 2.0, Math.Max(A.Y, B.Y) + Cell / 2.0);
+            Mark(Math.Min(A.X, B.X) - (Cell / 2.0), Math.Min(A.Y, B.Y) - (Cell / 2.0),
+                Math.Max(A.X, B.X) + (Cell / 2.0), Math.Max(A.Y, B.Y) + (Cell / 2.0));
+        }
         }
         // Count the same occupied grid cells by sweeping rectangle boundaries.
         // A long route or large frame must not require visiting every cell for
         // every candidate score. Half-open integer intervals preserve the
         // previous inclusive-cell marking, including cells on an outline.
-        int[] Boundaries = Rectangles.SelectMany(Rectangle => new[] { Rectangle.Left, Rectangle.Right })
-            .Distinct().OrderBy(Value => Value).ToArray();
+        int[] Boundaries = [.. Rectangles.SelectMany(Rectangle => new[] { Rectangle.Left, Rectangle.Right })
+            .Distinct().OrderBy(Value => Value)];
         long Used = 0;
         for (int Index = 1; Index < Boundaries.Length; Index++)
         {
             int LeftColumn = Boundaries[Index - 1], RightColumn = Boundaries[Index];
-            var Intervals = Rectangles.Where(Rectangle => Rectangle.Left < RightColumn && Rectangle.Right > LeftColumn)
+            IOrderedEnumerable<(int Left, int Right, int Bottom, int Top)> Intervals = Rectangles.Where(Rectangle => Rectangle.Left < RightColumn && Rectangle.Right > LeftColumn)
                 .OrderBy(Rectangle => Rectangle.Bottom).ThenBy(Rectangle => Rectangle.Top);
             int BottomRow = 0, TopRow = 0, OccupiedRows = 0;
-            foreach (var Rectangle in Intervals)
+            foreach ((int Left, int Right, int Bottom, int Top) Rectangle in Intervals)
             {
                 if (Rectangle.Bottom > TopRow)
                 {
@@ -743,11 +865,14 @@ internal static partial class FlowchartLayoutScore
                     BottomRow = Rectangle.Bottom;
                     TopRow = Rectangle.Top;
                 }
-                else TopRow = Math.Max(TopRow, Rectangle.Top);
+                else
+                {
+                    TopRow = Math.Max(TopRow, Rectangle.Top);
+                }
             }
             OccupiedRows += TopRow - BottomRow;
             Used += (long)(RightColumn - LeftColumn) * OccupiedRows;
         }
-        return 1.0 - Used / ((double)Columns * Rows);
+        return 1.0 - (Used / ((double)Columns * Rows));
     }
 }

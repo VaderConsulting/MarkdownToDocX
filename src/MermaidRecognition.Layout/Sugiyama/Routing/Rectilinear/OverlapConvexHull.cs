@@ -26,7 +26,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
 
         internal OverlapConvexHull(Polyline polyline, IEnumerable<Obstacle> obstacles) {
             Polyline = polyline;
-            Obstacles = obstacles.ToList();
+            Obstacles = [.. obstacles];
             PrimaryObstacle = Obstacles[0];
 
             Obstacle.RoundVertices(Polyline);

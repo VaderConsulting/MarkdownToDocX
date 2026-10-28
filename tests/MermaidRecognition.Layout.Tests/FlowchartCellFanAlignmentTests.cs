@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using MermaidRecognition.Contract;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -12,8 +14,8 @@ public sealed class FlowchartCellFanAlignmentTests
     [TestCase(true)]
     public void PreservesParentAndChainCells(bool Horizontal)
     {
-        var (Contract, Nodes, Grid) = Fixture(Horizontal);
-        var Before = Grid.Capture(); var Ordering = Nodes.Select(Node => Node.Column).ToArray();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); var Ordering = Nodes.Select(Node => Node.Column).ToArray();
         Invoke(Contract, Nodes, Horizontal);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Ordering));
@@ -23,10 +25,10 @@ public sealed class FlowchartCellFanAlignmentTests
     [Test]
     public void BlockedChainRejectsTheWholeFanPlan()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Grid.TryPlace("O", new(0, 1, 1, 1));
-        var Obstacle = new DiagramGridLayout.GridNode { Id = "O" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
-        var Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
+        DiagramGridLayout.GridNode Obstacle = new DiagramGridLayout.GridNode { Id = "O" }; Obstacle.BindCells(Grid); Nodes.Add(Obstacle);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); var Columns = Nodes.Select(Node => Node.Column).ToArray();
         Invoke(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That(Nodes.Select(Node => Node.Column), Is.EqualTo(Columns));
@@ -38,7 +40,7 @@ public sealed class FlowchartCellFanAlignmentTests
     /// <param name="Horizontal">Flow orientation.</param>
     private static void Invoke(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        var Method = typeof(DiagramGridLayout).GetMethod("CentreTerminalFans", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        MethodInfo Method = typeof(DiagramGridLayout).GetMethod("CentreTerminalFans", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
         Method.Invoke(null, [Contract, Nodes, Horizontal, false]);
         Method.Invoke(null, [Contract, Nodes, Horizontal, true]);
     }
@@ -48,12 +50,12 @@ public sealed class FlowchartCellFanAlignmentTests
     /// <returns>Contract, bound members and grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool Horizontal = false)
     {
-        var Contract = new DiagramContract(); var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Rank, Column) in new[] { ("U", 0, 0), ("P", 1, 0), ("A", 2, 0), ("B", 2, 1), ("C", 2, 2) })
+        DiagramContract Contract = new DiagramContract(); FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, int Rank, int Column) in new[] { ("U", 0, 0), ("P", 1, 0), ("A", 2, 0), ("B", 2, 1), ("C", 2, 2) })
         {
             Grid.TryPlace(Id, new(Horizontal ? Column : Rank, Horizontal ? Rank : Column, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank, Column = Column }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Rank, Column = Column }; Node.BindCells(Grid); Nodes.Add(Node);
         }
         Contract.EdgesMutable.AddRange([new() { SourceId = "U", TargetId = "P" }, new() { SourceId = "P", TargetId = "A" },
             new() { SourceId = "P", TargetId = "B" }, new() { SourceId = "P", TargetId = "C" }]);

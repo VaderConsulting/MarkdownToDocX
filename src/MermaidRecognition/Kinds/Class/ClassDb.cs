@@ -182,7 +182,7 @@ public sealed class ClassDb
         string? TargetCardinality,
         string? RelationLabel)
     {
-        EnsureClassIdsExist(new[] { SourceId, TargetId });
+        EnsureClassIdsExist([SourceId, TargetId]);
         ClassEdgeRecord Edge = new ClassEdgeRecord
         {
             SourceId = SourceId,

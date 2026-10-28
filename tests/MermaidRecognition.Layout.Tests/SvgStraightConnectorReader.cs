@@ -31,7 +31,7 @@ internal static class SvgStraightConnectorReader
     /// <returns>The straight connectors, each from its first to its last point.</returns>
     public static List<SvgStraightConnector> Read(string Svg)
     {
-        List<SvgStraightConnector> Connectors = new List<SvgStraightConnector>();
+        List<SvgStraightConnector> Connectors = [];
         MatchCollection ElementMatches = Regex.Matches(
             Svg,
             @"<line x1=""([^""]+)"" y1=""([^""]+)"" x2=""([^""]+)"" y2=""([^""]+)""|<path d=""(M[^""]+)"" fill=""none""",
@@ -75,7 +75,7 @@ internal static class SvgStraightConnectorReader
             return false;
         }
 
-        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        List<(double X, double Y)> Points = [];
         foreach (Match PointMatch in PointMatches)
         {
             Points.Add((ParseValue(PointMatch.Groups[1].Value), ParseValue(PointMatch.Groups[2].Value)));

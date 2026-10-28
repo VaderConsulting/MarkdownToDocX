@@ -121,7 +121,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Polyline FindFlip(Polyline poly) {
-            Dictionary<Polyline, PolylinePoint> departed = new Dictionary<Polyline, PolylinePoint>();
+            Dictionary<Polyline, PolylinePoint> departed = [];
             for (PolylinePoint pp = poly.StartPoint.Next; pp != null; pp = pp.Next) {
                 FillDepartedOnPrev(departed, pp);
 
@@ -147,7 +147,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        bool IsNeighbor(PolylinePoint a, PolylinePoint b) => a.Prev != null && a.Prev.Point == b.Point || a.Next != null && a.Next.Point == b.Point;
+        bool IsNeighbor(PolylinePoint a, PolylinePoint b) => (a.Prev != null && a.Prev.Point == b.Point) || (a.Next != null && a.Next.Point == b.Point);
 
         /// <summary>
         /// try to collapse the polylines reducing routing cost
@@ -253,7 +253,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                                                      bool aFirstBeforeALastOnB) {
             Debug.Assert(abLastP.Polyline != a);
             Debug.Assert(abFirstP.Polyline != a);
-            List<PolylinePoint> ret = new List<PolylinePoint>();
+            List<PolylinePoint> ret = [];
             for (PolylinePoint p = a.StartPoint; p != aFirstP; p = p.Next)
             {
                 ret.Add(p);
@@ -357,7 +357,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         */
 
         Dictionary<Point, PolylinePoint> GetPointMap(Polyline a) {
-            Dictionary<Point, PolylinePoint> aPointMap = new Dictionary<Point, PolylinePoint>();
+            Dictionary<Point, PolylinePoint> aPointMap = [];
             foreach (PolylinePoint p in a.PolylinePoints)
             {
                 aPointMap[p.Point] = p;

@@ -35,7 +35,7 @@ public abstract class HeaderKindParser : Parser
     /// <inheritdoc />
     public override DiagramParseResult Parse(string? Source)
     {
-        List<DiagramItem> Items = new List<DiagramItem>();
+        List<DiagramItem> Items = [];
         if (string.IsNullOrWhiteSpace(Source))
         {
             return new DiagramParseResult(Items, Array.Empty<string>());

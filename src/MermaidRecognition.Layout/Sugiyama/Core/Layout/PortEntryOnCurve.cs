@@ -20,7 +20,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
             
             get {
                 if (allowedRects == null) {
-                    allowedRects = Spans.Select(span => TrimEntryCurve(span).BoundingBox).ToArray();
+                    allowedRects = [.. Spans.Select(span => TrimEntryCurve(span).BoundingBox)];
                 }
                 return allowedRects;
             }
@@ -94,10 +94,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
         public IEnumerable<Point> GetEntryPoints() => Spans.SelectMany(SpanPoints);
 
         IEnumerable<Point> SpanPoints(Tuple<double, double> span) {
-            if (span.Item1 == EntryCurve.ParStart && span.Item2 == EntryCurve.ParEnd ||
-                span.Item2 == EntryCurve.ParStart && span.Item1 == EntryCurve.ParEnd)
+            if ((span.Item1 == EntryCurve.ParStart && span.Item2 == EntryCurve.ParEnd) ||
+                (span.Item2 == EntryCurve.ParStart && span.Item1 == EntryCurve.ParEnd))
             {
-                return new[] {MiddlePoint(EntryCurve)};
+                return [MiddlePoint(EntryCurve)];
             }
 
             if (EntryCurve is Polyline poly)
@@ -115,7 +115,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout {
 
             // Otherwise we just take the midpoint of the span.  Ellipse could be made smart enough here to
             // get a midpoint for each axis it faces.
-            return new[] { EntryCurve[MiddleOfSpan(span)] };
+            return [EntryCurve[MiddleOfSpan(span)]];
         }
 
         static Point MiddlePoint(ICurve c) => c[(c.ParStart + c.ParEnd) / 2];

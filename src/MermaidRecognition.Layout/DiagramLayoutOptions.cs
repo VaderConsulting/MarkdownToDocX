@@ -23,7 +23,10 @@ public sealed record DiagramLayoutOptions
         init
         {
             if (!double.IsFinite(value) || value <= 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(TargetWidthPx), "Layout width must be finite and positive.");
+            }
+
             _TargetWidthPx = value;
         }
     }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -26,10 +27,14 @@ public sealed class RouteIndexFastBenchmarks
             Source.AppendLine($"t{Index}[Target {Index}]");
         }
         for (int From = 0; From < Size; From++)
-        for (int To = 0; To < Size; To++)
-            Source.AppendLine($"s{From} --> t{To}");
+        {
+            for (int To = 0; To < Size; To++)
+            {
+                Source.AppendLine($"s{From} --> t{To}");
+            }
+        }
 
-        var Contract = MermaidRecognizer.Parse(Source.ToString());
+        DiagramContract Contract = MermaidRecognizer.Parse(Source.ToString());
         if (Size == 4)
         {
             List<string> CrossingTrace = [];
@@ -44,7 +49,11 @@ public sealed class RouteIndexFastBenchmarks
             {
                 DiagramGridLayout.CrossingCountObserver = null;
             }
-            foreach (string Entry in CrossingTrace) TestContext.WriteLine(Entry);
+            foreach (string Entry in CrossingTrace)
+            {
+                TestContext.WriteLine(Entry);
+            }
+
             int HorizontalSearchIndex = CrossingTrace.FindIndex(Entry =>
                 Entry.StartsWith("CROSSING_TRACE stage=horizontal track search ", StringComparison.Ordinal));
             Assert.That(HorizontalSearchIndex, Is.GreaterThanOrEqualTo(0),
@@ -54,8 +63,11 @@ public sealed class RouteIndexFastBenchmarks
                 Is.True, "No stage after horizontal track search may raise the 4x4 crossing count above 36.");
         }
         if (Size == 8)
+        {
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out _), Is.True,
                 "Warm-up layout must complete successfully.");
+        }
+
         Stopwatch Timer = Stopwatch.StartNew();
         bool Success = FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout);
         Timer.Stop();
@@ -66,14 +78,22 @@ public sealed class RouteIndexFastBenchmarks
         int BaselineCrossings = Size switch { 4 => 36, 6 => 225, 8 => 784, _ => throw new ArgumentOutOfRangeException(nameof(Size)) };
         Assert.That(Metrics.Crossings, Is.LessThanOrEqualTo(BaselineCrossings),
             $"Crossings regressed from baseline {BaselineCrossings}. {Failures}");
-        if (Size == 4) Assert.That(Metrics.Crossings, Is.EqualTo(36), "The 4x4 target is 36 crossings.");
-        if (Size == 6) Assert.That(Metrics.Crossings, Is.EqualTo(225), "The 6x6 target is 225 crossings.");
+        if (Size == 4)
+        {
+            Assert.That(Metrics.Crossings, Is.EqualTo(36), "The 4x4 target is 36 crossings.");
+        }
+
+        if (Size == 6)
+        {
+            Assert.That(Metrics.Crossings, Is.EqualTo(225), "The 6x6 target is 225 crossings.");
+        }
+
         Assert.That(Metrics.Overlaps, Is.Zero, Failures);
         FlowchartLayoutEdgeRoute DeltaRoute = Layout.EdgeRoutes.First(Route => Route.Points.Count > 2);
         FlowchartLayoutPoint DeltaPoint = DeltaRoute.Points[1];
         double DeltaOriginalX = DeltaPoint.X;
         DeltaPoint.X += 1.0;
-        var CandidatePath = DeltaRoute.Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        (double X, double Y)[] CandidatePath = [.. DeltaRoute.Points.Select(Point => (Point.X, Point.Y))];
         int FullCrossingDelta = FlowchartLayoutScore.Measure(Contract, Layout,
             IncludeArrangementCheck: false).Crossings - Metrics.Crossings;
         DeltaPoint.X = DeltaOriginalX;
@@ -84,15 +104,21 @@ public sealed class RouteIndexFastBenchmarks
             $"{Size}x{Size} affected-route crossing delta must equal the full crossing count delta.");
         Assert.That(Timer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(60)), "The benchmark hard ceiling is 60 seconds.");
         if (Size == 8)
+        {
             Assert.That(Timer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)), "The 8x8 benchmark ceiling is five seconds.");
+        }
+
         if (Timer.Elapsed > TimeSpan.FromSeconds(10))
+        {
             TestContext.WriteLine($"SPEED_FAULT layout {Size}x{Size}: {Timer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
+        }
+
         TestContext.WriteLine($"SIZE={Size} ELAPSED_MS={Timer.ElapsedMilliseconds} CROSSINGS={Metrics.Crossings} "
             + $"OVERLAP={Metrics.Overlaps} FAILURE_TEXT={Failures}");
 
-        var Incremental = new FlowchartLayoutScore.IncrementalContext(
+        FlowchartLayoutScore.IncrementalContext Incremental = new FlowchartLayoutScore.IncrementalContext(
             Contract, Layout, IncludeArrangementCheck: false);
-        FlowchartLayoutEdgeRoute[] Routes = Layout.EdgeRoutes.ToArray();
+        FlowchartLayoutEdgeRoute[] Routes = [.. Layout.EdgeRoutes];
         FlowchartRouteSpatialIndex Spatial = new(Layout);
         foreach (FlowchartLayoutEdgeRoute Route in Routes)
         {
@@ -102,7 +128,7 @@ public sealed class RouteIndexFastBenchmarks
             double OriginalX = Start.X;
             Start.X += 1.0;
             HashSet<FlowchartLayoutEdgeRoute> CandidateInteractions =
-                Spatial.QueryRoutes(Route.Points, Route).ToHashSet();
+                [.. Spatial.QueryRoutes(Route.Points, Route)];
             CandidateInteractions.UnionWith(OriginalInteractions);
             FlowchartLayoutScore.CandidateMeasurement Summary = Incremental.MeasureCandidateSummary(
                 Route, CandidateInteractions);
@@ -120,9 +146,9 @@ public sealed class RouteIndexFastBenchmarks
             });
         }
         const int TrialsPerRoute = 8;
-        var Candidates = new FlowchartLayoutScore.Result[Routes.Length, TrialsPerRoute];
-        var FullCandidates = new FlowchartLayoutScore.Result[Routes.Length, TrialsPerRoute];
-        double[] OriginalXs = Routes.Select(Route => Route.Points[0].X).ToArray();
+        FlowchartLayoutScore.Result[,] Candidates = new FlowchartLayoutScore.Result[Routes.Length, TrialsPerRoute];
+        FlowchartLayoutScore.Result[,] FullCandidates = new FlowchartLayoutScore.Result[Routes.Length, TrialsPerRoute];
+        double[] OriginalXs = [.. Routes.Select(Route => Route.Points[0].X)];
         Stopwatch IncrementalTimer = Stopwatch.StartNew();
         for (int Index = 0; Index < Routes.Length; Index++)
         {
@@ -138,7 +164,10 @@ public sealed class RouteIndexFastBenchmarks
         IncrementalTimer.Stop();
 
         for (int Index = 0; Index < Routes.Length; Index++)
+        {
             Routes[Index].Points[0].X = OriginalXs[Index];
+        }
+
         Stopwatch FullTimer = Stopwatch.StartNew();
         for (int Index = 0; Index < Routes.Length; Index++)
         {
@@ -155,7 +184,10 @@ public sealed class RouteIndexFastBenchmarks
         for (int Index = 0; Index < Routes.Length; Index++)
         {
             for (int Trial = 0; Trial < TrialsPerRoute; Trial++)
+            {
                 AssertEquivalent(FullCandidates[Index, Trial], Candidates[Index, Trial], Size, Index);
+            }
+
             Routes[Index].Points[0].X = OriginalXs[Index];
         }
         Assert.That(IncrementalTimer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(60)),
@@ -163,9 +195,15 @@ public sealed class RouteIndexFastBenchmarks
         Assert.That(FullTimer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(60)),
             "Reference score benchmark hard ceiling is 60 seconds.");
         if (IncrementalTimer.Elapsed > TimeSpan.FromSeconds(10))
+        {
             TestContext.WriteLine($"SPEED_FAULT incremental score {Size}x{Size}: {IncrementalTimer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
+        }
+
         if (FullTimer.Elapsed > TimeSpan.FromSeconds(10))
+        {
             TestContext.WriteLine($"SPEED_FAULT full score {Size}x{Size}: {FullTimer.Elapsed.TotalSeconds:0.00}s (over 10s target)");
+        }
+
         TestContext.WriteLine($"SCORE_SIZE={Size} ROUTES={Routes.Length} TRIALS={Routes.Length * TrialsPerRoute} "
             + $"INCREMENTAL_MS={IncrementalTimer.ElapsedMilliseconds} FULL_MS={FullTimer.ElapsedMilliseconds} "
             + $"EQUAL=true");

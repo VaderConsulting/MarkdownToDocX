@@ -76,7 +76,7 @@ public sealed class CrossingBridgeTests
         string Svg = Enterprise ? EnterpriseRenderBridge.RenderEnterpriseSvg(Source)
             : FlowchartSugiyamaSvgRenderer.RenderToSvg(MermaidRecognizer.Parse(Source));
         Assert.That(FlowchartSvgLineJump.LastJumps, Is.Not.Empty);
-        var Document = XDocument.Parse(Svg);
+        XDocument Document = XDocument.Parse(Svg);
         Assert.That(Document.Descendants().Where(Element => Element.Attribute("data-edge-source") != null)
             .Any(Element => ((string?)Element.Attribute("d"))?.Contains('A') == true), Is.True);
     }

@@ -1,4 +1,6 @@
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -29,9 +31,9 @@ public sealed class JointCrossingPairTests
     [TestCase("A142", "empowerExt->dmeEtms:36 x cadMf->dmeEtms:165", 322, 158)]
     public void PairTrial_PreservesQualityAndRollsBackExactly(string Id, string Pair, int MaximumBends, int MaximumCrossings)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!);
         string? Saved = null;
         int Rejections = 0;
         DiagramGridLayout.CrossingPairDiagnosticFilter = Key => Key == Pair;
@@ -39,25 +41,35 @@ public sealed class JointCrossingPairTests
             TestContext.Out.WriteLine($"PAIR_OPTION|{Id}|{Key}|{Kind}|{Reason}");
         DiagramGridLayout.CrossingPairStateObserver = (Stage, Layout, Nodes) =>
         {
-            var Cells = FlowchartCellRepair.Capture(Nodes);
+            FlowchartLogicalGrid.Snapshot Cells = FlowchartCellRepair.Capture(Nodes);
             string Signature = JsonSerializer.Serialize(new {
                 Model = CellProductionParityTests.Snapshot(Contract, Layout),
                 Cells.Regions, Cells.ColumnGaps, Cells.RowGaps
             });
-            if (Stage == "before") Saved = Signature;
+            if (Stage == "before")
+            {
+                Saved = Signature;
+            }
+
             if (Stage == "rejected") { Assert.That(Signature, Is.EqualTo(Saved)); Rejections++; }
         };
         try
         {
             Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
-                new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
+                new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
             int Bends = Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
             int Crossings = 0;
-            for (int A = 0; A < Layout.EdgeRoutes.Count; A++) for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
-                Crossings += FlowchartBranchRouteOrder.Intersections(
+            for (int A = 0; A < Layout.EdgeRoutes.Count; A++)
+            {
+                for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+                {
+                    Crossings += FlowchartBranchRouteOrder.Intersections(
                     Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                     Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray()).Crossings;
-            var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+                }
+            }
+
+            IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
             Assert.That(Bends, Is.LessThanOrEqualTo(MaximumBends));
             Assert.That(Crossings, Is.LessThanOrEqualTo(MaximumCrossings));
             Assert.That(Saved, Is.Not.Null, "The selected production pair must reach the bounded search.");

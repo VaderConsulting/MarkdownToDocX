@@ -35,7 +35,11 @@ public static partial class DiagramGridLayout
     private static void ObserveCrossings(GridLayoutState State, string Stage)
     {
         Action<string, int>? Observer = CrossingCountObserver;
-        if (Observer == null) return;
+        if (Observer == null)
+        {
+            return;
+        }
+
         Observer(Stage, FlowchartLayoutScore.Measure(State.Contract, State.Copy,
             IncludeArrangementCheck: false).Crossings);
     }
@@ -79,7 +83,7 @@ public static partial class DiagramGridLayout
     {
         (RenderContext ?? LaidOut.RenderContext).HasInitialCorridorCapacity = false;
         (RenderContext ?? LaidOut.RenderContext).SuppressReservedCorridorAssignment = false;
-        var Result = ApplyWithRoutedBands(Contract, LaidOut, RenderContext);
+        FlowchartLayoutResult Result = ApplyWithRoutedBands(Contract, LaidOut, RenderContext);
         CompletePublishedRoutes(Contract, Result);
         PublishedLayoutObserver?.Invoke(Contract, Result);
         return Result;
@@ -90,8 +94,12 @@ public static partial class DiagramGridLayout
     /// <param name="Result">Fully placed layout owning its independent render context.</param>
     private static void CompletePublishedRoutes(DiagramContract Contract, FlowchartLayoutResult Result)
     {
-        if (Result.RenderContext.FinishedRoutePassApplied) return;
-        var Context = Result.RenderContext;
+        if (Result.RenderContext.FinishedRoutePassApplied)
+        {
+            return;
+        }
+
+        FlowchartRenderContext Context = Result.RenderContext;
         if (Context.UseCellRegions && !Context.DisableExpandedBendRepairsForTests && !Context.DisableFinishedBendRepairsForTests)
         {
             // Wrap selection is complete. Nothing after this pass may choose
@@ -100,13 +108,15 @@ public static partial class DiagramGridLayout
             Context.LayoutStageTrace.Add(Stage);
             string? Previous = Context.ActiveLayoutStage;
             Context.ActiveLayoutStage = Stage;
-            using var Active = FlowchartRenderContext.Activate(Context);
+            using IDisposable Active = FlowchartRenderContext.Activate(Context);
             try
             {
                 MeasureLayoutStage(Stage, () =>
                 {
                     if (FlowchartFinishedLayoutBendRepair.ApplyRoutesOnly(Contract, Result) > 0)
+                    {
                         RouteRepairStage.PublishFinal(Contract, Result);
+                    }
                 });
             }
             finally { Context.ActiveLayoutStage = Previous; }
@@ -126,7 +136,11 @@ public static partial class DiagramGridLayout
     {
         GridLayoutState State = new(Contract, LaidOut, RenderContext) { SkipRootGroupRepacking = SkipRootGroupRepacking };
         using IDisposable CoverageScope = FlowchartCellPixelWriteGuard.ActivateCoverage(State.CellWriteCoverage);
-        if (!State.IsReady) return State.Copy;
+        if (!State.IsReady)
+        {
+            return State.Copy;
+        }
+
         FlowchartRenderContext Context = State.Copy.RenderContext;
         Context.FinishedRoutePassApplied = false;
         Context.LayoutStageTrace.Clear();
@@ -147,9 +161,16 @@ public static partial class DiagramGridLayout
         Run("bend-removing-port-reassignment-4.12", Current =>
         {
             Context.BendReassignmentRemoved = 0;
-            if (!Context.UseCellRegions || Context.DisableExpandedBendRepairsForTests) return;
+            if (!Context.UseCellRegions || Context.DisableExpandedBendRepairsForTests)
+            {
+                return;
+            }
+
             Context.BendReassignmentRemoved = FlowchartBendRemovingPortRepair.Apply(Contract, Current.Copy);
-            if (Context.BendReassignmentRemoved > 0) RouteRepairStage.PublishFinal(Current);
+            if (Context.BendReassignmentRemoved > 0)
+            {
+                RouteRepairStage.PublishFinal(Current);
+            }
         });
         return State.Copy;
 
@@ -160,8 +181,7 @@ public static partial class DiagramGridLayout
             Context.ActiveLayoutStage = Name;
             try { MeasureLayoutStage(Name, () => Stage(State)); }
             finally { Context.ActiveLayoutStage = PreviousStage; }
-            if (FrameOverlapStageObserver != null)
-                FrameOverlapStageObserver(Name, CountUnrelatedFrameOverlaps(State.Contract, State.Frames));
+            FrameOverlapStageObserver?.Invoke(Name, CountUnrelatedFrameOverlaps(State.Contract, State.Frames));
             ObserveCrossings(State, Name);
             ObserveLayoutStage(State, Name);
         }
@@ -207,10 +227,17 @@ public static partial class DiagramGridLayout
         {
             // A half-cell centre is valid when a node spans an odd number of
             // cells. Pixel snapping must never replace its authoritative region.
-            if (Node.CellNode != null) continue;
+            if (Node.CellNode != null)
+            {
+                continue;
+            }
+
             double X = Math.Round(Node.X / Unit, MidpointRounding.AwayFromZero) * Unit;
             double Y = Math.Round(Node.Y / Unit, MidpointRounding.AwayFromZero) * Unit;
-            if (X != Node.X || Y != Node.Y) Node.SetPositionFromFrameFit(X, Y);
+            if (X != Node.X || Y != Node.Y)
+            {
+                Node.SetPositionFromFrameFit(X, Y);
+            }
         }
     }
 
@@ -224,7 +251,11 @@ public static partial class DiagramGridLayout
         List<GridNode> Placed,
         bool HorizontalFlow)
     {
-        if (Placed.Any(Node => Node.CellNode != null)) return GrowCellTerminalSameRankLabelGaps(Contract, Placed, HorizontalFlow);
+        if (Placed.Any(Node => Node.CellNode != null))
+        {
+            return GrowCellTerminalSameRankLabelGaps(Contract, Placed, HorizontalFlow);
+        }
+
         bool Changed = false;
         Dictionary<string, GridNode> ById = Placed.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
         FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
@@ -256,7 +287,7 @@ public static partial class DiagramGridLayout
 
             double SourceExtent = HorizontalFlow ? Source.Height : Source.Width;
             double TargetExtent = HorizontalFlow ? Target.Height : Target.Width;
-            double ClearGap = Math.Abs(TargetCross - SourceCross) - (SourceExtent + TargetExtent) / 2.0;
+            double ClearGap = Math.Abs(TargetCross - SourceCross) - ((SourceExtent + TargetExtent) / 2.0);
             FlowchartLabelDimensions Dimensions = FlowchartNodeSizeEstimator.MeasureWrappedLabel(
                 Edge.Label, Options, Options.EdgeLabelFontSizePx);
             double RequiredGap = FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
@@ -268,7 +299,7 @@ public static partial class DiagramGridLayout
             }
 
             double Delta = DiagramGridMetrics.CeilToGrid(RequiredGap - ClearGap);
-            double CandidateCross = TargetCross + Math.Sign(TargetCross - SourceCross) * Delta;
+            double CandidateCross = TargetCross + (Math.Sign(TargetCross - SourceCross) * Delta);
             double CandidateX = HorizontalFlow ? Target.X : CandidateCross;
             double CandidateY = HorizontalFlow ? CandidateCross : Target.Y;
             bool Overlaps = Placed.Any(Other => Other != Target
@@ -279,8 +310,15 @@ public static partial class DiagramGridLayout
                 continue;
             }
 
-            if (HorizontalFlow) Target.Y = CandidateCross;
-            else Target.X = CandidateCross;
+            if (HorizontalFlow)
+            {
+                Target.Y = CandidateCross;
+            }
+            else
+            {
+                Target.X = CandidateCross;
+            }
+
             Changed = true;
         }
         return Changed;
@@ -291,17 +329,25 @@ public static partial class DiagramGridLayout
     {
         // Sloping outlines need their terminal normals rebuilt with the route.
         // This pass deliberately preserves those specialised attachments.
-        if (Contract.Nodes.Any(Node => FlowchartDiamondAttachHelper.IsDiamondShape(Node.Shape))) return;
+        if (Contract.Nodes.Any(Node => FlowchartDiamondAttachHelper.IsDiamondShape(Node.Shape)))
+        {
+            return;
+        }
+
         FlowchartLayoutScore.Result Before = FlowchartLayoutScore.Measure(Contract, Layout);
-        var Snapshot = Layout.EdgeRoutes.Select(Route => (Route, Route.ExitSide, Route.EntrySide,
-            Points: Route.Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToList())).ToList();
+        List<(FlowchartLayoutEdgeRoute Route, string ExitSide, string EntrySide, List<FlowchartLayoutPoint> Points)> Snapshot = [.. Layout.EdgeRoutes.Select(Route => (Route, Route.ExitSide, Route.EntrySide,
+            Points: Route.Points.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToList()))];
         FlowchartTwoCornerRouteShortener.Apply(Layout, Contract, Bounds, IncludeTwoCornerRoutes: true);
         FlowchartLayoutScore.Result After = FlowchartLayoutScore.Measure(Contract, Layout);
         bool Keep = Before.Score.HasValue
             ? After.Score.HasValue && After.Cost < Before.Cost - 0.001
             : After.Overlaps <= Before.Overlaps && After.Crossings <= Before.Crossings;
-        if (Keep) return;
-        foreach (var Saved in Snapshot)
+        if (Keep)
+        {
+            return;
+        }
+
+        foreach ((FlowchartLayoutEdgeRoute Route, string ExitSide, string EntrySide, List<FlowchartLayoutPoint> Points) Saved in Snapshot)
         {
             Saved.Route.ExitSide = Saved.ExitSide;
             Saved.Route.EntrySide = Saved.EntrySide;
@@ -315,47 +361,93 @@ public static partial class DiagramGridLayout
     {
         HashSet<string> PinnedEndpoints = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
             .SelectMany(Edge => new[] { Edge.SourceId, Edge.TargetId }).ToHashSet(StringComparer.Ordinal);
-        if (ExcludedNodeIds != null) PinnedEndpoints.UnionWith(ExcludedNodeIds);
+        if (ExcludedNodeIds != null)
+        {
+            PinnedEndpoints.UnionWith(ExcludedNodeIds);
+        }
+
         HashSet<string> HintedEdgeIds = Contract.Edges.Where(Edge => Edge.RoutingHint?.IsActive == true)
             .Select(Edge => Edge.Id).OfType<string>().ToHashSet(StringComparer.Ordinal);
-        var BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        IReadOnlySet<EdgeContract> BackEdges = FlowchartBackEdgeHelper.FindBackEdges(Contract);
         bool Changed = false;
-        foreach (var Route in Layout.EdgeRoutes)
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
         {
             if (Route.Points.Count < 6 || HintedEdgeIds.Contains(Route.EdgeId)
-                || BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId)) continue;
-            var Source = Placed.Find(Node => Node.Id == Route.SourceId);
-            var Target = Placed.Find(Node => Node.Id == Route.TargetId);
-            if (Source == null || Target == null || Source.IsDiamond || Target.IsDiamond) continue;
-            var Start = Route.Points[0]; var Next = Route.Points[1];
-            var End = Route.Points[^1]; var Previous = Route.Points[^2];
+                || BackEdges.Any(Edge => Edge.SourceId == Route.SourceId && Edge.TargetId == Route.TargetId))
+            {
+                continue;
+            }
+
+            GridNode? Source = Placed.Find(Node => Node.Id == Route.SourceId);
+            GridNode? Target = Placed.Find(Node => Node.Id == Route.TargetId);
+            if (Source == null || Target == null || Source.IsDiamond || Target.IsDiamond)
+            {
+                continue;
+            }
+
+            FlowchartLayoutPoint Start = Route.Points[0]; FlowchartLayoutPoint Next = Route.Points[1];
+            FlowchartLayoutPoint End = Route.Points[^1]; FlowchartLayoutPoint Previous = Route.Points[^2];
             bool Horizontal = Math.Abs(Start.Y - Next.Y) < 0.5 && Math.Abs(Previous.Y - End.Y) < 0.5;
             bool Vertical = Math.Abs(Start.X - Next.X) < 0.5 && Math.Abs(Previous.X - End.X) < 0.5;
-            if (!Horizontal && !Vertical) continue;
+            if (!Horizontal && !Vertical)
+            {
+                continue;
+            }
+
             double Along(FlowchartLayoutPoint Point) => Horizontal ? Point.X : Point.Y;
             double Across(FlowchartLayoutPoint Point) => Horizontal ? Point.Y : Point.X;
             double Sign = Math.Sign(Along(Next) - Along(Start));
             double Gap = (Along(End) - Along(Start)) * Sign;
-            double Needed = 3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX + DiagramGridRouteBuilder.ARROWHEAD_LENGTH_PX;
+            double Needed = (3 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) + DiagramGridRouteBuilder.ARROWHEAD_LENGTH_PX;
             if (Sign == 0 || Math.Sign(Along(End) - Along(Previous)) != Sign || Gap <= 0 || Gap >= Needed
-                || Math.Abs(Across(End) - Across(Start)) < 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX) continue;
+                || Math.Abs(Across(End) - Across(Start)) < 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX)
+            {
+                continue;
+            }
+
             double Cut = (Along(Start) + Along(End)) / 2;
             // Only open a genuine shared gap: never split a node body.
-            if (Placed.Any(Node => (Horizontal ? Node.X - Node.Width / 2.0 : Node.Y - Node.Height / 2.0) < Cut
-                && (Horizontal ? Node.X + Node.Width / 2.0 : Node.Y + Node.Height / 2.0) > Cut)) continue;
+            if (Placed.Any(Node => (Horizontal ? Node.X - (Node.Width / 2.0) : Node.Y - (Node.Height / 2.0)) < Cut
+                && (Horizontal ? Node.X + (Node.Width / 2.0) : Node.Y + (Node.Height / 2.0)) > Cut))
+            {
+                continue;
+            }
+
             int Shift = (int)Sign * DiagramGridMetrics.CeilToGrid(Needed - Gap);
             double Move(double Value) => (Value - Cut) * Sign >= 0 ? Value + Shift : Value;
-            foreach (var Node in Placed)
+            foreach (GridNode Node in Placed)
             {
-                if (PinnedEndpoints.Contains(Node.Id)) continue;
-                if (Horizontal) Node.X = (int)Move(Node.X); else Node.Y = (int)Move(Node.Y);
-            }
-            foreach (var Other in Layout.EdgeRoutes)
-            {
-                if (HintedEdgeIds.Contains(Other.EdgeId)) continue;
-                foreach (var Point in Other.Points)
+                if (PinnedEndpoints.Contains(Node.Id))
                 {
-                    if (Horizontal) Point.X = Move(Point.X); else Point.Y = Move(Point.Y);
+                    continue;
+                }
+
+                if (Horizontal)
+                {
+                    Node.X = (int)Move(Node.X);
+                }
+                else
+                {
+                    Node.Y = (int)Move(Node.Y);
+                }
+            }
+            foreach (FlowchartLayoutEdgeRoute Other in Layout.EdgeRoutes)
+            {
+                if (HintedEdgeIds.Contains(Other.EdgeId))
+                {
+                    continue;
+                }
+
+                foreach (FlowchartLayoutPoint Point in Other.Points)
+                {
+                    if (Horizontal)
+                    {
+                        Point.X = Move(Point.X);
+                    }
+                    else
+                    {
+                        Point.Y = Move(Point.Y);
+                    }
                 }
             }
             Frames.Clear();
@@ -503,7 +595,7 @@ public static partial class DiagramGridLayout
 
     private static List<GridNode> NodesInRank(List<GridNode> Placed, int Rank)
     {
-        List<GridNode> RankNodes = new List<GridNode>();
+        List<GridNode> RankNodes = [];
         foreach (GridNode Node in Placed)
         {
             if (Node.Rank == Rank)
@@ -775,26 +867,34 @@ public static partial class DiagramGridLayout
         public bool PlacementHintLocked;
         /// <summary>Validates actual logical hint relationships on a complete proposed ownership map; null retains a manual absolute lock.</summary>
         internal Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>? CellHintValidator;
-        public double X { get => CellNode?.X ?? _x; set { if (AllowPixelWrite(nameof(X)) && !PlacementHintLocked) _x = value; } }
-        public double Y { get => CellNode?.Y ?? _y; set { if (AllowPixelWrite(nameof(Y)) && !PlacementHintLocked) _y = value; } }
+        public double X { get => CellNode?.X ?? _x; set { if (AllowPixelWrite(nameof(X)) && !PlacementHintLocked) { _x = value; } } }
+        public double Y { get => CellNode?.Y ?? _y; set { if (AllowPixelWrite(nameof(Y)) && !PlacementHintLocked) { _y = value; } } }
         /// <summary>Retains the legacy coordinate adapter only for a node without logical-cell authority.</summary>
         /// <param name="Value">Legacy transformed vertical coordinate.</param>
-        public void SetYAfterCoordinateTransform(double Value) { if (AllowPixelWrite(nameof(SetYAfterCoordinateTransform))) _y = Value; }
+        public void SetYAfterCoordinateTransform(double Value) { if (AllowPixelWrite(nameof(SetYAfterCoordinateTransform)))
+            {
+                _y = Value;
+            }
+        }
         /// <summary>Retains legacy frame placement only until a node is bound to explicit cell ownership.</summary>
         /// <param name="X">Legacy horizontal coordinate.</param>
         /// <param name="Y">Legacy vertical coordinate.</param>
         public void SetPositionFromFrameFit(double X, double Y) { if (AllowPixelWrite(nameof(SetPositionFromFrameFit))) { _x = X; _y = Y; } }
 
-        public int Width { get => CellNode == null ? _width : checked((int)CellNode.Width); set { if (AllowPixelWrite(nameof(Width))) _width = value; } }
+        public int Width { get => CellNode == null ? _width : checked((int)CellNode.Width); set { if (AllowPixelWrite(nameof(Width))) { _width = value; } } }
 
-        public int Height { get => CellNode == null ? _height : checked((int)CellNode.Height); set { if (AllowPixelWrite(nameof(Height))) _height = value; } }
+        public int Height { get => CellNode == null ? _height : checked((int)CellNode.Height); set { if (AllowPixelWrite(nameof(Height))) { _height = value; } } }
 
         /// <summary>Binds an explicitly allocated region; existing pixel fields are not consulted or converted.</summary>
         /// <param name="Grid">Grid already owning this node's whole-cell reservation.</param>
         /// <param name="Context">Optional explicit owner for persistent repair diagnostics.</param>
         internal void BindCells(FlowchartLogicalGrid Grid, FlowchartRenderContext? Context = null)
         {
-            if (CellNode != null) throw new InvalidOperationException("A node is already bound to its cell grid.");
+            if (CellNode != null)
+            {
+                throw new InvalidOperationException("A node is already bound to its cell grid.");
+            }
+
             CellNode = new(Grid, Id, IsDiamond);
             PixelWriteContext = Context ?? PixelWriteContext ?? FlowchartRenderContext.Current;
             CellWriteCoverage ??= new() { Nodes = 1 };
@@ -816,7 +916,7 @@ public static partial class DiagramGridLayout
 
     private sealed class ColumnBand
     {
-        public readonly List<GridNode> Nodes = new List<GridNode>();
+        public readonly List<GridNode> Nodes = [];
 
         public double Anchor;
 
@@ -1025,7 +1125,7 @@ public static partial class DiagramGridLayout
                 FlowchartEdgeLabelGapHelper.ComputeRequiredSegmentLengthPx(
                     LabelDimensions,
                     Options.EdgeLabelFontSizePx,
-                    Horizontal) + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
+                    Horizontal) + (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX));
             MaxBoost = Math.Max(MaxBoost, Required);
         }
 

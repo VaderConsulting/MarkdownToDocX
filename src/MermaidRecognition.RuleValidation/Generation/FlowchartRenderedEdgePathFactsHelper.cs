@@ -39,9 +39,7 @@ public static class FlowchartRenderedEdgePathFactsHelper
             .ToDictionary(Node => Node.Id, Node => Node, StringComparer.Ordinal);
         List<string> EdgePathData = ExtractRenderedEdgePathData(Svg);
         List<(double X1, double Y1, double X2, double Y2)> EdgeLineSegments = ExtractRenderedEdgeLineSegments(Svg);
-        List<EdgeContract> VisibleEdges = Contract.Edges
-            .Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        List<EdgeContract> VisibleEdges = [.. Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))];
 
         int PathIndex = 0;
         int LineIndex = 0;

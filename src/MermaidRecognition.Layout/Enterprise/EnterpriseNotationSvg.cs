@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 using MermaidRecognition.Kinds.Enterprise;
@@ -350,9 +351,9 @@ public static class EnterpriseNotationSvg
     public static string GroupingTabSvg(double X, double Y, double Width, double Height, string Label)
     {
         string SafeLabel = Label ?? string.Empty;
-        var Lines = EnterpriseNodeSizer.Wrap(SafeLabel);
+        List<string> Lines = EnterpriseNodeSizer.Wrap(SafeLabel);
         double TabWidth = Math.Max(60, EnterpriseNodeSizer.MaxLineWidth(Lines) + 16);
-        double TabHeight = 18 + (Lines.Count - 1) * 15;
+        double TabHeight = 18 + ((Lines.Count - 1) * 15);
         StringBuilder Builder = new StringBuilder();
         Builder.Append("<path d=\"M")
             .Append(N(X))
@@ -381,7 +382,7 @@ public static class EnterpriseNotationSvg
                 Builder.Append("<text x=\"")
                 .Append(N(X + 6))
                 .Append("\" y=\"")
-                .Append(N(Y + 13 + Index * 15))
+                .Append(N(Y + 13 + (Index * 15)))
                 .Append("\">")
                 .Append(EnterpriseSvgFormat.Escape(Lines[Index]))
                 .Append("</text>");

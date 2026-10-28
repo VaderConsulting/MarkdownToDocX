@@ -15,11 +15,14 @@ internal static class OrthogonalRouteTestHelper
         {
             double[] Values = ParseNumbers(Command.Groups[2].Value);
             string Kind = Command.Groups[1].Value;
-            var Next = (X: Values[^2], Y: Values[^1]);
-            var Vector = (X: Next.X - Current.X, Y: Next.Y - Current.Y);
+            (double X, double Y) Next = (X: Values[^2], Y: Values[^1]);
+            (double X, double Y) Vector = (X: Next.X - Current.X, Y: Next.Y - Current.Y);
             if (Kind == "L" && PreviousWasLine)
-                Assert.That(Math.Abs(PreviousVector.X * Vector.Y - PreviousVector.Y * Vector.X),
+            {
+                Assert.That(Math.Abs((PreviousVector.X * Vector.Y) - (PreviousVector.Y * Vector.X)),
                     Is.LessThan(0.01), "Every direction change must use a rounded corner.");
+            }
+
             PreviousWasLine = Kind == "L";
             PreviousVector = Vector;
             Current = Next;
@@ -196,9 +199,7 @@ internal static class OrthogonalRouteTestHelper
 
     private static double[] ParseNumbers(string Text)
     {
-        return Regex.Matches(Text, @"-?\d+(?:\.\d+)?")
-            .Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))
-            .ToArray();
+        return [.. Regex.Matches(Text, @"-?\d+(?:\.\d+)?").Select(Match => double.Parse(Match.Value, CultureInfo.InvariantCulture))];
     }
 
     private static List<(double X, double Y)> ParsePathPoints(string PathData)

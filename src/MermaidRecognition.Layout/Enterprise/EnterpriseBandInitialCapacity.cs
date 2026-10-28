@@ -27,44 +27,64 @@ internal static partial class EnterpriseBandPlacement
         IReadOnlyDictionary<string, FlowchartCellRegion> Targets, FlowchartLogicalGrid Grid, FlowchartRenderContext? Context,
         FlowchartLogicalGrid.Snapshot? InitialState = null)
     {
-        var Endpoints = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
-        foreach (var Group in Contract.Groups)
+        Dictionary<string, FlowchartCellRegion> Endpoints = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
+        foreach (GroupContract Group in Contract.Groups)
         {
-            var Members = Targets.Where(Pair => DiagramGridLayout.IsInsideGroup(Contract, Pair.Key, Group.Id)).Select(Pair => Pair.Value).ToArray();
-            if (Members.Length == 0) continue;
+            FlowchartCellRegion[] Members = [.. Targets.Where(Pair => DiagramGridLayout.IsInsideGroup(Contract, Pair.Key, Group.Id)).Select(Pair => Pair.Value)];
+            if (Members.Length == 0)
+            {
+                continue;
+            }
+
             int Row = Members.Min(Region => Region.StartRow), Column = Members.Min(Region => Region.StartColumn);
             Endpoints[Group.Id] = new(Row, Column, Members.Max(Region => Region.EndRow) - Row, Members.Max(Region => Region.EndColumn) - Column);
         }
-        var Demands = new List<InitialTrackDemand>();
+        List<InitialTrackDemand> Demands = [];
         for (int Index = 0; Index < Contract.Edges.Count; Index++)
         {
-            var Edge = Contract.Edges[Index];
+            EdgeContract Edge = Contract.Edges[Index];
             if (string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
-                || Edge.SourceId == Edge.TargetId || !Endpoints.TryGetValue(Edge.SourceId, out var Source)
-                || !Endpoints.TryGetValue(Edge.TargetId, out var Target)) continue;
+                || Edge.SourceId == Edge.TargetId || !Endpoints.TryGetValue(Edge.SourceId, out FlowchartCellRegion? Source)
+                || !Endpoints.TryGetValue(Edge.TargetId, out FlowchartCellRegion? Target))
+            {
+                continue;
+            }
+
             bool Vertical = Source.EndRow <= Target.StartRow || Target.EndRow <= Source.StartRow;
-            if (!Vertical && Source.EndColumn > Target.StartColumn && Target.EndColumn > Source.StartColumn) continue;
+            if (!Vertical && Source.EndColumn > Target.StartColumn && Target.EndColumn > Source.StartColumn)
+            {
+                continue;
+            }
+
             AddInitialConnectionDemand(Contract, Targets, Demands, Edge, Source, Target, Vertical, Index);
         }
-        var Before = InitialState ?? Grid.Capture();
-        var Growth = new List<FlowchartCellGapGrowth>();
-        foreach (var Strip in AssignOpenInitialGaps(Demands, Targets, Context).GroupBy(Item => (Item.Columns, Item.After)))
+        FlowchartLogicalGrid.Snapshot Before = InitialState ?? Grid.Capture();
+        List<FlowchartCellGapGrowth> Growth = [];
+        foreach (IGrouping<(bool Columns, int After), InitialTrackDemand> Strip in AssignOpenInitialGaps(Demands, Targets, Context).GroupBy(Item => (Item.Columns, Item.After)))
         {
             int Count = Strip.SelectMany(Item => new[] { Item.First, Item.Last }).Distinct()
                 .Select(Position => Strip.Where(Item => Item.First <= Position && Item.Last >= Position).Select(Item => Item.Edge).Distinct().Count())
                 .DefaultIfEmpty(0).Max();
             // One connector does not need parallel tracks; its existing normal
             // terminal clearance remains owned by ordinary route construction.
-            if (Count == 0) continue;
+            if (Count == 0)
+            {
+                continue;
+            }
+
             int Reserved = InitialReservedTrackCount(Count);
             double Required = DiagramGridMetrics.GapWidthForTracks(Reserved);
             double Available = Strip.Key.Columns ? Before.ColumnGaps.GetValueOrDefault(Strip.Key.After, Grid.Configuration.ColumnGap)
                 : Before.RowGaps.GetValueOrDefault(Strip.Key.After, Grid.Configuration.RowGap);
             ReportCapacity(Context, $"INITIAL_CORRIDOR_DEMAND|columns={Strip.Key.Columns}|after={Strip.Key.After}|lines={Count}|reserved={Reserved}|available={Available:R}");
-            if (Required <= Available) continue;
+            if (Required <= Available)
+            {
+                continue;
+            }
+
             Growth.Add(new(Strip.Key.Columns, Strip.Key.After, Required - Available, DiagramGridMetrics.GRID_UNIT_PX));
             string Stage = Context?.DeferInitialBandCapacity == true ? "INITIAL_CORRIDOR_FORECAST" : "INITIAL_CORRIDOR_CAPACITY";
-            ReportCapacity(Context, $"{Stage}|columns={Strip.Key.Columns}|after={Strip.Key.After}|lines={Count}|reserved={Reserved}|before={Available:R}|required={Required:R}|afterWidth={Available + Math.Ceiling((Required - Available) / DiagramGridMetrics.GRID_UNIT_PX) * DiagramGridMetrics.GRID_UNIT_PX:R}");
+            ReportCapacity(Context, $"{Stage}|columns={Strip.Key.Columns}|after={Strip.Key.After}|lines={Count}|reserved={Reserved}|before={Available:R}|required={Required:R}|afterWidth={Available + (Math.Ceiling((Required - Available) / DiagramGridMetrics.GRID_UNIT_PX) * DiagramGridMetrics.GRID_UNIT_PX):R}");
         }
         return Growth;
     }
@@ -74,7 +94,11 @@ internal static partial class EnterpriseBandPlacement
     /// <returns>Rounded-up forecast plus headroom, or zero for an unused gap.</returns>
     internal static int InitialReservedTrackCount(int Forecast)
     {
-        if (Forecast < 0) throw new ArgumentOutOfRangeException(nameof(Forecast));
+        if (Forecast < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(Forecast));
+        }
+
         if (Forecast == 0)
         {
             return 0;
@@ -97,10 +121,10 @@ internal static partial class EnterpriseBandPlacement
     private static IReadOnlyList<InitialTrackDemand> AssignOpenInitialGaps(IReadOnlyList<InitialTrackDemand> Demands,
         IReadOnlyDictionary<string, FlowchartCellRegion> Targets, FlowchartRenderContext? Context)
     {
-        var Result = new List<InitialTrackDemand>();
+        List<InitialTrackDemand> Result = [];
         foreach (bool Columns in new[] { true, false })
         {
-            var Axis = new InitialCapacityAxis(Columns);
+            InitialCapacityAxis Axis = new InitialCapacityAxis(Columns);
             int First = Targets.Values.Min(Axis.CrossStart), Last = Targets.Values.Max(Axis.CrossEnd) - 1;
             var Open = Enumerable.Range(First - 1, Last - First + 2).Where(After => !Targets.Values.Any(Region =>
                 Axis.CrossStart(Region) <= After && Axis.CrossEnd(Region) > After + 1)).ToArray();
@@ -108,14 +132,20 @@ internal static partial class EnterpriseBandPlacement
             // gaps between the disjoint bodies connect it to the free exterior;
             // forecast reassignment may approach it around bodies, never through
             // the occupied internal cells of a wide or tall node.
-            foreach (var Demand in Demands.Where(Item => Item.Columns == Columns))
+            foreach (InitialTrackDemand? Demand in Demands.Where(Item => Item.Columns == Columns))
             {
                 int After = Open.OrderBy(Index => Math.Abs((long)Index - Demand.After))
                     .ThenBy(Index => Index < First || Index >= Last).ThenBy(Index => Index).First();
                 bool Exterior = After < First || After >= Last;
                 if (After != Demand.After || Exterior)
+                {
                     ReportCapacity(Context, $"INITIAL_CORRIDOR_REDIRECT|columns={Columns}|from={Demand.After}|to={After}|edge={Demand.Edge}|exterior={Exterior}");
-                if (!Exterior) Result.Add(Demand with { After = After });
+                }
+
+                if (!Exterior)
+                {
+                    Result.Add(Demand with { After = After });
+                }
             }
         }
         return Result;
@@ -134,26 +164,42 @@ internal static partial class EnterpriseBandPlacement
         IReadOnlyDictionary<string, FlowchartCellRegion> Targets, List<InitialTrackDemand> Demands,
         EdgeContract Edge, FlowchartCellRegion Source, FlowchartCellRegion Target, bool Vertical, int Index)
     {
-            var Axis = new InitialCapacityAxis(Vertical);
-            if (Axis.MainStart(Source) > Axis.MainStart(Target)) (Source, Target) = (Target, Source);
-            bool SourceClear = InitialEndpointColumnIsClear(Contract, Targets, Edge, Axis, Source, Target, Axis.CrossStart(Source));
+        InitialCapacityAxis Axis = new InitialCapacityAxis(Vertical);
+            if (Axis.MainStart(Source) > Axis.MainStart(Target))
+        {
+            (Source, Target) = (Target, Source);
+        }
+
+        bool SourceClear = InitialEndpointColumnIsClear(Contract, Targets, Edge, Axis, Source, Target, Axis.CrossStart(Source));
             bool TargetClear = InitialEndpointColumnIsClear(Contract, Targets, Edge, Axis, Source, Target, Axis.CrossStart(Target));
-            if (Axis.CrossStart(Source) == Axis.CrossStart(Target) && SourceClear) return;
-            int Track;
-            if (SourceClear) Track = checked(2 * Axis.CrossStart(Source));
-            else if (TargetClear) Track = checked(2 * Axis.CrossStart(Target));
-            else
+            if (Axis.CrossStart(Source) == Axis.CrossStart(Target) && SourceClear)
+        {
+            return;
+        }
+
+        int Track;
+            if (SourceClear)
+        {
+            Track = checked(2 * Axis.CrossStart(Source));
+        }
+        else if (TargetClear)
+        {
+            Track = checked(2 * Axis.CrossStart(Target));
+        }
+        else
             {
                 int Left = Targets.Values.Min(Axis.CrossStart) - 1, Right = Targets.Values.Max(Axis.CrossEnd) - 1;
-                var Free = Enumerable.Range(Left, Right - Left + 1).Where(After => !Targets.Values.Any(Region =>
+            IEnumerable<int> Free = Enumerable.Range(Left, Right - Left + 1).Where(After => !Targets.Values.Any(Region =>
                     Axis.CrossStart(Region) <= After && Axis.CrossEnd(Region) > After + 1));
                 int After = Free.OrderBy(Value => Math.Abs((long)Value - Axis.CrossStart(Source)) + Math.Abs((long)Value - Axis.CrossStart(Target)))
                     .ThenBy(Value => Value < Targets.Values.Min(Axis.CrossStart) || Value >= Right)
                     .ThenBy(Value => Value).First(); // Prefer an equally near interior strip over an exterior detour.
-                Track = checked(2 * After + 1);
+                Track = checked((2 * After) + 1);
                 if (After >= Targets.Values.Min(Axis.CrossStart) && After < Targets.Values.Max(Axis.CrossEnd) - 1)
-                    Demands.Add(new(Vertical, After, Axis.MainStart(Source) * 2, Axis.MainEnd(Target) * 2, Index));
+            {
+                Demands.Add(new(Vertical, After, Axis.MainStart(Source) * 2, Axis.MainEnd(Target) * 2, Index));
             }
+        }
             AddInitialApproachDemand(Demands, !Vertical, Axis.MainEnd(Source) - 1, Axis.CrossStart(Source) * 2, Track, Index);
             AddInitialApproachDemand(Demands, !Vertical, Axis.MainStart(Target) - 1, Axis.CrossStart(Target) * 2, Track, Index);
     }
@@ -186,7 +232,10 @@ internal static partial class EnterpriseBandPlacement
     private static void AddInitialApproachDemand(List<InitialTrackDemand> Demands, bool Columns,
         int After, int Endpoint, int Track, int Index)
     {
-        if (Endpoint != Track) Demands.Add(new(Columns, After, Math.Min(Endpoint, Track), Math.Max(Endpoint, Track), Index));
+        if (Endpoint != Track)
+        {
+            Demands.Add(new(Columns, After, Math.Min(Endpoint, Track), Math.Max(Endpoint, Track), Index));
+        }
     }
 
     /// <summary>Shares one demand calculation between column gaps and rank gaps without changing page coordinates.</summary>

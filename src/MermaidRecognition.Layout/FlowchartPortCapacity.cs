@@ -15,16 +15,22 @@ internal static class FlowchartPortCapacity
     {
         ArgumentNullException.ThrowIfNull(Ports);
         if (!double.IsFinite(MinimumSeparation) || MinimumSeparation <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(MinimumSeparation));
+        }
+
         double Missing = 0;
         for (int First = 0; First < Ports.Count; First++)
         {
             if (!double.IsFinite(Ports[First].X) || !double.IsFinite(Ports[First].Y))
+            {
                 throw new ArgumentException("Allocated ports must have finite coordinates.", nameof(Ports));
+            }
+
             for (int Second = 0; Second < First; Second++)
             {
                 double Dx = Ports[First].X - Ports[Second].X, Dy = Ports[First].Y - Ports[Second].Y;
-                Missing = Math.Max(Missing, MinimumSeparation - Math.Sqrt(Dx * Dx + Dy * Dy));
+                Missing = Math.Max(Missing, MinimumSeparation - Math.Sqrt((Dx * Dx) + (Dy * Dy)));
             }
         }
         return Missing;

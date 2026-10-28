@@ -110,10 +110,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
         {
             geometryGraph.BoundingBox = new Rectangle(transformation * geometryGraph.LeftBottom, transformation * geometryGraph.RightTop);
             foreach (Edge e in geometryGraph.Edges) {
-                if (e.Label != null)
-                {
-                    e.Label.Center = transformation * e.Label.Center;
-                }
+                e.Label?.Center = transformation * e.Label.Center;
 
                 TransformEdgeCurve(transformation, e);
             }
@@ -124,15 +121,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered
             {
                 e.Curve = e.Curve.Transform(transformation);
                 EdgeGeometry eg = e.EdgeGeometry;
-                if (eg.SourceArrowhead != null)
-                {
-                    eg.SourceArrowhead.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
-                }
+                eg.SourceArrowhead?.TipPosition = transformation * eg.SourceArrowhead.TipPosition;
 
-                if (eg.TargetArrowhead != null)
-                {
-                    eg.TargetArrowhead.TipPosition = transformation * eg.TargetArrowhead.TipPosition;
-                }
+                eg.TargetArrowhead?.TipPosition = transformation * eg.TargetArrowhead.TipPosition;
 
                 TransformUnderlyingPolyline(e, transformation);
             }

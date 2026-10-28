@@ -76,7 +76,7 @@ internal static class ChartLineHelpers
 /// <summary>Gantt chart LiveEditor parser.</summary>
 public sealed class GanttParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "gantt" };
+    private static readonly string[] Headers = ["gantt"];
 
     private static readonly Regex TaskRegex = new Regex(
         @"^(?<label>.+?)\s*:\s*(?<id>[A-Za-z_][\w-]*)?\s*,?",
@@ -133,7 +133,7 @@ public sealed class GanttParser : HeaderKindParser
 /// <summary>Pie chart LiveEditor parser.</summary>
 public sealed class PieParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "pie" };
+    private static readonly string[] Headers = ["pie"];
 
     private static readonly Regex SliceRegex = new Regex(
         @"^""(?<label>[^""]+)""\s*:\s*(?<value>.+)$",
@@ -180,7 +180,7 @@ public sealed class PieParser : HeaderKindParser
 /// <summary>Git graph LiveEditor parser.</summary>
 public sealed class GitGraphParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "gitGraph" };
+    private static readonly string[] Headers = ["gitGraph"];
 
     private static readonly Regex BranchRegex = new Regex(
         @"^(?:branch|checkout|merge)\s+(?<id>\S+)",
@@ -235,7 +235,7 @@ public sealed class GitGraphParser : HeaderKindParser
 /// <summary>Mindmap LiveEditor parser.</summary>
 public sealed class MindmapParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "mindmap" };
+    private static readonly string[] Headers = ["mindmap"];
 
     /// <summary>Shared instance.</summary>
     public static MindmapParser Default { get; } = new MindmapParser();
@@ -305,7 +305,7 @@ public sealed class MindmapParser : HeaderKindParser
 /// <summary>Timeline LiveEditor parser.</summary>
 public sealed class TimelineParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "timeline" };
+    private static readonly string[] Headers = ["timeline"];
 
     /// <summary>Shared instance.</summary>
     public static TimelineParser Default { get; } = new TimelineParser();
@@ -347,7 +347,7 @@ public sealed class TimelineParser : HeaderKindParser
 /// <summary>Journey LiveEditor parser.</summary>
 public sealed class JourneyParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "journey" };
+    private static readonly string[] Headers = ["journey"];
 
     /// <summary>Shared instance.</summary>
     public static JourneyParser Default { get; } = new JourneyParser();
@@ -397,7 +397,7 @@ public sealed class JourneyParser : HeaderKindParser
 /// <summary>Quadrant chart LiveEditor parser.</summary>
 public sealed class QuadrantChartParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "quadrantChart" };
+    private static readonly string[] Headers = ["quadrantChart"];
 
     private static readonly Regex PointRegex = new Regex(
         @"^(?<label>.+?)\s*:\s*\[",
@@ -445,7 +445,7 @@ public sealed class QuadrantChartParser : HeaderKindParser
 /// <summary>XY chart LiveEditor parser.</summary>
 public sealed class XyChartParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "xychart-beta", "xychart" };
+    private static readonly string[] Headers = ["xychart-beta", "xychart"];
 
     /// <summary>Shared instance.</summary>
     public static XyChartParser Default { get; } = new XyChartParser();
@@ -490,7 +490,7 @@ public sealed class XyChartParser : HeaderKindParser
 /// <summary>Packet LiveEditor parser.</summary>
 public sealed class PacketParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "packet-beta", "packet" };
+    private static readonly string[] Headers = ["packet-beta", "packet"];
 
     private static readonly Regex FieldRegex = new Regex(
         @"^(?<bits>\d+(?:-\d+)?)\s*:\s*""(?<label>[^""]+)""",
@@ -532,7 +532,7 @@ public sealed class PacketParser : HeaderKindParser
 /// <summary>Radar LiveEditor parser.</summary>
 public sealed class RadarParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "radar-beta", "radar" };
+    private static readonly string[] Headers = ["radar-beta", "radar"];
 
     private static readonly Regex AxisRegex = new Regex(
         @"^axis\s+(?<label>.+)$",
@@ -579,7 +579,7 @@ public sealed class RadarParser : HeaderKindParser
 /// <summary>Treemap LiveEditor parser.</summary>
 public sealed class TreemapParser : HeaderKindParser
 {
-    private static readonly string[] Headers = new string[] { "treemap-beta", "treemap" };
+    private static readonly string[] Headers = ["treemap-beta", "treemap"];
 
     private static readonly Regex LeafRegex = new Regex(
         @"^(?<label>.+?)\s*:\s*(?<value>[\d.]+)\s*$",

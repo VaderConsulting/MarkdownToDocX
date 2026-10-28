@@ -9,7 +9,7 @@ namespace MermaidRecognition.Tests.Sequence;
 public sealed class SequenceRecognitionFixtureTests
 {
     private static readonly string[] FixtureNames =
-    {
+    [
         "simple",
         "participants",
         "activation",
@@ -44,12 +44,12 @@ public sealed class SequenceRecognitionFixtureTests
         "quoted-message-label",
         "open-cross-arrows",
         "auth-smoke",
-    };
+    ];
 
     private static readonly string[] FixturesAllowingBody =
-    {
+    [
         "accDescr-block",
-    };
+    ];
 
     [TestCaseSource(nameof(FixtureNameCases))]
     public void Fixture_HasNoBodyFallback(string FixtureName)

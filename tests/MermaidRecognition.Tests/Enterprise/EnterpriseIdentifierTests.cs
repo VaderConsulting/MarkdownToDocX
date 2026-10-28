@@ -13,7 +13,7 @@ public sealed class EnterpriseIdentifierTests
     [TestCase("directionService")]
     public void BareIdentifier_IsSharedByDeclarationsContainersAndRelationships(string Id)
     {
-        var Result = EnterpriseParser.ParseDocument($"""
+        EnterpriseParseResult Result = EnterpriseParser.ParseDocument($"""
             enterprise
               group {Id} "Container"
               application-component child "Child" in {Id}

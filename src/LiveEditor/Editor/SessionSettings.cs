@@ -59,9 +59,15 @@ internal sealed partial class SessionSettings
 
     public string? LastCoArchiFolder { get; set; }
 
+    /// <summary>Last tenant used for direct Azure Resource Graph import.</summary>
+    public string? AzureTenantId { get; set; }
+
+    /// <summary>Public client application ID used for Azure sign-in. No credentials are stored.</summary>
+    public string? AzureClientId { get; set; }
+
     public int CaretIndex { get; set; }
 
-    public List<string> RecentFiles { get; set; } = new List<string>();
+    public List<string> RecentFiles { get; set; } = [];
 
     public static string StorePath
     {

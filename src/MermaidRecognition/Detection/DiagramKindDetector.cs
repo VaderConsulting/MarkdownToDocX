@@ -86,7 +86,7 @@ public static class DiagramKindDetector
             new DetectorEntry("architecture", (Text, _) => Regex.IsMatch(Text, @"^\s*architecture", RegexOptions.IgnoreCase)),
         ];
 
-        return Detectors.ToArray();
+        return [.. Detectors];
     }
 
     static bool FlowchartElkDetector(string Text, MermaidDetectorConfig? Config)

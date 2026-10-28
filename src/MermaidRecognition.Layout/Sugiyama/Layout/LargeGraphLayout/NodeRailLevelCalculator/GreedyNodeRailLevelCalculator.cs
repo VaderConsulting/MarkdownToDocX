@@ -124,7 +124,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout.NodeRailLev
                 Set<SymmetricSegment> segments = new Set<SymmetricSegment>(
                     edges.Select(e => new SymmetricSegment(e.SourcePoint, e.TargetPoint)));
 
-                List<SymmetricSegment> newToAdd = segments.Where(seg => !IsSegmentAlreadyAdded(seg)).ToList();
+                List<SymmetricSegment> newToAdd = [.. segments.Where(seg => !IsSegmentAlreadyAdded(seg))];
 
                 bool canInsertPaths = TryAddingSegmentsUpdateTiles(newToAdd, grid, out Set<SymmetricSegment>? insertedSegments);
 
@@ -151,7 +151,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout.NodeRailLev
 
         private Set<VisibilityEdge> GetSegmentsOnPathsToInsertedNeighborsNotOnOldTrajectories(LgNodeInfo ni, Dictionary<SymmetricTuple<LgNodeInfo>, List<Point>> trajectories, LgPathRouter pathRouter)
         {
-            Set<VisibilityEdge> edges = new Set<VisibilityEdge>();
+            Set<VisibilityEdge> edges = [];
             Set<LgNodeInfo> neighbors = GetAdjacentProcessed(ni);
             foreach (LgNodeInfo neighb in neighbors) {
                 SymmetricTuple<LgNodeInfo> t1 = new SymmetricTuple<LgNodeInfo>(ni, neighb);
@@ -216,7 +216,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout.NodeRailLev
 #if DEBUG && !SILVERLIGHT && !SHARPKIT
 
             IEnumerable<VisibilityEdge> edges = _pathRouter.GetAllEdgesVisibilityEdges();
-            List<DebugCurve> ll = new List<DebugCurve>();
+            List<DebugCurve> ll = [];
 
             foreach (LgNodeInfo ni in _insertedNodes) {
                 ll.Add(new DebugCurve(5, "green", ni.BoundaryCurve));
@@ -274,7 +274,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout.NodeRailLev
                 }
             }
 
-            LayoutAlgorithmSettings.ShowDebugCurves(ll.ToArray());
+            LayoutAlgorithmSettings.ShowDebugCurves([.. ll]);
 
             PrintInsertedNodesLabels();
 #endif

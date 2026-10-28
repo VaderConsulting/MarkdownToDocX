@@ -34,34 +34,33 @@ public sealed class FallbackCorridorTrackTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3)]
     public void AllocatesFreeTrackBeforePublicationWithoutChangingPorts(int Turns)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\nA --> C\nB --> D");
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>();
-        foreach (var (Id, X, Y) in new[] { ("A", 0d, 0d), ("B", 0d, 180d), ("C", 300d, 480d), ("D", 300d, 300d) })
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\nA --> C\nB --> D");
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = [];
+        foreach ((string? Id, double X, double Y) in new[] { ("A", 0d, 0d), ("B", 0d, 180d), ("C", 300d, 480d), ("D", 300d, 300d) })
         {
-            var P = Rotate((X, Y), Turns);
+            (double X, double Y) P = Rotate((X, Y), Turns);
             Bounds.Add(Id, new() { NodeId = Id, CenterX = P.X, CenterY = P.Y,
                 Width = Turns % 2 == 0 ? 150 : 90, Height = Turns % 2 == 0 ? 90 : 150 });
         }
-        var Paths = new (double X, double Y)[][] {
+        (double X, double Y)[][] Paths = [
             [(75, 0), (150, 0), (150, 480), (225, 480)],
-            [(75, 180), (150, 180), (150, 300), (225, 300)] };
-        var Routes = Contract.Edges.Select((Edge, Index) =>
+            [(75, 180), (150, 180), (150, 300), (225, 300)] ];
+        FlowchartLayoutEdgeRoute[] Routes = [.. Contract.Edges.Select((Edge, Index) =>
         {
-            var Normal = Rotate((1, 0), Turns);
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
+            (double X, double Y) Normal = Rotate((1, 0), Turns);
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
                 ExitSide = Side(Normal), EntrySide = Side((-Normal.X, -Normal.Y)),
                 ExitNormalX = Normal.X, ExitNormalY = Normal.Y, EntryNormalX = -Normal.X, EntryNormalY = -Normal.Y };
-            foreach (var P in Paths[Index].Select(Point => Rotate(Point, Turns))) Route.Points.Add(new() { X = P.X, Y = P.Y });
-            return Route;
-        }).ToArray();
-        var Seed = Routes[0].Points.Select(Point => (Point.X, Point.Y)).ToList();
-        var Original = Seed.ToArray();
-        var Other = Routes[1].Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        var Before = FlowchartBranchRouteOrder.Intersections(Seed, Other);
+            foreach ((double X, double Y) P in Paths[Index].Select(Point => Rotate(Point, Turns))) { Route.Points.Add(new() { X = P.X, Y = P.Y }); } return Route;
+        })];
+        List<(double X, double Y)> Seed = [.. Routes[0].Points.Select(Point => (Point.X, Point.Y))];
+        (double X, double Y)[] Original = [.. Seed];
+        (double X, double Y)[] Other = [.. Routes[1].Points.Select(Point => (Point.X, Point.Y))];
+        (int Crossings, double Overlap) Before = FlowchartBranchRouteOrder.Intersections(Seed, Other);
         Assert.That(Before.Overlap, Is.GreaterThan(0));
-        var Result = FlowchartFallbackCorridorTracks.Allocate(Contract, Bounds, Routes[0], Seed, Routes, null);
-        var After = FlowchartBranchRouteOrder.Intersections(Result, Other);
-        var Axis = Rotate((1, 0), Turns);
+        List<(double X, double Y)> Result = FlowchartFallbackCorridorTracks.Allocate(Contract, Bounds, Routes[0], Seed, Routes, null);
+        (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(Result, Other);
+        (double X, double Y) Axis = Rotate((1, 0), Turns);
         Assert.Multiple(() =>
         {
             Assert.That(After.Overlap, Is.Zero);
@@ -70,9 +69,9 @@ public sealed class FallbackCorridorTrackTests
             Assert.That(Result[0], Is.EqualTo(Original[0]));
             Assert.That(Result[^1], Is.EqualTo(Original[^1]));
             Assert.That(FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Routes[0], Result), Is.True);
-            Assert.That(Math.Abs((Result[1].X - Other[1].X) * Axis.X + (Result[1].Y - Other[1].Y) * Axis.Y),
+            Assert.That(Math.Abs(((Result[1].X - Other[1].X) * Axis.X) + ((Result[1].Y - Other[1].Y) * Axis.Y)),
                 Is.GreaterThanOrEqualTo(FlowchartLayoutRules.LineSpacing));
-            Assert.That((Result[1].X * Axis.X + Result[1].Y * Axis.Y) % FlowchartLayoutRules.LineSpacing, Is.Zero);
+            Assert.That(((Result[1].X * Axis.X) + (Result[1].Y * Axis.Y)) % FlowchartLayoutRules.LineSpacing, Is.Zero);
             Assert.That(Seed, Is.EqualTo(Original), "A rejected or selected allocation must never mutate the cached seed.");
             Assert.That(Routes[0].Points.Select(Point => (Point.X, Point.Y)), Is.EqualTo(Original));
         });
@@ -83,35 +82,34 @@ public sealed class FallbackCorridorTrackTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3)]
     public void AllocatesSeparatedTrackForCloseParallelRuns(int Turns)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\nA --> C\nB --> D");
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>();
-        foreach (var (Id, X, Y) in new[] { ("A", 0d, 0d), ("B", 0d, 180d), ("C", 300d, 480d), ("D", 300d, 300d) })
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\nA --> C\nB --> D");
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = [];
+        foreach ((string? Id, double X, double Y) in new[] { ("A", 0d, 0d), ("B", 0d, 180d), ("C", 300d, 480d), ("D", 300d, 300d) })
         {
-            var P = Rotate((X, Y), Turns);
+            (double X, double Y) P = Rotate((X, Y), Turns);
             Bounds.Add(Id, new() { NodeId = Id, CenterX = P.X, CenterY = P.Y,
                 Width = Turns % 2 == 0 ? 150 : 90, Height = Turns % 2 == 0 ? 90 : 150 });
         }
-        var Paths = new (double X, double Y)[][] {
+        (double X, double Y)[][] Paths = [
             [(75, 0), (150, 0), (150, 480), (225, 480)],
-            [(75, 180), (157.5, 180), (157.5, 300), (225, 300)] };
-        var Routes = Contract.Edges.Select((Edge, Index) =>
+            [(75, 180), (157.5, 180), (157.5, 300), (225, 300)] ];
+        FlowchartLayoutEdgeRoute[] Routes = [.. Contract.Edges.Select((Edge, Index) =>
         {
-            var Normal = Rotate((1, 0), Turns);
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
+            (double X, double Y) Normal = Rotate((1, 0), Turns);
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
                 ExitSide = Side(Normal), EntrySide = Side((-Normal.X, -Normal.Y)),
                 ExitNormalX = Normal.X, ExitNormalY = Normal.Y, EntryNormalX = -Normal.X, EntryNormalY = -Normal.Y };
-            foreach (var P in Paths[Index].Select(Point => Rotate(Point, Turns))) Route.Points.Add(new() { X = P.X, Y = P.Y });
-            return Route;
-        }).ToArray();
-        var Seed = Routes[0].Points.Select(Point => (Point.X, Point.Y)).ToList();
-        var Original = Seed.ToArray();
-        var Other = Routes[1].Points.Select(Point => (Point.X, Point.Y)).ToArray();
-        var Before = FlowchartBranchRouteOrder.Intersections(Seed, Other);
+            foreach ((double X, double Y) P in Paths[Index].Select(Point => Rotate(Point, Turns))) { Route.Points.Add(new() { X = P.X, Y = P.Y }); } return Route;
+        })];
+        List<(double X, double Y)> Seed = [.. Routes[0].Points.Select(Point => (Point.X, Point.Y))];
+        (double X, double Y)[] Original = [.. Seed];
+        (double X, double Y)[] Other = [.. Routes[1].Points.Select(Point => (Point.X, Point.Y))];
+        (int Crossings, double Overlap) Before = FlowchartBranchRouteOrder.Intersections(Seed, Other);
         Assert.That(Before.Overlap, Is.Zero);
         Assert.That(FlowchartFallbackCorridorTracks.CloseParallelSegments(Seed, Other), Is.GreaterThan(0));
-        var Result = FlowchartFallbackCorridorTracks.Allocate(Contract, Bounds, Routes[0], Seed, Routes, null);
-        var After = FlowchartBranchRouteOrder.Intersections(Result, Other);
-        var Axis = Rotate((1, 0), Turns);
+        List<(double X, double Y)> Result = FlowchartFallbackCorridorTracks.Allocate(Contract, Bounds, Routes[0], Seed, Routes, null);
+        (int Crossings, double Overlap) After = FlowchartBranchRouteOrder.Intersections(Result, Other);
+        (double X, double Y) Axis = Rotate((1, 0), Turns);
         Assert.Multiple(() =>
         {
             Assert.That(After.Overlap, Is.Zero);
@@ -121,9 +119,9 @@ public sealed class FallbackCorridorTrackTests
             Assert.That(Result[0], Is.EqualTo(Original[0]));
             Assert.That(Result[^1], Is.EqualTo(Original[^1]));
             Assert.That(FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Routes[0], Result), Is.True);
-            Assert.That(Math.Abs((Result[1].X - Other[1].X) * Axis.X + (Result[1].Y - Other[1].Y) * Axis.Y),
+            Assert.That(Math.Abs(((Result[1].X - Other[1].X) * Axis.X) + ((Result[1].Y - Other[1].Y) * Axis.Y)),
                 Is.GreaterThanOrEqualTo(FlowchartLayoutRules.LineSpacing));
-            Assert.That((Result[1].X * Axis.X + Result[1].Y * Axis.Y) % FlowchartLayoutRules.LineSpacing, Is.Zero);
+            Assert.That(((Result[1].X * Axis.X) + (Result[1].Y * Axis.Y)) % FlowchartLayoutRules.LineSpacing, Is.Zero);
             Assert.That(Seed, Is.EqualTo(Original), "A rejected or selected allocation must never mutate the cached seed.");
             Assert.That(Routes[0].Points.Select(Point => (Point.X, Point.Y)), Is.EqualTo(Original));
         });
@@ -137,7 +135,7 @@ public sealed class FallbackCorridorTrackTests
     [TestCase("model-route-completion-and-rule-checks", true)]
     public void ReservedTrackAllocationRunsOnlyDuringModelConstruction(string Stage, bool Expected)
     {
-        var Context = new FlowchartRenderContext { ActiveLayoutStage = Stage };
+        FlowchartRenderContext Context = new FlowchartRenderContext { ActiveLayoutStage = Stage };
         Assert.That(FlowchartFallbackCorridorTracks.IsConstructionStage(Context), Is.False);
         Context.BandSpaceDiagnostics.Add("INITIAL_CORRIDOR_CAPACITY|columns=True|after=0");
         Context.HasInitialCorridorCapacity = true;
@@ -148,34 +146,42 @@ public sealed class FallbackCorridorTrackTests
     [Test]
     public void EqualRankFanKeepsItsCorrectedPortOrderOnRepeatedAllocation()
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\nHub --> Near\nHub --> Far");
-        var Context = new FlowchartRenderContext { ActiveLayoutStage = "model-route-completion-and-rule-checks" };
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\nHub --> Near\nHub --> Far");
+        FlowchartRenderContext Context = new FlowchartRenderContext { ActiveLayoutStage = "model-route-completion-and-rule-checks" };
         Context.BandSpaceDiagnostics.Add("INITIAL_CORRIDOR_CAPACITY|columns=True|after=0");
         Context.HasInitialCorridorCapacity = true;
-        var Layout = new FlowchartLayoutResult { RenderContext = Context };
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>();
-        foreach (var (Id, X, Y) in new[] { ("Hub", 0d, 0d), ("Near", 300d, -180d), ("Far", 600d, -180d) })
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult { RenderContext = Context };
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = [];
+        foreach ((string? Id, double X, double Y) in new[] { ("Hub", 0d, 0d), ("Near", 300d, -180d), ("Far", 600d, -180d) })
         {
-            var Box = new FlowchartLayoutNodeBounds { NodeId = Id, CenterX = X, CenterY = Y, Width = 150, Height = 90 };
+            FlowchartLayoutNodeBounds Box = new FlowchartLayoutNodeBounds { NodeId = Id, CenterX = X, CenterY = Y, Width = 150, Height = 90 };
             Bounds.Add(Id, Box); Layout.NodeBoundsMutable.Add(Box);
         }
-        foreach (var Edge in Contract.Edges)
+        foreach (EdgeContract Edge in Contract.Edges)
         {
             double Y = Edge.TargetId == "Near" ? 15 : -15;
             double X = Bounds[Edge.TargetId].CenterX;
-            var Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
+            FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { EdgeId = Edge.Id!, SourceId = Edge.SourceId, TargetId = Edge.TargetId,
                 ExitSide = "right", EntrySide = "top", ExitNormalX = 1, EntryNormalY = 1 };
-            foreach (var P in new[] { (75d, Y), (X, Y), (X, -135d) }) Route.Points.Add(new() { X = P.Item1, Y = P.Item2 });
+            foreach ((double, double) P in new[] { (75d, Y), (X, Y), (X, -135d) })
+            {
+                Route.Points.Add(new() { X = P.Item1, Y = P.Item2 });
+            }
+
             Layout.EdgeRoutesMutable.Add(Route);
         }
-        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id);
-        var Near = Layout.EdgeRoutes.Single(Route => Route.TargetId == "Near");
-        var Far = Layout.EdgeRoutes.Single(Route => Route.TargetId == "Far");
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id);
+        FlowchartLayoutEdgeRoute Near = Layout.EdgeRoutes.Single(Route => Route.TargetId == "Near");
+        FlowchartLayoutEdgeRoute Far = Layout.EdgeRoutes.Single(Route => Route.TargetId == "Far");
         Assert.That(FlowchartBranchRouteOrder.Intersections(Near.Points.Select(P => (P.X, P.Y)).ToArray(),
             Far.Points.Select(P => (P.X, P.Y)).ToArray()).Crossings, Is.EqualTo(1));
         DiagramGridLayout.ReallocateBendRepairPorts(Contract, Layout, Bounds, Nodes, "Hub");
         Assert.That(Far.Points[0].Y, Is.GreaterThan(Near.Points[0].Y));
-        foreach (var Route in Layout.EdgeRoutes) Route.Points[1].Y = Route.Points[0].Y;
+        foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
+        {
+            Route.Points[1].Y = Route.Points[0].Y;
+        }
+
         DiagramGridLayout.ReallocateBendRepairPorts(Contract, Layout, Bounds, Nodes, "Hub");
         Assert.That(Far.Points[0].Y, Is.GreaterThan(Near.Points[0].Y), "A second allocation must not undo nesting.");
     }
@@ -186,7 +192,11 @@ public sealed class FallbackCorridorTrackTests
     /// <returns>The transformed value without rounding.</returns>
     private static (double X, double Y) Rotate((double X, double Y) Point, int Turns)
     {
-        for (int Index = 0; Index < Turns; Index++) Point = (-Point.Y, Point.X);
+        for (int Index = 0; Index < Turns; Index++)
+        {
+            Point = (-Point.Y, Point.X);
+        }
+
         return Point;
     }
 

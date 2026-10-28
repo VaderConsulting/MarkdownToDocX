@@ -58,7 +58,7 @@ internal static class SymbolNavigator
 
     public static List<int> FindReferences(string Source, string Id)
     {
-        List<int> Results = new List<int>();
+        List<int> Results = [];
         if (string.IsNullOrEmpty(Source) || string.IsNullOrEmpty(Id))
         {
             return Results;
@@ -113,7 +113,7 @@ internal static class SymbolNavigator
     /// <returns>Start index of each match.</returns>
     public static List<int> FindExactIds(string Source, string Id)
     {
-        List<int> Results = new List<int>();
+        List<int> Results = [];
         if (string.IsNullOrEmpty(Source) || string.IsNullOrEmpty(Id))
         {
             return Results;

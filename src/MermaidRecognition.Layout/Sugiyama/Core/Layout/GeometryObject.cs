@@ -55,10 +55,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
         /// <param name="newValue"></param>
         public virtual void RaiseLayoutChangeEvent(object newValue)
         {
-            if (beforeLayoutChangeEvent != null)
-            {
-                beforeLayoutChangeEvent(this, new LayoutChangeEventArgs { DataAfterChange = newValue });
-            }
+            beforeLayoutChangeEvent?.Invoke(this, new LayoutChangeEventArgs { DataAfterChange = newValue });
         }
 
 

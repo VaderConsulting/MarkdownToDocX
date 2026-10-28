@@ -13,7 +13,7 @@ public sealed class ErL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetErFixtureDirectory(),
-            new[] { "entity-attributes", "combined-schema", "relationship" },
+            ["entity-attributes", "combined-schema", "relationship"],
             Contract => Contract.Nodes.Count > 0);
     }
 
@@ -22,7 +22,7 @@ public sealed class ErL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetErFixtureDirectory(),
-            new[] { "classDef-style", "inline-style" },
+            ["classDef-style", "inline-style"],
             Contract =>
                 Contract.ClassDefs.Count > 0
                 || Contract.Nodes.Any(Node => Node.InlineStyle.Fill is not null));
@@ -33,7 +33,7 @@ public sealed class ErL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetErFixtureDirectory(),
-            new[] { "attribute-comments" },
+            ["attribute-comments"],
             Contract => Contract.Nodes.Any(Node => Node.Declarations.Any(Declaration => Declaration.RawText.Contains('"'))));
     }
 
@@ -42,7 +42,7 @@ public sealed class ErL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetErFixtureDirectory(),
-            new[] { "accessibility", "accDescr-block" },
+            ["accessibility", "accDescr-block"],
             Contract =>
                 !string.IsNullOrEmpty(Contract.Accessibility.Title)
                 || !string.IsNullOrEmpty(Contract.Accessibility.Description));

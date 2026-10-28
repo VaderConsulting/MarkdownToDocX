@@ -15,26 +15,40 @@ internal static partial class FlowchartDisconnectedPacking
 
     internal static bool Apply(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
     {
-        if (Nodes.Count < 2) return false;
-        if (Nodes.Any(Node => Node.CellNode != null)) return ApplyCells(Contract, Nodes);
+        if (Nodes.Count < 2)
+        {
+            return false;
+        }
+
+        if (Nodes.Any(Node => Node.CellNode != null))
+        {
+            return ApplyCells(Contract, Nodes);
+        }
+
         Dictionary<string, int> Declared = Contract.Nodes.Select((Node, Index) => (Node.Id, Index))
             .GroupBy(Item => Item.Id, StringComparer.Ordinal)
             .ToDictionary(Group => Group.Key, Group => Group.First().Index, StringComparer.Ordinal);
-        List<Piece> Pieces = FindComponents(Contract, Nodes)
-            .Select(Members => CreatePiece(Members, Declared)).OrderBy(Piece => Piece.Order).ToList();
-        if (Pieces.Count < 2) return false;
+        List<Piece> Pieces = [.. FindComponents(Contract, Nodes)
+            .Select(Members => CreatePiece(Members, Declared)).OrderBy(Piece => Piece.Order)];
+        if (Pieces.Count < 2)
+        {
+            return false;
+        }
 
         int Gap = DiagramGridMetrics.NODE_GAP_PX;
-        Position[] Best = Enumerable.Range(0, Pieces.Count)
-            .Select(Index => new Position(Pieces[Index].Left, Pieces[Index].Top)).ToArray();
+        Position[] Best = [.. Enumerable.Range(0, Pieces.Count).Select(Index => new Position(Pieces[Index].Left, Pieces[Index].Top))];
         double BestScore = Score(Best, Pieces, Gap);
         string BestKey = Key(Best);
-        var Seen = new HashSet<string>(StringComparer.Ordinal) { BestKey };
+        HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal) { BestKey };
         for (int MaximumPerRow = 1; MaximumPerRow <= Pieces.Count; MaximumPerRow++)
         {
             Position[] Candidate = Place(Pieces, MaximumPerRow, Gap);
             string CandidateKey = Key(Candidate);
-            if (!Seen.Add(CandidateKey)) continue;
+            if (!Seen.Add(CandidateKey))
+            {
+                continue;
+            }
+
             double CandidateScore = Score(Candidate, Pieces, Gap);
             if (CandidateScore < BestScore - 0.0001)
             {
@@ -43,9 +57,12 @@ internal static partial class FlowchartDisconnectedPacking
                 BestKey = CandidateKey;
             }
         }
-        Position[] Original = Enumerable.Range(0, Pieces.Count)
-            .Select(Index => new Position(Pieces[Index].Left, Pieces[Index].Top)).ToArray();
-        if (BestKey == Key(Original)) return false;
+        Position[] Original = [.. Enumerable.Range(0, Pieces.Count).Select(Index => new Position(Pieces[Index].Left, Pieces[Index].Top))];
+        if (BestKey == Key(Original))
+        {
+            return false;
+        }
+
         for (int Index = 0; Index < Pieces.Count; Index++)
         {
             double Dx = Best[Index].X - Pieces[Index].Left;
@@ -66,13 +83,18 @@ internal static partial class FlowchartDisconnectedPacking
     private static List<List<DiagramGridLayout.GridNode>> FindComponents(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes)
     {
         Dictionary<string, string> Roots = RootGroups(Contract, Nodes);
-        var Owner = new Dictionary<string, string>(StringComparer.Ordinal);
+        Dictionary<string, string> Owner = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
             Owner[Node.Id] = Roots.TryGetValue(Node.Id, out string? Root) ? "g:" + Root : "n:" + Node.Id;
-        foreach (GroupContract Group in Contract.Groups)
-            Owner[Group.Id] = "g:" + RootGroup(Contract, Group.Id);
+        }
 
-        var Parent = Owner.Values.Distinct(StringComparer.Ordinal)
+        foreach (GroupContract Group in Contract.Groups)
+        {
+            Owner[Group.Id] = "g:" + RootGroup(Contract, Group.Id);
+        }
+
+        Dictionary<string, string> Parent = Owner.Values.Distinct(StringComparer.Ordinal)
             .ToDictionary(Key => Key, Key => Key, StringComparer.Ordinal);
         string Find(string Key)
         {
@@ -86,30 +108,38 @@ internal static partial class FlowchartDisconnectedPacking
         void Union(string A, string B)
         {
             A = Find(A); B = Find(B);
-            if (!string.Equals(A, B, StringComparison.Ordinal)) Parent[B] = A;
+            if (!string.Equals(A, B, StringComparison.Ordinal))
+            {
+                Parent[B] = A;
+            }
         }
         foreach (EdgeContract Edge in Contract.Edges.Where(Edge =>
             !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)))
+        {
             if (Owner.TryGetValue(Edge.SourceId, out string? Source)
-                && Owner.TryGetValue(Edge.TargetId, out string? Target)) Union(Source, Target);
+                && Owner.TryGetValue(Edge.TargetId, out string? Target))
+            {
+                Union(Source, Target);
+            }
+        }
 
-        return Nodes.GroupBy(Node => Find(Owner[Node.Id]), StringComparer.Ordinal).Select(Group => Group.ToList()).ToList();
+        return [.. Nodes.GroupBy(Node => Find(Owner[Node.Id]), StringComparer.Ordinal).Select(Group => Group.ToList())];
     }
 
     private static Piece CreatePiece(List<DiagramGridLayout.GridNode> Nodes,
         IReadOnlyDictionary<string, int> Declared)
     {
-        double Left = Nodes.Min(Node => Node.X - Node.Width / 2.0);
-        double Right = Nodes.Max(Node => Node.X + Node.Width / 2.0);
-        double Top = Nodes.Max(Node => Node.Y + Node.Height / 2.0);
-        double Bottom = Nodes.Min(Node => Node.Y - Node.Height / 2.0);
+        double Left = Nodes.Min(Node => Node.X - (Node.Width / 2.0));
+        double Right = Nodes.Max(Node => Node.X + (Node.Width / 2.0));
+        double Top = Nodes.Max(Node => Node.Y + (Node.Height / 2.0));
+        double Bottom = Nodes.Min(Node => Node.Y - (Node.Height / 2.0));
         int Order = Nodes.Min(Node => Declared.GetValueOrDefault(Node.Id, int.MaxValue));
         return new(Nodes, Left, Top, Right - Left, Top - Bottom, Order);
     }
 
     private static Position[] Place(IReadOnlyList<Piece> Pieces, int MaximumPerRow, int Gap)
     {
-        var Result = new Position[Pieces.Count];
+        Position[] Result = new Position[Pieces.Count];
         double X = 0.0, Top = 0.0, RowHeight = 0.0;
         for (int Index = 0; Index < Pieces.Count; Index++)
         {
@@ -134,7 +164,7 @@ internal static partial class FlowchartDisconnectedPacking
         double Bottom = Enumerable.Range(0, Pieces.Count).Min(Index => Positions[Index].Y - Pieces[Index].Height);
         double Width = Right - Left, Height = Top - Bottom;
         double Used = Pieces.Sum(Piece => (Piece.Width + Gap) * (Piece.Height + Gap));
-        double Empty = Math.Max(0.0, 1.0 - Used / Math.Max(1.0, Width * Height));
+        double Empty = Math.Max(0.0, 1.0 - (Used / Math.Max(1.0, Width * Height)));
         return FlowchartLayoutScore.Calculate(Width, Height, 0, Empty);
     }
 
@@ -151,7 +181,11 @@ internal static partial class FlowchartDisconnectedPacking
         while (true)
         {
             GroupContract? Group = Contract.Groups.FirstOrDefault(Item => Item.Id == Current);
-            if (Group?.ParentGroupId == null) return Current;
+            if (Group?.ParentGroupId == null)
+            {
+                return Current;
+            }
+
             Current = Group.ParentGroupId;
         }
     }

@@ -378,7 +378,7 @@ public static class FlowchartLoopBackRouteHelper
 
     private static List<EdgeContract> GetVisibleOutgoing(DiagramContract Contract, string SourceId)
     {
-        return Contract.Edges.Where(Candidate => !IsInvisible(Candidate) && string.Equals(Candidate.SourceId, SourceId, StringComparison.Ordinal)).ToList();
+        return [.. Contract.Edges.Where(Candidate => !IsInvisible(Candidate) && string.Equals(Candidate.SourceId, SourceId, StringComparison.Ordinal))];
     }
 
     private static bool IsInvisible(EdgeContract Edge)

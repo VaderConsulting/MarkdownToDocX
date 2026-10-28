@@ -17,7 +17,7 @@ internal sealed partial class PreviewHoverIndex
 
     private const string PLAIN_CONNECTION = "connection";
 
-    private readonly List<PreviewObject> _Objects = new List<PreviewObject>();
+    private readonly List<PreviewObject> _Objects = [];
 
     /// <summary>Gets every selectable object in drawing order.</summary>
     public IReadOnlyList<PreviewObject> Objects
@@ -391,7 +391,7 @@ internal sealed partial class PreviewHoverIndex
 
     private static int RelationshipLine(EnterpriseDocument Document, PreviewObject Line)
     {
-        List<int> Lines = new List<int>();
+        List<int> Lines = [];
         if (Line.RelationshipKind == PLAIN_CONNECTION)
         {
             foreach (EnterprisePlainConnection Connection in Document.PlainConnections)
@@ -620,7 +620,7 @@ internal sealed partial class PreviewHoverIndex
             + Regex.Escape(Line.TargetId) + @"(?![\w])";
         Regex Edge = new Regex(Pattern, RegexOptions.CultureInvariant);
         string[] Lines = Source.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        List<int> Found = new List<int>();
+        List<int> Found = [];
         for (int Index = 0; Index < Lines.Length; Index++)
         {
             string Text = Lines[Index];
@@ -661,7 +661,7 @@ internal sealed partial class PreviewHoverIndex
             }
         }
 
-        List<PreviewOutline> Outer = new List<PreviewOutline>();
+        List<PreviewOutline> Outer = [];
         foreach (PreviewOutline Outline in Outlines)
         {
             double OutlineLeft = double.MaxValue;
@@ -713,7 +713,7 @@ internal sealed partial class PreviewHoverIndex
     /// </summary>
     private static List<PreviewOutline> ReadOutlines(string Body, double ShiftX, double ShiftY)
     {
-        List<PreviewOutline> Outlines = new List<PreviewOutline>();
+        List<PreviewOutline> Outlines = [];
         int Index = 0;
         while (Index < Body.Length)
         {
@@ -740,7 +740,7 @@ internal sealed partial class PreviewHoverIndex
             float[]? Dash = ReadDash(Tag);
             if (Name == "path")
             {
-                List<HoverSegment> Segments = new List<HoverSegment>();
+                List<HoverSegment> Segments = [];
                 Flatten(ReadExactAttribute(Tag, "d"), ShiftX, ShiftY, Segments);
                 AddSegmentOutlines(Segments, Dash, Outlines);
                 continue;
@@ -799,7 +799,7 @@ internal sealed partial class PreviewHoverIndex
 
     private static string TagName(string Tag)
     {
-        string[] Names = { "path", "rect", "ellipse", "circle", "line", "polygon", "polyline" };
+        string[] Names = ["path", "rect", "ellipse", "circle", "line", "polygon", "polyline"];
         foreach (string Name in Names)
         {
             if (Tag.Length > Name.Length + 1
@@ -905,8 +905,8 @@ internal sealed partial class PreviewHoverIndex
 
     private static List<double> Numbers(string Text)
     {
-        List<double> Values = new List<double>();
-        foreach (string Part in Text.Split(new[] { ',', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        List<double> Values = [];
+        foreach (string Part in Text.Split([',', ' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
             if (double.TryParse(Part, NumberStyles.Float, CultureInfo.InvariantCulture, out double Value))
             {

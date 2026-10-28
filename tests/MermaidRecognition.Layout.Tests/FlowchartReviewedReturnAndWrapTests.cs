@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -14,9 +15,9 @@ public sealed class FlowchartReviewedReturnAndWrapTests
     [TestCase("RL")]
     public void ReturnEntersTheTargetsChannelSide(string Direction)
     {
-        var Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nA[Input] --> B[Work]\nB --> C[Check]\nC --> A\nC --> D[Output]");
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        var Return = Layout.EdgeRoutes.Single(Route => Route.SourceId == "C" && Route.TargetId == "A");
+        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nA[Input] --> B[Work]\nB --> C[Check]\nC --> A\nC --> D[Output]");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutEdgeRoute Return = Layout.EdgeRoutes.Single(Route => Route.SourceId == "C" && Route.TargetId == "A");
         string[] Sides = Direction is "LR" or "RL" ? ["top", "bottom"] : ["left", "right"];
         Assert.Multiple(() =>
         {
@@ -32,18 +33,20 @@ public sealed class FlowchartReviewedReturnAndWrapTests
     {
         string Source = "flowchart LR\n" + string.Join("\n", Enumerable.Range(0, 39)
             .Select(Index => $"N{Index}[Step {Index}] --> N{Index + 1}[Step {Index + 1}]"));
-        var Contract = MermaidRecognizer.Parse(Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        var Boxes = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
-        var Wraps = Layout.EdgeRoutes.Where(Route => Boxes[Route.TargetId].CenterY < Boxes[Route.SourceId].CenterY
-            && Boxes[Route.TargetId].CenterX < Boxes[Route.SourceId].CenterX).ToArray();
+        DiagramContract Contract = MermaidRecognizer.Parse(Source);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        Dictionary<string, FlowchartLayoutNodeBounds> Boxes = Layout.NodeBounds.ToDictionary(Node => Node.NodeId);
+        FlowchartLayoutEdgeRoute[] Wraps = [.. Layout.EdgeRoutes.Where(Route => Boxes[Route.TargetId].CenterY < Boxes[Route.SourceId].CenterY
+            && Boxes[Route.TargetId].CenterX < Boxes[Route.SourceId].CenterX)];
         Assert.That(Wraps, Is.Not.Empty);
-        foreach (var Route in Wraps)
+        foreach (FlowchartLayoutEdgeRoute? Route in Wraps)
+        {
             Assert.Multiple(() =>
             {
                 Assert.That(Route.ExitSide, Is.EqualTo("bottom"), Route.EdgeId);
                 Assert.That(Route.EntrySide, Is.EqualTo("top"), Route.EdgeId);
                 Assert.That(FlowchartLayoutScore.CountCorners(Route.Points), Is.EqualTo(2), Route.EdgeId);
             });
+        }
     }
 }

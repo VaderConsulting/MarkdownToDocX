@@ -58,8 +58,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         static Point AdjustPoint(Point p0) => new Point(Math.Round(p0.X, DigitsToRound), Math.Round(p0.Y, DigitsToRound));
 
         static void CrossVerticalAndHorizontalSegs(IEnumerable<LinkedPoint> pathsFirstLinked) {
-            List<LinkedPoint> horizontalPoints = new List<LinkedPoint>();
-            List<LinkedPoint> verticalPoints = new List<LinkedPoint>();
+            List<LinkedPoint> horizontalPoints = [];
+            List<LinkedPoint> verticalPoints = [];
             foreach (LinkedPoint pnt in pathsFirstLinked)
             {
                 for (LinkedPoint p = pnt; p.Next != null; p = p.Next)
@@ -100,7 +100,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
             GetProjectionsDelegates(direction, out PointProjection? projectionToPerp, out PointProjection? projectionToDirection);
 
-            LinkedPoint[] linkedPointsInDirection = GetAllLinkedVertsInDirection(projectionToPerp, pathFirstPoints).ToArray();
+            LinkedPoint[] linkedPointsInDirection = [.. GetAllLinkedVertsInDirection(projectionToPerp, pathFirstPoints)];
 
             IEnumerable<IGrouping<double, LinkedPoint>> colliniarBuckets = linkedPointsInDirection.GroupBy(p => projectionToPerp(p.Point));
             foreach (IGrouping<double, LinkedPoint> pathLinkedPointBucket in colliniarBuckets)
@@ -193,7 +193,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 
 
         static Dictionary<Path, LinkedPoint> CreatePathsToFirstLinkedVerticesMap(IEnumerable<Path> edgePaths) {
-            Dictionary<Path, LinkedPoint> dict = new Dictionary<Path, LinkedPoint>();
+            Dictionary<Path, LinkedPoint> dict = [];
             foreach (Path path in edgePaths)
             {
                 dict[path] = CreateLinkedVertexOfEdgePath(path);

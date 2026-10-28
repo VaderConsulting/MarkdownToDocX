@@ -20,8 +20,8 @@ public sealed class EnterpriseInitialCapacityTests
     [Test]
     public void InitialFanCapacityPublishesRegionsAndGapsTogether()
     {
-        var Contract = new DiagramContract();
-        var Targets = new Dictionary<string, FlowchartCellRegion>
+        DiagramContract Contract = new DiagramContract();
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>
         {
             ["hub"] = new(0, 0, 1, 1), ["wall"] = new(1, 0, 1, 1), ["neighbour"] = new(1, 1, 1, 1)
         };
@@ -31,12 +31,16 @@ public sealed class EnterpriseInitialCapacityTests
             Targets[Id] = new(Index + 2, 0, 1, 1);
             Contract.EdgesMutable.Add(new() { SourceId = "hub", TargetId = Id });
         }
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        foreach (var Pair in Targets) Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
-        var Before = Grid.Capture();
-        var Growth = EnterpriseBandPlacement.PlanInitialRoutingCapacity(Contract, Targets, Grid, null);
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Targets)
+        {
+            Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        IReadOnlyList<FlowchartCellGapGrowth> Growth = EnterpriseBandPlacement.PlanInitialRoutingCapacity(Contract, Targets, Grid, null);
         Assert.That(Grid.Capture(), Is.SameAs(Before), "Planning must not mutate regions or gaps.");
-        Assert.That(Grid.TryPrepare(Targets, Growth, out var After), Is.True);
+        Assert.That(Grid.TryPrepare(Targets, Growth, out FlowchartLogicalGrid.Snapshot? After), Is.True);
         Assert.That(Grid.TryCommit(Before, After!), Is.True);
         double Required = EnterpriseBandPlacement.InitialReservedTrackCount(Contract.Edges.Count) * FlowchartLayoutRules.TrackSpacing;
         Assert.Multiple(() =>
@@ -51,17 +55,21 @@ public sealed class EnterpriseInitialCapacityTests
     [Test]
     public void ClearPartnerColumnsDoNotGrowAnyGap()
     {
-        var Contract = new DiagramContract();
-        var Targets = new Dictionary<string, FlowchartCellRegion>();
+        DiagramContract Contract = new DiagramContract();
+        Dictionary<string, FlowchartCellRegion> Targets = [];
         for (int Column = 0; Column < 3; Column++)
         {
             Targets["a" + Column] = new(0, Column, 1, 1);
             Targets["b" + Column] = new(1, Column, 1, 1);
             Contract.EdgesMutable.Add(new() { SourceId = "a" + Column, TargetId = "b" + Column });
         }
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        foreach (var Pair in Targets) Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Targets)
+        {
+            Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(EnterpriseBandPlacement.PlanInitialRoutingCapacity(Contract, Targets, Grid, null), Is.Empty);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -70,8 +78,8 @@ public sealed class EnterpriseInitialCapacityTests
     [Test]
     public void WideNodeInternalGapIsNeverReservedAsACorridor()
     {
-        var Contract = new DiagramContract();
-        var Targets = new Dictionary<string, FlowchartCellRegion>
+        DiagramContract Contract = new DiagramContract();
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>
         {
             ["hub"] = new(0, 0, 1, 1), ["wall"] = new(1, 0, 1, 1),
             ["wide"] = new(10, 0, 1, 2), ["neighbour"] = new(10, 3, 1, 1)
@@ -82,14 +90,18 @@ public sealed class EnterpriseInitialCapacityTests
             Targets[Id] = new(Index + 2, 0, 1, 1);
             Contract.EdgesMutable.Add(new() { SourceId = "hub", TargetId = Id });
         }
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        foreach (var Pair in Targets) Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        foreach (KeyValuePair<string, FlowchartCellRegion> Pair in Targets)
+        {
+            Assert.That(Grid.TryPlace(Pair.Key, Pair.Value), Is.True);
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         double Width = Grid.Measure(Targets["wide"]).Width;
-        var Growth = EnterpriseBandPlacement.PlanInitialRoutingCapacity(Contract, Targets, Grid, null);
+        IReadOnlyList<FlowchartCellGapGrowth> Growth = EnterpriseBandPlacement.PlanInitialRoutingCapacity(Contract, Targets, Grid, null);
         Assert.That(Growth.Any(Item => Item.Horizontal && Item.After == 0), Is.False);
         Assert.That(Growth.Any(Item => Item.Horizontal && Item.After == 1), Is.True);
-        Assert.That(Grid.TryPrepare(Targets, Growth, out var After), Is.True);
+        Assert.That(Grid.TryPrepare(Targets, Growth, out FlowchartLogicalGrid.Snapshot? After), Is.True);
         Assert.That(Grid.TryCommit(Before, After!), Is.True);
         Assert.That(Grid.Measure(Targets["wide"]).Width, Is.EqualTo(Width));
     }

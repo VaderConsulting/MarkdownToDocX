@@ -28,21 +28,21 @@ public sealed class SettingsFormFeatureTests
     [Test]
     public void DialogLoadsAndAppliesLayoutChoicesWithoutChangingTheSessionWhileEditing()
     {
-        var Settings = new SessionSettings
+        SessionSettings Settings = new SessionSettings
         {
             IncrementalDiagramRouting = true, RouteAwareDiagramConstruction = true,
             WidthConstrainedLayout = true, DiagramTargetWidthPx = 900
         };
         string Original = Settings.ToJson();
-        using var Dialog = new SettingsForm(Settings);
-        var Tabs = Require<TabControl>(Dialog, "SettingsTabs");
+        using SettingsForm Dialog = new SettingsForm(Settings);
+        TabControl Tabs = Require<TabControl>(Dialog, "SettingsTabs");
         Assert.That(Tabs.TabPages.Count, Is.EqualTo(2));
         Assert.That(Tabs.TabPages[0].Text, Is.EqualTo("General"));
         Assert.That(Tabs.TabPages[1].Text, Is.EqualTo("Diagram layout"));
         Assert.That(Require<CheckBox>(Dialog, "IncrementalRoutingCheckBox").Checked, Is.True);
         Assert.That(Require<CheckBox>(Dialog, "RouteAwareConstructionCheckBox").Checked, Is.True);
-        var Width = Require<CheckBox>(Dialog, "WidthConstrainedLayoutCheckBox");
-        var Target = Require<NumericUpDown>(Dialog, "TargetWidthNumeric");
+        CheckBox Width = Require<CheckBox>(Dialog, "WidthConstrainedLayoutCheckBox");
+        NumericUpDown Target = Require<NumericUpDown>(Dialog, "TargetWidthNumeric");
         Assert.That(Width.Checked, Is.True);
         Assert.That(Target.Value, Is.EqualTo(900));
         Width.Checked = false;
@@ -55,7 +55,7 @@ public sealed class SettingsFormFeatureTests
         Assert.That(Settings.ToJson(), Is.EqualTo(Original));
         Assert.That(LiveEditorFeatureGate.CaptureLayoutOptions(), Is.EqualTo(_Previous));
         Dialog.ApplyTo(Settings);
-        var Restored = SessionSettings.FromJson(Settings.ToJson());
+        SessionSettings Restored = SessionSettings.FromJson(Settings.ToJson());
         Assert.Multiple(() =>
         {
             Assert.That(Restored.IncrementalDiagramRouting, Is.False);
@@ -68,9 +68,9 @@ public sealed class SettingsFormFeatureTests
     [Test]
     public void CancelLeavesTheSessionAndRunningSwitchesUnchanged()
     {
-        var Settings = new SessionSettings();
+        SessionSettings Settings = new SessionSettings();
         string Original = Settings.ToJson();
-        using var Dialog = new SettingsForm(Settings);
+        using SettingsForm Dialog = new SettingsForm(Settings);
         Dialog.StartPosition = FormStartPosition.Manual;
         Dialog.Location = new Point(-20000, -20000);
         Dialog.Show();
@@ -86,9 +86,9 @@ public sealed class SettingsFormFeatureTests
     [Test]
     public void ButtonsRemainOutsideTheTabsAndOlderSessionsUseDisabledDefaults()
     {
-        using var Dialog = new SettingsForm(SessionSettings.FromJson("{}"));
-        var Root = Require<TableLayoutPanel>(Dialog, "RootLayout");
-        var Actions = Require<FlowLayoutPanel>(Dialog, "ButtonPanel");
+        using SettingsForm Dialog = new SettingsForm(SessionSettings.FromJson("{}"));
+        TableLayoutPanel Root = Require<TableLayoutPanel>(Dialog, "RootLayout");
+        FlowLayoutPanel Actions = Require<FlowLayoutPanel>(Dialog, "ButtonPanel");
         Assert.That(Actions.Parent, Is.SameAs(Root));
         Assert.That(Dialog.AcceptButton, Is.SameAs(Require<Button>(Dialog, "OkSettingsButton")));
         Assert.That(Dialog.CancelButton, Is.SameAs(Require<Button>(Dialog, "CancelSettingsButton")));
@@ -102,21 +102,21 @@ public sealed class SettingsFormFeatureTests
     [Test]
     public void EditorStartupAndReapplyingPreferencesUseTheSavedSwitches()
     {
-        var Settings = SessionSettings.FromJson(new SessionSettings
+        SessionSettings Settings = SessionSettings.FromJson(new SessionSettings
         {
             IncrementalDiagramRouting = true, RouteAwareDiagramConstruction = true,
             WidthConstrainedLayout = true, DiagramTargetWidthPx = 700
         }.ToJson());
-        using var Editor = new MainForm(Settings);
-        var Before = LiveEditorFeatureGate.CaptureLayoutOptions();
+        using MainForm Editor = new MainForm(Settings);
+        DiagramLayoutOptions Before = LiveEditorFeatureGate.CaptureLayoutOptions();
         Assert.That(Before.EnableIncrementalRouting && Before.EnableRouteAwareConstruction && Before.EnableWidthConstrainedLayout, Is.True);
         Assert.That(Before.TargetWidthPx, Is.EqualTo(700));
-        using var Dialog = new SettingsForm(Settings);
+        using SettingsForm Dialog = new SettingsForm(Settings);
         Require<CheckBox>(Dialog, "WidthConstrainedLayoutCheckBox").Checked = false;
         Require<NumericUpDown>(Dialog, "TargetWidthNumeric").Value = 900;
         Dialog.ApplyTo(Settings);
         typeof(MainForm).GetMethod("ApplyEditorPreferences", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Editor, null);
-        var After = LiveEditorFeatureGate.CaptureLayoutOptions();
+        DiagramLayoutOptions After = LiveEditorFeatureGate.CaptureLayoutOptions();
         Assert.That(After.EnableWidthConstrainedLayout, Is.False);
         Assert.That(After.TargetWidthPx, Is.EqualTo(900));
         Assert.That(Before.EnableWidthConstrainedLayout, Is.True, "Already captured requests retain their options.");

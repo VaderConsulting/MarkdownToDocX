@@ -21,8 +21,30 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <ProjectReference Include="..\MDConverter\MDConverter.csproj" />
     <ProjectReference Include="..\MermaidRecognition\MermaidRecognition.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="AzureResourceGraphConnectionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="AzureResourceGraphConnectionForm.Designer.cs">
+      <DependentUpon>AzureResourceGraphConnectionForm.cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Update="AzureResourceGraphConnectionForm.resx">
+      <DependentUpon>AzureResourceGraphConnectionForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <Compile Update="AzureResourceGraphImportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="AzureResourceGraphImportForm.Designer.cs">
+      <DependentUpon>AzureResourceGraphImportForm.cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Update="AzureResourceGraphImportForm.resx">
+      <DependentUpon>AzureResourceGraphImportForm.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

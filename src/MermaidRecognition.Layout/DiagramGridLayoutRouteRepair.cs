@@ -12,7 +12,7 @@ namespace MermaidRecognition.Layout;
 public static partial class DiagramGridLayout
 {    internal static void SeparateTracks(FlowchartLayoutResult Copy, List<GridNode> Placed, DiagramContract? Contract = null)
     {
-        List<FlowchartLayoutEdgeRoute> Routes = new List<FlowchartLayoutEdgeRoute>();
+        List<FlowchartLayoutEdgeRoute> Routes = [];
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
             if (Route.Points.Count >= 2)
@@ -43,7 +43,11 @@ public static partial class DiagramGridLayout
 
     private static void NudgeOffSharedRun(FlowchartLayoutEdgeRoute Stay, FlowchartLayoutEdgeRoute Mover, List<GridNode> Placed, DiagramContract? Contract, FlowchartLayoutResult? LayoutOwner)
     {
-        if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true) return;
+        if (Contract != null && FindContractEdge(Contract, Mover)?.RoutingHint?.IsActive == true)
+        {
+            return;
+        }
+
         for (int Index = 1; Index < Mover.Points.Count - 1; Index++)
         {
             FlowchartLayoutPoint Start = Mover.Points[Index];
@@ -57,12 +61,16 @@ public static partial class DiagramGridLayout
             double TrackSeparation = Math.Max(DiagramGridMetrics.GRID_UNIT_PX, FlowchartLayoutRules.LineSpacing);
             if (Contract != null)
             {
-                var Options = FlowchartRenderOptions.FromContract(Contract);
+                FlowchartRenderOptions Options = FlowchartRenderOptions.FromContract(Contract);
                 double CaptionHalf(FlowchartLayoutEdgeRoute Route)
                 {
-                    var Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
-                    if (string.IsNullOrWhiteSpace(Edge?.Label)) return 0;
-                    var Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label, Options, Options.EdgeLabelFontSizePx);
+                    EdgeContract? Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
+                    if (string.IsNullOrWhiteSpace(Edge?.Label))
+                    {
+                        return 0;
+                    }
+
+                    FlowchartLabelDimensions Size = FlowchartNodeSizeEstimator.MeasureWrappedLabel(Edge.Label, Options, Options.EdgeLabelFontSizePx);
                     return (Vertical ? Size.Width : Size.Height) / 2;
                 }
                 TrackSeparation = DiagramGridMetrics.CeilToGrid((int)Math.Ceiling(Math.Max(
@@ -88,9 +96,9 @@ public static partial class DiagramGridLayout
                 }
 
                 double Offset = (Gap < 0 ? -TrackSeparation : TrackSeparation) - Gap;
-                var Obstacles = Contract == null ? Placed : Placed.Where(Node =>
+                List<GridNode> Obstacles = Contract == null ? Placed : [.. Placed.Where(Node =>
                     !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.SourceId)
-                    && !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.TargetId)).ToList();
+                    && !FlowchartCompoundEndpointHelper.Contains(Contract, Node.Id, Mover.TargetId))];
                 if (!TryTranslateInternalRun(Mover, Index, Vertical, Offset, Obstacles, LayoutOwner))
                 {
                     TryTranslateInternalRun(Mover, Index, Vertical, -Offset, Obstacles, LayoutOwner);
@@ -191,7 +199,7 @@ public static partial class DiagramGridLayout
 
         private readonly record struct Cell(int X, int Y);
 
-        private readonly Dictionary<Cell, List<GridNode>> _Cells = new Dictionary<Cell, List<GridNode>>();
+        private readonly Dictionary<Cell, List<GridNode>> _Cells = [];
 
         internal GridNodeObstacleIndex(List<GridNode> Placed)
         {
@@ -209,7 +217,7 @@ public static partial class DiagramGridLayout
                         Cell Key = new Cell(CellX, CellY);
                         if (!_Cells.TryGetValue(Key, out List<GridNode>? Items))
                         {
-                            _Cells[Key] = Items = new List<GridNode>();
+                            _Cells[Key] = Items = [];
                         }
 
                         Items.Add(Node);
@@ -221,7 +229,7 @@ public static partial class DiagramGridLayout
         internal IEnumerable<GridNode> QuerySegment(double X1, double Y1, double X2, double Y2, string SourceId, string TargetId)
         {
             (int MinX, int MinY, int MaxX, int MaxY) = CellRange(Math.Min(X1, X2), Math.Min(Y1, Y2), Math.Max(X1, X2), Math.Max(Y1, Y2));
-            HashSet<GridNode> Seen = new HashSet<GridNode>();
+            HashSet<GridNode> Seen = [];
             for (int CellX = MinX; CellX <= MaxX; CellX++)
             {
                 for (int CellY = MinY; CellY <= MaxY; CellY++)

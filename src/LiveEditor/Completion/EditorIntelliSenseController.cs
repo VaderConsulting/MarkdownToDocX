@@ -37,12 +37,7 @@ internal sealed class EditorIntelliSenseController : IDisposable
     /// <param name="Editor">The source editor.</param>
     public EditorIntelliSenseController(RichTextBox Editor)
     {
-        if (Editor == null)
-        {
-            throw new ArgumentNullException(nameof(Editor));
-        }
-
-        _Editor = Editor;
+        _Editor = Editor ?? throw new ArgumentNullException(nameof(Editor));
         _QuickInfoTimer.Interval = 450;
         _QuickInfoTimer.Tick += QuickInfoTimer_Tick;
         _Popup.ItemAccepted += Popup_ItemAccepted;

@@ -17,14 +17,14 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
     [Test]
     public void OpenLayoutProjectedSideCentreRemainsStraight()
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue()
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == "F147");
-        var Contract = MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
-        var Route = Layout.EdgeRoutes.Single(Route =>
+        DiagramContract Contract = MermaidRecognizer.Parse(Scenario.Source);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single(Route =>
             Contract.Nodes.Single(Node => Node.Id == Route.TargetId).Shape == "cylinder");
-        var Target = Layout.NodeBounds.Single(Box => Box.NodeId == Route.TargetId);
+        FlowchartLayoutNodeBounds Target = Layout.NodeBounds.Single(Box => Box.NodeId == Route.TargetId);
         Assert.Multiple(() =>
         {
             Assert.That(Route.Points.Count, Is.EqualTo(2));
@@ -47,14 +47,14 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
     [TestCase("A70", 0)]
     public void PartialTrackRepairCannotAddCrossings(string ScenarioId, int MaximumCrossings)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue()
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == ScenarioId);
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
         Assert.Multiple(() =>
         {
             Assert.That(Findings.Count(Finding => Finding.Rule == "5.9"), Is.LessThanOrEqualTo(MaximumCrossings));
@@ -68,11 +68,11 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
     [TestCase("F119")]
     public void DiamondFallbackKeepsEverySegmentLegal(string ScenarioId)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue()
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue()
             .Select(Case => (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!)
             .Single(Case => Case.Id == ScenarioId);
-        var Contract = MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
+        DiagramContract Contract = MermaidRecognizer.Parse(Scenario.Source);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout)
             .Where(Finding => Finding.Rule is "10" or "3.1" or "4.1"), Is.Empty);
         Assert.That(Layout.EdgeRoutes.Count, Is.EqualTo(Contract.Edges.Count));
@@ -83,10 +83,13 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
     public static IEnumerable<TestCaseData> Scenarios()
     {
         string[] Ids = ["F17", "F30", "F40", "F41", "F52", "F59", "F61", "F73", "F129", "F148", "F151", "F152", "F153", "A147", "A152"];
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Ids.Contains(Scenario.Id)) yield return new TestCaseData(Scenario).SetName("CheapestLegalLayout_" + Scenario.Id);
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Ids.Contains(Scenario.Id))
+            {
+                yield return new TestCaseData(Scenario).SetName("CheapestLegalLayout_" + Scenario.Id);
+            }
         }
         yield return new TestCaseData(new RouteRuleCatalogueAuditTests.Scenario("Grouped3x3", """
             flowchart TB
@@ -113,64 +116,84 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
     [CancelAfter(60000)]
     public void FinalRoutesUseCheapestLegalCandidates(RouteRuleCatalogueAuditTests.Scenario Scenario)
     {
-        var Timer = Stopwatch.StartNew();
+        Stopwatch Timer = Stopwatch.StartNew();
         DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
         FlowchartLayoutResult Layout;
         DiagramGridLayout.RouteRepairCandidateObserver = (Option, Subject, Score, Clears) =>
         {
-            if (Option == "track-separation") TestContext.Out.WriteLine($"TRACK_SEARCH|{Subject}|accepted={Clears}");
+            if (Option == "track-separation")
+            {
+                TestContext.Out.WriteLine($"TRACK_SEARCH|{Subject}|accepted={Clears}");
+            }
         };
         try { Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out Layout!), Is.True); }
         finally { DiagramGridLayout.RouteRepairCandidateObserver = null; }
-        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id);
-        var Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id);
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = Layout.NodeBounds.Concat(Layout.ClusterBounds).GroupBy(Box => Box.NodeId)
             .ToDictionary(Group => Group.Key, Group => Group.First());
-        var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
         Assert.That(FlowchartRouteRuleChecker.CheckPortAllocation(Contract, Layout),
             Is.EqualTo(Findings.Where(Finding => Finding.Rule == "3.2/4.7")),
             "The candidate-only port check must preserve the full audit's distribution findings.");
-        var ExactPairs = new List<string>();
+        List<string> ExactPairs = [];
         for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
-        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
         {
-            var A = Layout.EdgeRoutes[First]; var B = Layout.EdgeRoutes[Second];
+            for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+                FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First]; FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes[Second];
             if ((A.SourceId != B.SourceId || A.TargetId != B.TargetId)
                 && FlowchartRouteRuleChecker.HasProperCrossing(A, B))
-                ExactPairs.Add(A.EdgeId + " x " + B.EdgeId);
+                {
+                    ExactPairs.Add(A.EdgeId + " x " + B.EdgeId);
+                }
+            }
         }
+
         Assert.That(Findings.Where(Finding => Finding.Rule == "5.9").Select(Finding => Finding.Subject),
             Is.EquivalentTo(ExactPairs), "The crossing broad phase must retain every exact proper crossing.");
         int TotalBends = 0, Crossings = 0, AboveMinimum = 0;
         double TotalLength = 0;
-        var Excess = new List<string>();
+        List<string> Excess = [];
         for (int Left = 0; Left < Layout.EdgeRoutes.Count; Left++)
-        for (int Right = Left + 1; Right < Layout.EdgeRoutes.Count; Right++)
-            Crossings += FlowchartBranchRouteOrder.Intersections(
+        {
+            for (int Right = Left + 1; Right < Layout.EdgeRoutes.Count; Right++)
+            {
+                Crossings += FlowchartBranchRouteOrder.Intersections(
                 Tuples(Layout.EdgeRoutes[Left].Points), Tuples(Layout.EdgeRoutes[Right].Points)).Crossings;
-        foreach (var Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2))
+            }
+        }
+
+        foreach (FlowchartLayoutEdgeRoute? Route in Layout.EdgeRoutes.Where(Route => Route.Points.Count >= 2))
         {
             int Bends = FlowchartLayoutScore.CountCorners(Route.Points);
             double Length = PathLength(Tuples(Route.Points));
             TotalBends += Bends; TotalLength += Length;
             int Minimum = Bends;
             double MinimumLength = Length;
-            var Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
-            if (Edge?.RoutingHint?.IsActive != true && Bounds.TryGetValue(Route.SourceId, out var Source)
-                && Bounds.TryGetValue(Route.TargetId, out var Target))
-                foreach (var Candidate in DiagramGridRouteBuilder.MinimumBendTerminalCandidates(
+            EdgeContract? Edge = Contract.Edges.FirstOrDefault(Edge => Edge.Id == Route.EdgeId);
+            if (Edge?.RoutingHint?.IsActive != true && Bounds.TryGetValue(Route.SourceId, out FlowchartLayoutNodeBounds? Source)
+                && Bounds.TryGetValue(Route.TargetId, out FlowchartLayoutNodeBounds? Target))
+            {
+                foreach (List<(double X, double Y)> Candidate in DiagramGridRouteBuilder.MinimumBendTerminalCandidates(
                              Route.Points[0], Route.Points[^1], Source, Target, Route.ExitSide, Route.EntrySide,
                              Nodes, Bounds, Contract))
                 {
                     if (Layout.EdgeRoutes.Any(Other => Other != Route
-                            && FlowchartBranchRouteOrder.Intersections(Candidate, Tuples(Other.Points)).Overlap > 0.001)) continue;
-                    var Points = Candidate.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y }).ToArray();
+                            && FlowchartBranchRouteOrder.Intersections(Candidate, Tuples(Other.Points)).Overlap > 0.001))
+                    {
+                        continue;
+                    }
+
+                    FlowchartLayoutPoint[] Points = [.. Candidate.Select(Point => new FlowchartLayoutPoint { X = Point.X, Y = Point.Y })];
                     int Turns = FlowchartLayoutScore.CountCorners(Points);
                     double Distance = PathLength(Candidate);
-                    if (Turns < Minimum || Turns == Minimum && Distance < MinimumLength)
+                    if (Turns < Minimum || (Turns == Minimum && Distance < MinimumLength))
                     { Minimum = Turns; MinimumLength = Distance; }
                 }
+            }
+
             if (Bends > Minimum)
             {
                 AboveMinimum++;
@@ -192,10 +215,10 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
             Assert.That(Findings.Where(Finding => Finding.Rule is "10" or "5.1"), Is.Empty,
                 "Legality and shared tracks must be checked even when the link has a hint.");
             Assert.That(Excess, Is.Empty, "The allocated-port search has a cheaper legal bend candidate.");
-            foreach (var Guide in Layout.ResolvedEdgeGuides ?? [])
+            foreach (FlowchartResolvedGuide Guide in Layout.ResolvedEdgeGuides ?? [])
             {
                 Assert.That(Contract.Edges, Does.Contain(Guide.Edge), "A drawn path must represent a declared link.");
-                Assert.That(Layout.TryCopyDrawnRoutePoints(Guide.Edge, out var Points), Is.True);
+                Assert.That(Layout.TryCopyDrawnRoutePoints(Guide.Edge, out List<(double X, double Y)>? Points), Is.True);
                 Assert.That(Guide.Points, Is.EqualTo(Points), "The painter must consume the final model route.");
             }
             bool SingleChain = Contract.Edges.Count == Contract.Nodes.Count - 1
@@ -206,14 +229,20 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
             if (LinearComponents && Contract.Nodes.All(Node => Node.PlacementHint?.IsActive != true)
                 && Contract.Groups.All(Group => Group.PlacementHint?.IsActive != true)
                 && Contract.Edges.All(Edge => Edge.RoutingHint?.IsActive != true))
+            {
                 Assert.That(Crossings, Is.Zero, "Unhinted separate chains have no unavoidable crossing.");
+            }
+
             if (SingleChain && Contract.Groups.Count == 0 && Contract.Nodes.Count > FlowchartWrapPlan.MinimumRun)
             {
-                var Rows = Layout.NodeBounds.GroupBy(Box => Box.CenterY).Select(Group => Group.OrderBy(Box => Box.CenterX).ToArray()).ToArray();
+                FlowchartLayoutNodeBounds[][] Rows = [.. Layout.NodeBounds.GroupBy(Box => Box.CenterY).Select(Group => Group.OrderBy(Box => Box.CenterX).ToArray())];
                 int FullWidth = Rows.Max(Row => Row.Length);
-                var FullRows = Rows.Where(Row => Row.Length == FullWidth).ToArray();
-                foreach (var Row in FullRows.Skip(1)) Assert.That(Row.Select(Box => Box.CenterX),
+                FlowchartLayoutNodeBounds[][] FullRows = [.. Rows.Where(Row => Row.Length == FullWidth)];
+                foreach (FlowchartLayoutNodeBounds[]? Row in FullRows.Skip(1))
+                {
+                    Assert.That(Row.Select(Box => Box.CenterX),
                     Is.EqualTo(FullRows[0].Select(Box => Box.CenterX)), "Wrapped rows must share the same columns and gap sequence.");
+                }
             }
         });
     }
@@ -222,7 +251,7 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
     /// <param name="Points">The complete stored route.</param>
     /// <returns>Coordinates in source-to-target order.</returns>
     private static (double X, double Y)[] Tuples(IReadOnlyList<FlowchartLayoutPoint> Points) =>
-        Points.Select(Point => (Point.X, Point.Y)).ToArray();
+        [.. Points.Select(Point => (Point.X, Point.Y))];
 
     /// <summary>Measures actual travelled distance, including diagonal diamond terminals.</summary>
     /// <param name="Points">The candidate polyline.</param>
@@ -233,7 +262,7 @@ public sealed class CheapestLegalLayoutRegressionTests : ProductionCatalogueTest
         for (int Index = 1; Index < Points.Count; Index++)
         {
             double Dx = Points[Index].X - Points[Index - 1].X, Dy = Points[Index].Y - Points[Index - 1].Y;
-            Length += Math.Sqrt(Dx * Dx + Dy * Dy);
+            Length += Math.Sqrt((Dx * Dx) + (Dy * Dy));
         }
         return Length;
     }

@@ -59,8 +59,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.RectanglePacking
                 RectangleToPack<TData>? parent = stack.Count > 0 ? stack.Peek() : null;
                 Rectangle r = current.Rectangle;
                 if (parent == null ||
-                    parent.Rectangle.Right + r.Width <= wrapWidth &&
-                    verticalPosition + r.Height <= parent.Rectangle.Top)
+                    (parent.Rectangle.Right + r.Width <= wrapWidth &&
+                    verticalPosition + r.Height <= parent.Rectangle.Top))
                 {
                     r = current.Rectangle = new Rectangle(
                         parent == null ? 0 : parent.Rectangle.Right,

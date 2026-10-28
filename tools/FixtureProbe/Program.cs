@@ -21,7 +21,7 @@ bool SvgOnly = args.Contains("--svgonly");
 int MarkdownIndex = Array.IndexOf(args, "--md");
 if (MarkdownIndex >= 0 && MarkdownIndex + 1 < args.Length)
 {
-    RenderMarkdownSections(Path.GetFullPath(args[MarkdownIndex + 1]), args.Skip(MarkdownIndex + 2).Where(Arg => !Arg.StartsWith("--", StringComparison.Ordinal) && Arg != OutputDirectory).ToList(), OutputDirectory, SvgOnly);
+    RenderMarkdownSections(Path.GetFullPath(args[MarkdownIndex + 1]), [.. args.Skip(MarkdownIndex + 2).Where(Arg => !Arg.StartsWith("--", StringComparison.Ordinal) && Arg != OutputDirectory)], OutputDirectory, SvgOnly);
     return;
 }
 

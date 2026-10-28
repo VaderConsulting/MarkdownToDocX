@@ -1,4 +1,6 @@
 using System.Text.Json;
+
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -18,10 +20,13 @@ public sealed class CellOpenModeParityTests
     public static IEnumerable<TestCaseData> Cases()
     {
         HashSet<string> Open = ["F145", "F147", "F149", "A144", "A146", "A148"];
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Open.Contains(Scenario.Id)) yield return new TestCaseData(Scenario).SetName("CellOpenParity_" + Scenario.Id);
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Open.Contains(Scenario.Id))
+            {
+                yield return new TestCaseData(Scenario).SetName("CellOpenParity_" + Scenario.Id);
+            }
         }
     }
 
@@ -30,10 +35,10 @@ public sealed class CellOpenModeParityTests
     [TestCaseSource(nameof(Cases))]
     public void OpenLayoutStaysUnboundAndIdentical(RouteRuleCatalogueAuditTests.Scenario Scenario)
     {
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out var Before), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = false }, out FlowchartLayoutResult? Before), Is.True);
         string? Actual = null;
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (_, Layout) =>
         {

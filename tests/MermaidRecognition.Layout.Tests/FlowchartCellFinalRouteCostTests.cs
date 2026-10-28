@@ -14,7 +14,7 @@ public sealed class FlowchartCellFinalRouteCostTests
     [TestCase(2, 7)]
     public void ScoresIncompleteTrialPaths(int Count, double Expected)
     {
-        var Points = new[] { new FlowchartLayoutPoint { X = 0, Y = 0 }, new FlowchartLayoutPoint { X = 3, Y = 4 } }.Take(Count).ToList();
+        List<FlowchartLayoutPoint> Points = [.. new[] { new FlowchartLayoutPoint { X = 0, Y = 0 }, new FlowchartLayoutPoint { X = 3, Y = 4 } }.Take(Count)];
         var Actual = typeof(FlowchartPortSideRouteRepair).GetMethod("Length", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [Points]);
         Assert.That(Actual, Is.EqualTo(Expected));

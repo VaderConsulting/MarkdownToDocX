@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -11,17 +12,17 @@ public sealed class PairedRankRoutingTests
     [TestCase("RL", true)]
     public void Layout_TwoParentsWithSharedChildren_AlignsDropsAndSeparatesCrossingTracks(string Direction, bool Horizontal)
     {
-        var Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nInputOne & InputTwo --> OutputOne & OutputTwo");
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart {Direction}\nInputOne & InputTwo --> OutputOne & OutputTwo");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
         double Cross(FlowchartLayoutNodeBounds Node) => Horizontal ? Node.CenterY : Node.CenterX;
-        var Parents = Layout.NodeBounds.Where(Node => Node.NodeId.StartsWith("Input")).OrderBy(Cross).ToArray();
-        var Children = Layout.NodeBounds.Where(Node => Node.NodeId.StartsWith("Output")).OrderBy(Cross).ToArray();
+        FlowchartLayoutNodeBounds[] Parents = [.. Layout.NodeBounds.Where(Node => Node.NodeId.StartsWith("Input")).OrderBy(Cross)];
+        FlowchartLayoutNodeBounds[] Children = [.. Layout.NodeBounds.Where(Node => Node.NodeId.StartsWith("Output")).OrderBy(Cross)];
         for (int Index = 0; Index < 2; Index++)
         {
             Assert.That(Cross(Children[Index]), Is.EqualTo(Cross(Parents[Index])).Within(0.5));
-            var Straight = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Parents[Index].NodeId && Edge.TargetId == Children[Index].NodeId);
+            FlowchartLayoutEdgeRoute Straight = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Parents[Index].NodeId && Edge.TargetId == Children[Index].NodeId);
             Assert.That(Straight.Points, Has.Count.EqualTo(2));
-            var Crossed = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Parents[Index].NodeId && Edge.TargetId == Children[1 - Index].NodeId);
+            FlowchartLayoutEdgeRoute Crossed = Layout.EdgeRoutes.Single(Edge => Edge.SourceId == Parents[Index].NodeId && Edge.TargetId == Children[1 - Index].NodeId);
             Assert.That(Crossed.Points, Has.Count.EqualTo(4));
             Assert.That(Horizontal ? Crossed.Points[0].Y : Crossed.Points[0].X,
                 Is.EqualTo(Horizontal ? Crossed.Points[1].Y : Crossed.Points[1].X).Within(0.5));

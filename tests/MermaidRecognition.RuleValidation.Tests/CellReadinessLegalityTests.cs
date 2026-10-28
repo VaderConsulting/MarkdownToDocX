@@ -13,10 +13,13 @@ public sealed class CellReadinessLegalityTests
     public static IEnumerable<TestCaseData> Cases()
     {
         HashSet<string> Reviewed = ["A112", "A167", "A168", "A169"];
-        foreach (var Case in RouteRuleCatalogueAuditTests.Catalogue())
+        foreach (TestCaseData Case in RouteRuleCatalogueAuditTests.Catalogue())
         {
-            var Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
-            if (Reviewed.Contains(Scenario.Id)) yield return new TestCaseData(Scenario).SetName("CellLegality_" + Scenario.Id);
+            RouteRuleCatalogueAuditTests.Scenario Scenario = (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!;
+            if (Reviewed.Contains(Scenario.Id))
+            {
+                yield return new TestCaseData(Scenario).SetName("CellLegality_" + Scenario.Id);
+            }
         }
     }
 
@@ -27,7 +30,7 @@ public sealed class CellReadinessLegalityTests
     {
         CellGuardCatalogueProbeTests.RunBoundCatalogue(Scenario, true, (Contract, Layout) =>
         {
-            var Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
+            IReadOnlyList<FlowchartRouteRuleChecker.Finding> Findings = FlowchartRouteRuleChecker.Check(Contract, Layout);
             Assert.Multiple(() =>
             {
                 Assert.That(Findings.Where(Finding => Finding.Rule == "10"), Is.Empty);

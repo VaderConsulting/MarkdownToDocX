@@ -43,8 +43,8 @@ public sealed class F53StyleRasterFillTests
         Assert.IsNotNull(ExpandMethod);
         Assert.IsNotNull(RasterizeMethod);
 
-        string ExpandedSvg = (string)ExpandMethod.Invoke(null, new object[] { Svg })!;
-        byte[]? PngBytes = (byte[]?)RasterizeMethod.Invoke(null, new object[] { ExpandedSvg });
+        string ExpandedSvg = (string)ExpandMethod.Invoke(null, [Svg])!;
+        byte[]? PngBytes = (byte[]?)RasterizeMethod.Invoke(null, [ExpandedSvg]);
         Assert.IsNotNull(PngBytes);
         Assert.IsTrue(PngBytes.Length > 0);
 
@@ -79,8 +79,8 @@ public sealed class F53StyleRasterFillTests
         Assert.IsNotNull(ExpandMethod);
         Assert.IsNotNull(RasterizeMethod);
 
-        string ExpandedSvg = (string)ExpandMethod.Invoke(null, new object[] { Svg })!;
-        byte[]? PngBytes = (byte[]?)RasterizeMethod.Invoke(null, new object[] { ExpandedSvg });
+        string ExpandedSvg = (string)ExpandMethod.Invoke(null, [Svg])!;
+        byte[]? PngBytes = (byte[]?)RasterizeMethod.Invoke(null, [ExpandedSvg]);
         Assert.IsNotNull(PngBytes);
 
         using SKBitmap Bitmap = SKBitmap.Decode(PngBytes);

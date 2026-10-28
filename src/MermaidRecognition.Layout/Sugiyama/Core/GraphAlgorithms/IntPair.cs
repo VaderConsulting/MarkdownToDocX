@@ -55,7 +55,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         public static bool operator <(IntPair pair0, IntPair pair1) {
             if (pair0 != null && pair1 != null)
             {
-                return pair0.x < pair1.x || pair0.x == pair1.x && pair0.y < pair1.y;
+                return pair0.x < pair1.x || (pair0.x == pair1.x && pair0.y < pair1.y);
             }
 
             throw new InvalidOperationException();
@@ -116,7 +116,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.GraphAlgorithms {
         /// <returns></returns>
         public override int GetHashCode() {
             uint hc = (uint)x.GetHashCode();
-            return (int)((hc << 5 | hc >> 27) + (uint)y);
+            return (int)(((hc << 5) | (hc >> 27)) + (uint)y);
         }
 
         /// <summary>

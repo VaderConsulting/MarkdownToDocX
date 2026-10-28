@@ -100,8 +100,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                 return false;
             }
 
-            Dictionary<Station, Station> gluingMap = new Dictionary<Station, Station>();
-            Set<Station> gluedDomain = new Set<Station>();
+            Dictionary<Station, Station> gluingMap = [];
+            Set<Station> gluedDomain = [];
             RectangleNodeUtils.CrossRectangleNodes<Station>(circlesHierarchy, circlesHierarchy,
                                                             (i, j) => TryToGlueNodes(i, j, gluingMap, gluedDomain));
             if (gluingMap.Count == 0)
@@ -267,14 +267,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
 
             metroGraphData.Edges[edgeIndex].Curve =
-                new Polyline(GluedPolyline(poly.Select(p => metroGraphData.PointToStations[p]).ToArray(), gluingMap));
+                new Polyline(GluedPolyline([.. poly.Select(p => metroGraphData.PointToStations[p])], gluingMap));
         }
 
         static IEnumerable<Point> GluedPolyline(Station[] metroline, Dictionary<Station, Station> gluedMap) {
             int i;
             Stack<Station> ret = new Stack<Station>();
             ret.Push(metroline[0]);
-            Set<Station> seenStations = new Set<Station>();
+            Set<Station> seenStations = [];
             for (i = 1; i < metroline.Length - 1; i++) {
                 Station station = Glued(metroline[i], gluedMap);
                 if (seenStations.Contains(station)) {
@@ -312,7 +312,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         ///  instead of one bundle (a->bcd) we get two bundles (a->b,a->cd) with smaller ink
         /// </summary>
         bool UnglueEdgesFromBundleToSaveInk(bool alwaysExecuteSA) {
-            Dictionary<PointPair, Set<Metroline>> segsToPolylines = new Dictionary<PointPair, Set<Metroline>>();
+            Dictionary<PointPair, Set<Metroline>> segsToPolylines = [];
             ink = metroGraphData.Ink;
             polylineLength = [];
             //create polylines
@@ -323,7 +323,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
                     CollectionUtilities.AddToMap(segsToPolylines, segment, metroline);
                 }
             }
-            HashSet<Point> affectedPoints = new HashSet<Point>();
+            HashSet<Point> affectedPoints = [];
             bool progress = false;
             foreach (Metroline metroline in metroGraphData.Metrolines) {
                 Set<Polyline> obstaclesAllowedToIntersect =
@@ -623,7 +623,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             //temp
             double len = Math.Min((a.Position - node.Position).Length, (b.Position - node.Position).Length) / 2;
             Point dir = (a.Position - node.Position).Normalize() + (b.Position - node.Position).Normalize();
-            return node.Position + dir * len / 2;
+            return node.Position + (dir * len / 2);
         }
 
 

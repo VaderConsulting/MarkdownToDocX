@@ -29,7 +29,7 @@ public sealed class FlowMarkdownRuleValidationTests : ProductionCatalogueTestFix
     public void SpecBundle_LoadsAllRuleIdsWithEvaluatorBindings()
     {
         LoadedSpecBundle Bundle = SpecDocumentLoader.LoadFromDirectory(_SpecDirectory);
-        HashSet<string> RuleIds = Bundle.Ruleset.Rules.Select(Rule => Rule.RuleId).ToHashSet();
+        HashSet<string> RuleIds = [.. Bundle.Ruleset.Rules.Select(Rule => Rule.RuleId)];
         Assert.That(Bundle.EvaluatorMap.EvaluatorBindings.Count, Is.EqualTo(RuleIds.Count));
         foreach (EvaluatorBinding Binding in Bundle.EvaluatorMap.EvaluatorBindings)
         {
@@ -87,10 +87,9 @@ public sealed class FlowMarkdownRuleValidationTests : ProductionCatalogueTestFix
         List<MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram> Diagrams =
             MermaidMarkdownFenceExtractor.ExtractFlowcharts(Markdown);
 
-        List<MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram> ActiveDiagrams = Diagrams
+        List<MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram> ActiveDiagrams = [.. Diagrams
             .Where(Diagram => !Diagram.IsFullyRemarked)
-            .Take(12)
-            .ToList();
+            .Take(12)];
 
         int LayoutSuccessCount = 0;
         foreach (MermaidMarkdownFenceExtractor.ExtractedMermaidDiagram Diagram in ActiveDiagrams)
@@ -135,9 +134,7 @@ public sealed class FlowMarkdownRuleValidationTests : ProductionCatalogueTestFix
         MermaidRuleValidationPipeline Pipeline = new MermaidRuleValidationPipeline(_SpecDirectory);
         MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(TempFile, OutputDirectory);
 
-        List<ValidationFailureRecord> F35Failures = Result.ValidationReport.Failures
-            .Where(Failure => Failure.DiagramId == "F35")
-            .ToList();
+        List<ValidationFailureRecord> F35Failures = [.. Result.ValidationReport.Failures.Where(Failure => Failure.DiagramId == "F35")];
 
         Assert.That(
             F35Failures.Any(Failure => Failure.RuleId == "Routing.Path.NoUnnecessaryDetour"),
@@ -174,9 +171,7 @@ public sealed class FlowMarkdownRuleValidationTests : ProductionCatalogueTestFix
         MermaidRuleValidationPipeline Pipeline = new MermaidRuleValidationPipeline(_SpecDirectory);
         MermaidRuleValidationPipelineResult Result = Pipeline.ProcessMarkdownFile(TempFile, OutputDirectory);
 
-        List<ValidationFailureRecord> F125Failures = Result.ValidationReport.Failures
-            .Where(Failure => Failure.DiagramId == "F125")
-            .ToList();
+        List<ValidationFailureRecord> F125Failures = [.. Result.ValidationReport.Failures.Where(Failure => Failure.DiagramId == "F125")];
 
         Assert.That(
             F125Failures.Any(Failure => Failure.RuleId == "Routing.Path.NoUnnecessaryDetour"),

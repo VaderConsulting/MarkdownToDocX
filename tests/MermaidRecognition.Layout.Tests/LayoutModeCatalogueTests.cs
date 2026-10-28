@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using MermaidRecognition.Config;
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Diagnostics;
 using MermaidRecognition.Kinds.Enterprise;
@@ -30,11 +31,11 @@ public sealed class LayoutModeCatalogueTests : ProductionCatalogueTestFixture
         string Source = ReadScenario(Catalogue, Number);
         if (Catalogue == "F")
         {
-            var Contract = MermaidRecognizer.Parse(Source);
+            DiagramContract Contract = MermaidRecognizer.Parse(Source);
             Assert.That(Contract.LayoutMode, Is.EqualTo(ExpectedMode));
             Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out string Svg), Is.True);
             Assert.That(Svg, Does.StartWith("<svg"));
-            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
+            Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
             AssertOrthogonal(Layout.EdgeRoutes.Select(Route => Route.Points.Select(Point => (Point.X, Point.Y))));
         }
         else
@@ -44,7 +45,7 @@ public sealed class LayoutModeCatalogueTests : ProductionCatalogueTestFixture
             Assert.That(Analysis.Document.LayoutMode, Is.EqualTo(ExpectedMode));
             Assert.That(EnterpriseRenderBridge.TryRenderEnterpriseSvg(Source, out string Svg), Is.True);
             Assert.That(Svg, Does.StartWith("<svg"));
-            var Layout = EnterpriseLayoutEngine.Layout(Analysis.Document);
+            EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Analysis.Document);
             AssertOrthogonal(EnterpriseFlowchartEdgeRouter.Route(Analysis.Document, Layout.Nodes)
                 .Select(Route => Route.SvgPoints));
         }
@@ -65,12 +66,12 @@ public sealed class LayoutModeCatalogueTests : ProductionCatalogueTestFixture
         string Source = ReadScenario(Catalogue, Unknown);
         if (Catalogue == "F")
         {
-            var Contract = MermaidRecognizer.Parse(Source);
+            DiagramContract Contract = MermaidRecognizer.Parse(Source);
             Assert.That(Contract.Diagnostics.Count(Item => Item.Severity == MermaidDiagnosticSeverity.Warning), Is.EqualTo(1));
         }
         else
         {
-            var Analysis = EnterpriseValidator.Analyze(Source);
+            EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source);
             Assert.That(Analysis.Diagnostics.Count(Item => Item.Severity == MermaidDiagnosticSeverity.Warning), Is.EqualTo(1));
         }
         Assert.That(Render(Catalogue, Unknown), Is.EqualTo(Render(Catalogue, Default)));
@@ -79,19 +80,25 @@ public sealed class LayoutModeCatalogueTests : ProductionCatalogueTestFixture
     private static string Render(string Catalogue, int Number)
     {
         string Source = ReadScenario(Catalogue, Number);
-        if (Catalogue == "A") return EnterpriseRenderBridge.RenderEnterpriseSvg(Source);
+        if (Catalogue == "A")
+        {
+            return EnterpriseRenderBridge.RenderEnterpriseSvg(Source);
+        }
+
         Assert.That(NativeFlowchartRenderBridge.TryRenderFlowchartSvg(Source, out string Svg), Is.True);
         return Svg;
     }
 
     private static void AssertOrthogonal(IEnumerable<IEnumerable<(double X, double Y)>> Routes)
     {
-        foreach (var Route in Routes)
+        foreach (IEnumerable<(double X, double Y)> Route in Routes)
         {
-            var Points = Route.ToList();
-            foreach (var Segment in Points.Zip(Points.Skip(1)))
+            List<(double X, double Y)> Points = [.. Route];
+            foreach (((double X, double Y) First, (double X, double Y) Second) Segment in Points.Zip(Points.Skip(1)))
+            {
                 Assert.That(Math.Abs(Segment.First.X - Segment.Second.X) < 0.01
                     || Math.Abs(Segment.First.Y - Segment.Second.Y) < 0.01, Is.True);
+            }
         }
     }
 
@@ -113,7 +120,11 @@ public sealed class LayoutModeCatalogueTests : ProductionCatalogueTestFixture
         while (Cursor != null)
         {
             string Candidate = Path.Combine(Cursor.FullName, FileName);
-            if (File.Exists(Candidate)) return Candidate;
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+
             Cursor = Cursor.Parent;
         }
         throw new FileNotFoundException(FileName);

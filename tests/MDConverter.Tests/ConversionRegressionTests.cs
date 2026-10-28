@@ -117,14 +117,14 @@ public sealed class ConversionRegressionTests
             "**Before [bold *italic*](https://example.com) after**\n\n*[italic](https://example.org)*\n\n[plain **bold** plain](https://example.net)", ""));
         using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
         MainDocumentPart Main = Document.MainDocumentPart!;
-        List<Hyperlink> Links = Main.Document!.Descendants<Hyperlink>().ToList();
+        List<Hyperlink> Links = [.. Main.Document!.Descendants<Hyperlink>()];
         Assert.AreEqual(3, Links.Count);
         Assert.AreEqual("Before bold italic afteritalicplain bold plain", Main.Document!.InnerText);
         Assert.AreEqual(3, Main.HyperlinkRelationships.Count());
         Assert.IsTrue(Links[0].Elements<Run>().All(Run => Run.RunProperties!.Bold != null));
         Assert.IsNotNull(Links[0].Elements<Run>().Last().RunProperties!.Italic);
         Assert.IsNotNull(Links[1].Elements<Run>().Single().RunProperties!.Italic);
-        List<Run> Runs = Links[2].Elements<Run>().ToList();
+        List<Run> Runs = [.. Links[2].Elements<Run>()];
         Assert.IsNull(Runs[0].RunProperties!.Bold);
         Assert.IsNotNull(Runs[1].RunProperties!.Bold);
         Assert.IsNull(Runs[2].RunProperties!.Bold);
@@ -141,8 +141,8 @@ public sealed class ConversionRegressionTests
             "[first](#hello-world) [second](#hello-world-1) [unicode](#caf%C3%A9) [quote](#quoted) [missing](#absent)\n\n# Hello **World**!\n\n# Hello World!\n\n# Café\n\n> # Quoted", ""));
         using WordprocessingDocument Document = WordprocessingDocument.Open(Stream, false);
         MainDocumentPart Main = Document.MainDocumentPart!;
-        List<BookmarkStart> Bookmarks = Main.Document!.Descendants<BookmarkStart>().ToList();
-        List<Hyperlink> Links = Main.Document!.Descendants<Hyperlink>().ToList();
+        List<BookmarkStart> Bookmarks = [.. Main.Document!.Descendants<BookmarkStart>()];
+        List<Hyperlink> Links = [.. Main.Document!.Descendants<Hyperlink>()];
         Assert.AreEqual(Enabled ? 4 : 0, Bookmarks.Count);
         Assert.AreEqual(Enabled ? 4 : 0, Links.Count);
         if (Enabled)
@@ -169,7 +169,7 @@ public sealed class ConversionRegressionTests
 
     private static void AssertValid(WordprocessingDocument Document)
     {
-        string[] Errors = new OpenXmlValidator().Validate(Document.MainDocumentPart!.Document!).Select(Error => Error.Description).ToArray();
+        string[] Errors = [.. new OpenXmlValidator().Validate(Document.MainDocumentPart!.Document!).Select(Error => Error.Description)];
         Assert.AreEqual(0, Errors.Length, string.Join(Environment.NewLine, Errors));
     }
 

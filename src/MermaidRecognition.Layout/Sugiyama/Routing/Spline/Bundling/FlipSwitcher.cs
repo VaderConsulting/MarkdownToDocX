@@ -86,7 +86,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Polyline ProcessPolyline(Polyline polyline) {
-            Dictionary<Polyline, PolylinePoint> departed = new Dictionary<Polyline, PolylinePoint>();
+            Dictionary<Polyline, PolylinePoint> departed = [];
             for (PolylinePoint pp = polyline.StartPoint.Next; pp != null; pp = pp.Next) {
                 FillDepartedPolylinePoints(pp, departed);
 
@@ -368,7 +368,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
         }
 
         Polyline FindFlip(Polyline poly) {
-            Dictionary<Polyline, PolylinePoint> departed = new Dictionary<Polyline, PolylinePoint>();
+            Dictionary<Polyline, PolylinePoint> departed = [];
             for (PolylinePoint pp = poly.StartPoint.Next; pp != null; pp = pp.Next) {
                 FillDepartedOnPrev(departed, pp);
 
@@ -394,7 +394,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
         }
 
-        bool IsNeighbor(PolylinePoint a, PolylinePoint b) => a.Prev != null && a.Prev.Point == b.Point || a.Next != null && a.Next.Point == b.Point;
+        bool IsNeighbor(PolylinePoint a, PolylinePoint b) => (a.Prev != null && a.Prev.Point == b.Point) || (a.Next != null && a.Next.Point == b.Point);
 
         void RegisterInterestingPoint(Point p) {
             if (!interestingPoints.Contains(p))

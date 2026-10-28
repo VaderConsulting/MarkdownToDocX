@@ -12,8 +12,8 @@ public sealed class FlowchartCellCircularFanTests
     [TestCase(false)]
     public void BypassesForcedJunctionAndChainAlignment(bool FanOut)
     {
-        var (Contract, Nodes, Grid) = Fixture(FanOut);
-        var Before = Grid.Capture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(FanOut);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         FlowchartCircularJunctionLayout.AlignFans(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -22,10 +22,10 @@ public sealed class FlowchartCellCircularFanTests
     [Test]
     public void BlockedChainRejectsEveryAlignment()
     {
-        var (Contract, Nodes, Grid) = Fixture(true);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(true);
         Grid.TryPlace("O", new(-1, 1, 1, 1));
-        var O = new DiagramGridLayout.GridNode { Id = "O", Rank = 99 }; O.BindCells(Grid); Nodes.Add(O);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode O = new DiagramGridLayout.GridNode { Id = "O", Rank = 99 }; O.BindCells(Grid); Nodes.Add(O);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         FlowchartCircularJunctionLayout.AlignFans(Contract, Nodes, false);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -35,16 +35,20 @@ public sealed class FlowchartCellCircularFanTests
     /// <returns>Graph, bound nodes and shared grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool FanOut)
     {
-        var Contract = new DiagramContract(); var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Row, Column) in new[] { ("J", 0, 0), ("chain", FanOut ? -1 : 1, 0), ("A", FanOut ? 1 : -1, 0),
+        DiagramContract Contract = new DiagramContract(); FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, int Row, int Column) in new[] { ("J", 0, 0), ("chain", FanOut ? -1 : 1, 0), ("A", FanOut ? 1 : -1, 0),
             ("B", FanOut ? 1 : -1, 1), ("C", FanOut ? 1 : -1, 2) })
         {
             Grid.TryPlace(Id, new(Row, Column, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Row, Shape = Id == "J" ? "circle" : "rect" }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = Row, Shape = Id == "J" ? "circle" : "rect" }; Node.BindCells(Grid); Nodes.Add(Node);
         }
-        foreach (string Id in new[] { "A", "B", "C" }) Contract.EdgesMutable.Add(new EdgeContract
+        foreach (string Id in new[] { "A", "B", "C" })
+        {
+            Contract.EdgesMutable.Add(new EdgeContract
             { SourceId = FanOut ? "J" : Id, TargetId = FanOut ? Id : "J" });
+        }
+
         Contract.EdgesMutable.Add(new EdgeContract { SourceId = FanOut ? "chain" : "J", TargetId = FanOut ? "J" : "chain" });
         return (Contract, Nodes, Grid);
     }

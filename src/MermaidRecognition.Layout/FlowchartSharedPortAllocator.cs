@@ -13,7 +13,11 @@ internal static class FlowchartSharedPortAllocator
 {
     internal static bool IsDecisionShape(string? Shape)
     {
-        if (string.IsNullOrEmpty(Shape)) return false;
+        if (string.IsNullOrEmpty(Shape))
+        {
+            return false;
+        }
+
         string Normalised = Shape.Trim();
         return string.Equals(Normalised, "diamond", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Normalised, "rhombus", StringComparison.OrdinalIgnoreCase);
@@ -53,7 +57,10 @@ internal static class FlowchartSharedPortAllocator
             }
 
             string EndpointId = Outgoing ? Edge.SourceId : Edge.TargetId;
-            if (string.Equals(EndpointId, NodeId, StringComparison.Ordinal)) Edges.Add(Edge);
+            if (string.Equals(EndpointId, NodeId, StringComparison.Ordinal))
+            {
+                Edges.Add(Edge);
+            }
         }
 
         return Edges;

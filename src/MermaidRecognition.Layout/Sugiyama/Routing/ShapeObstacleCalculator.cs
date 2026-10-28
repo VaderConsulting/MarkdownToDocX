@@ -78,7 +78,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         static bool ShapeIsInsideOfPoly(Shape shape, Polyline tightPolyline) => Curve.PointRelativeToCurveLocation(shape.BoundaryCurve.Start, tightPolyline) == PointLocation.Inside;
 
         void CreateTigthLooseCouples() {
-            List<TightLooseCouple> couples = new List<TightLooseCouple>();
+            List<TightLooseCouple> couples = [];
 
             foreach (Polyline tightPolyline in tightHierarchy.GetAllLeaves()) {
                 double distance = InteractiveObstacleCalculator.FindMaxPaddingForTightPolyline(tightHierarchy, tightPolyline, LoosePadding);
@@ -98,8 +98,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         Polyline InitialTightPolyline(Shape shape) {
             Polyline poly = InteractiveObstacleCalculator.PaddedPolylineBoundaryOfNode(shape.BoundaryCurve, TightPadding);
-            Point[] stickingPointsArray = LoosePolylinesUnderShape(shape).SelectMany(l => l).Where(
-                p => Curve.PointRelativeToCurveLocation(p, poly) == PointLocation.Outside).ToArray();
+            Point[] stickingPointsArray = [.. LoosePolylinesUnderShape(shape).SelectMany(l => l).Where(
+                p => Curve.PointRelativeToCurveLocation(p, poly) == PointLocation.Outside)];
             if (stickingPointsArray.Length <= 0)
             {
                 return poly;

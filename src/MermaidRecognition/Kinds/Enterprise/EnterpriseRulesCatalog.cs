@@ -60,7 +60,7 @@ public sealed class EnterpriseRulesCatalog
         HashSet<string> ProvisionalKeys)
     {
         _Matrices = Matrices ?? new Dictionary<string, string[][]>(StringComparer.Ordinal);
-        _Types = Types ?? new List<string>();
+        _Types = Types ?? [];
         _ProvisionalKeys = ProvisionalKeys ?? new HashSet<string>(StringComparer.Ordinal);
     }
 

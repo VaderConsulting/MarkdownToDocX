@@ -112,7 +112,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             //graph.CheckClusterConsistency();
 #endif
 
-            _edges = edges.ToArray();
+            _edges = [.. edges];
 
             BundlingSettings=bundlingSettings;            
             geometryGraph = graph;
@@ -148,7 +148,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
         void Initialize(IEnumerable<Shape> obstacles,
                         double coneAngleValue) {
-            rootShapes = obstacles.Where(s => s.Parents == null || !s.Parents.Any()).ToArray();
+            rootShapes = [.. obstacles.Where(s => s.Parents == null || !s.Parents.Any())];
             coneAngle = coneAngleValue;
             if (coneAngle == 0)
             {
@@ -212,7 +212,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             portsToEnterableShapes = [];
             foreach (KeyValuePair<Port, Shape> portsToShape in portsToShapes) {
                 Port port = portsToShape.Key;
-                Set<Shape> set = new Set<Shape>();
+                Set<Shape> set = [];
                 if (!(EdgesAttachedToPortAvoidTheNode(port)))
                 {
                     set.Insert(portsToShape.Value);
@@ -363,7 +363,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         void ScaleDownLooseHierarchy(InteractiveEdgeRouter interactiveEdgeRouter, Set<Shape> obstacleShapes) {
-            List<Polyline> loosePolys = new List<Polyline>();
+            List<Polyline> loosePolys = [];
             foreach (Shape obstacleShape in obstacleShapes) {
                 TightLooseCouple tl = shapesToTightLooseCouples[obstacleShape];
                 loosePolys.Add( InteractiveObstacleCalculator.LoosePolylineWithFewCorners(tl.TightPolyline, tl.Distance / BundleRouter.SuperLoosePaddingCoefficient));
@@ -410,7 +410,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
             regularEdges = [];
 
-            Dictionary<PointPair, List<Edge>> portLocationPairsToEdges = new Dictionary<PointPair, List<Edge>>();
+            Dictionary<PointPair, List<Edge>> portLocationPairsToEdges = [];
             foreach (Edge eg in edges) {
                 if (IsEdgeToParent(eg.EdgeGeometry))
                 {
@@ -435,7 +435,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                         multiEdges = [];
                     }
 
-                    multiEdges.Add(edgeGroup.ToArray());
+                    multiEdges.Add([.. edgeGroup]);
                 }
             }           
         }
@@ -577,7 +577,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         
             CreateTheMapToParentLooseShapes(root, loosePolylinesToLooseParentShapeMap);
             //looking for Cdt edges connecting two siblings; only those we define as gates
-            Set<CdtEdge> gates = new Set<CdtEdge>();
+            Set<CdtEdge> gates = [];
             foreach (CdtSite cdtSite in cdt.PointsToSites.Values) {
                 foreach (CdtEdge cdtEdge in cdtSite.Edges) {
                     
@@ -658,7 +658,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         /// <returns></returns>
         Set<Shape> EdgePassport(Edge edge) {
             EdgeGeometry edgeGeometry = edge.EdgeGeometry;
-            Set<Shape> ret = new Set<Shape>();
+            Set<Shape> ret = [];
             Shape sourceShape = portsToShapes[edgeGeometry.SourcePort];
             Shape targetShape = portsToShapes[edgeGeometry.TargetPort];
 
@@ -714,7 +714,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         void RouteEdgeGeometry(Edge edge, InteractiveEdgeRouter iRouter) {
             EdgeGeometry edgeGeometry = edge.EdgeGeometry;
 
-            List<VisibilityEdge> addedEdges = new List<VisibilityEdge>();
+            List<VisibilityEdge> addedEdges = [];
             if (!(edgeGeometry.SourcePort is HookUpAnywhereFromInsidePort))
             {
                 addedEdges.AddRange(AddVisibilityEdgesFromPort(edgeGeometry.SourcePort));
@@ -749,10 +749,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             Arrowheads.TrimSplineAndCalculateArrowheads(edgeGeometry, edgeGeometry.SourcePort.Curve,
                                                         edgeGeometry.TargetPort.Curve, edgeGeometry.Curve,
                                                         false, KeepOriginalSpline);
-            if (ReplaceEdgeByRails != null)
-            {
-                ReplaceEdgeByRails(edge);
-            }
+            ReplaceEdgeByRails?.Invoke(edge);
             //  SetTransparency(transparentShapes, false);
         }
         /// <summary>
@@ -777,7 +774,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             if (port is CurvePort || !portsToShapes.TryGetValue(port, out Shape? portShape) ||
                 !shapesToTightLooseCouples.TryGetValue(portShape, out TightLooseCouple? boundaryCouple))
             {
-                return new VisibilityEdge[] { };
+                return [];
             }
 
             Shape portLoosePoly = boundaryCouple.LooseShape;
@@ -790,7 +787,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             Shape sourceShape = portsToShapes[edgeGeometry.SourcePort];
             Shape targetShape = portsToShapes[edgeGeometry.TargetPort];
 
-            List<Shape> transparentLooseShapes = new List<Shape>();
+            List<Shape> transparentLooseShapes = [];
 
             foreach (Shape? shape in GetTransparentShapes(edgeGeometry.SourcePort, edgeGeometry.TargetPort, sourceShape, targetShape).ToArray())
             {
@@ -850,10 +847,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
             if (sourcePort != null && targetPort != null)
             {
-                dd.AddRange(new[] {
+                dd.AddRange([
                                     new DebugCurve(CurveFactory.CreateDiamond(3, 3, sourcePort.Location)),
                                     new DebugCurve(CurveFactory.CreateEllipse(3, 3, targetPort.Location)),
-                                });
+                                ]);
             }
 
             if (curve != null)
@@ -1017,7 +1014,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
             Set<Point> portLocations = RemoveInsidePortsAndSplitBoundaryIfNeeded(looseBoundary);
             //this run will split the polyline enough to route later from the inner ports
             VisibilityGraph tmpVisGraph = new VisibilityGraph();
-            ConeSpanner coneSpanner = new ConeSpanner(new Polyline[] {}, tmpVisGraph, coneAngle, portLocations, looseBoundary);
+            ConeSpanner coneSpanner = new ConeSpanner([], tmpVisGraph, coneAngle, portLocations, looseBoundary);
             coneSpanner.Run();
             //now run the spanner again to create the correct visibility graph around the inner obstacles
             tmpVisGraph = new VisibilityGraph();
@@ -1103,7 +1100,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
         }
 
         Set<Point> RemoveInsidePortsAndSplitBoundaryIfNeeded(Polyline boundary) {
-            Set<Point> ret = new Set<Point>();
+            Set<Point> ret = [];
 
             if (boundary == null) {
                 foreach (Point point in portRTree.GetAllLeaves())
@@ -1115,7 +1112,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
                 return ret;
             }
             Rectangle boundaryBox = boundary.BoundingBox;
-            Point[] portLocationsInQuestion = portRTree.GetAllIntersecting(boundaryBox).ToArray();
+            Point[] portLocationsInQuestion = [.. portRTree.GetAllIntersecting(boundaryBox)];
             foreach (Point point in portLocationsInQuestion) {
                 switch (Curve.PointRelativeToCurveLocation(point, boundary)) {
                     case PointLocation.Inside:
@@ -1218,7 +1215,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing {
 
 
         internal static Dictionary<Shape, Set<Shape>> GetAncestorSetsMap(IEnumerable<Shape> shapes) {
-            Dictionary<Shape, Set<Shape>> ancSets = new Dictionary<Shape, Set<Shape>>();
+            Dictionary<Shape, Set<Shape>> ancSets = [];
             foreach (Shape? child in shapes.Where(child => !ancSets.ContainsKey(child)))
             {
                 ancSets[child] = GetAncestorSet(child, ancSets);

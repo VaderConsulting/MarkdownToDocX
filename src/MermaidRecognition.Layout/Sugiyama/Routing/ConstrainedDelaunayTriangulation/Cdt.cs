@@ -331,7 +331,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.ConstrainedDelaunayTriangul
         }
 
         IEnumerable<CdtEdge> ThreadThroughTriangles(Point start, Point end, CdtTriangle triangle, CdtEdge piercedEdge) {
-            List<CdtEdge> ret = new List<CdtEdge>();
+            List<CdtEdge> ret = [];
             do {
                 if (piercedEdge.upperSite.Owner != piercedEdge.lowerSite.Owner)
                 {

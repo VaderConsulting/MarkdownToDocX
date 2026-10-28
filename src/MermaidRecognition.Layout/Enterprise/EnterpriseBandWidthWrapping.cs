@@ -14,17 +14,21 @@ internal static partial class EnterpriseBandPlacement
             // Group blocks, explicit hints and horizontal main-axis chains retain
             // their existing semantics in this first width experiment.
             if (Wrap == int.MaxValue || Contract.Groups.Count > 0 || Contract.Direction is "LR" or "RL"
-                || Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true)) return;
-            int AddedRows = 0;
-            foreach (var Rank in Nodes.GroupBy(Node => Targets[Node.Id].StartRow).OrderBy(Group => Group.Key).ToArray())
+                || Contract.Nodes.Any(Node => Node.PlacementHint?.IsActive == true))
             {
-                var Members = Rank.OrderBy(Node => Targets[Node.Id].StartColumn).ThenBy(Node => Node.Id, StringComparer.Ordinal).ToArray();
+                return;
+            }
+
+            int AddedRows = 0;
+            foreach (IGrouping<int, DiagramGridLayout.GridNode>? Rank in Nodes.GroupBy(Node => Targets[Node.Id].StartRow).OrderBy(Group => Group.Key).ToArray())
+            {
+                DiagramGridLayout.GridNode[] Members = [.. Rank.OrderBy(Node => Targets[Node.Id].StartColumn).ThenBy(Node => Node.Id, StringComparer.Ordinal)];
                 int Top = checked(Rank.Key + AddedRows);
                 int Row = Top, Column = 0, RowHeight = 0;
                 int OriginalHeight = Members.Max(Node => Targets[Node.Id].RowSpan);
-                foreach (var Node in Members)
+                foreach (DiagramGridLayout.GridNode? Node in Members)
                 {
-                    var Region = Targets[Node.Id];
+                    FlowchartCellRegion Region = Targets[Node.Id];
                     if (Column > 0 && (long)Column + Region.ColumnSpan > Wrap)
                     {
                         Row = checked(Row + RowHeight);

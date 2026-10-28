@@ -74,7 +74,7 @@ public sealed class F82TrapezoidBracketShapeTests
         double TargetY = UseMaxY
             ? Points.Max(Point => Point.Y)
             : Points.Min(Point => Point.Y);
-        List<double> XValues = Points.Where(Point => Math.Abs(Point.Y - TargetY) < 0.01).Select(Point => Point.X).ToList();
+        List<double> XValues = [.. Points.Where(Point => Math.Abs(Point.Y - TargetY) < 0.01).Select(Point => Point.X)];
         return XValues.Max() - XValues.Min();
     }
 }

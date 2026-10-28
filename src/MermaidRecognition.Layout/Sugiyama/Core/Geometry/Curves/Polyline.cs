@@ -139,7 +139,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
                 }
 
                 GetAdjustedParamAndStartEndPoints(ref t, out Point a, out Point b);
-                return (1 - t)*a + t*b;
+                return ((1 - t)*a) + (t*b);
             }
         }
 
@@ -365,7 +365,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry.Curves {
 
         void CalculatePbNode() {
             pBNode = new ParallelogramInternalTreeNode(this, ParallelogramNodeOverICurve.DefaultLeafBoxesOffset);
-            List<Parallelogram> parallelograms = new List<Parallelogram>();
+            List<Parallelogram> parallelograms = [];
             PolylinePoint pp = StartPoint;
             int offset = 0;
             while (pp.Next != null) {

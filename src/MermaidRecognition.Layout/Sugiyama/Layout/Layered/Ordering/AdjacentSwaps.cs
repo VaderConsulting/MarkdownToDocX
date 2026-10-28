@@ -499,7 +499,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             return SwapGroupGain(u, v);
         }
 
-        bool UvAreOfSameKind(int u, int v) => u < startOfVirtNodes && v < startOfVirtNodes || u >= startOfVirtNodes && v >= startOfVirtNodes;
+        bool UvAreOfSameKind(int u, int v) => (u < startOfVirtNodes && v < startOfVirtNodes) || (u >= startOfVirtNodes && v >= startOfVirtNodes);
 
         int SwapGroupGain(int u, int v) {
             int layerIndex = layerArrays.Y[u];

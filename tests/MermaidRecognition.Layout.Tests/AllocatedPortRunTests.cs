@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Flowchart;
 
@@ -14,13 +15,17 @@ public sealed class AllocatedPortRunTests
     {
         (double X, double Y) Rotate((double X, double Y) Point)
         {
-            for (int Turn = 0; Turn < QuarterTurns; Turn++) Point = (-Point.Y, Point.X);
+            for (int Turn = 0; Turn < QuarterTurns; Turn++)
+            {
+                Point = (-Point.Y, Point.X);
+            }
+
             return Point;
         }
-        var Original = new List<(double X, double Y)>
+        List<(double X, double Y)> Original = [.. new List<(double X, double Y)>
             { (75, 22.5), (120.25, 22.5), (120.25, 100.25), (210.25, 100.25), (210.25, 157.5), (300, 157.5) }
-            .Select(Rotate).ToList();
-        var Drawn = DiagramGridRouteBuilder.PrepareDrawnGeometry(Original);
+            .Select(Rotate)];
+        List<(double X, double Y)> Drawn = DiagramGridRouteBuilder.PrepareDrawnGeometry(Original);
         Assert.That(Drawn[0], Is.EqualTo(Original[0]));
         Assert.That(Drawn[^1], Is.EqualTo(Original[^1]));
         AssertNormal(Original[0], Original[1], Drawn[0], Drawn[1]);
@@ -38,17 +43,20 @@ public sealed class AllocatedPortRunTests
     [Test]
     public void ThreePortsOnOneSide_RouteToThreeNodesInTheNextRank()
     {
-        var Contract = MermaidRecognizer.Parse("flowchart TB\nHub[Hub] --> A[First]\nHub --> B[Second]\nHub --> C[Third]");
-        var Hub = new FlowchartLayoutNodeBounds { NodeId = "Hub", CenterX = 0, CenterY = 0, Width = 150, Height = 90 };
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds> { ["Hub"] = Hub };
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart TB\nHub[Hub] --> A[First]\nHub --> B[Second]\nHub --> C[Third]");
+        FlowchartLayoutNodeBounds Hub = new FlowchartLayoutNodeBounds { NodeId = "Hub", CenterX = 0, CenterY = 0, Width = 150, Height = 90 };
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = new Dictionary<string, FlowchartLayoutNodeBounds> { ["Hub"] = Hub };
         string[] Leaves = ["A", "B", "C"];
         for (int Index = 0; Index < Leaves.Length; Index++)
+        {
             Bounds[Leaves[Index]] = new() { NodeId = Leaves[Index], CenterX = (Index - 1) * 180, CenterY = -300, Width = 150, Height = 90 };
+        }
+
         for (int Index = 0; Index < Leaves.Length; Index++)
         {
-            double PortX = -75 + (Index + 1) * 150d / 4;
-            var Target = Bounds[Leaves[Index]];
-            var Route = DiagramGridRouteBuilder.BuildRoute(PortX, -45, Hub, "rect", "bottom",
+            double PortX = -75 + ((Index + 1) * 150d / 4);
+            FlowchartLayoutNodeBounds Target = Bounds[Leaves[Index]];
+            List<(double X, double Y)> Route = DiagramGridRouteBuilder.BuildRoute(PortX, -45, Hub, "rect", "bottom",
                 Target.CenterX, -255, Target, "rect", "top", Bounds, "Hub", Target.NodeId,
                 Contract, FlowchartDirection.TopToBottom, Horizontal: false);
             Assert.That(Route, Has.Count.GreaterThanOrEqualTo(2));
@@ -63,22 +71,30 @@ public sealed class AllocatedPortRunTests
     [Test]
     public void FacingOffCentreTerminalRuns_SeparateByMovingTheFirstBendOnly()
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\nS[Source] --> A[First]\nB[Second] --> T[Target]");
-        var Layout = new FlowchartLayoutResult();
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>();
-        foreach (var Item in new[] { ("S", -75d, 0d), ("A", 375d, 150d), ("B", -375d, -150d), ("T", 195d, 0d) })
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\nS[Source] --> A[First]\nB[Second] --> T[Target]");
+        FlowchartLayoutResult Layout = new FlowchartLayoutResult();
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = [];
+        foreach ((string, double, double) Item in new[] { ("S", -75d, 0d), ("A", 375d, 150d), ("B", -375d, -150d), ("T", 195d, 0d) })
         {
-            var Box = new FlowchartLayoutNodeBounds { NodeId = Item.Item1, CenterX = Item.Item2, CenterY = Item.Item3, Width = 150, Height = 90 };
+            FlowchartLayoutNodeBounds Box = new FlowchartLayoutNodeBounds { NodeId = Item.Item1, CenterX = Item.Item2, CenterY = Item.Item3, Width = 150, Height = 90 };
             Bounds.Add(Box.NodeId, Box); Layout.NodeBoundsMutable.Add(Box);
         }
-        var First = new FlowchartLayoutEdgeRoute { EdgeId = Contract.Edges[0].Id!, SourceId = "S", TargetId = "A",
+        FlowchartLayoutEdgeRoute First = new FlowchartLayoutEdgeRoute { EdgeId = Contract.Edges[0].Id!, SourceId = "S", TargetId = "A",
             ExitSide = "right", EntrySide = "left", ExitNormalX = 1, EntryNormalX = -1 };
-        var Second = new FlowchartLayoutEdgeRoute { EdgeId = Contract.Edges[1].Id!, SourceId = "B", TargetId = "T",
+        FlowchartLayoutEdgeRoute Second = new FlowchartLayoutEdgeRoute { EdgeId = Contract.Edges[1].Id!, SourceId = "B", TargetId = "T",
             ExitSide = "right", EntrySide = "left", ExitNormalX = 1, EntryNormalX = -1 };
-        foreach (var P in new[] { (0d, 7.5), (80d, 7.5), (80d, 150d), (300d, 150d) }) First.Points.Add(new() { X = P.Item1, Y = P.Item2 });
-        foreach (var P in new[] { (-300d, -150d), (40d, -150d), (40d, 7.5), (120d, 7.5) }) Second.Points.Add(new() { X = P.Item1, Y = P.Item2 });
+        foreach ((double, double) P in new[] { (0d, 7.5), (80d, 7.5), (80d, 150d), (300d, 150d) })
+        {
+            First.Points.Add(new() { X = P.Item1, Y = P.Item2 });
+        }
+
+        foreach ((double, double) P in new[] { (-300d, -150d), (40d, -150d), (40d, 7.5), (120d, 7.5) })
+        {
+            Second.Points.Add(new() { X = P.Item1, Y = P.Item2 });
+        }
+
         Layout.EdgeRoutesMutable.AddRange([First, Second]);
-        var Ports = Layout.EdgeRoutes.Select(Route => (Route.Points[0].X, Route.Points[0].Y, Route.Points[^1].X, Route.Points[^1].Y)).ToArray();
+        (double, double, double, double)[] Ports = [.. Layout.EdgeRoutes.Select(Route => (Route.Points[0].X, Route.Points[0].Y, Route.Points[^1].X, Route.Points[^1].Y))];
         int Bends = Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points));
         Assert.That(FlowchartTerminalTrackRepair.Apply(Contract, Layout, [], Bounds), Is.GreaterThan(0));
         Assert.That(FlowchartTerminalTrackRepair.Conflicts(Layout), Is.Empty);
@@ -90,7 +106,7 @@ public sealed class AllocatedPortRunTests
     private static void AssertNormal((double X, double Y) Port, (double X, double Y) Stub,
         (double X, double Y) DrawnPort, (double X, double Y) DrawnStub)
     {
-        Assert.That((Stub.X - Port.X) * (DrawnStub.Y - DrawnPort.Y)
-            - (Stub.Y - Port.Y) * (DrawnStub.X - DrawnPort.X), Is.EqualTo(0));
+        Assert.That(((Stub.X - Port.X) * (DrawnStub.Y - DrawnPort.Y))
+            - ((Stub.Y - Port.Y) * (DrawnStub.X - DrawnPort.X)), Is.EqualTo(0));
     }
 }

@@ -65,7 +65,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 posDict[graph.Nodes[i]] = i;
             }
 
-            Edge[] edges = graph.Edges.ToArray();
+            Edge[] edges = [.. graph.Edges];
             for (int i=0; i<graph.Edges.Count;i++) {
                 Edge edge = edges[i];
                 int nodeId1 = posDict[edge.Source];

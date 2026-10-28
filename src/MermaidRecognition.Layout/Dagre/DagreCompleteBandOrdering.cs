@@ -13,7 +13,7 @@ internal static partial class DagreLayoutEngine
     internal static int CountBandCoordinateCrossings(IReadOnlyList<BandVertex> Vertices,
         IReadOnlyList<(string Source, string Target)> Links)
     {
-        var Model = BuildCompleteBandGraph(["grid"], Vertices, Links);
+        CompleteBandGraph Model = BuildCompleteBandGraph(["grid"], Vertices, Links);
         return CrossCount(Model.Graph, Model.Rows);
     }
 
@@ -33,58 +33,98 @@ internal static partial class DagreLayoutEngine
     internal static (IReadOnlyList<string> Order, int Before, int After) OrderCompleteBandBlocks(IReadOnlyList<string> Initial,
         IReadOnlyList<BandVertex> Vertices, IReadOnlyList<(string Source, string Target)> Links, Func<IReadOnlyList<string>, bool>? Allowed = null)
     {
-        var Order = Initial.ToList();
-        var Model = BuildCompleteBandGraph(Order, Vertices, Links);
+        List<string> Order = [.. Initial];
+        CompleteBandGraph Model = BuildCompleteBandGraph(Order, Vertices, Links);
         int Before = CrossCount(Model.Graph, Model.Rows), Best = Before;
-        var Counts = new Dictionary<string, int>(StringComparer.Ordinal) { [string.Join("\n", Order)] = Best };
+        Dictionary<string, int> Counts = new Dictionary<string, int>(StringComparer.Ordinal) { [string.Join("\n", Order)] = Best };
         for (int Round = 0; Round < OrderSweepPatience; Round++)
         {
             int Previous = Best;
             foreach (bool Down in new[] { true, false })
-            foreach (int Row in Down ? Enumerable.Range(0, Model.Rows.Count) : Enumerable.Range(0, Model.Rows.Count).Reverse())
+            {
+                foreach (int Row in Down ? Enumerable.Range(0, Model.Rows.Count) : Enumerable.Range(0, Model.Rows.Count).Reverse())
             {
                 int Neighbour = Down ? Row - 1 : Row + 1;
-                if (Neighbour < 0 || Neighbour >= Model.Rows.Count) continue;
-                var Members = Vertices.Where(Vertex => Model.RowOf[Vertex.Id] == Row).Select(Vertex => Vertex.Block).Distinct().ToArray();
+                if (Neighbour < 0 || Neighbour >= Model.Rows.Count)
+                    {
+                        continue;
+                    }
+
+                    var Members = Vertices.Where(Vertex => Model.RowOf[Vertex.Id] == Row).Select(Vertex => Vertex.Block).Distinct().ToArray();
                 var Movable = Order.Where(Members.Contains).ToArray();
-                var References = Model.Rows[Neighbour];
-                var Connections = new List<(string Reference, string Movable)>();
-                foreach (var Vertex in Vertices.Where(Vertex => Model.RowOf[Vertex.Id] == Row))
-                foreach (var Edge in Down ? Model.Graph.InEdges(Vertex.Id) : Model.Graph.OutEdges(Vertex.Id))
+                    List<string> References = Model.Rows[Neighbour];
+                    List<(string Reference, string Movable)> Connections = [];
+                foreach (BandVertex? Vertex in Vertices.Where(Vertex => Model.RowOf[Vertex.Id] == Row))
+                    {
+                        foreach (DagreEdge Edge in Down ? Model.Graph.InEdges(Vertex.Id) : Model.Graph.OutEdges(Vertex.Id))
                 {
                     string Reference = Down ? Edge.V : Edge.W;
-                    if (References.Contains(Reference)) Connections.Add((Reference, Vertex.Block));
-                }
-                var Sorted = OrderBand(Movable, References, Connections);
-                if (Sorted.SequenceEqual(Movable)) continue;
-                var Trial = ReplaceBandOrder(Order, Movable, Sorted);
-                if (Allowed?.Invoke(Trial) == false) continue;
-                string Signature = string.Join("\n", Trial);
-                if (Counts.TryGetValue(Signature, out int Cached) && Cached >= Best) continue;
-                var Candidate = BuildCompleteBandGraph(Trial, Vertices, Links);
+                    if (References.Contains(Reference))
+                            {
+                                Connections.Add((Reference, Vertex.Block));
+                            }
+                        }
+                    }
+
+                    IReadOnlyList<string> Sorted = OrderBand(Movable, References, Connections);
+                if (Sorted.SequenceEqual(Movable))
+                    {
+                        continue;
+                    }
+
+                    List<string> Trial = ReplaceBandOrder(Order, Movable, Sorted);
+                if (Allowed?.Invoke(Trial) == false)
+                    {
+                        continue;
+                    }
+
+                    string Signature = string.Join("\n", Trial);
+                if (Counts.TryGetValue(Signature, out int Cached) && Cached >= Best)
+                    {
+                        continue;
+                    }
+
+                    CompleteBandGraph Candidate = BuildCompleteBandGraph(Trial, Vertices, Links);
                 int Count = CrossCount(Candidate.Graph, Candidate.Rows);
                 Counts[Signature] = Count;
                 if (Count < Best) { Order = Trial; Best = Count; Model = Candidate; }
             }
-            foreach (var Row in Model.Rows.ToArray())
+            }
+
+            foreach (List<string> Row in Model.Rows.ToArray())
             {
                 var Members = Order.Where(Id => Vertices.Any(Vertex => Vertex.Block == Id && Row.Contains(Vertex.Id))).ToArray();
                 for (int Index = 1; Index < Members.Length; Index++)
                 {
-                    var Trial = Order.ToList(); int Left = Trial.IndexOf(Members[Index - 1]), Right = Trial.IndexOf(Members[Index]);
+                    List<string> Trial = [.. Order]; int Left = Trial.IndexOf(Members[Index - 1]), Right = Trial.IndexOf(Members[Index]);
                     (Trial[Left], Trial[Right]) = (Trial[Right], Trial[Left]);
-                    if (Allowed?.Invoke(Trial) == false) continue;
+                    if (Allowed?.Invoke(Trial) == false)
+                    {
+                        continue;
+                    }
+
                     string Signature = string.Join("\n", Trial);
-                    if (Counts.TryGetValue(Signature, out int Cached) && Cached >= Best) continue;
-                    var Candidate = BuildCompleteBandGraph(Trial, Vertices, Links);
+                    if (Counts.TryGetValue(Signature, out int Cached) && Cached >= Best)
+                    {
+                        continue;
+                    }
+
+                    CompleteBandGraph Candidate = BuildCompleteBandGraph(Trial, Vertices, Links);
                     int Count = CrossCount(Candidate.Graph, Candidate.Rows);
                     Counts[Signature] = Count;
-                    if (Count >= Best) continue;
+                    if (Count >= Best)
+                    {
+                        continue;
+                    }
+
                     Order = Trial; Best = Count; Model = Candidate;
                     (Members[Index - 1], Members[Index]) = (Members[Index], Members[Index - 1]);
                 }
             }
-            if (Best >= Previous) break;
+            if (Best >= Previous)
+            {
+                break;
+            }
         }
         return (Order, Before, Best);
     }
@@ -103,22 +143,26 @@ internal static partial class DagreLayoutEngine
     private static CompleteBandGraph BuildCompleteBandGraph(IReadOnlyList<string> Order, IReadOnlyList<BandVertex> Vertices,
         IReadOnlyList<(string Source, string Target)> Links)
     {
-        var Graph = new DagreGraph(Multigraph: true);
+        DagreGraph Graph = new DagreGraph(Multigraph: true);
         var Ranks = Vertices.Select(Vertex => Vertex.Row).Distinct().Order().ToArray();
-        var RowOf = Vertices.ToDictionary(Vertex => Vertex.Id, Vertex => Array.IndexOf(Ranks, Vertex.Row) * 2, StringComparer.Ordinal);
-        var Rows = Enumerable.Range(0, Math.Max(1, Ranks.Length * 2)).Select(_ => new List<string>()).ToList();
-        var X = new Dictionary<string, double>(StringComparer.Ordinal);
+        Dictionary<string, int> RowOf = Vertices.ToDictionary(Vertex => Vertex.Id, Vertex => Array.IndexOf(Ranks, Vertex.Row) * 2, StringComparer.Ordinal);
+        List<List<string>> Rows = [.. Enumerable.Range(0, Math.Max(1, Ranks.Length * 2)).Select(_ => new List<string>())];
+        Dictionary<string, double> X = new Dictionary<string, double>(StringComparer.Ordinal);
         double Pitch = Vertices.Select(Vertex => Vertex.Offset).DefaultIfEmpty(0).Max() + 1;
-        var Position = Order.Select((Id, Index) => (Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index, StringComparer.Ordinal);
-        foreach (var Vertex in Vertices)
+        Dictionary<string, int> Position = Order.Select((Id, Index) => (Id, Index)).ToDictionary(Item => Item.Id, Item => Item.Index, StringComparer.Ordinal);
+        foreach (BandVertex Vertex in Vertices)
         {
             Graph.SetNode(Vertex.Id, new(), true); Rows[RowOf[Vertex.Id]].Add(Vertex.Id);
-            X[Vertex.Id] = Position[Vertex.Block] * Pitch + Vertex.Offset;
+            X[Vertex.Id] = (Position[Vertex.Block] * Pitch) + Vertex.Offset;
         }
         int EdgeIndex = 0;
-        foreach (var Link in Links)
+        foreach ((string Source, string Target) Link in Links)
         {
-            if (Link.Source == Link.Target) continue;
+            if (Link.Source == Link.Target)
+            {
+                continue;
+            }
+
             string Source = Link.Source, Target = Link.Target;
             int First = RowOf[Source], Last = RowOf[Target];
             if (First > Last) { (Source, Target) = (Target, Source); (First, Last) = (Last, First); }
@@ -134,12 +178,16 @@ internal static partial class DagreLayoutEngine
             {
                 string Dummy = "band-dummy:" + EdgeIndex + ":" + Row;
                 Graph.SetNode(Dummy, new(), true); Rows[Row].Add(Dummy);
-                X[Dummy] = X[Source] + (X[Target] - X[Source]) * (Row - First) / (Last - First);
+                X[Dummy] = X[Source] + ((X[Target] - X[Source]) * (Row - First) / (Last - First));
                 Graph.SetEdge(Previous, Dummy, new() { Weight = 1 }, true, EdgeIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)); Previous = Dummy;
             }
             Graph.SetEdge(Previous, Target, new() { Weight = 1 }, true, EdgeIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)); EdgeIndex++;
         }
-        foreach (var Row in Rows) Row.Sort((A, B) => { int Compare = X[A].CompareTo(X[B]); return Compare != 0 ? Compare : string.CompareOrdinal(A, B); });
+        foreach (List<string>? Row in Rows)
+        {
+            Row.Sort((A, B) => { int Compare = X[A].CompareTo(X[B]); return Compare != 0 ? Compare : string.CompareOrdinal(A, B); });
+        }
+
         return new(Graph, Rows, RowOf);
     }
 }

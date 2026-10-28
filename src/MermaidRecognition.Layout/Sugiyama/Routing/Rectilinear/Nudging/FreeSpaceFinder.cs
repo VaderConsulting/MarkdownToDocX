@@ -168,7 +168,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             IEnumerable<DebugCurve> dd = GetObstacleBoundaries("black");
             DebugCurve seg = new DebugCurve( 1, "red", new LineSegment(edge.Source.Point, edge.Target.Point));
             LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(dd.Concat(
-                new[]{seg ,new DebugCurve("blue",CurveFactory.CreateEllipse(3, 3, point))}));
+                [seg ,new DebugCurve("blue",CurveFactory.CreateEllipse(3, 3, point))]));
   
 
         }
@@ -237,7 +237,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 // ReSharper restore UnusedMember.Local
             List<ICurve> curves = GetCurves(point, edge);
 
-            LayoutAlgorithmSettings.Show(curves.ToArray());
+            LayoutAlgorithmSettings.Show([.. curves]);
         }
 
         // ReSharper disable UnusedMember.Local
@@ -245,9 +245,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
 // ReSharper restore UnusedMember.Local
             List<ICurve> curves = GetCurves(point, edge);
 
-            curves.Add(new LineSegment(SweepDirection * Z + 10 * DirectionPerp, SweepDirection * Z - 10 * DirectionPerp));
+            curves.Add(new LineSegment((SweepDirection * Z) + (10 * DirectionPerp), (SweepDirection * Z) - (10 * DirectionPerp)));
 
-            LayoutAlgorithmSettings.Show(curves.ToArray());
+            LayoutAlgorithmSettings.Show([.. curves]);
         }
 
         List<ICurve> GetCurves(Point point, AxisEdge edge) {
@@ -270,7 +270,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
             curves.AddRange((from e in PathOrders.Keys
                              let a = e.SourcePoint
                              let b = e.TargetPoint
-                             select new CubicBezierSegment(a, a*0.8 + b*0.2, a*0.2 + b*0.8, b)).Cast<ICurve>());
+                             select new CubicBezierSegment(a, (a*0.8) + (b*0.2), (a*0.2) + (b*0.8), b)).Cast<ICurve>());
 
             return curves;
         }
@@ -315,11 +315,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 Point perp = axisEdge.Direction == Directions.East ? new Point(0, 1) : new Point(-1, 0);
                 if (axisEdge.LeftBound != double.NegativeInfinity) {
                     dd.Add(new DebugCurve(200, 0.5, color,
-                        new LineSegment(axisEdge.Source.Point + axisEdge.LeftBound * perp, axisEdge.Target.Point + axisEdge.LeftBound * perp)));
+                        new LineSegment(axisEdge.Source.Point + (axisEdge.LeftBound * perp), axisEdge.Target.Point + (axisEdge.LeftBound * perp))));
                 }
                 if (axisEdge.RightBound != double.PositiveInfinity) {
                     dd.Add(new DebugCurve(200, 0.5, color,
-                        new LineSegment(axisEdge.Source.Point - axisEdge.RightBound * perp, axisEdge.Target.Point - axisEdge.RightBound * perp)));
+                        new LineSegment(axisEdge.Source.Point - (axisEdge.RightBound * perp), axisEdge.Target.Point - (axisEdge.RightBound * perp))));
                 }
                 i = (i + 1) % DebugCurve.Colors.Length;
             }
@@ -331,7 +331,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         void ShowAtPoint(Point point) {
             // ReSharper restore UnusedMember.Local
             List<DebugCurve> curves = GetCurvesTest(point);
-            LayoutAlgorithmSettings.ShowDebugCurves(curves.ToArray());
+            LayoutAlgorithmSettings.ShowDebugCurves([.. curves]);
         }
 #endif
         #endregion
@@ -355,10 +355,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
         RBNode<AxisEdgesContainer> GetAxisEdgesContainerNode(Point point){
             double prj = xProjection( point);
             RBNode<AxisEdgesContainer> ret =
-                edgeContainersTree.FindFirst(cont => xProjection(cont.Source) >= prj-ApproximateComparer.DistanceEpsilon/2);
+                edgeContainersTree.FindFirst(cont => xProjection(cont.Source) >= prj-(ApproximateComparer.DistanceEpsilon/2));
             if(ret != null)
             {
-                if (xProjection(ret.Item.Source) <= prj+ApproximateComparer.DistanceEpsilon/2)
+                if (xProjection(ret.Item.Source) <= prj+(ApproximateComparer.DistanceEpsilon/2))
                 {
                     return ret;
                 }

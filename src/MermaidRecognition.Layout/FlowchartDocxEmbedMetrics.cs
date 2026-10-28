@@ -63,10 +63,10 @@ public static class FlowchartDocxEmbedMetrics
         double Top = double.NegativeInfinity;
         foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Concat(Layout.ClusterBounds))
         {
-            Left = Math.Min(Left, Box.CenterX - Box.Width / 2.0);
-            Right = Math.Max(Right, Box.CenterX + Box.Width / 2.0);
-            Bottom = Math.Min(Bottom, Box.CenterY - Box.Height / 2.0);
-            Top = Math.Max(Top, Box.CenterY + Box.Height / 2.0);
+            Left = Math.Min(Left, Box.CenterX - (Box.Width / 2.0));
+            Right = Math.Max(Right, Box.CenterX + (Box.Width / 2.0));
+            Bottom = Math.Min(Bottom, Box.CenterY - (Box.Height / 2.0));
+            Top = Math.Max(Top, Box.CenterY + (Box.Height / 2.0));
         }
 
         return (Right - Left, Top - Bottom);

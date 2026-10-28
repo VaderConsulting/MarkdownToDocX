@@ -22,7 +22,7 @@ public sealed class SettingsFormLayoutTests
     public void EveryControlIsFullyVisibleWithoutOverlap(float Scale)
     {
         using SettingsForm Dialog = Open(Scale);
-        List<string> Problems = new List<string>();
+        List<string> Problems = [];
         TabControl Tabs = Require<TabControl>(Dialog, "SettingsTabs");
         foreach (TabPage Page in Tabs.TabPages)
         {
@@ -80,7 +80,7 @@ public sealed class SettingsFormLayoutTests
     private static void Check(Control Parent, List<string> Problems)
     {
         Rectangle Room = Parent is GroupBox ? Parent.DisplayRectangle : Parent.ClientRectangle;
-        List<Control> Shown = new List<Control>();
+        List<Control> Shown = [];
         foreach (Control Child in Parent.Controls)
         {
             if (!Child.Visible)

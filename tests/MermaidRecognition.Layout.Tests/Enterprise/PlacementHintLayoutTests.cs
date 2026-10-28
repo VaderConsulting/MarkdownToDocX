@@ -112,14 +112,15 @@ public sealed class PlacementHintLayoutTests
         EnterpriseDocument Document = EnterpriseValidator.Analyze(Source).Document;
         DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult Layout), Is.True);
-        FlowchartLayoutNodeBounds[] Chain = Enumerable.Range(1, 6)
-            .Select(Index => Layout.NodeBounds.Single(Node => Node.NodeId == $"c{Index}"))
-            .ToArray();
+        FlowchartLayoutNodeBounds[] Chain = [.. Enumerable.Range(1, 6).Select(Index => Layout.NodeBounds.Single(Node => Node.NodeId == $"c{Index}"))];
         Assert.Multiple(() =>
         {
             Assert.That(Chain.Select(Node => Node.CenterX).Distinct().Count(), Is.EqualTo(1));
             for (int Index = 1; Index < Chain.Length; Index++)
+            {
                 Assert.That(Chain[Index].CenterY, Is.GreaterThan(Chain[Index - 1].CenterY));
+            }
+
             Assert.That(Layout.EdgeRoutes, Has.Count.EqualTo(5));
             Assert.That(Layout.EdgeRoutes.All(Route => Route.Points.Count == 2), Is.True);
         });
@@ -157,11 +158,15 @@ public sealed class PlacementHintLayoutTests
             Assert.That(Route.Points[1].Y, Is.GreaterThan(Route.Points[0].Y),
                 $"{Route.SourceId}->{Route.TargetId} must travel north in the post-flip Y-up model.");
             foreach ((FlowchartLayoutPoint A, FlowchartLayoutPoint B) in Route.Points.Zip(Route.Points.Skip(1)))
-            foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
-                Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+            {
+                foreach (FlowchartLayoutNodeBounds Box in Bounds.Values)
+                {
+                    Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
                     A.X, A.Y, B.X, B.Y, Box), Is.False,
                     $"Hinted route {Route.SourceId}->{Route.TargetId} enters node {Box.NodeId}: "
                     + string.Join(" ", Route.Points.Select(Point => $"({Point.X},{Point.Y})")));
+                }
+            }
         }
     }
 
@@ -181,12 +186,15 @@ public sealed class PlacementHintLayoutTests
               a4 -flow-> a5
             """;
 
-        var Layout = LayoutOf(Source);
-        var Ordered = Enumerable.Range(1, 5).Select(Index => Layout[$"a{Index}"]).ToArray();
+        Dictionary<string, FlowchartLayoutNodeBounds> Layout = LayoutOf(Source);
+        FlowchartLayoutNodeBounds[] Ordered = [.. Enumerable.Range(1, 5).Select(Index => Layout[$"a{Index}"])];
         Assert.Multiple(() =>
         {
             for (int Index = 1; Index < Ordered.Length; Index++)
+            {
                 Assert.That(Ordered[Index].CenterX, Is.GreaterThan(Ordered[Index - 1].CenterX));
+            }
+
             Assert.That(Ordered.Select(Node => Node.CenterY).Distinct().Count(), Is.EqualTo(1),
                 "right-of places each node on its peer's row");
         });
@@ -207,7 +215,7 @@ public sealed class PlacementHintLayoutTests
         EnterpriseAnalysisResult Analysis = EnterpriseValidator.Analyze(Source);
         Assert.That(Analysis.Errors, Is.Empty);
         Assert.That(Analysis.Document.Elements["c"].PlacementHint!.IsActive, Is.False);
-        var Layout = LayoutOf(Analysis.Document);
+        Dictionary<string, FlowchartLayoutNodeBounds> Layout = LayoutOf(Analysis.Document);
         Assert.Multiple(() =>
         {
             Assert.That(Layout["a"].CenterY, Is.LessThan(Layout["b"].CenterY));
@@ -232,7 +240,7 @@ public sealed class PlacementHintLayoutTests
               k1 -flow-> k3
             """;
 
-        var Layout = LayoutOf(Source);
+        Dictionary<string, FlowchartLayoutNodeBounds> Layout = LayoutOf(Source);
         Assert.Multiple(() =>
         {
             Assert.That(Layout["k1"].CenterX, Is.GreaterThan(Layout["out"].CenterX));
@@ -308,8 +316,8 @@ public sealed class PlacementHintLayoutTests
 
     private static Dictionary<string, FlowchartLayoutNodeBounds> LayoutOf(EnterpriseDocument Document)
     {
-        var Contract = EnterpriseFlowchartContractMapper.Build(Document);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
         return Layout.NodeBounds.ToDictionary(Node => Node.NodeId, StringComparer.Ordinal);
     }
 }

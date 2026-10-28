@@ -46,13 +46,40 @@ public static class MermaidDiagramExport
     /// <returns>True when an SVG document was produced.</returns>
     public static bool TryRenderPreviewSvg(string MermaidSource, out string Svg)
     {
-        if (string.IsNullOrWhiteSpace(MermaidSource))
-        {
-            Svg = string.Empty;
-            return false;
-        }
+        return TryRenderPreview(MermaidSource, out Svg, out _);
+    }
 
-        return DocxWriter.TryRenderDiagramSvg(MermaidSource, out Svg);
+    /// <summary>
+    /// Renders SVG and preview raster using the LiveEditor pipeline.
+    /// </summary>
+    /// <param name="MermaidSource">Diagram source.</param>
+    /// <param name="Svg">Rendered SVG when the method returns true.</param>
+    /// <param name="FailureMessage">Reason when the method returns false.</param>
+    /// <returns>True when SVG and preview rasterisation succeed.</returns>
+    public static bool TryRenderPreview(string MermaidSource, out string Svg, out string FailureMessage)
+    {
+        return MermaidPreviewRender.TryRender(MermaidSource, out Svg, out _, out FailureMessage);
+    }
+
+    /// <summary>
+    /// Renders SVG and PNG for the live preview surface.
+    /// </summary>
+    public static bool TryRenderPreviewPng(string MermaidSource, out string Svg, out byte[]? Png, out string FailureMessage)
+    {
+        return MermaidPreviewRender.TryRender(MermaidSource, out Svg, out Png, out FailureMessage, out _);
+    }
+
+    /// <summary>
+    /// Renders SVG and PNG for the live preview surface.
+    /// </summary>
+    /// <param name="MermaidSource"></param>
+    /// <param name="Svg"></param>
+    /// <param name="Png"></param>
+    /// <param name="FailureMessage"></param>
+    /// <param name="PreviewAdvisory">Set when the preview PNG was scaled to fit a very large layout.</param>
+    public static bool TryRenderPreviewPng(string MermaidSource, out string Svg, out byte[]? Png, out string FailureMessage, out string? PreviewAdvisory)
+    {
+        return MermaidPreviewRender.TryRender(MermaidSource, out Svg, out Png, out FailureMessage, out PreviewAdvisory);
     }
 
     /// <summary>

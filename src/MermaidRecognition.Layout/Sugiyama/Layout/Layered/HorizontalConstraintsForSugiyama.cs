@@ -71,7 +71,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
             for (int root = 0; root < graph.NodeCount; root++)
             {
                 if (graph.InEdges(root).Count == 0 && !nodeToBlockRoot.ContainsKey(root)) {
-                    List<int> block = new List<int>();
+                    List<int> block = [];
                     int current = root;
                     for (IList<IntPair> outEdges = graph.OutEdges(current); outEdges.Count > 0;
                          outEdges = graph.OutEdges(current)) {

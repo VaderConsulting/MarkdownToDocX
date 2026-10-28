@@ -171,8 +171,8 @@ public static class FlowchartGroupBoundaryCrossingHelper
             return;
         }
 
-        double T = ((Cx - Ax) * Sdy - (Cy - Ay) * Sdx) / Denom;
-        double U = ((Cx - Ax) * Rdy - (Cy - Ay) * Rdx) / Denom;
+        double T = (((Cx - Ax) * Sdy) - ((Cy - Ay) * Sdx)) / Denom;
+        double U = (((Cx - Ax) * Rdy) - ((Cy - Ay) * Rdx)) / Denom;
         if (T < 0.0 || T > 1.0 || U < 0.0 || U > 1.0 || T >= BestT)
         {
             return;

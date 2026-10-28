@@ -10,11 +10,11 @@ public sealed class FlowchartCellExternalLeafTests
     [Test]
     public void OutsideLeafUsesAuthoritativeCellsAndFrameClearance()
     {
-        var (Contract, Nodes, Grid) = Fixture(false, false); var Frames = new List<DiagramGridLayout.GridFrame>();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(false, false); List<DiagramGridLayout.GridFrame> Frames = [];
         Assert.That(FlowchartExternalLeafPlacement.Apply(Contract, Nodes, Frames, false), Is.True);
-        var Parent = Nodes.Single(Node => Node.Id == "P"); var Leaf = Nodes.Single(Node => Node.Id == "L"); var Frame = Frames.Single();
+        DiagramGridLayout.GridNode Parent = Nodes.Single(Node => Node.Id == "P"); DiagramGridLayout.GridNode Leaf = Nodes.Single(Node => Node.Id == "L"); DiagramGridLayout.GridFrame Frame = Frames.Single();
         Assert.That(Grid.RegionOf("L").StartRow, Is.EqualTo(Grid.RegionOf("P").StartRow));
-        double Gap = Leaf.X < Parent.X ? Frame.Left - Leaf.X - Leaf.Width / 2d : Leaf.X - Leaf.Width / 2d - Frame.Right;
+        double Gap = Leaf.X < Parent.X ? Frame.Left - Leaf.X - (Leaf.Width / 2d) : Leaf.X - (Leaf.Width / 2d) - Frame.Right;
         Assert.That(Gap, Is.GreaterThanOrEqualTo(60));
     }
 
@@ -22,8 +22,8 @@ public sealed class FlowchartCellExternalLeafTests
     [Test]
     public void HintedOutsideLeafKeepsExactState()
     {
-        var (Contract, Nodes, Grid) = Fixture(false, false); Nodes.Single(Node => Node.Id == "L").PlacementHintLocked = true;
-        var Before = Grid.Capture(); var Frame = new DiagramGridLayout.GridFrame { Id = "sentinel" }; var Frames = new List<DiagramGridLayout.GridFrame> { Frame };
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(false, false); Nodes.Single(Node => Node.Id == "L").PlacementHintLocked = true;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); DiagramGridLayout.GridFrame Frame = new DiagramGridLayout.GridFrame { Id = "sentinel" }; List<DiagramGridLayout.GridFrame> Frames = [Frame];
         Assert.That(FlowchartCellLeafPlacement.Apply(Contract, Nodes, Frames, false, External: true), Is.False);
         Assert.That(Grid.Capture(), Is.SameAs(Before)); Assert.That(Frames.Single(), Is.SameAs(Frame));
     }
@@ -34,10 +34,10 @@ public sealed class FlowchartCellExternalLeafTests
     [TestCase(true)]
     public void TitleBandKeepsTheLeafOnTheLegalSouthSide(bool Routing)
     {
-        var (Contract, Nodes, Grid) = Fixture(true, Routing);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(true, Routing);
         Assert.That(FlowchartCellLeafPlacement.Apply(Contract, Nodes, [], true, External: true), Is.True);
         Assert.That(Grid.RegionOf("L").StartRow, Is.GreaterThan(Grid.RegionOf("P").StartRow));
-        var Parent = Nodes.Single(Node => Node.Id == "P"); var Leaf = Nodes.Single(Node => Node.Id == "L");
+        DiagramGridLayout.GridNode Parent = Nodes.Single(Node => Node.Id == "P"); DiagramGridLayout.GridNode Leaf = Nodes.Single(Node => Node.Id == "L");
         Assert.That(Routing ? Leaf.Y < Parent.Y : Leaf.Y > Parent.Y, Is.True);
     }
 
@@ -47,14 +47,19 @@ public sealed class FlowchartCellExternalLeafTests
     /// <returns>Contract, bound members and shared grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool Horizontal, bool Routing)
     {
-        var Contract = new DiagramContract(); var Group = new GroupContract { Id = "G" }; Group.ChildNodeIdsMutable.AddRange(["P", "I"]); Contract.GroupsMutable.Add(Group);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); var Context = new FlowchartRenderContext();
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, GroupId, Row, Column) in new[] { ("P", (string?)"G", 0, 0), ("I", "G", 2, 0), ("L", null, 0, 4) })
+        DiagramContract Contract = new DiagramContract(); GroupContract Group = new GroupContract { Id = "G" }; Group.ChildNodeIdsMutable.AddRange(["P", "I"]); Contract.GroupsMutable.Add(Group);
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules()); FlowchartRenderContext Context = new FlowchartRenderContext();
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, string? GroupId, int Row, int Column) in new[] { ("P", (string?)"G", 0, 0), ("I", "G", 2, 0), ("L", null, 0, 4) })
         {
             Contract.NodesMutable.Add(new NodeContract { Id = Id, ParentGroupId = GroupId }); Grid.TryPlace(Id, new(Horizontal ? Column : Row, Horizontal ? Row : Column, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = GroupId, Rank = Row }; Node.BindCells(Grid, Context);
-            if (Routing) Node.CellNode!.UseRoutingCoordinates(1000); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = GroupId, Rank = Row }; Node.BindCells(Grid, Context);
+            if (Routing)
+            {
+                Node.CellNode!.UseRoutingCoordinates(1000);
+            }
+
+            Nodes.Add(Node);
         }
         Contract.EdgesMutable.AddRange([new() { SourceId = "L", TargetId = "P" }, new() { SourceId = "I", TargetId = "P" }]);
         return (Contract, Nodes, Grid);

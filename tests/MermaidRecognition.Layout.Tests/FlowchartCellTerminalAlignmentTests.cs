@@ -16,8 +16,8 @@ public sealed class FlowchartCellTerminalAlignmentTests
     [TestCase(true, true)]
     public void CellTerminalChildKeepsDeclaredRegionAndOrdering(bool Horizontal, bool CoordinatesPlaced)
     {
-        var (Contract, Nodes, Grid) = Fixture(Horizontal);
-        var Before = Grid.Capture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         var Columns = Nodes.Select(Node => Node.Column).ToArray();
         Invoke(Contract, Nodes, Horizontal, CoordinatesPlaced);
         Assert.That(Grid.Capture(), Is.SameAs(Before), "Regions and grown gaps must retain their exact snapshot.");
@@ -30,9 +30,9 @@ public sealed class FlowchartCellTerminalAlignmentTests
     [TestCase(true)]
     public void HintedTerminalChildKeepsExactSnapshot(bool Horizontal)
     {
-        var (Contract, Nodes, Grid) = Fixture(Horizontal);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Horizontal);
         Nodes[1].PlacementHintLocked = true;
-        var Before = Grid.Capture(); int Column = Nodes[1].Column;
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); int Column = Nodes[1].Column;
         Invoke(Contract, Nodes, Horizontal, false);
         Invoke(Contract, Nodes, Horizontal, true);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
@@ -54,17 +54,21 @@ public sealed class FlowchartCellTerminalAlignmentTests
     /// <returns>Graph, bound nodes and shared ownership.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(bool Horizontal)
     {
-        var Contract = new DiagramContract();
+        DiagramContract Contract = new DiagramContract();
         Contract.EdgesMutable.Add(new EdgeContract { SourceId = "A", TargetId = "B" });
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 2, 3));
         Grid.TryPlace("B", new(Horizontal ? 4 : 3, Horizontal ? 4 : 5, 1, 1));
-        var Nodes = new List<DiagramGridLayout.GridNode>
-        {
+        List<DiagramGridLayout.GridNode> Nodes =
+        [
             new() { Id = "A", Rank = 0, Column = 0 },
             new() { Id = "B", Rank = 1, Column = 2 }
-        };
-        foreach (var Node in Nodes) Node.BindCells(Grid);
+        ];
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            Node.BindCells(Grid);
+        }
+
         return (Contract, Nodes, Grid);
     }
 }

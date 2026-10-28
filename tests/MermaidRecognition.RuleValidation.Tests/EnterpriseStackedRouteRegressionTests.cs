@@ -17,8 +17,8 @@ public sealed class EnterpriseStackedRouteRegressionTests
     [Explicit("Stacked vertical chord regressions; enable when A38/A45/A46 routing is green.")]
     public void StackedAlignedNeighbours_UseStraightVerticalChord(string id, string sourceId, string targetId)
     {
-        var layout = LayoutCatalogue(id);
-        var route = layout.EdgeRoutes.Single(Route =>
+        FlowchartLayoutResult layout = LayoutCatalogue(id);
+        FlowchartLayoutEdgeRoute route = layout.EdgeRoutes.Single(Route =>
             Route.SourceId == sourceId && Route.TargetId == targetId);
         Assert.Multiple(() =>
         {
@@ -41,8 +41,8 @@ public sealed class EnterpriseStackedRouteRegressionTests
     [TestCase("A37", "checkout", "ordering", "right")]
     public void OffsetTargetBelow_ExitsSourceBottomOrSideChannel(string id, string sourceId, string targetId, string entrySide)
     {
-        var layout = LayoutCatalogue(id);
-        var route = layout.EdgeRoutes.Single(Route =>
+        FlowchartLayoutResult layout = LayoutCatalogue(id);
+        FlowchartLayoutEdgeRoute route = layout.EdgeRoutes.Single(Route =>
             Route.SourceId == sourceId && Route.TargetId == targetId);
         Assert.That(route.ExitSide, Is.EqualTo("bottom").Or.EqualTo("right").Or.EqualTo("left"));
         Assert.That(route.EntrySide, Is.EqualTo(entrySide));
@@ -51,13 +51,13 @@ public sealed class EnterpriseStackedRouteRegressionTests
     [TestCase("A153", "a3", "a4")]
     public void StackedClusterNeighbours_AvoidSubTrackJogs(string id, string sourceId, string targetId)
     {
-        var contract = ContractCatalogue(id);
-        var layout = LayoutCatalogue(id);
-        var route = layout.EdgeRoutes.Single(Route =>
+        DiagramContract contract = ContractCatalogue(id);
+        FlowchartLayoutResult layout = LayoutCatalogue(id);
+        FlowchartLayoutEdgeRoute route = layout.EdgeRoutes.Single(Route =>
             Route.SourceId == sourceId && Route.TargetId == targetId);
-        var findings = FlowchartRouteRuleChecker.Check(contract, layout)
+        FlowchartRouteRuleChecker.Finding[] findings = [.. FlowchartRouteRuleChecker.Check(contract, layout)
             .Where(Finding => Finding.Subject.Contains(sourceId, StringComparison.Ordinal)
-                && Finding.Subject.Contains(targetId, StringComparison.Ordinal)).ToArray();
+                && Finding.Subject.Contains(targetId, StringComparison.Ordinal))];
         Assert.That(findings.Where(Finding => Finding.Rule is "4.2" or "5.1"), Is.Empty,
             string.Join("; ", findings.Select(Finding => Finding.Description)));
         if (route.Points.Count == 2)
@@ -69,17 +69,17 @@ public sealed class EnterpriseStackedRouteRegressionTests
     [Test]
     public void A160_HubFan_PortsOrderedByTargetColumn()
     {
-        var contract = ContractCatalogue("A160");
-        var layout = LayoutCatalogue("A160");
-        var hubRoutes = layout.EdgeRoutes.Where(Route => Route.SourceId == "hub").OrderBy(Route => Route.Points[0].X).ToArray();
+        DiagramContract contract = ContractCatalogue("A160");
+        FlowchartLayoutResult layout = LayoutCatalogue("A160");
+        FlowchartLayoutEdgeRoute[] hubRoutes = [.. layout.EdgeRoutes.Where(Route => Route.SourceId == "hub").OrderBy(Route => Route.Points[0].X)];
         Assert.That(hubRoutes, Has.Length.EqualTo(16));
-        var findings = FlowchartRouteRuleChecker.Check(contract, layout);
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> findings = FlowchartRouteRuleChecker.Check(contract, layout);
         TestContext.Out.WriteLine($"A160_FAN|portOrder={findings.Count(Finding => Finding.Rule is "3.3/5.2")}|shared={findings.Count(Finding => Finding.Rule == "5.1")}");
         int inversions = 0;
         for (int Index = 1; Index < hubRoutes.Length; Index++)
         {
-            var boxA = layout.NodeBounds.Single(Box => Box.NodeId == hubRoutes[Index - 1].TargetId);
-            var boxB = layout.NodeBounds.Single(Box => Box.NodeId == hubRoutes[Index].TargetId);
+            FlowchartLayoutNodeBounds boxA = layout.NodeBounds.Single(Box => Box.NodeId == hubRoutes[Index - 1].TargetId);
+            FlowchartLayoutNodeBounds boxB = layout.NodeBounds.Single(Box => Box.NodeId == hubRoutes[Index].TargetId);
             if (boxA.CenterX > boxB.CenterX + 1.0)
             {
                 inversions++;
@@ -96,9 +96,9 @@ public sealed class EnterpriseStackedRouteRegressionTests
     [Test]
     public void A167_ReportsRule59Findings()
     {
-        var contract = ContractCatalogue("A167");
-        var layout = LayoutCatalogue("A167");
-        var findings = FlowchartRouteRuleChecker.Check(contract, layout);
+        DiagramContract contract = ContractCatalogue("A167");
+        FlowchartLayoutResult layout = LayoutCatalogue("A167");
+        IReadOnlyList<FlowchartRouteRuleChecker.Finding> findings = FlowchartRouteRuleChecker.Check(contract, layout);
         TestContext.Out.WriteLine($"A167_RULE59|count={findings.Count(Finding => Finding.Rule == "5.9")}|rule10={findings.Count(Finding => Finding.Rule == "10")}|shared={findings.Count(Finding => Finding.Rule == "5.1")}");
     }
 
@@ -106,28 +106,28 @@ public sealed class EnterpriseStackedRouteRegressionTests
     [Explicit("A45 column scrape regression; enable when border routing is green.")]
     public void SameColumnRoute_DoesNotScrapeForeignBorder(string id, string sourceId, string targetId)
     {
-        var contract = ContractCatalogue(id);
-        var layout = LayoutCatalogue(id);
-        var route = layout.EdgeRoutes.Single(Route =>
+        DiagramContract contract = ContractCatalogue(id);
+        FlowchartLayoutResult layout = LayoutCatalogue(id);
+        FlowchartLayoutEdgeRoute route = layout.EdgeRoutes.Single(Route =>
             Route.SourceId == sourceId && Route.TargetId == targetId);
-        var findings = FlowchartRouteRuleChecker.Check(contract, layout)
+        FlowchartRouteRuleChecker.Finding[] findings = [.. FlowchartRouteRuleChecker.Check(contract, layout)
             .Where(Finding => Finding.Subject.Contains(sourceId, StringComparison.Ordinal)
-                && Finding.Rule is "4.9" or "4.2").ToArray();
+                && Finding.Rule is "4.9" or "4.2")];
         Assert.That(findings, Is.Empty, string.Join("; ", findings.Select(Finding => Finding.Description)));
         Assert.That(route.Points, Has.Count.EqualTo(2));
     }
 
     private static DiagramContract ContractCatalogue(string id)
     {
-        var scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == id);
         return EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(scenario.Source).Document!);
     }
 
     private static FlowchartLayoutResult LayoutCatalogue(string id)
     {
-        var contract = ContractCatalogue(id);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(contract, new FlowchartRenderContext { UseCellRegions = true }, out var layout), Is.True);
+        DiagramContract contract = ContractCatalogue(id);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(contract, new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? layout), Is.True);
         return layout;
     }
 }

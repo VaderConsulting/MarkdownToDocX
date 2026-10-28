@@ -83,7 +83,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
 #if SHARPKIT // https://github.com/SharpKit/SharpKit/issues/4
                 for (int i = (m / 2) - 1; i >= 0; i--) CreateSplineForNonSelfEdge(intEdgeList[i]);
 #else
-                for (int i = m / 2 - 1; i >= 0; i--)
+                for (int i = (m / 2) - 1; i >= 0; i--)
                 {
                     CreateSplineForNonSelfEdge(intEdgeList[i]);
                 }
@@ -131,7 +131,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
                             offset += intEdge.Edge.Label.Width;
                             Point center =
                                 intEdge.Edge.Label.Center =
-                                new Point(c[(c.ParStart + c.ParEnd) / 2].X + intEdge.LabelWidth / 2, anchor.Y);
+                                new Point(c[(c.ParStart + c.ParEnd) / 2].X + (intEdge.LabelWidth / 2), anchor.Y);
                             Point del = new Point(intEdge.Edge.Label.Width / 2, intEdge.Edge.Label.Height / 2);
 
                             Rectangle box = new Rectangle(center + del, center - del);
@@ -187,11 +187,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Layered {
         internal static void UpdateLabel(Edge e, Anchor anchor){
             LineSegment labelSide = null;
             if (anchor.LabelToTheRightOfAnchorCenter){
-                e.Label.Center = new Point(anchor.X + anchor.RightAnchor/2, anchor.Y);
+                e.Label.Center = new Point(anchor.X + (anchor.RightAnchor/2), anchor.Y);
                 labelSide = new LineSegment(e.LabelBBox.LeftTop, e.LabelBBox.LeftBottom);
             }
             else if (anchor.LabelToTheLeftOfAnchorCenter){
-                e.Label.Center = new Point(anchor.X - anchor.LeftAnchor/2, anchor.Y);
+                e.Label.Center = new Point(anchor.X - (anchor.LeftAnchor/2), anchor.Y);
                 labelSide = new LineSegment(e.LabelBBox.RightTop, e.LabelBBox.RightBottom);
             }
             ICurve segmentInFrontOfLabel = GetSegmentInFrontOfLabel(e.Curve, e.Label.Center.Y);

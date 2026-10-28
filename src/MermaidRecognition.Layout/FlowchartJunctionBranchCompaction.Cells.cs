@@ -15,44 +15,79 @@ internal static partial class FlowchartJunctionBranchCompaction
     /// <returns>Unpublished branch translations for complete routed scoring; collectors are never centred here.</returns>
     internal static IEnumerable<DiagramGridLayout.CellRouteMoveTarget> CellCandidates(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, bool Horizontal)
     {
-        if (Contract.Groups.Count > 0) yield break;
-        var Before = FlowchartCellRepair.Capture(Nodes); var Grid = Nodes[0].CellNode!.Grid;
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
-        var ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
-        var Edges = Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
-            && ById.ContainsKey(Edge.SourceId) && ById.ContainsKey(Edge.TargetId)).ToArray();
-        foreach (var Junction in Nodes.Where(Node => Node.Shape == "circle" && Node.GroupId == null))
+        if (Contract.Groups.Count > 0)
         {
-            var Outgoing = Edges.Where(Edge => Edge.SourceId == Junction.Id).ToArray();
-            if (Outgoing.Length < 2) continue;
-            int Centre = Cross(Targets[Junction.Id], Horizontal);
-            foreach (var Branch in Outgoing.Select(Edge => ById[Edge.TargetId]).OrderBy(Node => Math.Abs(Cross(Targets[Node.Id], Horizontal) - Centre)))
+            yield break;
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes); FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        Dictionary<string, DiagramGridLayout.GridNode> ById = Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        IReadOnlySet<EdgeContract> Back = FlowchartBackEdgeHelper.FindBackEdges(Contract);
+        EdgeContract[] Edges = [.. Contract.Edges.Where(Edge => !Back.Contains(Edge) && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+            && ById.ContainsKey(Edge.SourceId) && ById.ContainsKey(Edge.TargetId))];
+        foreach (DiagramGridLayout.GridNode? Junction in Nodes.Where(Node => Node.Shape == "circle" && Node.GroupId == null))
+        {
+            EdgeContract[] Outgoing = [.. Edges.Where(Edge => Edge.SourceId == Junction.Id)];
+            if (Outgoing.Length < 2)
             {
-                if (Branch.GroupId != null || Branch.IsDiamond || Branch.Shape == "circle") continue;
-                int Original = Cross(Targets[Branch.Id], Horizontal), Side = Math.Sign(Original - Centre);
-                if (Side == 0) continue;
-                var Chain = new HashSet<DiagramGridLayout.GridNode> { Branch }; var Pending = new Queue<DiagramGridLayout.GridNode>(); Pending.Enqueue(Branch);
-                while (Pending.TryDequeue(out var Current))
-                foreach (var Edge in Edges.Where(Edge => Edge.SourceId == Current.Id || Edge.TargetId == Current.Id))
+                continue;
+            }
+
+            int Centre = Cross(Targets[Junction.Id], Horizontal);
+            foreach (DiagramGridLayout.GridNode? Branch in Outgoing.Select(Edge => ById[Edge.TargetId]).OrderBy(Node => Math.Abs(Cross(Targets[Node.Id], Horizontal) - Centre)))
+            {
+                if (Branch.GroupId != null || Branch.IsDiamond || Branch.Shape == "circle")
                 {
-                    var Other = ById[Edge.SourceId == Current.Id ? Edge.TargetId : Edge.SourceId];
-                    if (Other.GroupId != null || Other.Shape == "circle" || Other.IsDiamond || Cross(Targets[Other.Id], Horizontal) != Original || !Chain.Add(Other)) continue;
-                    Pending.Enqueue(Other);
+                    continue;
                 }
-                if (Chain.Any(Node => Node.PlacementHintLocked)) continue;
+
+                int Original = Cross(Targets[Branch.Id], Horizontal), Side = Math.Sign(Original - Centre);
+                if (Side == 0)
+                {
+                    continue;
+                }
+
+                HashSet<DiagramGridLayout.GridNode> Chain = [Branch]; Queue<DiagramGridLayout.GridNode> Pending = new Queue<DiagramGridLayout.GridNode>(); Pending.Enqueue(Branch);
+                while (Pending.TryDequeue(out DiagramGridLayout.GridNode? Current))
+                {
+                    foreach (EdgeContract? Edge in Edges.Where(Edge => Edge.SourceId == Current.Id || Edge.TargetId == Current.Id))
+                {
+                        DiagramGridLayout.GridNode Other = ById[Edge.SourceId == Current.Id ? Edge.TargetId : Edge.SourceId];
+                    if (Other.GroupId != null || Other.Shape == "circle" || Other.IsDiamond || Cross(Targets[Other.Id], Horizontal) != Original || !Chain.Add(Other))
+                        {
+                            continue;
+                        }
+
+                        Pending.Enqueue(Other);
+                }
+                }
+
+                if (Chain.Any(Node => Node.PlacementHintLocked))
+                {
+                    continue;
+                }
+
                 for (int Distance = 1; Distance < Math.Abs(Original - Centre) && Distance <= FlowchartLayoutRules.RepairCandidateMoves; Distance++)
                 {
-                    int Candidate = checked(Centre + Side * Distance);
+                    int Candidate = checked(Centre + (Side * Distance));
                     if (Chain.Any(Node => Nodes.Any(Other => !Chain.Contains(Other) && MainOverlap(Targets[Node.Id], Targets[Other.Id], Horizontal)
-                        && (long)(Cross(Targets[Other.Id], Horizontal) - Original) * (Cross(Targets[Other.Id], Horizontal) - Candidate) <= 0))) continue;
-                    var Trial = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
-                    foreach (var Node in Chain)
+                        && (long)(Cross(Targets[Other.Id], Horizontal) - Original) * (Cross(Targets[Other.Id], Horizontal) - Candidate) <= 0)))
                     {
-                        var Region = Targets[Node.Id]; Trial[Node.Id] = new(Horizontal ? Candidate : Region.StartRow,
+                        continue;
+                    }
+
+                    Dictionary<string, FlowchartCellRegion> Trial = new Dictionary<string, FlowchartCellRegion>(Targets, StringComparer.Ordinal);
+                    foreach (DiagramGridLayout.GridNode Node in Chain)
+                    {
+                        FlowchartCellRegion Region = Targets[Node.Id]; Trial[Node.Id] = new(Horizontal ? Candidate : Region.StartRow,
                             Horizontal ? Region.StartColumn : Candidate, Region.RowSpan, Region.ColumnSpan);
                     }
-                    if (!Grid.TryPrepare(Trial, [], out _) || !Clear(Chain, Nodes, Trial, Horizontal)) continue;
+                    if (!Grid.TryPrepare(Trial, [], out _) || !Clear(Chain, Nodes, Trial, Horizontal))
+                    {
+                        continue;
+                    }
+
                     yield return new($"junction|{Junction.Id}|{Branch.Id}|{Candidate}", Branch.Id,
                         Chain.OrderBy(Node => Node.Id, StringComparer.Ordinal).ToArray(),
                         Horizontal ? Candidate - Original : 0, Horizontal ? 0 : Candidate - Original);
@@ -70,16 +105,22 @@ internal static partial class FlowchartJunctionBranchCompaction
     private static bool Clear(HashSet<DiagramGridLayout.GridNode> Moving, List<DiagramGridLayout.GridNode> Nodes,
         IReadOnlyDictionary<string, FlowchartCellRegion> Regions, bool Horizontal)
     {
-        foreach (var Node in Moving)
-        foreach (var Other in Nodes.Where(Other => !Moving.Contains(Other)))
+        foreach (DiagramGridLayout.GridNode Node in Moving)
         {
-            var A = Node.CellNode!.Bounds(Regions[Node.Id], Node.GeometryProvider);
-            var B = Other.CellNode!.Bounds(Regions[Other.Id], Other.GeometryProvider);
+            foreach (DiagramGridLayout.GridNode? Other in Nodes.Where(Other => !Moving.Contains(Other)))
+        {
+                FlowchartLayoutNodeBounds A = Node.CellNode!.Bounds(Regions[Node.Id], Node.GeometryProvider);
+                FlowchartLayoutNodeBounds B = Other.CellNode!.Bounds(Regions[Other.Id], Other.GeometryProvider);
             double Main = Math.Abs(Horizontal ? A.CenterX - B.CenterX : A.CenterY - B.CenterY);
             double Across = Math.Abs(Horizontal ? A.CenterY - B.CenterY : A.CenterX - B.CenterX);
-            if (Main < (Horizontal ? A.Width + B.Width : A.Height + B.Height) / 2 + DiagramGridMetrics.NODE_GAP_PX
-                && Across < (Horizontal ? A.Height + B.Height : A.Width + B.Width) / 2 + 2 * DiagramGridMetrics.NODE_GAP_PX) return false;
+            if (Main < ((Horizontal ? A.Width + B.Width : A.Height + B.Height) / 2) + DiagramGridMetrics.NODE_GAP_PX
+                && Across < ((Horizontal ? A.Height + B.Height : A.Width + B.Width) / 2) + (2 * DiagramGridMetrics.NODE_GAP_PX))
+                {
+                    return false;
+                }
+            }
         }
+
         return true;
     }
 

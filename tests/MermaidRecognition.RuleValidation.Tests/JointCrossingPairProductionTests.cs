@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
@@ -20,18 +21,24 @@ public sealed class JointCrossingPairProductionTests
     [TestCase("EIP271", 8, 1)]
     public void CompletePairAssignment_ReducesCrossingsWithoutAddingBends(string Id, int MaximumBends, int MaximumCrossings)
     {
-        var Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
+        RouteRuleCatalogueAuditTests.Scenario Scenario = RouteRuleCatalogueAuditTests.Catalogue().Select(Case =>
             (RouteRuleCatalogueAuditTests.Scenario)Case.Arguments[0]!).Single(Case => Case.Id == Id);
-        var Contract = Scenario.Enterprise
+        DiagramContract Contract = Scenario.Enterprise
             ? EnterpriseFlowchartContractMapper.Build(EnterpriseValidator.Analyze(Scenario.Source).Document!)
             : MermaidRecognizer.Parse(Scenario.Source);
         Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract,
-            new FlowchartRenderContext { UseCellRegions = true }, out var Layout), Is.True);
+            new FlowchartRenderContext { UseCellRegions = true }, out FlowchartLayoutResult? Layout), Is.True);
         int Crossings = 0;
-        for (int A = 0; A < Layout.EdgeRoutes.Count; A++) for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
-            Crossings += FlowchartBranchRouteOrder.Intersections(
+        for (int A = 0; A < Layout.EdgeRoutes.Count; A++)
+        {
+            for (int B = A + 1; B < Layout.EdgeRoutes.Count; B++)
+            {
+                Crossings += FlowchartBranchRouteOrder.Intersections(
                 Layout.EdgeRoutes[A].Points.Select(Point => (Point.X, Point.Y)).ToArray(),
                 Layout.EdgeRoutes[B].Points.Select(Point => (Point.X, Point.Y)).ToArray()).Crossings;
+            }
+        }
+
         Assert.That(Layout.EdgeRoutes.Sum(Route => FlowchartLayoutScore.CountCorners(Route.Points)), Is.LessThanOrEqualTo(MaximumBends));
         Assert.That(Crossings, Is.LessThanOrEqualTo(MaximumCrossings));
         Assert.That(FlowchartRouteRuleChecker.Check(Contract, Layout)

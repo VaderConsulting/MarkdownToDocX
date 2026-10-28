@@ -89,7 +89,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         /// </summary>
         protected override void RunInternal() {
 
-            Cluster[] openedClusters = modifiedNodes.OfType<Cluster>().Where(cl => !cl.IsCollapsed).ToArray();
+            Cluster[] openedClusters = [.. modifiedNodes.OfType<Cluster>().Where(cl => !cl.IsCollapsed)];
             if (openedClusters.Length > 0)
             {
                 new InitialLayoutByCluster(graph, openedClusters, clusterSettings).Run();
@@ -257,7 +257,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.Incremental
         static bool IsBetweenClusters(Node sourceAncestorUnderRoot, Node target) => sourceAncestorUnderRoot != target && sourceAncestorUnderRoot != null;
 
         static IEnumerable<Node> AllSuccessors(Node node) {
-            List<Node> ret = new List<Node> {node};
+            List<Node> ret = [node];
             if (node is Cluster cl)
             {
                 foreach (Node u in cl.AllSuccessorsWidthFirst())

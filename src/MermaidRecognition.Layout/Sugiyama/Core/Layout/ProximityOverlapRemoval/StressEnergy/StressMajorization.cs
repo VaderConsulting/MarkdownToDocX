@@ -138,8 +138,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 #if !SILVERLIGHT
             ConstructLinearSystemFromMajorization(out SparseMatrix? Lw, out SparseMatrix? Lx);
 
-            double[] zX = Positions.Select(p => p.X).ToArray();
-            double[] zY = Positions.Select(p => p.Y).ToArray();
+            double[] zX = [.. Positions.Select(p => p.X)];
+            double[] zY = [.. Positions.Select(p => p.Y)];
 
             double[] bX = Lx*zX;
             double[] bY = Lx*zY;
@@ -158,7 +158,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 { SolvingMethod.PrecondConjugateGradient, LinearSystemSolver.SolvePrecondConjugateGradient }
             };
 
-            invokers[Settings.Parallelize](new Action[] {
+            invokers[Settings.Parallelize]([
                 () => resX = solvers[Settings.SolvingMethod](Lw, bX, zX, Settings.MaxSolverIterations,
                                                                                        Settings.ResidualTolerance),
                                                                        () =>
@@ -168,7 +168,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                                                                                                                  Settings.MaxSolverIterations,
                                                                        
                                                                                        Settings.ResidualTolerance)
-});
+]);
 
             for (int i = 0; i < Positions.Count; i++)
             {
@@ -206,12 +206,12 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                     double votingDistance = vote.Distance;
                     double diffX = currentPosition.X - voterPos.X;
                     double diffY = currentPosition.Y - voterPos.Y;
-                    double euclidDistance = Math.Sqrt(diffX*diffX + diffY*diffY);
+                    double euclidDistance = Math.Sqrt((diffX*diffX) + (diffY*diffY));
                     double weight = blockWeight*vote.Weight;
 
-                    double voteX = voterPos.X + votingDistance*diffX/euclidDistance;
+                    double voteX = voterPos.X + (votingDistance*diffX/euclidDistance);
                     nextX += voteX*weight;
-                    double voteY = voterPos.Y + votingDistance*diffY/euclidDistance;
+                    double voteY = voterPos.Y + (votingDistance*diffY/euclidDistance);
                     nextY += voteY*weight;
 
                     sumWeights += weight;
@@ -263,9 +263,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             List<NodeVoting> nodeVotings = new List<NodeVoting>(8);
 
 
-            List<Vote> votesNode1 = new List<Vote>();
-            List<Vote> votesNodeLeft = new List<Vote>();
-            List<Vote> votesNodeRight = new List<Vote>();
+            List<Vote> votesNode1 = [];
+            List<Vote> votesNodeLeft = [];
+            List<Vote> votesNodeRight = [];
 
             votesNodeLeft.Add(new Vote(0, 10, 1/Math.Pow(10, 2))); // force from middle node to left node
             votesNodeRight.Add(new Vote(0, 10, 1/Math.Pow(10, 2))); // force from middle node to right node
@@ -273,20 +273,20 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             votesNode1.Add(new Vote(1, 10, 1/Math.Pow(10, 2)));
             votesNode1.Add(new Vote(2, 10, 1/Math.Pow(10, 2)));
 
-            List<VoteBlock> blockNode1 = new List<VoteBlock>
-            {
+            List<VoteBlock> blockNode1 =
+            [
                 new VoteBlock(votesNode1, 1)
-            };
+            ];
 
-            List<VoteBlock> blockNodeLeft = new List<VoteBlock>
-            {
+            List<VoteBlock> blockNodeLeft =
+            [
                 new VoteBlock(votesNodeLeft, 1)
-            };
+            ];
 
-            List<VoteBlock> blockNodeRight = new List<VoteBlock>
-            {
+            List<VoteBlock> blockNodeRight =
+            [
                 new VoteBlock(votesNodeRight, 1)
-            };
+            ];
 
 
             nodeVotings.Add(new NodeVoting(0, blockNode1));
@@ -356,7 +356,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                         edges[edgeId, 0] = voting.Distance;
                         edges[edgeId, 1] = voting.Weight*block.BlockWeight;
 #endif
-                        currentAdj.Add(new[] { sourceId, edgeId });
+                        currentAdj.Add([sourceId, edgeId]);
                         edgeId++;
                     }
                 }
@@ -369,7 +369,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             for (int rowC = 0; rowC < adjLists.Length; rowC++) {
                 List<int[]> adjList = adjLists[rowC];
                 //add self loop, since there will be an entry in the matrix too.
-                adjList.Add(new[] {rowC, -1});
+                adjList.Add([rowC, -1]);
 
                 adjList.Sort((a, b) => a[0].CompareTo(b[0]));
             }

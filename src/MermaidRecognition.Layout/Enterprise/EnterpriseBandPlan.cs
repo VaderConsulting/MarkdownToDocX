@@ -56,31 +56,42 @@ internal static partial class EnterpriseBandPlacement
             Parents = Contract.Groups.ToDictionary(Group => Group.Id, Group => Group.ParentGroupId, StringComparer.Ordinal);
             Inset = (int)Math.Ceiling(DiagramGridMetrics.NODE_GAP_PX / Nodes[0].CellNode!.Grid.Configuration.CellWidth);
             bool Horizontal = Contract.Direction is "LR" or "RL";
-            foreach (var Band in Nodes.GroupBy(Node => Classes[Node.Id].Band))
+            foreach (IGrouping<int, DiagramGridLayout.GridNode> Band in Nodes.GroupBy(Node => Classes[Node.Id].Band))
             {
-                var Ids = Band.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
-                var Linked = Contract.Edges.Where(Edge => Ids.Contains(Edge.SourceId) && Ids.Contains(Edge.TargetId))
+                HashSet<string> Ids = Band.Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+                HashSet<string> Linked = Contract.Edges.Where(Edge => Ids.Contains(Edge.SourceId) && Ids.Contains(Edge.TargetId))
                     .SelectMany(Edge => new[] { Edge.SourceId, Edge.TargetId }).ToHashSet(StringComparer.Ordinal);
                 Free.UnionWith(Ids.Except(Linked));
-                var Local = Linked.Count == 0 ? new Dictionary<string, (int Rank, int Order)>()
+                Dictionary<string, (int Rank, int Order)> Local = Linked.Count == 0 ? []
                     : RankBand(Contract, Band.Where(Node => Linked.Contains(Node.Id)).ToArray());
                 var RankKeys = Local.Values.Select(Value => Value.Rank).Distinct().Order().ToArray();
-                if (Contract.Direction is "BT" or "RL") Array.Reverse(RankKeys);
-                foreach (var Node in Band)
+                if (Contract.Direction is "BT" or "RL")
                 {
-                    if (!Local.TryGetValue(Node.Id, out var Value))
+                    Array.Reverse(RankKeys);
+                }
+
+                foreach (DiagramGridLayout.GridNode? Node in Band)
+                {
+                    if (!Local.TryGetValue(Node.Id, out (int Rank, int Order) Value))
                     { Rows[Node.Id] = 0; Keys[Node.Id] = 0; continue; }
                     int Rank = Array.IndexOf(RankKeys, Value.Rank);
                     LocalRanks[Node.Id] = Value;
                     Rows[Node.Id] = Horizontal ? Value.Order : Rank;
-                    Keys[Node.Id] = Horizontal ? Rank * Nodes.Count + Value.Order : Value.Order;
-                    if (Horizontal && Node.GroupId == null) HorizontalRanks[Node.Id] = Rank;
+                    Keys[Node.Id] = Horizontal ? (Rank * Nodes.Count) + Value.Order : Value.Order;
+                    if (Horizontal && Node.GroupId == null)
+                    {
+                        HorizontalRanks[Node.Id] = Rank;
+                    }
                 }
             }
-            foreach (var Node in Nodes)
+            foreach (DiagramGridLayout.GridNode Node in Nodes)
             {
                 string Owner = Node.Id;
-                for (string? Parent = Node.GroupId; Parent != null; Parent = Parents[Parent]) Owner = Parent;
+                for (string? Parent = Node.GroupId; Parent != null; Parent = Parents[Parent])
+                {
+                    Owner = Parent;
+                }
+
                 Owners[Node.Id] = Owner;
             }
         }
@@ -90,27 +101,34 @@ internal static partial class EnterpriseBandPlacement
         /// <returns>Complete disjoint candidate regions, ready for one atomic publication.</returns>
         internal Dictionary<string, FlowchartCellRegion> Build(int Wrap)
         {
-            foreach (var Group in Contract.Groups.Where(Group => Group.ParentGroupId == null)) Widths[Group.Id] = SizeFrame(Group.Id, 0);
-            foreach (var Node in Nodes.Where(Node => Node.GroupId == null)) { Widths[Node.Id] = Original[Node.Id].ColumnSpan; Offsets[Node.Id] = 0; }
+            foreach (GroupContract? Group in Contract.Groups.Where(Group => Group.ParentGroupId == null))
+            {
+                Widths[Group.Id] = SizeFrame(Group.Id, 0);
+            }
+
+            foreach (DiagramGridLayout.GridNode? Node in Nodes.Where(Node => Node.GroupId == null)) { Widths[Node.Id] = Original[Node.Id].ColumnSpan; Offsets[Node.Id] = 0; }
             MaximumWidth = Nodes.GroupBy((DiagramGridLayout.GridNode Node) => (Classes[Node.Id].Band, Rows[Node.Id]))
                 .Max(Group => Group.Sum(int (DiagramGridLayout.GridNode Node) => Original[Node.Id].ColumnSpan));
-            var Targets = Original.ToDictionary(Pair => Pair.Key, Pair => new FlowchartCellRegion(Rows[Pair.Key], Offsets[Pair.Key], Pair.Value.RowSpan, Pair.Value.ColumnSpan), StringComparer.Ordinal);
+            Dictionary<string, FlowchartCellRegion> Targets = Original.ToDictionary(Pair => Pair.Key, Pair => new FlowchartCellRegion(Rows[Pair.Key], Offsets[Pair.Key], Pair.Value.RowSpan, Pair.Value.ColumnSpan), StringComparer.Ordinal);
             ObservePlacement("local-ranks", Wrap, Targets);
             StackBands(Targets);
             var Order = Widths.Keys.OrderBy(Id => InitialKey(Id)).ToArray();
-            var Vertices = CreateVertices(Targets);
-            var Links = Contract.Edges.Where(Edge => Vertices.Any(Vertex => Vertex.Id == Edge.SourceId) && Vertices.Any(Vertex => Vertex.Id == Edge.TargetId))
-                .Select(Edge => (Edge.SourceId, Edge.TargetId)).ToArray();
-            var Ordered = DagreLayoutEngine.OrderCompleteBandBlocks(Order, Vertices, Links, PreservesHorizontalRanks);
+            List<DagreLayoutEngine.BandVertex> Vertices = CreateVertices(Targets);
+            (string SourceId, string TargetId)[] Links = [.. Contract.Edges.Where(Edge => Vertices.Any(Vertex => Vertex.Id == Edge.SourceId) && Vertices.Any(Vertex => Vertex.Id == Edge.TargetId)).Select(Edge => (Edge.SourceId, Edge.TargetId))];
+            (IReadOnlyList<string> Order, int Before, int After) Ordered = DagreLayoutEngine.OrderCompleteBandBlocks(Order, Vertices, Links, PreservesHorizontalRanks);
             CrossingsBefore = Ordered.Before; CrossingsAfter = Ordered.After;
             PackColumns(Targets, Ordered.Order);
-            if (WidthConstrained) WrapIndependentRankRows(Targets, Wrap);
+            if (WidthConstrained)
+            {
+                WrapIndependentRankRows(Targets, Wrap);
+            }
+
             PlacePartnerElements(Targets, Ordered.Order, Wrap);
             OrderPlateaus(Contract, Classes, Targets);
             ArrangeImplementationTimelines(Contract, Classes, Targets, Wrap);
-            var TimelineBands = Nodes.Where(Node => Node.GroupId == null
+            HashSet<int> TimelineBands = [.. Nodes.Where(Node => Node.GroupId == null
                 && Classes[Node.Id].Type == MermaidRecognition.Kinds.Enterprise.EnterpriseElementType.Plateau)
-                .Select(Node => Classes[Node.Id].Band).ToHashSet();
+                .Select(Node => Classes[Node.Id].Band)];
             RowMembers.UnionWith(Nodes.Where(Node => Node.GroupId == null && TimelineBands.Contains(Classes[Node.Id].Band)).Select(Node => Node.Id));
             RestackLevelBands(Targets);
             CompactFrameNeighbours(Targets);
@@ -126,16 +144,20 @@ internal static partial class EnterpriseBandPlacement
         /// <param name="Targets">Complete private occupancy, which is never changed by observation.</param>
         private void ObservePlacement(string Stage, int Wrap, IReadOnlyDictionary<string, FlowchartCellRegion> Targets)
         {
-            if (PlacementObserver == null) return;
-            var Grid = Nodes[0].CellNode!.Grid;
-            foreach (var Band in Nodes.GroupBy(Node => Classes[Node.Id].Band))
+            if (PlacementObserver == null)
+            {
+                return;
+            }
+
+            FlowchartLogicalGrid Grid = Nodes[0].CellNode!.Grid;
+            foreach (IGrouping<int, DiagramGridLayout.GridNode> Band in Nodes.GroupBy(Node => Classes[Node.Id].Band))
             {
                 var Starts = Band.Select(Node => Targets[Node.Id].StartRow).Distinct().Order().ToArray();
-                foreach (var Node in Band)
+                foreach (DiagramGridLayout.GridNode? Node in Band)
                 {
-                    var Region = Targets[Node.Id];
-                    var Origin = Grid.Origin(Region);
-                    bool Ranked = LocalRanks.TryGetValue(Node.Id, out var Local);
+                    FlowchartCellRegion Region = Targets[Node.Id];
+                    (double X, double Y) Origin = Grid.Origin(Region);
+                    bool Ranked = LocalRanks.TryGetValue(Node.Id, out (int Rank, int Order) Local);
                     PlacementObserver(new(Stage, Wrap, Node.Id, Band.Key, Ranked ? Local.Rank : null,
                         Ranked ? Local.Order : null, Array.IndexOf(Starts, Region.StartRow), Region, Origin.X, Origin.Y));
                 }
@@ -149,15 +171,19 @@ internal static partial class EnterpriseBandPlacement
         private int SizeFrame(string Id, int Start)
         {
             int Column = Start + Inset;
-            foreach (var Child in Contract.Groups.Where(Group => Group.ParentGroupId == Id)) Column += SizeFrame(Child.Id, Column);
+            foreach (GroupContract? Child in Contract.Groups.Where(Group => Group.ParentGroupId == Id))
+            {
+                Column += SizeFrame(Child.Id, Column);
+            }
+
             foreach (int Aspect in Nodes.Where(Node => Node.GroupId == Id).Select(Node => Classes[Node.Id].Aspect).Distinct().Order())
             {
-                var Members = Nodes.Where(Node => Node.GroupId == Id && Classes[Node.Id].Aspect == Aspect).ToArray();
+                DiagramGridLayout.GridNode[] Members = [.. Nodes.Where(Node => Node.GroupId == Id && Classes[Node.Id].Aspect == Aspect)];
                 int Width = 0;
-                foreach (var Row in Members.GroupBy(Node => (Classes[Node.Id].Band, Rows[Node.Id])))
+                foreach (IGrouping<(int Band, int), DiagramGridLayout.GridNode> Row in Members.GroupBy(Node => (Classes[Node.Id].Band, Rows[Node.Id])))
                 {
                     int Offset = 0;
-                    foreach (var Node in Row.OrderBy(Node => Keys[Node.Id])) { Offsets[Node.Id] = Column + Offset; Offset += Original[Node.Id].ColumnSpan; }
+                    foreach (DiagramGridLayout.GridNode? Node in Row.OrderBy(Node => Keys[Node.Id])) { Offsets[Node.Id] = Column + Offset; Offset += Original[Node.Id].ColumnSpan; }
                     Width = Math.Max(Width, Offset);
                 }
                 Column += Width;
@@ -170,15 +196,22 @@ internal static partial class EnterpriseBandPlacement
         private void StackBands(Dictionary<string, FlowchartCellRegion> Targets)
         {
             int Next = 0;
-            foreach (var Band in Targets.Keys.GroupBy(Id => Classes[Id].Band).OrderBy(Group => Group.Key))
+            foreach (IGrouping<int, string>? Band in Targets.Keys.GroupBy(Id => Classes[Id].Band).OrderBy(Group => Group.Key))
             {
-            foreach (var Row in Band.GroupBy(Id => Targets[Id].StartRow).OrderBy(Group => Group.Key).ToArray())
+            foreach (IGrouping<int, string>? Row in Band.GroupBy(Id => Targets[Id].StartRow).OrderBy(Group => Group.Key).ToArray())
             {
                 int Height = Row.Max(Id => Original[Id].RowSpan);
-                foreach (string Id in Row.ToArray()) Targets[Id] = new(Next, Targets[Id].StartColumn, Original[Id].RowSpan, Original[Id].ColumnSpan);
-                Next += Height;
+                foreach (string Id in Row.ToArray())
+                    {
+                        Targets[Id] = new(Next, Targets[Id].StartColumn, Original[Id].RowSpan, Original[Id].ColumnSpan);
+                    }
+
+                    Next += Height;
             }
-                if (PreviousBandPadding) Next += (int)Math.Ceiling(DiagramGridMetrics.NODE_GAP_PX / Nodes[0].CellNode!.Grid.Configuration.CellHeight);
+                if (PreviousBandPadding)
+                {
+                    Next += (int)Math.Ceiling(DiagramGridMetrics.NODE_GAP_PX / Nodes[0].CellNode!.Grid.Configuration.CellHeight);
+                }
             }
         }
 
@@ -187,11 +220,15 @@ internal static partial class EnterpriseBandPlacement
         /// <returns>Vertices with fixed within-frame columns and explicit owner blocks.</returns>
         private List<DagreLayoutEngine.BandVertex> CreateVertices(IReadOnlyDictionary<string, FlowchartCellRegion> Targets)
         {
-            var Result = Nodes.Select(Node => new DagreLayoutEngine.BandVertex(Node.Id, Owners[Node.Id], Targets[Node.Id].StartRow, Offsets[Node.Id])).ToList();
-            foreach (var Group in Contract.Groups)
+            List<DagreLayoutEngine.BandVertex> Result = [.. Nodes.Select(Node => new DagreLayoutEngine.BandVertex(Node.Id, Owners[Node.Id], Targets[Node.Id].StartRow, Offsets[Node.Id]))];
+            foreach (GroupContract Group in Contract.Groups)
             {
-                var Members = Nodes.Where(Node => DiagramGridLayout.IsInsideGroup(Contract, Node.Id, Group.Id)).ToArray();
-                if (Members.Length == 0) continue;
+                DiagramGridLayout.GridNode[] Members = [.. Nodes.Where(Node => DiagramGridLayout.IsInsideGroup(Contract, Node.Id, Group.Id))];
+                if (Members.Length == 0)
+                {
+                    continue;
+                }
+
                 Result.Add(new(Group.Id, Owners[Members[0].Id], (int)Math.Round(Members.Average(Node => (double)Targets[Node.Id].StartRow)),
                     Members.Average(Node => (double)Offsets[Node.Id])));
             }
@@ -203,19 +240,26 @@ internal static partial class EnterpriseBandPlacement
         /// <param name="Order">Strictly improved shared block order.</param>
         private void PackColumns(Dictionary<string, FlowchartCellRegion> Targets, IReadOnlyList<string> Order)
         {
-            var Extents = Owners.GroupBy(Pair => Pair.Value).ToDictionary(Group => Group.Key,
+            Dictionary<string, (int First, int Last)> Extents = Owners.GroupBy(Pair => Pair.Value).ToDictionary(Group => Group.Key,
                 Group => (First: Group.Min(Pair => Targets[Pair.Key].StartRow), Last: Group.Max(Pair => Targets[Pair.Key].EndRow)));
-            foreach (string Id in Widths.Keys) Extents.TryAdd(Id, (0, 0));
-            var Starts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (string Id in Widths.Keys)
+            {
+                Extents.TryAdd(Id, (0, 0));
+            }
+
+            Dictionary<string, int> Starts = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (string Id in Order)
             {
-                var Span = Extents[Id];
-                Starts[Id] = Starts.Where(Pair => Extents[Pair.Key].First < Span.Last && Extents[Pair.Key].Last > Span.First
-                        || HorizontalRanks.TryGetValue(Id, out int Rank) && HorizontalRanks.TryGetValue(Pair.Key, out int PreviousRank)
-                            && Classes[Id].Band == Classes[Pair.Key].Band && PreviousRank < Rank)
+                (int First, int Last) Span = Extents[Id];
+                Starts[Id] = Starts.Where(Pair => (Extents[Pair.Key].First < Span.Last && Extents[Pair.Key].Last > Span.First)
+                        || (HorizontalRanks.TryGetValue(Id, out int Rank) && HorizontalRanks.TryGetValue(Pair.Key, out int PreviousRank)
+                            && Classes[Id].Band == Classes[Pair.Key].Band && PreviousRank < Rank))
                     .Select(Pair => Pair.Value + Widths[Pair.Key]).DefaultIfEmpty(0).Max();
             }
-            foreach (var Node in Nodes) Targets[Node.Id] = FlowchartCellRepair.Translate(Targets[Node.Id], 0, Starts[Owners[Node.Id]]);
+            foreach (DiagramGridLayout.GridNode Node in Nodes)
+            {
+                Targets[Node.Id] = FlowchartCellRepair.Translate(Targets[Node.Id], 0, Starts[Owners[Node.Id]]);
+            }
         }
 
         /// <summary>Wraps only sparse ungrouped runs; dense bands retain their own layered ranks instead of text-like wrapping.</summary>
@@ -224,18 +268,25 @@ internal static partial class EnterpriseBandPlacement
         /// <param name="Wrap">Measured whole-cell run capacity.</param>
         private void WrapUngrouped(Dictionary<string, FlowchartCellRegion> Targets, IReadOnlyList<string> Order, int Wrap)
         {
-            foreach (var Band in Nodes.GroupBy(Node => Classes[Node.Id].Band).OrderByDescending(Group => Group.Key))
+            foreach (IGrouping<int, DiagramGridLayout.GridNode>? Band in Nodes.GroupBy(Node => Classes[Node.Id].Band).OrderByDescending(Group => Group.Key))
             {
-                if (Band.Any(Node => Node.GroupId != null) || Band.Select(Node => Rows[Node.Id]).Distinct().Count() > 1) continue;
+                if (Band.Any(Node => Node.GroupId != null) || Band.Select(Node => Rows[Node.Id]).Distinct().Count() > 1)
+                {
+                    continue;
+                }
+
                 int Top = Band.Min(Node => Targets[Node.Id].StartRow), Row = Top, Column = 0, Height = 0;
                 foreach (string Id in Order.Where(Id => Band.Any(Node => Node.Id == Id)))
                 {
-                    var Region = Targets[Id];
+                    FlowchartCellRegion Region = Targets[Id];
                     if (Column > 0 && Column + Region.ColumnSpan > Wrap) { Row += Height; Column = 0; Height = 0; }
                     Targets[Id] = new(Row, Column, Region.RowSpan, Region.ColumnSpan); Column += Region.ColumnSpan; Height = Math.Max(Height, Region.RowSpan);
                 }
                 int Added = Row + Height - Band.Max(Node => Original[Node.Id].RowSpan) - Top;
-                foreach (string Id in Targets.Keys.Where(Id => Classes[Id].Band > Band.Key).ToArray()) Targets[Id] = FlowchartCellRepair.Translate(Targets[Id], Added, 0);
+                foreach (string Id in Targets.Keys.Where(Id => Classes[Id].Band > Band.Key).ToArray())
+                {
+                    Targets[Id] = FlowchartCellRepair.Translate(Targets[Id], Added, 0);
+                }
             }
         }
 
@@ -249,12 +300,20 @@ internal static partial class EnterpriseBandPlacement
         /// <returns>Whether no later local rank would precede an earlier one.</returns>
         private bool PreservesHorizontalRanks(IReadOnlyList<string> Order)
         {
-            var Previous = new Dictionary<int, int>();
+            Dictionary<int, int> Previous = [];
             foreach (string Id in Order)
             {
-                if (!HorizontalRanks.TryGetValue(Id, out int Rank)) continue;
+                if (!HorizontalRanks.TryGetValue(Id, out int Rank))
+                {
+                    continue;
+                }
+
                 int Band = Classes[Id].Band;
-                if (Previous.TryGetValue(Band, out int Last) && Last > Rank) return false;
+                if (Previous.TryGetValue(Band, out int Last) && Last > Rank)
+                {
+                    return false;
+                }
+
                 Previous[Band] = Rank;
             }
             return true;

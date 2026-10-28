@@ -14,19 +14,19 @@ public sealed class FlowchartCellPreparedTitleBandTests
     public void PreparedAndFreshRouteTrialsAreIdentical(bool Diamond)
     {
         string Source = Diamond ? "A{Source}" : "A[Source]";
-        var Contract = MermaidRecognizer.Parse($"flowchart LR\n subgraph g[Group]\n {Source} --> B[Target]\n end");
-        var Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal)
+        DiagramContract Contract = MermaidRecognizer.Parse($"flowchart LR\n subgraph g[Group]\n {Source} --> B[Target]\n end");
+        Dictionary<string, FlowchartLayoutNodeBounds> Bounds = new Dictionary<string, FlowchartLayoutNodeBounds>(StringComparer.Ordinal)
         {
             ["g"] = new() { NodeId = "g", CenterX = 150, CenterY = 120, Width = 600, Height = 240 },
             ["A"] = new() { NodeId = "A", CenterY = 120, Width = 120, Height = 60 },
             ["B"] = new() { NodeId = "B", CenterX = 300, CenterY = 120, Width = 120, Height = 60 }
         };
-        var Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
-        var Route = new FlowchartLayoutEdgeRoute { SourceId = "A", TargetId = "B", ExitSide = "right", EntrySide = "left",
+        Dictionary<string, NodeContract> Nodes = Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        FlowchartLayoutEdgeRoute Route = new FlowchartLayoutEdgeRoute { SourceId = "A", TargetId = "B", ExitSide = "right", EntrySide = "left",
             ExitNormalX = 1, EntryNormalX = -1 };
         Route.Points.Add(new() { X = 60, Y = 120 }); Route.Points.Add(new() { X = 240, Y = 120 });
-        var Prepared = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds);
-        var Fresh = FlowchartAllocatedPortFallback.Build(Contract, Bounds, Nodes, Route, true);
+        FlowchartAllocatedPortFallback.PreparedGeometry Prepared = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds);
+        List<(double X, double Y)> Fresh = FlowchartAllocatedPortFallback.Build(Contract, Bounds, Nodes, Route, true);
         Assert.That(Fresh, Is.Not.Empty);
         Assert.That(FlowchartAllocatedPortFallback.Build(Contract, Bounds, Nodes, Route, true, Prepared), Is.EqualTo(Fresh));
         Assert.That(FlowchartAllocatedPortFallback.IsLegal(Contract, Bounds, Route, Fresh, Prepared), Is.True);
@@ -43,8 +43,8 @@ public sealed class FlowchartCellPreparedTitleBandTests
     [Test]
     public void PreparedGeometryMatchesFreshBands()
     {
-        var (Contract, Bounds) = Fixture();
-        var First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
+        (DiagramContract? Contract, Dictionary<string, FlowchartLayoutNodeBounds>? Bounds) = Fixture();
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
         Assert.That(FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands, Is.EqualTo(First));
         Assert.That(First, Is.EqualTo(FlowchartFrameTitleBandHelper.Build(Contract, Bounds)));
     }
@@ -53,11 +53,11 @@ public sealed class FlowchartCellPreparedTitleBandTests
     [Test]
     public void ReplacedFrameAndRollbackInvalidatePreparedGeometry()
     {
-        var (Contract, Bounds) = Fixture();
-        var Original = Bounds["g"];
-        var First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands.ToArray();
+        (DiagramContract? Contract, Dictionary<string, FlowchartLayoutNodeBounds>? Bounds) = Fixture();
+        FlowchartLayoutNodeBounds Original = Bounds["g"];
+        FlowchartFrameTitleBandHelper.Band[] First = [.. FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands];
         Bounds["g"] = new() { NodeId = "g", CenterY = 240, Width = 360, Height = 180 };
-        var Trial = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> Trial = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
         Assert.That(Trial, Is.Not.EqualTo(First));
         Assert.That(Trial, Is.EqualTo(FlowchartFrameTitleBandHelper.Build(Contract, Bounds)));
         Bounds["g"] = Original;
@@ -68,11 +68,11 @@ public sealed class FlowchartCellPreparedTitleBandTests
     [Test]
     public void ChangedTitleAndRollbackInvalidatePreparedGeometry()
     {
-        var (Contract, Bounds) = Fixture();
+        (DiagramContract? Contract, Dictionary<string, FlowchartLayoutNodeBounds>? Bounds) = Fixture();
         string? Title = Contract.Groups[0].Title;
-        var First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands.ToArray();
+        FlowchartFrameTitleBandHelper.Band[] First = [.. FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands];
         Contract.Groups[0].Title = "A\nlong\ntitle\nwith\nsix\nlines";
-        var Trial = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> Trial = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
         Assert.That(Trial, Is.Not.EqualTo(First));
         Assert.That(Trial, Is.EqualTo(FlowchartFrameTitleBandHelper.Build(Contract, Bounds)));
         Contract.Groups[0].Title = Title;
@@ -83,9 +83,9 @@ public sealed class FlowchartCellPreparedTitleBandTests
     [Test]
     public void DifferentContractCannotReusePreparedBands()
     {
-        var (Contract, Bounds) = Fixture();
-        var First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
-        var (Other, _) = Fixture();
+        (DiagramContract? Contract, Dictionary<string, FlowchartLayoutNodeBounds>? Bounds) = Fixture();
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
+        (DiagramContract? Other, Dictionary<string, FlowchartLayoutNodeBounds> _) = Fixture();
         Other.Groups[0].Title = "A\ndifferent\nframe\ntitle\nwith\nsix lines";
         Assert.That(FlowchartAllocatedPortFallback.Prepare(Other, Bounds).Bands, Is.Not.EqualTo(First));
         Assert.That(FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands, Is.EqualTo(First));
@@ -95,11 +95,11 @@ public sealed class FlowchartCellPreparedTitleBandTests
     [Test]
     public void MissingFramesAlwaysUseFreshComputedGeometry()
     {
-        var (Contract, Bounds) = Fixture();
+        (DiagramContract? Contract, Dictionary<string, FlowchartLayoutNodeBounds>? Bounds) = Fixture();
         Bounds.Remove("g");
-        var First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> First = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
         Bounds["A"] = new() { NodeId = "A", CenterY = 360, Width = 120, Height = 60 };
-        var Next = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
+        IReadOnlyList<FlowchartFrameTitleBandHelper.Band> Next = FlowchartAllocatedPortFallback.Prepare(Contract, Bounds).Bands;
         Assert.That(Next, Is.Not.EqualTo(First));
         Assert.That(Next, Is.EqualTo(FlowchartFrameTitleBandHelper.Build(Contract, Bounds)));
     }

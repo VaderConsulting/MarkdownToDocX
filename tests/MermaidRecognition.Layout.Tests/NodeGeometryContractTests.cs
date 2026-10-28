@@ -10,11 +10,11 @@ public sealed class NodeGeometryContractTests
     [Test]
     public void RectangularDefaultKeepsAllThreeGeometryRolesIdentical()
     {
-        var Geometry = NodeGeometry.Rectangle(120, 60);
+        NodeGeometry Geometry = NodeGeometry.Rectangle(120, 60);
         Assert.Multiple(() =>
         {
             Assert.That(Geometry.ConnectionBoundary, Is.SameAs(Geometry.ObstacleGeometry));
-            Assert.That(Geometry.ConnectionBoundary.TryPort("right", 0.5, out var Port), Is.True);
+            Assert.That(Geometry.ConnectionBoundary.TryPort("right", 0.5, out NodeGeometryPort Port), Is.True);
             Assert.That(Port, Is.EqualTo(new NodeGeometryPort(60, 0, 1, 0)));
             Assert.That(Geometry.ConnectionBoundary.Contains(Port.X, Port.Y, 0), Is.True);
             Assert.That(Geometry.ObstacleGeometry.IntersectsSegmentInterior(60, 0, 120, 0), Is.False);
@@ -26,12 +26,12 @@ public sealed class NodeGeometryContractTests
     [Test]
     public void ConnectionBoundaryCanDifferFromTheVisibleExtent()
     {
-        var Visual = new NodeGeometryBounds(-100, -60, 100, 60);
-        var Body = new RectangularNodeGeometry(new(-80, -40, 80, 60));
-        var Geometry = new NodeGeometry(Visual, Body, Body);
+        NodeGeometryBounds Visual = new NodeGeometryBounds(-100, -60, 100, 60);
+        RectangularNodeGeometry Body = new RectangularNodeGeometry(new(-80, -40, 80, 60));
+        NodeGeometry Geometry = new NodeGeometry(Visual, Body, Body);
         Assert.Multiple(() =>
         {
-            Assert.That(Geometry.ConnectionBoundary.TryPort("right", 0.5, out var Port), Is.True);
+            Assert.That(Geometry.ConnectionBoundary.TryPort("right", 0.5, out NodeGeometryPort Port), Is.True);
             Assert.That(Port.X, Is.EqualTo(80));
             Assert.That(Port.X, Is.LessThan(Geometry.VisualBounds.Right));
             Assert.That(Geometry.ConnectionBoundary.Contains(100, 10, 0), Is.False);
@@ -42,7 +42,7 @@ public sealed class NodeGeometryContractTests
     [Test]
     public void ObstacleIntersectionDistinguishesBoundaryTouchesAndOccupiedInterior()
     {
-        var Geometry = NodeGeometry.Rectangle(120, 60).ObstacleGeometry;
+        INodeObstacleGeometry Geometry = NodeGeometry.Rectangle(120, 60).ObstacleGeometry;
         Assert.Multiple(() =>
         {
             Assert.That(Geometry.IntersectsSegmentInterior(-120, -30, 120, -30), Is.False);

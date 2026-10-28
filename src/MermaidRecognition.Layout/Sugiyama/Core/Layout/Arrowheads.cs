@@ -45,15 +45,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
                 return false;
             }
 
-            if (edgeGeometry.SourceArrowhead != null)
-            {
-                edgeGeometry.SourceArrowhead.TipPosition = PlaceTip(c.Start, edgeGeometry.Curve.Start, edgeGeometry.SourceArrowhead.Offset);
-            }
+            edgeGeometry.SourceArrowhead?.TipPosition = PlaceTip(c.Start, edgeGeometry.Curve.Start, edgeGeometry.SourceArrowhead.Offset);
 
-            if (edgeGeometry.TargetArrowhead != null)
-            {
-                edgeGeometry.TargetArrowhead.TipPosition = PlaceTip(c.End, edgeGeometry.Curve.End, edgeGeometry.TargetArrowhead.Offset);
-            }
+            edgeGeometry.TargetArrowhead?.TipPosition = PlaceTip(c.End, edgeGeometry.Curve.End, edgeGeometry.TargetArrowhead.Offset);
 
             edgeGeometry.Curve = c;
             return true;
@@ -148,7 +142,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
                 return arrowTip;
             }
 
-            return arrowTip + offset * (d / dLen);
+            return arrowTip + (offset * (d / dLen));
         }
 
         /// <summary>
@@ -212,35 +206,23 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
                                                     ? edgeGeometry.TargetArrowhead.Length
                                                     : 0;
             double len = (edgeGeometry.Curve.End - edgeGeometry.Curve.Start).Length;
-            if (edgeGeometry.SourceArrowhead!=null)
-            {
-                edgeGeometry.SourceArrowhead.Length = Math.Min(len, sourceArrowheadSavedLength);
-            }
+            edgeGeometry.SourceArrowhead?.Length = Math.Min(len, sourceArrowheadSavedLength);
 
-            if (edgeGeometry.TargetArrowhead != null)
-            {
-                edgeGeometry.TargetArrowhead.Length = Math.Min(len, targetArrowheadSavedLength);
-            }
+            edgeGeometry.TargetArrowhead?.Length = Math.Min(len, targetArrowheadSavedLength);
 
             int count = 10;
             while (
                 (
-                    edgeGeometry.SourceArrowhead != null &&
-                    edgeGeometry.SourceArrowhead.Length > ApproximateComparer.IntersectionEpsilon
+                    (edgeGeometry.SourceArrowhead != null &&
+                    edgeGeometry.SourceArrowhead.Length > ApproximateComparer.IntersectionEpsilon)
                     ||
-                    edgeGeometry.TargetArrowhead != null &&
-                    edgeGeometry.TargetArrowhead.Length > ApproximateComparer.IntersectionEpsilon) && !success) {
+                    (edgeGeometry.TargetArrowhead != null &&
+                    edgeGeometry.TargetArrowhead.Length > ApproximateComparer.IntersectionEpsilon)) && !success) {
                 success = Arrowheads.CalculateArrowheads(edgeGeometry);
                 if (!success) {
-                    if (edgeGeometry.SourceArrowhead != null)
-                    {
-                        edgeGeometry.SourceArrowhead.Length *= 0.5;
-                    }
+                    edgeGeometry.SourceArrowhead?.Length *= 0.5;
 
-                    if (edgeGeometry.TargetArrowhead != null)
-                    {
-                        edgeGeometry.TargetArrowhead.Length *= 0.5;
-                    }
+                    edgeGeometry.TargetArrowhead?.Length *= 0.5;
                 }
                 count--;
                 if (count == 0)
@@ -251,26 +233,14 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
 
             if (!success) {
                 //to avoid drawing the arrowhead to (0,0)
-                if (edgeGeometry.SourceArrowhead != null)
-                {
-                    edgeGeometry.SourceArrowhead.TipPosition = spline.Start;
-                }
+                edgeGeometry.SourceArrowhead?.TipPosition = spline.Start;
 
-                if (edgeGeometry.TargetArrowhead != null)
-                {
-                    edgeGeometry.TargetArrowhead.TipPosition = spline.End;
-                }
+                edgeGeometry.TargetArrowhead?.TipPosition = spline.End;
             }
 
-            if (edgeGeometry.SourceArrowhead != null)
-            {
-                edgeGeometry.SourceArrowhead.Length = sourceArrowheadSavedLength;
-            }
+            edgeGeometry.SourceArrowhead?.Length = sourceArrowheadSavedLength;
 
-            if (edgeGeometry.TargetArrowhead != null)
-            {
-                edgeGeometry.TargetArrowhead.Length = targetArrowheadSavedLength;
-            }
+            edgeGeometry.TargetArrowhead?.Length = targetArrowheadSavedLength;
 
             return success;
         }
@@ -349,13 +319,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout
             if (targetArrow != null)
             {
                 targetArrow.TipPosition = b;
-                lineEnd = b - ab * targetArrow.Length;
+                lineEnd = b - (ab * targetArrow.Length);
             }
             Arrowhead sourceArrow = edge.EdgeGeometry.SourceArrowhead;
             if (sourceArrow != null)
             {
                 sourceArrow.TipPosition = a;
-                lineStart = a + ab * sourceArrow.Length;
+                lineStart = a + (ab * sourceArrow.Length);
             }
             edge.Curve = new LineSegment(lineStart, lineEnd);
         }

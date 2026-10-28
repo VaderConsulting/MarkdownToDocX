@@ -10,20 +10,20 @@ public sealed class FlowchartCellFanInTests
     [Test]
     public void CompactsEveryIndependentInputTogether()
     {
-        var (Contract, Nodes, Grid) = Fixture();
-        var Before = Grid.Capture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         DiagramGridLayout.CompactIndependentFanIn(Contract, Nodes, false, DiagramGridMetrics.NODE_GAP_PX);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
-        Assert.That(Nodes.Take(3).Select(Node => Grid.RegionOf(Node.Id).StartColumn), Is.EqualTo(new[] { 0, 3, 6 }));
+        Assert.That(Nodes.Take(3).Select(Node => Grid.RegionOf(Node.Id).StartColumn), Is.EqualTo([0, 3, 6]));
     }
 
     /// <summary>A hinted outside input preserves the full anchored pitch instead of moving the hint to a smaller fan.</summary>
     [Test]
     public void HintedInputRetainsTheAnchoredFanPitch()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Nodes[0].PlacementHintLocked = true;
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         DiagramGridLayout.CompactIndependentFanIn(Contract, Nodes, false, DiagramGridMetrics.NODE_GAP_PX);
         Assert.That(Grid.Capture().Regions, Is.EquivalentTo(Before.Regions));
     }
@@ -32,10 +32,10 @@ public sealed class FlowchartCellFanInTests
     [Test]
     public void BlockedInputRejectsTheCompleteFan()
     {
-        var (Contract, Nodes, Grid) = Fixture();
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture();
         Grid.TryPlace("O", new(0, 2, 1, 1));
-        var O = new DiagramGridLayout.GridNode { Id = "O", Rank = 99 }; O.BindCells(Grid); Nodes.Add(O);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode O = new DiagramGridLayout.GridNode { Id = "O", Rank = 99 }; O.BindCells(Grid); Nodes.Add(O);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         DiagramGridLayout.CompactIndependentFanIn(Contract, Nodes, false, DiagramGridMetrics.NODE_GAP_PX);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
     }
@@ -44,16 +44,16 @@ public sealed class FlowchartCellFanInTests
     /// <returns>Contract, bound nodes and grid.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture()
     {
-        var Contract = new DiagramContract(); var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
+        DiagramContract Contract = new DiagramContract(); FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
         for (int Index = 0; Index < 3; Index++)
         {
             string Id = "P" + Index; Grid.TryPlace(Id, new(0, Index * 3, 1, 1));
-            var Node = new DiagramGridLayout.GridNode { Id = Id, Rank = 0 }; Node.BindCells(Grid); Nodes.Add(Node);
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, Rank = 0 }; Node.BindCells(Grid); Nodes.Add(Node);
             Contract.EdgesMutable.Add(new EdgeContract { SourceId = Id, TargetId = "T" });
         }
         Grid.TryPlace("T", new(1, 3, 1, 1));
-        var Target = new DiagramGridLayout.GridNode { Id = "T", Rank = 1 }; Target.BindCells(Grid); Nodes.Add(Target);
+        DiagramGridLayout.GridNode Target = new DiagramGridLayout.GridNode { Id = "T", Rank = 1 }; Target.BindCells(Grid); Nodes.Add(Target);
         return (Contract, Nodes, Grid);
     }
 }

@@ -114,8 +114,8 @@ public sealed class FlowchartEdgeLabelGapTests
             Options.EdgeLabelFontSizePx,
             1.5);
 
-        double HalfHeightGap = FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(
-            Dimensions, Options.EdgeLabelFontSizePx) / 2.0
+        double HalfHeightGap = (FlowchartEdgeLabelPlacementHelper.ComputeRenderedEdgeLabelHeight(
+            Dimensions, Options.EdgeLabelFontSizePx) / 2.0)
             + FlowchartEdgeLabelGapHelper.ComputeCharacterGapPx(Options.EdgeLabelFontSizePx);
         AssertLabelHasStrokeGapAt(Svg, LabelX, LabelCentreY, HalfGap, Label, HalfHeightGap);
     }

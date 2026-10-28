@@ -67,7 +67,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 p = new Point();
                 return false;
             }
-            p = p1 + alpha * (p2 - p1);
+            p = p1 + (alpha * (p2 - p1));
             return true;
         }
 
@@ -83,7 +83,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 p = new Point();
                 return false;
             }
-            p = p1 + alpha * (p2 - p1);
+            p = p1 + (alpha * (p2 - p1));
             return true;
         }
 
@@ -139,7 +139,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             int out2 = GetOutCode(rect, p2);
             if ((out1 | out2) == 0) {
                 Point d = (p2 - p1).Normalize();
-                return GetOverlapAmount(rect, p1 - d * rect.Diagonal, p2 + d * rect.Diagonal);
+                return GetOverlapAmount(rect, p1 - (d * rect.Diagonal), p2 + (d * rect.Diagonal));
             }
             if (out1 == INSIDE)
             {
@@ -220,7 +220,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             int outCode = GetOutCode(rect, pOutside);
             Point d = (pInside - pOutside).Normalize();
 
-            return GetOverlapAmount(rect, pOutside, pInside + d * rect.Diagonal);
+            return GetOverlapAmount(rect, pOutside, pInside + (d * rect.Diagonal));
 
             //return rect.Area;
         }
@@ -244,7 +244,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
         {
             Point v1 = p1 - p0;
             Point v2 = p2 - p0;
-            double det = v1.X * v2.Y - v1.Y * v2.X;
+            double det = (v1.X * v2.Y) - (v1.Y * v2.X);
             return 0.5 * Math.Abs(det);
         }
 
@@ -267,11 +267,11 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             Point l = (p2 - p1);
             Point v = l.Normalize();
             double dot = Point.Dot(v, x - p1) / l.Length;
-            Point p = p1 + l * dot;
-            return dot <= 0 ? p1 : (dot >= 1 ? p2 : p1 + l * dot);
+            Point p = p1 + (l * dot);
+            return dot <= 0 ? p1 : (dot >= 1 ? p2 : p1 + (l * dot));
         }
 
-        public static double Dot(Point p1, Point p2) => p1.X * p2.X + p1.Y * p2.Y;
+        public static double Dot(Point p1, Point p2) => (p1.X * p2.X) + (p1.Y * p2.Y);
 
         public static Point GetOrthShiftUntilNoLongerOverlapRectSeg(Rectangle rect, Point p1, Point p2, Point moveDir)
         {
@@ -334,7 +334,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
                 t = Math.Min(t, alpha);
             }
 
-            return p1 + t*dir;
+            return p1 + (t*dir);
         }
 
         public static Rectangle GetScaled(Rectangle rect, double scale)
@@ -376,7 +376,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.OverlapRemovalFixedSegments
             searchRect = GetDilated(searchRect, tolerance);
             Rectangle[] intersected = rtree.GetAllIntersecting(searchRect);
 
-            List<Rectangle> boxesContaining = new List<Rectangle>();
+            List<Rectangle> boxesContaining = [];
             foreach (Rectangle r in intersected)
             {
                 Rectangle boxBig = GetDilated(r, tolerance);

@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Kinds.Enterprise;
 using MermaidRecognition.Layout;
 using MermaidRecognition.Layout.Enterprise;
@@ -10,7 +11,7 @@ public sealed class EnterpriseDirectionTests
     [Test]
     public void LocalDirection_IsCarriedToGroupContractsAndSource()
     {
-        var Document = EnterpriseParser.ParseDocument("enterprise LR\ngroup container {\ndirection BT\napplication-component first\napplication-component second\nfirst -flow-> second\n}").Document;
+        EnterpriseDocument Document = EnterpriseParser.ParseDocument("enterprise LR\ngroup container {\ndirection BT\napplication-component first\napplication-component second\nfirst -flow-> second\n}").Document;
         Assert.That(EnterpriseFlowchartContractMapper.Build(Document).Groups.Single().Direction, Is.EqualTo("BT"));
         Assert.That(EnterpriseFlowchartSourceWriter.Write(Document), Does.Contain("direction BT"));
     }
@@ -21,13 +22,13 @@ public sealed class EnterpriseDirectionTests
     [TestCase("RL", true, -1)]
     public void HeaderDirection_ReachesLayout(string Direction, bool Horizontal, int Sign)
     {
-        var Document = EnterpriseParser.ParseDocument($"enterprise {Direction}; application-component first; application-component second; first -flow-> second").Document;
-        var Contract = EnterpriseFlowchartContractMapper.Build(Document);
+        EnterpriseDocument Document = EnterpriseParser.ParseDocument($"enterprise {Direction}; application-component first; application-component second; first -flow-> second").Document;
+        DiagramContract Contract = EnterpriseFlowchartContractMapper.Build(Document);
         Assert.That(Contract.Direction, Is.EqualTo(Direction));
         Assert.That(EnterpriseFlowchartSourceWriter.Write(Document), Does.StartWith("flowchart " + Direction));
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out var Layout), Is.True);
-        var First = Layout.NodeBounds.Single(Item => Item.NodeId == "first");
-        var Second = Layout.NodeBounds.Single(Item => Item.NodeId == "second");
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(Contract, out FlowchartLayoutResult? Layout), Is.True);
+        FlowchartLayoutNodeBounds First = Layout.NodeBounds.Single(Item => Item.NodeId == "first");
+        FlowchartLayoutNodeBounds Second = Layout.NodeBounds.Single(Item => Item.NodeId == "second");
         double Delta = Horizontal ? Second.CenterX - First.CenterX : Second.CenterY - First.CenterY;
         Assert.That(Delta * Sign, Is.GreaterThan(0));
     }
@@ -35,14 +36,14 @@ public sealed class EnterpriseDirectionTests
     [Test]
     public void LongerClosingDashes_IncreaseTheFlowGap()
     {
-        var ShortDocument = EnterpriseParser.ParseDocument("enterprise TB\napplication-component first\napplication-component second\nfirst -flow-> second").Document;
-        var LongDocument = EnterpriseParser.ParseDocument("enterprise TB\napplication-component first\napplication-component second\nfirst -flow---> second").Document;
-        var ShortContract = EnterpriseFlowchartContractMapper.Build(ShortDocument);
-        var LongContract = EnterpriseFlowchartContractMapper.Build(LongDocument);
+        EnterpriseDocument ShortDocument = EnterpriseParser.ParseDocument("enterprise TB\napplication-component first\napplication-component second\nfirst -flow-> second").Document;
+        EnterpriseDocument LongDocument = EnterpriseParser.ParseDocument("enterprise TB\napplication-component first\napplication-component second\nfirst -flow---> second").Document;
+        DiagramContract ShortContract = EnterpriseFlowchartContractMapper.Build(ShortDocument);
+        DiagramContract LongContract = EnterpriseFlowchartContractMapper.Build(LongDocument);
         Assert.That(ShortContract.Edges.Single().MinLength, Is.EqualTo(1));
         Assert.That(LongContract.Edges.Single().MinLength, Is.EqualTo(2));
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(ShortContract, out var ShortLayout), Is.True);
-        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(LongContract, out var LongLayout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(ShortContract, out FlowchartLayoutResult? ShortLayout), Is.True);
+        Assert.That(FlowchartSugiyamaLayoutEngine.TryLayout(LongContract, out FlowchartLayoutResult? LongLayout), Is.True);
         double ShortGap = FlowGap(ShortLayout, "first", "second");
         double ExtendedGap = FlowGap(LongLayout, "first", "second");
         Assert.That(ExtendedGap, Is.GreaterThan(ShortGap));
@@ -72,8 +73,8 @@ public sealed class EnterpriseDirectionTests
 
     private static double FlowGap(FlowchartLayoutResult Layout, string SourceId, string TargetId)
     {
-        var Source = Layout.NodeBounds.Single(Item => Item.NodeId == SourceId);
-        var Target = Layout.NodeBounds.Single(Item => Item.NodeId == TargetId);
+        FlowchartLayoutNodeBounds Source = Layout.NodeBounds.Single(Item => Item.NodeId == SourceId);
+        FlowchartLayoutNodeBounds Target = Layout.NodeBounds.Single(Item => Item.NodeId == TargetId);
         return Math.Abs(Target.CenterY - Source.CenterY);
     }
 }

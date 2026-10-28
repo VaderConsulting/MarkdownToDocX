@@ -70,9 +70,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
         }
 
         internal void TrimGroupBoundaryCrossingList() {
-            if (null != GroupBoundaryPointAndCrossingsList) {
-                GroupBoundaryPointAndCrossingsList.Trim(Start, End);
-            }
+            GroupBoundaryPointAndCrossingsList?.Trim(Start, End);
         }
 
         // ctor
@@ -381,7 +379,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear {
                 edge = AddVisibilityEdge(lowVertex, highVertex);
             }
 
-            Shape[] crossingsArray = crossings.Select(c => c.Group.InputShape).ToArray();
+            Shape[] crossingsArray = [.. crossings.Select(c => c.Group.InputShape)];
             Func<bool> prevIsPassable = edge.IsPassable;
             if (prevIsPassable == null) {
                 edge.IsPassable = delegate { return crossingsArray.Any(s => s.IsTransparent); };

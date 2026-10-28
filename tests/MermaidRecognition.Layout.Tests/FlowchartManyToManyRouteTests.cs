@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 
 namespace MermaidRecognition.Layout.Tests;
@@ -8,7 +9,7 @@ public sealed class FlowchartManyToManyRouteTests
     [Test]
     public void Layout_F136_CompleteTwoByThreeBlockUsesThreeLegalCrossings()
     {
-        var Contract = MermaidRecognizer.Parse("""
+        DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart LR
             Web[Web feed]
             Api[API feed]
@@ -31,16 +32,19 @@ public sealed class FlowchartManyToManyRouteTests
 
         int Crossings = 0;
         for (int First = 0; First < Layout.EdgeRoutes.Count; First++)
-        for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
         {
-            var A = Layout.EdgeRoutes[First];
-            var B = Layout.EdgeRoutes[Second];
-            var Interaction = FlowchartBranchRouteOrder.Intersections(
+            for (int Second = First + 1; Second < Layout.EdgeRoutes.Count; Second++)
+        {
+                FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes[First];
+                FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes[Second];
+                (int Crossings, double Overlap) Interaction = FlowchartBranchRouteOrder.Intersections(
                 A.Points.Select(Point => (Point.X, Point.Y)).ToList(),
                 B.Points.Select(Point => (Point.X, Point.Y)).ToList());
             Crossings += Interaction.Crossings;
             Assert.That(Interaction.Overlap, Is.LessThanOrEqualTo(0.5), $"{A.EdgeId} overlaps {B.EdgeId}");
         }
+        }
+
         Assert.That(Crossings, Is.EqualTo(3), "The three-crossing layout keeps all endpoints on their box outlines. "
             + string.Join("; ", Layout.EdgeRoutes.Select(Route => Route.SourceId + "->" + Route.TargetId + ": "
                 + string.Join(" ", Route.Points.Select(Point => $"({Point.X},{Point.Y})")))) + " bounds: "
@@ -58,31 +62,37 @@ public sealed class FlowchartManyToManyRouteTests
             AssertOnOutline(Route.Points[^1], TargetBox, $"{Route.EdgeId} target");
         }
 
-        var Ports = Layout.EdgeRoutes.SelectMany(Route => new[]
+        IEnumerable<(string NodeId, FlowchartLayoutPoint Point)> Ports = Layout.EdgeRoutes.SelectMany(Route => new[]
         {
             (NodeId: Route.SourceId, Point: Route.Points[0]),
             (NodeId: Route.TargetId, Point: Route.Points[^1])
         });
-        foreach (var Group in Ports.GroupBy(Port => Port.NodeId))
+        foreach (IGrouping<string, (string NodeId, FlowchartLayoutPoint Point)> Group in Ports.GroupBy(Port => Port.NodeId))
         {
-            var Coordinates = Group.Select(Port => (Port.Point.X, Port.Point.Y)).ToArray();
+            (double X, double Y)[] Coordinates = [.. Group.Select(Port => (Port.Point.X, Port.Point.Y))];
             Assert.That(Coordinates.Distinct().Count(), Is.EqualTo(Coordinates.Length),
                 $"{Group.Key} must allocate a distinct port to every relationship.");
         }
 
         foreach (FlowchartLayoutEdgeRoute Route in Layout.EdgeRoutes)
-        foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Where(Box =>
+        {
+            foreach (FlowchartLayoutNodeBounds Box in Layout.NodeBounds.Where(Box =>
                      Box.NodeId != Route.SourceId && Box.NodeId != Route.TargetId))
-        foreach (var Segment in Route.Points.Zip(Route.Points.Skip(1)))
-            Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
+            {
+                foreach ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Segment in Route.Points.Zip(Route.Points.Skip(1)))
+                {
+                    Assert.That(FlowchartRouteObstacleHelper.SegmentIntersectsNodeInterior(
                 Segment.First.X, Segment.First.Y, Segment.Second.X, Segment.Second.Y, Box), Is.False,
                 $"{Route.EdgeId} passes through {Box.NodeId}");
+                }
+            }
+        }
     }
 
     private static void AssertOnOutline(FlowchartLayoutPoint Point, FlowchartLayoutNodeBounds Box, string Name)
     {
-        double Left = Box.CenterX - Box.Width / 2.0, Right = Box.CenterX + Box.Width / 2.0;
-        double Top = Box.CenterY - Box.Height / 2.0, Bottom = Box.CenterY + Box.Height / 2.0;
+        double Left = Box.CenterX - (Box.Width / 2.0), Right = Box.CenterX + (Box.Width / 2.0);
+        double Top = Box.CenterY - (Box.Height / 2.0), Bottom = Box.CenterY + (Box.Height / 2.0);
         bool OnVertical = (Math.Abs(Point.X - Left) < 0.01 || Math.Abs(Point.X - Right) < 0.01)
             && Point.Y >= Top - 0.01 && Point.Y <= Bottom + 0.01;
         bool OnHorizontal = (Math.Abs(Point.Y - Top) < 0.01 || Math.Abs(Point.Y - Bottom) < 0.01)
@@ -93,7 +103,7 @@ public sealed class FlowchartManyToManyRouteTests
     [Test]
     public void Layout_UnlabelledAdjacentRanks_OptimisesLinesThatShareAHub()
     {
-        var Contract = MermaidRecognizer.Parse("""
+        DiagramContract Contract = MermaidRecognizer.Parse("""
             flowchart TB
             Hub --> W1
             Hub --> W2
@@ -120,7 +130,7 @@ public sealed class FlowchartManyToManyRouteTests
     {
         FlowchartLayoutEdgeRoute A = Layout.EdgeRoutes.Single(Route => Route.SourceId == SourceA && Route.TargetId == TargetA);
         FlowchartLayoutEdgeRoute B = Layout.EdgeRoutes.Single(Route => Route.SourceId == SourceB && Route.TargetId == TargetB);
-        var Interaction = FlowchartBranchRouteOrder.Intersections(
+        (int Crossings, double Overlap) Interaction = FlowchartBranchRouteOrder.Intersections(
             A.Points.Select(Point => (Point.X, Point.Y)).ToList(),
             B.Points.Select(Point => (Point.X, Point.Y)).ToList());
         Assert.That(Interaction.Crossings, Is.Zero);

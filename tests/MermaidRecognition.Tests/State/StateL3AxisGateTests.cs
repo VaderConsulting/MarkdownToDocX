@@ -13,7 +13,7 @@ public sealed class StateL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetStateFixtureDirectory(),
-            new[] { "simple", "fork-join", "choice" },
+            ["simple", "fork-join", "choice"],
             Contract => Contract.Nodes.Count > 0 && Contract.Edges.Count > 0);
     }
 
@@ -22,7 +22,7 @@ public sealed class StateL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetStateFixtureDirectory(),
-            new[] { "composite", "struct-open" },
+            ["composite", "struct-open"],
             Contract => Contract.Groups.Count > 0);
     }
 
@@ -31,7 +31,7 @@ public sealed class StateL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetStateFixtureDirectory(),
-            new[] { "classDef-style", "inline-style" },
+            ["classDef-style", "inline-style"],
             Contract =>
                 Contract.ClassDefs.Count > 0
                 || Contract.Nodes.Any(Node => Node.InlineStyle.Fill is not null || Node.InlineStyle.Stroke is not null));
@@ -42,7 +42,7 @@ public sealed class StateL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetStateFixtureDirectory(),
-            new[] { "state-description" },
+            ["state-description"],
             Contract => Contract.Nodes.Any(Node => Node.Label != Node.Id));
     }
 
@@ -51,7 +51,7 @@ public sealed class StateL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetStateFixtureDirectory(),
-            new[] { "click-href" },
+            ["click-href"],
             Contract => Contract.Interactions.Count > 0);
     }
 
@@ -60,7 +60,7 @@ public sealed class StateL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetStateFixtureDirectory(),
-            new[] { "accessibility", "accDescr-block" },
+            ["accessibility", "accDescr-block"],
             Contract =>
                 !string.IsNullOrEmpty(Contract.Accessibility.Title)
                 || !string.IsNullOrEmpty(Contract.Accessibility.Description));

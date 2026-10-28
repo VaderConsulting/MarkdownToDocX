@@ -647,7 +647,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.ProjectionSolver
             // violatedConstraint.Right and those to its right, but also those to its left that are connected
             // to it by active constraints - because the definition of an active constraint is that the
             // gap matches exactly with the actual position, so all will move as a unit.
-            List<Variable> lstConnectedVars = new List<Variable>();
+            List<Variable> lstConnectedVars = [];
 
             // We consider .Left "already evaluated" because we don't want the path evaluation to back
             // up to it (because we're splitting .Right off from it by deactivating the constraint).

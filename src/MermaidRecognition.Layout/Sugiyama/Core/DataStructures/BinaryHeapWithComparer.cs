@@ -122,10 +122,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.DataStructures {
         }
 
         string Print(int i) {
-            if (2*i + 1 <= heapSize)
+            if ((2*i) + 1 <= heapSize)
             {
-                return string.Format(CultureInfo.InvariantCulture, "({0}->{1},{2})", A[i], A[i*2], A[i*2 + 1]) +
-                       Print(i*2) + Print(i*2 + 1);
+                return string.Format(CultureInfo.InvariantCulture, "({0}->{1},{2})", A[i], A[i*2], A[(i*2) + 1]) +
+                       Print(i*2) + Print((i*2) + 1);
             }
 
             if (2*i == heapSize)

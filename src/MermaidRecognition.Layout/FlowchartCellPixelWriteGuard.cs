@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -34,7 +36,7 @@ internal static class FlowchartCellPixelWriteGuard
     /// <returns>A scope that also aggregates nested write checks without duplicating primary node counts.</returns>
     internal static IDisposable ActivateCoverage(FlowchartCellWriteCoverage Coverage)
     {
-        var Previous = ActiveCoverage.Value;
+        FlowchartCellWriteCoverage? Previous = ActiveCoverage.Value;
         ActiveCoverage.Value = Coverage;
         return new CoverageScope(Previous, Coverage);
     }
@@ -47,14 +49,22 @@ internal static class FlowchartCellPixelWriteGuard
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static bool AllowWrite(DiagramGridLayout.GridNode Node, string Member)
     {
-        var Coverage = Node.CellWriteCoverage ?? ActiveCoverage.Value;
-        if (Coverage != null) Coverage.Checks++;
-        if (Node.CellNode == null) return true;
+        FlowchartCellWriteCoverage? Coverage = Node.CellWriteCoverage ?? ActiveCoverage.Value;
+        if (Coverage != null)
+        {
+            Coverage.Checks++;
+        }
+
+        if (Node.CellNode == null)
+        {
+            return true;
+        }
+
         if (Coverage != null) { Coverage.BoundChecks++; Coverage.Rejections++; }
         string Path = CallerPath();
-        var Context = Node.PixelWriteContext ?? FlowchartRenderContext.Current;
+        FlowchartRenderContext Context = Node.PixelWriteContext ?? FlowchartRenderContext.Current;
         string Stage = Context.ActiveLayoutStage ?? "direct cell repair";
-        var Diagnostic = new FlowchartLayoutQualityFailure("CellPixelWriteRejected",
+        FlowchartLayoutQualityFailure Diagnostic = new FlowchartLayoutQualityFailure("CellPixelWriteRejected",
             $"{Path} attempted {Member} on cell-bound node '{Node.Id}' during {Stage}; the write was rejected and the legal regions and gaps were kept.",
             [Node.Id], null);
         Context.RejectedCellPixelWritesMutable.Add(Diagnostic);
@@ -65,7 +75,7 @@ internal static class FlowchartCellPixelWriteGuard
 #endif
         if (Strict)
         {
-            var Failure = new InvalidOperationException(Diagnostic.Description);
+            InvalidOperationException Failure = new InvalidOperationException(Diagnostic.Description);
             Failure.Data["CellPixelWriteDiagnostic"] = Diagnostic;
             throw Failure;
         }
@@ -77,12 +87,16 @@ internal static class FlowchartCellPixelWriteGuard
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static string CallerPath()
     {
-        var Methods = new StackTrace().GetFrames().Select(Frame => Frame.GetMethod())
+        MethodBase?[] Methods = [.. new StackTrace().GetFrames().Select(Frame => Frame.GetMethod())
             .Where(Method => Method?.DeclaringType != null
                 && Method.DeclaringType != typeof(FlowchartCellPixelWriteGuard)
-                && Method.DeclaringType != typeof(DiagramGridLayout.GridNode)).ToArray();
-        if (Methods.Length == 0) return "unknown repair";
-        var Callers = Methods[0]!.DeclaringType!.Assembly == typeof(DiagramGridLayout).Assembly
+                && Method.DeclaringType != typeof(DiagramGridLayout.GridNode))];
+        if (Methods.Length == 0)
+        {
+            return "unknown repair";
+        }
+
+        IEnumerable<MethodBase?> Callers = Methods[0]!.DeclaringType!.Assembly == typeof(DiagramGridLayout).Assembly
             ? Methods.TakeWhile(Method => Method!.DeclaringType!.Assembly == typeof(DiagramGridLayout).Assembly)
             : Methods.Take(1);
         return string.Join(" <- ", Callers.Select(Method => Method!.DeclaringType!.FullName!.Replace('+', '.') + "." + Method.Name));
@@ -97,7 +111,11 @@ internal static class FlowchartCellPixelWriteGuard
         public void Dispose()
         {
             ActiveCoverage.Value = Previous;
-            if (Previous == null || ReferenceEquals(Previous, Current)) return;
+            if (Previous == null || ReferenceEquals(Previous, Current))
+            {
+                return;
+            }
+
             Previous.Checks += Current.Checks;
             Previous.BoundChecks += Current.BoundChecks;
             Previous.Rejections += Current.Rejections;

@@ -22,7 +22,7 @@ public sealed class RoutingHintLayoutTests
             """;
 
         (DiagramContract Contract, FlowchartLayoutResult Layout) = LayoutOf(Source);
-        double[] SourcePorts = Layout.EdgeRoutes.Select(Route => Route.Points[0].X).Order().ToArray();
+        double[] SourcePorts = [.. Layout.EdgeRoutes.Select(Route => Route.Points[0].X).Order()];
         double HubCentre = Layout.NodeBounds.Single(Node => Node.NodeId == "hub").CenterX;
         Assert.Multiple(() =>
         {
@@ -40,11 +40,16 @@ public sealed class RoutingHintLayoutTests
     [Test]
     public void RenderedEnterpriseRoutes_PreserveHintedSidesAndPortsAfterTrackRepair()
     {
-        var Lines = new List<string> { "enterprise", "  application-component hub \"Hub\"" };
+        List<string> Lines = ["enterprise", "  application-component hub \"Hub\""];
         for (int Index = 1; Index <= 8; Index++)
+        {
             Lines.Add($"  application-component target{Index} \"Target {Index}\"");
+        }
+
         for (int Index = 1; Index <= 8; Index++)
+        {
             Lines.Add($"  hub -flow-> target{Index} [leave S, enter N]");
+        }
 
         EnterpriseDocument Document = EnterpriseValidator.Analyze(string.Join("\n", Lines)).Document;
         EnterpriseLayoutResult Layout = EnterpriseLayoutEngine.Layout(Document);
@@ -97,7 +102,7 @@ public sealed class RoutingHintLayoutTests
 
         (DiagramContract Contract, FlowchartLayoutResult Layout) = LayoutOf(Source);
         FlowchartLayoutEdgeRoute Route = Layout.EdgeRoutes.Single();
-        List<(double X, double Y)> Path = Route.Points.Select(Point => (Point.X, Point.Y)).ToList();
+        List<(double X, double Y)> Path = [.. Route.Points.Select(Point => (Point.X, Point.Y))];
         Assert.Multiple(() =>
         {
             Assert.That(Route.ExitSide, Is.EqualTo("top"));
@@ -122,12 +127,12 @@ public sealed class RoutingHintLayoutTests
         FlowchartLayoutScore.Result Metrics = FlowchartLayoutScore.Measure(Contract, Layout);
         double WithoutHints = FlowchartLayoutScore.Calculate(
             Metrics.Width, Metrics.Height, Metrics.Crossings, Metrics.ForcedMinimum, Metrics.EmptyShare)
-            + Metrics.Bends * FlowchartLayoutScore.BEND_PENALTY;
+            + (Metrics.Bends * FlowchartLayoutScore.BEND_PENALTY);
         double Length = Layout.EdgeRoutes.Sum(Route => Route.Points.Zip(Route.Points.Skip(1)).Sum(double ((FlowchartLayoutPoint First, FlowchartLayoutPoint Second) Pair) =>
             Math.Sqrt(Math.Pow(Pair.First.X - Pair.Second.X, 2) + Math.Pow(Pair.First.Y - Pair.Second.Y, 2))))
             / DiagramGridMetrics.GRID_UNIT_PX * FlowchartLayoutRules.RouteLengthWeight;
         double Bound = Math.Min(FlowchartLayoutRules.BendScore, FlowchartLayoutRules.CrossingScore);
-        WithoutHints += Length / (1 + Length / Bound);
+        WithoutHints += Length / (1 + (Length / Bound));
         Assert.Multiple(() =>
         {
             Assert.That(Metrics.HintsHonoured, Is.EqualTo(2));

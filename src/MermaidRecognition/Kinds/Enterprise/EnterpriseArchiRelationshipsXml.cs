@@ -117,7 +117,7 @@ public static class EnterpriseArchiRelationshipsXml
             return string.Empty;
         }
 
-        HashSet<char> Unique = new HashSet<char>();
+        HashSet<char> Unique = [];
         foreach (char Character in Letters)
         {
             if (char.IsLetter(Character))
@@ -128,6 +128,6 @@ public static class EnterpriseArchiRelationshipsXml
 
         List<char> Ordered = new List<char>(Unique);
         Ordered.Sort();
-        return new string(Ordered.ToArray());
+        return new string([.. Ordered]);
     }
 }

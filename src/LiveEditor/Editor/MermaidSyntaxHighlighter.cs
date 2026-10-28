@@ -179,7 +179,7 @@ internal static class MermaidSyntaxHighlighter
             return new Regex(_ElementTypePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
 
-        List<string> Names = new List<string>();
+        List<string> Names = [];
         foreach (KeyValuePair<EnterpriseElementType, EnterpriseElementMetadata> Pair in EnterpriseElementCatalog.Elements)
         {
             Names.Add(Regex.Escape(Pair.Value.KebabName));

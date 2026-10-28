@@ -44,7 +44,7 @@ public static class FlowchartDagrePresentation
         FlowchartDirection Direction = FlowchartDirectionNormalizer.Normalize(Contract.Direction);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight || Direction == FlowchartDirection.RightToLeft;
         Dictionary<string, NodeContract> Nodes = IndexNodes(Contract);
-        List<Box> Boxes = new List<Box>();
+        List<Box> Boxes = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Copy.NodeBounds)
         {
             Boxes.Add(Box.From(Bounds));
@@ -52,7 +52,7 @@ public static class FlowchartDagrePresentation
 
         ApplySharedSize(Boxes, Nodes);
         SeparateOverlaps(Boxes, Horizontal);
-        List<Box> Clusters = new List<Box>();
+        List<Box> Clusters = [];
         foreach (FlowchartLayoutNodeBounds Bounds in Copy.ClusterBounds)
         {
             Clusters.Add(Box.From(Bounds));
@@ -190,12 +190,12 @@ public static class FlowchartDagrePresentation
     {
         List<Box> Ordered = new List<Box>(Boxes);
         Ordered.Sort((Left, Right) => Main(Left, Horizontal).CompareTo(Main(Right, Horizontal)));
-        List<List<Box>> Ranks = new List<List<Box>>();
+        List<List<Box>> Ranks = [];
         foreach (Box Bounds in Ordered)
         {
             if (Ranks.Count == 0 || Math.Abs(Main(Bounds, Horizontal) - Main(Ranks[Ranks.Count - 1][0], Horizontal)) > RANK_TOLERANCE_PX)
             {
-                Ranks.Add(new List<Box>());
+                Ranks.Add([]);
             }
 
             Ranks[Ranks.Count - 1].Add(Bounds);
@@ -331,7 +331,7 @@ public static class FlowchartDagrePresentation
                 continue;
             }
 
-            List<FlowchartLayoutPoint> Kept = new List<FlowchartLayoutPoint>();
+            List<FlowchartLayoutPoint> Kept = [];
             foreach (FlowchartLayoutPoint Point in Route.Points)
             {
                 Kept.Add(new FlowchartLayoutPoint
@@ -399,7 +399,7 @@ public static class FlowchartDagrePresentation
 
             if (!ByTarget.TryGetValue(Route.TargetId, out List<FlowchartLayoutEdgeRoute>? Group))
             {
-                Group = new List<FlowchartLayoutEdgeRoute>();
+                Group = [];
                 ByTarget[Route.TargetId] = Group;
             }
 
@@ -448,7 +448,7 @@ public static class FlowchartDagrePresentation
 
             if (!BySource.TryGetValue(Route.SourceId, out List<FlowchartLayoutEdgeRoute>? Group))
             {
-                Group = new List<FlowchartLayoutEdgeRoute>();
+                Group = [];
                 BySource[Route.SourceId] = Group;
             }
 
@@ -503,7 +503,7 @@ public static class FlowchartDagrePresentation
     private static void NudgeOffSharedRuns(FlowchartLayoutResult Copy, List<Box> Boxes, List<Box> Clusters)
     {
         Dictionary<string, Box> ById = IndexBoxes(Boxes, Clusters);
-        List<FlowchartLayoutEdgeRoute> Routes = new List<FlowchartLayoutEdgeRoute>();
+        List<FlowchartLayoutEdgeRoute> Routes = [];
         foreach (FlowchartLayoutEdgeRoute Route in Copy.EdgeRoutes)
         {
             if (Route.Points.Count >= 2)
@@ -548,7 +548,7 @@ public static class FlowchartDagrePresentation
 
             if (!ByTarget.TryGetValue(Route.TargetId, out List<FlowchartLayoutEdgeRoute>? Group))
             {
-                Group = new List<FlowchartLayoutEdgeRoute>();
+                Group = [];
                 ByTarget[Route.TargetId] = Group;
             }
 
@@ -637,8 +637,8 @@ public static class FlowchartDagrePresentation
         double DistRight = Math.Abs(End.X - Right);
         double DistBottom = Math.Abs(End.Y - Bottom);
         double DistTop = Math.Abs(End.Y - Top);
-        bool HorizontalFace = DistTop <= DistLeft && DistTop <= DistRight && DistTop <= DistBottom
-            || DistBottom < DistTop && DistBottom <= DistLeft && DistBottom <= DistRight;
+        bool HorizontalFace = (DistTop <= DistLeft && DistTop <= DistRight && DistTop <= DistBottom)
+            || (DistBottom < DistTop && DistBottom <= DistLeft && DistBottom <= DistRight);
         double Current = HorizontalFace ? End.X : End.Y;
         double StayAlong = HorizontalFace ? StayEnd.X : StayEnd.Y;
         double Direction = Current >= StayAlong ? 1.0 : -1.0;
@@ -730,7 +730,7 @@ public static class FlowchartDagrePresentation
 
     private static List<(double X, double Y)> BasisSamples(FlowchartLayoutEdgeRoute Route)
     {
-        List<(double X, double Y)> Points = new List<(double X, double Y)>();
+        List<(double X, double Y)> Points = [];
         foreach (FlowchartLayoutPoint Point in Route.Points)
         {
             Points.Add((Point.X, Point.Y));
@@ -1015,8 +1015,8 @@ public static class FlowchartDagrePresentation
         double DistBottom = Math.Abs(Point.Y - Bottom);
         double DistTop = Math.Abs(Point.Y - Top);
         double Shift = Index * 12.0;
-        bool HorizontalFace = DistTop <= DistLeft && DistTop <= DistRight && DistTop <= DistBottom
-            || DistBottom < DistTop && DistBottom <= DistLeft && DistBottom <= DistRight;
+        bool HorizontalFace = (DistTop <= DistLeft && DistTop <= DistRight && DistTop <= DistBottom)
+            || (DistBottom < DistTop && DistBottom <= DistLeft && DistBottom <= DistRight);
         if (HorizontalFace)
         {
             double Direction = Point.X < Bounds.CenterX ? 1.0 : -1.0;
@@ -1093,8 +1093,8 @@ public static class FlowchartDagrePresentation
             return (X, Y);
         }
 
-        bool VerticalFace = DistLeft <= DistBottom && DistLeft <= DistTop && DistLeft <= DistRight
-            || DistRight < DistLeft && DistRight <= DistBottom && DistRight <= DistTop;
+        bool VerticalFace = (DistLeft <= DistBottom && DistLeft <= DistTop && DistLeft <= DistRight)
+            || (DistRight < DistLeft && DistRight <= DistBottom && DistRight <= DistTop);
         double FaceLength = VerticalFace ? Bounds.Height : Bounds.Width;
         if (FaceLength < CORNER_FACE_MIN_PX)
         {

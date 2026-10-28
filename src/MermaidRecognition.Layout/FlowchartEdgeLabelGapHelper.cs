@@ -121,7 +121,7 @@ public static class FlowchartEdgeLabelGapHelper
         }
 
         double HalfGap = ComputeHalfGapAlongLinePx(LabelDimensions, FontSizePx);
-        double RequiredLength = 2.0 * HalfGap + 2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX;
+        double RequiredLength = (2.0 * HalfGap) + (2 * DiagramGridRouteBuilder.CORNER_RADIUS_PX);
         if (Length < RequiredLength)
         {
             return false;
@@ -329,12 +329,12 @@ public static class FlowchartEdgeLabelGapHelper
 
         if (HasBefore)
         {
-            Before = (StartX, StartY, StartX + UnitX * GapStartT, StartY + UnitY * GapStartT);
+            Before = (StartX, StartY, StartX + (UnitX * GapStartT), StartY + (UnitY * GapStartT));
         }
 
         if (HasAfter)
         {
-            After = (StartX + UnitX * GapEndT, StartY + UnitY * GapEndT, EndX, EndY);
+            After = (StartX + (UnitX * GapEndT), StartY + (UnitY * GapEndT), EndX, EndY);
         }
 
         return true;

@@ -1,3 +1,4 @@
+using MermaidRecognition.Contract;
 using MermaidRecognition.Core;
 using MermaidRecognition.RuleValidation.Generation;
 using MermaidRecognition.RuleValidation.Models;
@@ -12,7 +13,7 @@ public sealed class MarkerStrokeAssociationTests
     [TestCase(true)]
     public void MarkerFacts_UseTheTaggedTerminalStrokeAndRejectMisalignment(bool Misaligned)
     {
-        var Contract = MermaidRecognizer.Parse("flowchart LR\nA --> B\nA --> C");
+        DiagramContract Contract = MermaidRecognizer.Parse("flowchart LR\nA --> B\nA --> C");
         DiagramActualResult Diagram = new()
         {
             LayoutSucceeded = true,

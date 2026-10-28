@@ -103,7 +103,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// </summary>
         public GeometryGraph Graph {
             set {
-                _nodes = value.Nodes.ToArray();
+                _nodes = [.. value.Nodes];
                 InitWithGraph();
             }
         }
@@ -182,13 +182,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// <param name="epsilon"></param>
         /// <param name="randomizeAll"></param>
         public static void RandomizePoints(Point[] points, Random random, double epsilon, bool randomizeAll) {
-            HashSet<Point> pointSet = new HashSet<Point>();
+            HashSet<Point> pointSet = [];
             for (int i = 0; i < points.Length; i++) {
                 Point p = points[i];
                 if (pointSet.Contains(p) || randomizeAll) {
                     do {
-                        double newX = p.X + (2*random.NextDouble() - 1)*epsilon;
-                        double newY = p.Y + (2*random.NextDouble() - 1) + epsilon;
+                        double newX = p.X + (((2*random.NextDouble()) - 1)*epsilon);
+                        double newY = p.Y + ((2*random.NextDouble()) - 1) + epsilon;
                         p = new Point(newX, newY);
                     } while (pointSet.Contains(p));
                 }
@@ -210,7 +210,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                                                         out List<Tuple<int, int, double, double>> desiredEdgeDistances) {
             desiredEdgeDistances = [];
             int numberOverlappingPairs = 0;
-            HashSet<CdtEdge> edgeSet = new HashSet<CdtEdge>();
+            HashSet<CdtEdge> edgeSet = [];
             //add edges
             foreach (CdtTriangle triangle in cdt.GetTriangles()) {
                 foreach (CdtEdge triangleEdge in triangle.Edges) {
@@ -300,8 +300,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
             double dx = Math.Abs(point1.X - point2.X);
             double dy = Math.Abs(point1.Y - point2.Y);
 
-            double wx = (nodeBoxes[nodeId1].Width/2 + nodeBoxes[nodeId2].Width/2);
-            double wy = (nodeBoxes[nodeId1].Height/2 + nodeBoxes[nodeId2].Height/2);
+            double wx = ((nodeBoxes[nodeId1].Width/2) + (nodeBoxes[nodeId2].Width/2));
+            double wy = ((nodeBoxes[nodeId1].Height/2) + (nodeBoxes[nodeId2].Height/2));
 
             double t;
             if (dx < machineAcc*wx) {
@@ -423,7 +423,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
 
         bool DoSingleIteration(int currentIteration, ref bool scanlinePhase) {
             List<Tuple<Point, object>> sites =
-                nodePositions.Select((p, index) => new Tuple<Point, object>(p, index)).ToList();
+                [.. nodePositions.Select((p, index) => new Tuple<Point, object>(p, index))];
             Cdt triangulation = new Cdt(sites);
             triangulation.Run();
 
@@ -565,9 +565,9 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                         v =>
                         new DebugCurve(220, 1, "black", Curve.PolylineAroundClosedCurve(CurveFactory.CreateRectangle(v))));
                 curveList.AddRange(nodeCurves);
-                List<DebugCurve> vectors = nodePositions.Select(
+                List<DebugCurve> vectors = [.. nodePositions.Select(
                     (p, i) =>
-                    new DebugCurve(220, 2, "red", new Polyline(p, newPositions[i]))).ToList();
+                    new DebugCurve(220, 2, "red", new Polyline(p, newPositions[i])))];
 
                 foreach (Tuple<int, int, double, double> tuple in proximityEdgesWithDistance) {
                     if (tuple.Item3 > 0) {
@@ -578,14 +578,13 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
                 }
                 curveList.AddRange(vectors);
                 if (finalGridVectors != null) {
-                    List<DebugCurve> gridFlowVectors = nodePositions.Select((p, i) =>
+                    List<DebugCurve> gridFlowVectors = [.. nodePositions.Select((p, i) =>
                                                                new DebugCurve(220, 2, "blue",
-                                                                              new Polyline(p, p + finalGridVectors[i])))
-                                                       .ToList();
+                                                                              new Polyline(p, p + finalGridVectors[i])))];
                     curveList.AddRange(gridFlowVectors);
                 }
 
-                LayoutAlgorithmSettings.ShowDebugCurves(curveList.ToArray());
+                LayoutAlgorithmSettings.ShowDebugCurves([.. curveList]);
             }
 #endif
         }
@@ -615,7 +614,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         /// Scale the graph, such that the average edge length corresponds to a predefined size.
         /// </summary>
          void DoInitialScaling() {
-            Edge[] edges = _nodes.SelectMany(n => n.OutEdges).ToArray();
+            Edge[] edges = [.. _nodes.SelectMany(n => n.OutEdges)];
             if (edges.Length == 0)
             {
                 return;
@@ -674,7 +673,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         internal static Point[] InitNodePositionsAndBoxes(OverlapRemovalSettings overlapRemovalSettings,
                                                           Node[] nodes, out Point[] nodePositions,
                                                           out Size[] nodeSizes) {
-            nodePositions = nodes.Select(v => v.Center).ToArray();
+            nodePositions = [.. nodes.Select(v => v.Center)];
             //make sure no two points are the same
             RandomizePoints(nodePositions, new Random(overlapRemovalSettings.RandomizationSeed),
                             overlapRemovalSettings.Epsilon,
@@ -684,7 +683,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
         }
 
          int CreateProximityEdgesWithRTree(List<Tuple<int, int, double, double>> proximityEdges) {
-            HashSet<Tuple<int, int>> edgeSet = new HashSet<Tuple<int, int>>();
+            HashSet<Tuple<int, int>> edgeSet = [];
 
             foreach (Tuple<int, int, double, double> proximityEdge in proximityEdges) {
                 edgeSet.Add(Tuple.Create(proximityEdge.Item1, proximityEdge.Item2));
@@ -767,7 +766,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Layout.ProximityOverlapRemoval
          static void AddStressFromProximityEdges(StressMajorization stressSolver,
                                                         List<Tuple<int, int, double, double>> proximityEdgesWithDistance) {
             //set to check whether we already added forces between two nodes
-            HashSet<Tuple<int, int>> nodePairs = new HashSet<Tuple<int, int>>();
+            HashSet<Tuple<int, int>> nodePairs = [];
 
             // set the corresponding forces/votings
             foreach (Tuple<int, int, double, double> tuple in proximityEdgesWithDistance) {

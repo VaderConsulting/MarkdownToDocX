@@ -34,7 +34,7 @@ public sealed class FlowchartSugiyamaLayoutEngineTests
         Assert.That(Result.GraphWidth, Is.GreaterThan(0));
         Assert.That(Result.GraphHeight, Is.GreaterThan(0));
 
-        List<double> CentreYValues = Result.NodeBounds.Select(Bounds => Bounds.CenterY).Distinct().ToList();
+        List<double> CentreYValues = [.. Result.NodeBounds.Select(Bounds => Bounds.CenterY).Distinct()];
         Assert.That(CentreYValues.Count, Is.GreaterThan(1), "Sugiyama should spread chain nodes across layers");
     }
 

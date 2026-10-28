@@ -103,7 +103,11 @@ public sealed class EnterpriseCatalogueSyntaxTests : ProductionCatalogueTestFixt
         while (Cursor != null)
         {
             string Candidate = Path.Combine(Cursor.FullName, FileName);
-            if (File.Exists(Candidate)) return Candidate;
+            if (File.Exists(Candidate))
+            {
+                return Candidate;
+            }
+
             Cursor = Cursor.Parent;
         }
         throw new FileNotFoundException(FileName);

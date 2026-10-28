@@ -16,20 +16,32 @@ public static partial class FlowchartSpineColumnPostProcessor
     /// <returns>Whether a complete legal plan was accepted.</returns>
     internal static bool ApplyCells(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartDirection Direction)
     {
-        if (Nodes.Count <= 1 || Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft) return false;
-        var Before = FlowchartCellRepair.Capture(Nodes);
-        if (!ShouldApplySpineColumnLayout(Contract, Before.Regions)) return false;
-        var Roots = FindRootNodeIds(Contract, Before.Regions.Keys);
-        if (Roots.Count == 0) return false;
+        if (Nodes.Count <= 1 || Direction is FlowchartDirection.LeftToRight or FlowchartDirection.RightToLeft)
+        {
+            return false;
+        }
+
+        FlowchartLogicalGrid.Snapshot Before = FlowchartCellRepair.Capture(Nodes);
+        if (!ShouldApplySpineColumnLayout(Contract, Before.Regions))
+        {
+            return false;
+        }
+
+        List<string> Roots = FindRootNodeIds(Contract, Before.Regions.Keys);
+        if (Roots.Count == 0)
+        {
+            return false;
+        }
+
         string Root = Roots.OrderBy(Id => GetEarliestCreationIndex(Contract, Id)).First();
-        var Spine = BuildPrimarySpineNodeIds(Contract, Root);
-        var Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
+        HashSet<string> Spine = BuildPrimarySpineNodeIds(Contract, Root);
+        Dictionary<string, FlowchartCellRegion> Targets = new Dictionary<string, FlowchartCellRegion>(Before.Regions, StringComparer.Ordinal);
         int SpineColumn = Targets[Root].StartColumn;
         int Pitch = Targets.Values.Max(Region => Region.ColumnSpan);
-        var Locked = Nodes.Where(Node => Node.PlacementHintLocked).Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> Locked = Nodes.Where(Node => Node.PlacementHintLocked).Select(Node => Node.Id).ToHashSet(StringComparer.Ordinal);
 
         // Retain labelled side ordering only; spine straightening belongs to routed scoring.
-        var Sides = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
+        HashSet<string> Sides = Contract.Edges.Where(Edge => !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase)
             && Targets.ContainsKey(Edge.SourceId) && Targets.ContainsKey(Edge.TargetId) && !Spine.Contains(Edge.TargetId)
             && IsDecisionShape(GetNodeShape(Contract, Edge.SourceId))).Select(Edge => Edge.TargetId).ToHashSet(StringComparer.Ordinal);
         foreach (string Id in Sides)
@@ -39,7 +51,11 @@ public static partial class FlowchartSpineColumnPostProcessor
             int Column = checked((int)ResolveSideBranchCrossAxis(Contract, Id, Sides, SpineColumn, Pitch, FindDecisionEdgeToTarget(Contract, Id)));
             if (Contract.Edges.Any(Edge => Edge.SourceId == Id && Spine.Contains(Edge.TargetId)
                 && !string.Equals(Edge.Stroke, "invisible", StringComparison.OrdinalIgnoreCase))
-                && IsNoLabeledEdge(FindDecisionEdgeToTarget(Contract, Id))) Column = checked(SpineColumn - 2 * Pitch);
+                && IsNoLabeledEdge(FindDecisionEdgeToTarget(Contract, Id)))
+            {
+                Column = checked(SpineColumn - (2 * Pitch));
+            }
+
             Set(Id, null, Column);
         }
         return FlowchartCellRepair.TryAssign(Nodes, Targets);
@@ -48,7 +64,11 @@ public static partial class FlowchartSpineColumnPostProcessor
         // member move leaks if a later reservation collides or fails a lock.
         void Set(string Id, int? Row, int Column)
         {
-            if (Locked.Contains(Id) || !Targets.TryGetValue(Id, out var Region)) return;
+            if (Locked.Contains(Id) || !Targets.TryGetValue(Id, out FlowchartCellRegion? Region))
+            {
+                return;
+            }
+
             Targets[Id] = new(Row ?? Region.StartRow, Column, Region.RowSpan, Region.ColumnSpan);
         }
     }

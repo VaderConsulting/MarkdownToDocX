@@ -51,7 +51,7 @@ public static class EnterpriseEdgeClearance
             }
         }
 
-        List<string> Violations = new List<string>();
+        List<string> Violations = [];
         foreach (EnterpriseRoutedEdge Edge in Routed)
         {
             string Key = Edge.Relationship.SourceId + "->" + Edge.Relationship.TargetId;

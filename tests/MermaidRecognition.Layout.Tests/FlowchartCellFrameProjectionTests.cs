@@ -12,21 +12,21 @@ public sealed class FlowchartCellFrameProjectionTests
     [TestCase(true)]
     public void EmptyFrameChainsReflectTheOriginalPageProjection(bool Hinted)
     {
-        var Contract = new DiagramContract();
+        DiagramContract Contract = new DiagramContract();
         Contract.NodesMutable.Add(new() { Id = "A" });
         Contract.GroupsMutable.AddRange([new() { Id = "empty", PlacementHint = Hinted
             ? new() { Kind = PlacementHintKind.RightOf, PeerId = "A", IsActive = true } : null },
             new() { Id = "dependent", PlacementHint = new() { Kind = PlacementHintKind.Below, PeerId = "empty", IsActive = true } }]);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1));
-        var Node = new DiagramGridLayout.GridNode { Id = "A" }; Node.BindCells(Grid);
-        var Before = Grid.Capture();
-        var Page = DiagramGridLayout.ProjectCellFrames(Contract, [Node], Before);
+        DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = "A" }; Node.BindCells(Grid);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
+        List<DiagramGridLayout.GridFrame> Page = DiagramGridLayout.ProjectCellFrames(Contract, [Node], Before);
         Node.CellNode!.UseRoutingCoordinates(1000);
-        var Routing = DiagramGridLayout.ProjectCellFrames(Contract, [Node], Before);
-        foreach (var Frame in Page)
+        List<DiagramGridLayout.GridFrame> Routing = DiagramGridLayout.ProjectCellFrames(Contract, [Node], Before);
+        foreach (DiagramGridLayout.GridFrame Frame in Page)
         {
-            var Actual = Routing.Single(Item => Item.Id == Frame.Id);
+            DiagramGridLayout.GridFrame Actual = Routing.Single(Item => Item.Id == Frame.Id);
             Assert.That((Actual.Left, Actual.Right, Actual.Top, Actual.Bottom),
                 Is.EqualTo((Frame.Left, Frame.Right, 1000 - Frame.Top, 1000 - Frame.Bottom)));
         }
@@ -39,24 +39,28 @@ public sealed class FlowchartCellFrameProjectionTests
     [TestCase(true)]
     public void PureFramesMatchAppliedRegionsAndGaps(bool Routing)
     {
-        var Contract = new DiagramContract();
-        var Outer = new GroupContract { Id = "outer" }; Outer.ChildGroupIdsMutable.AddRange(["G", "H"]);
-        var G = new GroupContract { Id = "G", ParentGroupId = "outer" }; G.ChildNodeIdsMutable.Add("A");
-        var H = new GroupContract { Id = "H", ParentGroupId = "outer" }; H.ChildNodeIdsMutable.Add("B");
-        var Empty = new GroupContract { Id = "empty", PlacementHint = new() { Kind = PlacementHintKind.RightOf, PeerId = "outer", Offset = 1 } };
+        DiagramContract Contract = new DiagramContract();
+        GroupContract Outer = new GroupContract { Id = "outer" }; Outer.ChildGroupIdsMutable.AddRange(["G", "H"]);
+        GroupContract G = new GroupContract { Id = "G", ParentGroupId = "outer" }; G.ChildNodeIdsMutable.Add("A");
+        GroupContract H = new GroupContract { Id = "H", ParentGroupId = "outer" }; H.ChildNodeIdsMutable.Add("B");
+        GroupContract Empty = new GroupContract { Id = "empty", PlacementHint = new() { Kind = PlacementHintKind.RightOf, PeerId = "outer", Offset = 1 } };
         Contract.GroupsMutable.AddRange([Outer, G, H, Empty]);
         Contract.NodesMutable.AddRange([new() { Id = "A", ParentGroupId = "G" }, new() { Id = "B", ParentGroupId = "H" }]);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
         Grid.TryPlace("A", new(0, 0, 1, 1)); Grid.TryPlace("B", new(2, 2, 1, 1));
-        var Nodes = new List<DiagramGridLayout.GridNode> { new() { Id = "A", GroupId = "G" }, new() { Id = "B", GroupId = "H" } };
-        foreach (var Node in Nodes) { Node.BindCells(Grid); if (Routing) Node.CellNode!.UseRoutingCoordinates(1000); }
-        var Before = Grid.Capture(); var HintState = (Empty.PlacementHint.IsActive, Empty.PlacementHint.UnhonouredReason);
-        var Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion> { ["B"] = new(2, 4, 1, 1) }, [new(true, 0, 60, 30)])!;
-        var Projected = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Plan.After);
+        List<DiagramGridLayout.GridNode> Nodes = [new() { Id = "A", GroupId = "G" }, new() { Id = "B", GroupId = "H" }];
+        foreach (DiagramGridLayout.GridNode Node in Nodes) { Node.BindCells(Grid); if (Routing)
+            {
+                Node.CellNode!.UseRoutingCoordinates(1000);
+            }
+        }
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture(); (bool IsActive, string? UnhonouredReason) HintState = (Empty.PlacementHint.IsActive, Empty.PlacementHint.UnhonouredReason);
+        FlowchartCellRepair.Assignment Plan = FlowchartCellRepair.PlanAssignment(Nodes, new Dictionary<string, FlowchartCellRegion> { ["B"] = new(2, 4, 1, 1) }, [new(true, 0, 60, 30)])!;
+        List<DiagramGridLayout.GridFrame> Projected = DiagramGridLayout.ProjectCellFrames(Contract, Nodes, Plan.After);
         Assert.That(Grid.Capture(), Is.SameAs(Before));
         Assert.That((Empty.PlacementHint.IsActive, Empty.PlacementHint.UnhonouredReason), Is.EqualTo(HintState));
         Assert.That(Plan.TryApply(), Is.True);
-        var Actual = new List<DiagramGridLayout.GridFrame>(); DiagramGridLayout.ReplaceCellFrames(Contract, Nodes, Actual);
+        List<DiagramGridLayout.GridFrame> Actual = []; DiagramGridLayout.ReplaceCellFrames(Contract, Nodes, Actual);
         Assert.That(Projected.Select(Frame => (Frame.Id, Frame.Left, Frame.Top, Frame.Right, Frame.Bottom, Frame.TitleStrip)),
             Is.EqualTo(Actual.Select(Frame => (Frame.Id, Frame.Left, Frame.Top, Frame.Right, Frame.Bottom, Frame.TitleStrip))));
         Plan.Rollback(); Assert.That(Grid.Capture(), Is.SameAs(Before));

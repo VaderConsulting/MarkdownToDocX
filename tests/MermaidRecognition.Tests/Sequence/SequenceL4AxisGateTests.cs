@@ -210,11 +210,9 @@ public sealed class SequenceL4AxisGateTests
 
         DiagramContract Contract = MermaidRecognizer.Parse(File.ReadAllText(MmdPath));
 
-        List<SourceStatementContract> LifecycleStatements = Contract.SourceStatements
+        List<SourceStatementContract> LifecycleStatements = [.. Contract.SourceStatements
 
-            .Where(Statement => Statement.LineTypeId == "sequence.lifecycle")
-
-            .ToList();
+            .Where(Statement => Statement.LineTypeId == "sequence.lifecycle")];
 
         Assert.That(LifecycleStatements.Count, Is.EqualTo(2));
 

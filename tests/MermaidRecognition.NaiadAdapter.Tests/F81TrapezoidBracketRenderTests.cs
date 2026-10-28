@@ -42,11 +42,10 @@ public sealed class F81TrapezoidBracketRenderTests
         Assert.That(Svg, Does.Not.Contain(@"\Wide bottom"));
         Assert.That(Svg, Does.Not.Match(@"<path[^>]*d=""M[\d.]+ [\d.]+ H[\d.]+ V[\d.]+ Z"""));
 
-        List<string> NodePaths = System.Text.RegularExpressions.Regex.Matches(
+        List<string> NodePaths = [.. System.Text.RegularExpressions.Regex.Matches(
                 Svg,
                 @"<path\b[^>]*\bd=""([^""]+)""[^>]*\bclass=""node""")
-            .Select(Match => Match.Groups[1].Value)
-            .ToList();
+            .Select(Match => Match.Groups[1].Value)];
         Assert.That(NodePaths, Has.Count.EqualTo(2));
         Assert.That(NodePaths[0], Does.Not.Contain(" H").And.Not.Contain(" V"));
         Assert.That(NodePaths[1], Does.Not.Contain(" H").And.Not.Contain(" V"));
@@ -75,7 +74,7 @@ public sealed class F81TrapezoidBracketRenderTests
         double TargetY = UseMaxY
             ? Points.Max(Point => Point.Y)
             : Points.Min(Point => Point.Y);
-        List<double> XValues = Points.Where(Point => Math.Abs(Point.Y - TargetY) < 0.01).Select(Point => Point.X).ToList();
+        List<double> XValues = [.. Points.Where(Point => Math.Abs(Point.Y - TargetY) < 0.01).Select(Point => Point.X)];
         return XValues.Max() - XValues.Min();
     }
 }

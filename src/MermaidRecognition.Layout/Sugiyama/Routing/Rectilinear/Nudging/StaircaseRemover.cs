@@ -71,10 +71,10 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Rectilinear.Nudging {
                 return -1;
             }
 
-            SegWithIndex[] segs = new[] {
+            SegWithIndex[] segs = [
                                  new SegWithIndex(pts, 0), new SegWithIndex(pts, 1), new SegWithIndex(pts, 2),
                                  new SegWithIndex(pts, 3)
-                             };
+                             ];
             int segToReplace = 0;
 
             for (int i = 0;;) {

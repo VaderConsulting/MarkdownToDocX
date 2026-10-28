@@ -10,20 +10,20 @@ public sealed class FlowchartCellPlacementHintTests
     [Test]
     public void MemberHintCanChangeTheEnvelopeWithoutLosingTheGroupAnchor()
     {
-        var Contract = new DiagramContract();
+        DiagramContract Contract = new DiagramContract();
         Contract.NodesMutable.AddRange([new() { Id = "anchor" }, new() { Id = "A", ParentGroupId = "G" },
             new() { Id = "B", ParentGroupId = "G", PlacementHint = new() { Kind = PlacementHintKind.RightOf, PeerId = "A", SourceLine = 2 } }]);
-        var Group = new GroupContract { Id = "G", PlacementHint = new() { Kind = PlacementHintKind.Below, PeerId = "anchor", SourceLine = 1 } };
+        GroupContract Group = new GroupContract { Id = "G", PlacementHint = new() { Kind = PlacementHintKind.Below, PeerId = "anchor", SourceLine = 1 } };
         Group.ChildNodeIdsMutable.AddRange(["A", "B"]); Contract.GroupsMutable.Add(Group);
-        var Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
-        var Nodes = new List<DiagramGridLayout.GridNode>();
-        foreach (var (Id, Row, Column) in new[] { ("anchor", 0, 0), ("A", 1, 4), ("B", 1, 0) })
+        FlowchartLogicalGrid Grid = new FlowchartLogicalGrid(FlowchartLogicalGridConfiguration.FromRules());
+        List<DiagramGridLayout.GridNode> Nodes = [];
+        foreach ((string? Id, int Row, int Column) in new[] { ("anchor", 0, 0), ("A", 1, 4), ("B", 1, 0) })
         {
             Assert.That(Grid.TryPlace(Id, new(Row, Column, 1, 1)), Is.True);
-            var Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = Id == "anchor" ? null : "G" };
+            DiagramGridLayout.GridNode Node = new DiagramGridLayout.GridNode { Id = Id, GroupId = Id == "anchor" ? null : "G" };
             Node.BindCells(Grid); Nodes.Add(Node);
         }
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         Assert.That(FlowchartPlacementHints.Apply(Contract, Nodes), Is.True);
         Assert.That(Group.PlacementHint!.IsActive, Is.True);
         Assert.That(Contract.Nodes[2].PlacementHint!.IsActive, Is.True);
@@ -39,16 +39,16 @@ public sealed class FlowchartCellPlacementHintTests
     [Test]
     public void NestedGroupPlanMovesEveryMemberTogether()
     {
-        var (Contract, Nodes, Grid) = Fixture(PlacementHintKind.RightOf);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(PlacementHintKind.RightOf);
         Contract.Nodes[1].PlacementHint = null;
         Contract.GroupsMutable.Add(new GroupContract { Id = "outer", PlacementHint = new() { Kind = PlacementHintKind.Below, PeerId = "A" } });
         Contract.GroupsMutable.Add(new GroupContract { Id = "inner", ParentGroupId = "outer" });
         Nodes[1].GroupId = "inner";
         Assert.That(Grid.TryPlace("C", new(6, 5, 1, 1)), Is.True);
-        var C = new DiagramGridLayout.GridNode { Id = "C", GroupId = "outer" }; C.BindCells(Grid); Nodes.Add(C);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode C = new DiagramGridLayout.GridNode { Id = "C", GroupId = "outer" }; C.BindCells(Grid); Nodes.Add(C);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         FlowchartPlacementHints.Apply(Contract, Nodes);
-        var B = Grid.RegionOf("B"); var AfterC = Grid.RegionOf("C");
+        FlowchartCellRegion B = Grid.RegionOf("B"); FlowchartCellRegion AfterC = Grid.RegionOf("C");
         Assert.That(B.StartColumn, Is.EqualTo(Grid.RegionOf("A").StartColumn));
         Assert.That(B.StartRow, Is.EqualTo(Grid.RegionOf("A").EndRow));
         Assert.That(AfterC.StartRow - B.StartRow, Is.EqualTo(Before.Regions["C"].StartRow - Before.Regions["B"].StartRow));
@@ -59,10 +59,10 @@ public sealed class FlowchartCellPlacementHintTests
     [Test]
     public void RejectedCycleLeavesAcceptedRegionsAndGapsIntact()
     {
-        var (Contract, Nodes, Grid) = Fixture(PlacementHintKind.RightOf);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(PlacementHintKind.RightOf);
         Contract.Nodes[1].PlacementHint!.SourceLine = 1;
         Contract.Nodes[0].PlacementHint = new() { Kind = PlacementHintKind.LeftOf, PeerId = "B", SourceLine = 2 };
-        var Before = Grid.Capture();
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         FlowchartPlacementHints.Apply(Contract, Nodes);
         Assert.That(Contract.Nodes[0].PlacementHint!.IsActive, Is.False);
         Assert.That(Contract.Nodes[1].PlacementHint!.IsActive, Is.True);
@@ -80,10 +80,10 @@ public sealed class FlowchartCellPlacementHintTests
     [TestCase(PlacementHintKind.RightOf)]
     public void RelativeOffsetsAlignStartsDespiteDifferentSpans(PlacementHintKind Kind)
     {
-        var (Contract, Nodes, Grid) = Fixture(Kind);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(Kind);
         Contract.Nodes[1].PlacementHint!.Offset = 2;
         Assert.That(FlowchartPlacementHints.Apply(Contract, Nodes), Is.True);
-        var Peer = Grid.RegionOf("A"); var Owner = Grid.RegionOf("B");
+        FlowchartCellRegion Peer = Grid.RegionOf("A"); FlowchartCellRegion Owner = Grid.RegionOf("B");
         Assert.That(Kind switch
         {
             PlacementHintKind.Above => Owner.EndRow == Peer.StartRow - 2 && Owner.StartColumn == Peer.StartColumn,
@@ -100,10 +100,10 @@ public sealed class FlowchartCellPlacementHintTests
     [Test]
     public void HintPlanKeepsAlignmentWhileAvoidingOccupiedCells()
     {
-        var (Contract, Nodes, Grid) = Fixture(PlacementHintKind.RightOf);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(PlacementHintKind.RightOf);
         Assert.That(Grid.TryPlace("C", new(0, 1, 1, 2)), Is.True);
-        var C = new DiagramGridLayout.GridNode { Id = "C" }; C.BindCells(Grid); Nodes.Add(C);
-        var Before = Grid.Capture();
+        DiagramGridLayout.GridNode C = new DiagramGridLayout.GridNode { Id = "C" }; C.BindCells(Grid); Nodes.Add(C);
+        FlowchartLogicalGrid.Snapshot Before = Grid.Capture();
         FlowchartPlacementHints.Apply(Contract, Nodes);
         Assert.That(Grid.RegionOf("B").StartColumn, Is.EqualTo(3));
         Assert.That(Grid.RegionOf("B").StartRow, Is.EqualTo(0));
@@ -120,10 +120,10 @@ public sealed class FlowchartCellPlacementHintTests
     [TestCase(LayoutHintDirection.West)]
     public void PushUsesCellBoundary(LayoutHintDirection Direction)
     {
-        var (Contract, Nodes, Grid) = Fixture(PlacementHintKind.Push);
+        (DiagramContract? Contract, List<DiagramGridLayout.GridNode>? Nodes, FlowchartLogicalGrid? Grid) = Fixture(PlacementHintKind.Push);
         Contract.Nodes[1].PlacementHint!.Direction = Direction;
         FlowchartPlacementHints.Apply(Contract, Nodes);
-        var A = Grid.RegionOf("A"); var B = Grid.RegionOf("B");
+        FlowchartCellRegion A = Grid.RegionOf("A"); FlowchartCellRegion B = Grid.RegionOf("B");
         Assert.That(Direction switch
         {
             LayoutHintDirection.North => B.EndRow == A.StartRow,
@@ -138,13 +138,17 @@ public sealed class FlowchartCellPlacementHintTests
     /// <returns>One contract, bound node list and their authoritative ownership.</returns>
     private static (DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, FlowchartLogicalGrid Grid) Fixture(PlacementHintKind Kind)
     {
-        var Contract = new DiagramContract();
+        DiagramContract Contract = new DiagramContract();
         Contract.NodesMutable.Add(new NodeContract { Id = "A" });
         Contract.NodesMutable.Add(new NodeContract { Id = "B", PlacementHint = new() { Kind = Kind, PeerId = "A" } });
-        var Grid = FlowchartCellInitialPlacement.Create(FlowchartLogicalGridConfiguration.FromRules(),
+        FlowchartLogicalGrid Grid = FlowchartCellInitialPlacement.Create(FlowchartLogicalGridConfiguration.FromRules(),
             [new("A", 0, 0, 1, 1), new("B", 2, 2, 2, 1)], false);
-        var Nodes = new List<DiagramGridLayout.GridNode> { new() { Id = "A" }, new() { Id = "B" } };
-        foreach (var Node in Nodes) Node.BindCells(Grid);
+        List<DiagramGridLayout.GridNode> Nodes = [new() { Id = "A" }, new() { Id = "B" }];
+        foreach (DiagramGridLayout.GridNode Node in Nodes)
+        {
+            Node.BindCells(Grid);
+        }
+
         Nodes[1].PlacementHintLocked = true;
         return (Contract, Nodes, Grid);
     }

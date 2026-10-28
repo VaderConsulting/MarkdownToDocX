@@ -14,7 +14,7 @@ public sealed class SequenceContractMapperTests
             """);
 
         Assert.That(Contract.Nodes, Has.Count.EqualTo(2));
-        Assert.That(Contract.Nodes.Select(Node => Node.Id), Is.EquivalentTo(new[] { "Alice", "Bob" }));
+        Assert.That(Contract.Nodes.Select(Node => Node.Id), Is.EquivalentTo(["Alice", "Bob"]));
         Assert.That(Contract.Edges, Has.Count.EqualTo(2));
 
         EdgeContract FirstEdge = Contract.Edges[0];
@@ -87,7 +87,7 @@ public sealed class SequenceContractMapperTests
             """);
 
         Assert.That(Contract.Nodes, Has.Count.EqualTo(3));
-        Assert.That(Contract.Nodes.Select(Node => Node.Id), Is.EquivalentTo(new[] { "A", "B", "C" }));
+        Assert.That(Contract.Nodes.Select(Node => Node.Id), Is.EquivalentTo(["A", "B", "C"]));
         Assert.That(Contract.Edges, Has.Count.EqualTo(3));
         Assert.That(Contract.Edges[0].Label, Is.EqualTo("Forward"));
         Assert.That(Contract.Edges[1].Label, Is.EqualTo("Relay"));
@@ -174,7 +174,7 @@ public sealed class SequenceContractMapperTests
 
         GroupContract AltGroup = Contract.Groups.Single(Group => Group.Id == "alt-0");
         Assert.That(AltGroup.Title, Is.EqualTo("Data found"));
-        Assert.That(AltGroup.ChildGroupIds, Is.EquivalentTo(new[] { "else-1" }));
+        Assert.That(AltGroup.ChildGroupIds, Is.EquivalentTo(["else-1"]));
 
         GroupContract ElseGroup = Contract.Groups.Single(Group => Group.Id == "else-1");
         Assert.That(ElseGroup.Title, Is.EqualTo("Not found"));
@@ -228,7 +228,7 @@ public sealed class SequenceContractMapperTests
         GroupContract BoxGroup = Contract.Groups[0];
         Assert.That(BoxGroup.Id, Is.EqualTo("box-0"));
         Assert.That(BoxGroup.Title, Is.EqualTo("Internal"));
-        Assert.That(BoxGroup.ChildNodeIds, Is.EquivalentTo(new[] { "A", "B" }));
+        Assert.That(BoxGroup.ChildNodeIds, Is.EquivalentTo(["A", "B"]));
 
         NodeContract ParticipantA = Contract.Nodes.Single(Node => Node.Id == "A");
         NodeContract ParticipantB = Contract.Nodes.Single(Node => Node.Id == "B");
@@ -266,8 +266,8 @@ public sealed class SequenceContractMapperTests
                 end
             """);
 
-        Assert.That(Contract.Groups.Select(Group => Group.Id), Is.EquivalentTo(new[]
-        {
+        Assert.That(Contract.Groups.Select(Group => Group.Id), Is.EquivalentTo(
+        [
             "opt-0",
             "par-1",
             "and-2",
@@ -275,7 +275,7 @@ public sealed class SequenceContractMapperTests
             "option-4",
             "break-5",
             "rect-6"
-        }));
+        ]));
 
         Assert.That(
             ((RawMetadata)Contract.Edges.Single(Edge => Edge.Label == "Maybe").Metadata["sequenceParentGroup"]).RawValue,

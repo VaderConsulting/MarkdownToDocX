@@ -425,7 +425,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
 
          List<Event> CreateEvents(Solver solver, ref Rectangle boundaryRect)
         {
-            List<Event> events = new List<Event>();
+            List<Event> events = [];
             int cNodes = nodeList.Count; // cache for perf
             double leftBorderWidth = CalcBorderWidth(OpenBorderInfo.InnerMargin);
             double rightBorderWidth = CalcBorderWidth(CloseBorderInfo.InnerMargin);
@@ -462,8 +462,8 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
                 // Update our boundaries if this node goes past any of them.
                 if (!IsRootCluster)
                 {
-                    double pad = node.Size / 2 + ClusterPadding;
-                    double padP = node.SizeP / 2 + ClusterPaddingP;
+                    double pad = (node.Size / 2) + ClusterPadding;
+                    double padP = (node.SizeP / 2) + ClusterPaddingP;
                     double newLeft = node.Position - pad - leftBorderWidth;
                     double newRight = node.Position + pad + rightBorderWidth;
                     double newBottom = node.PositionP - padP - openBorderWidth;
@@ -612,7 +612,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
             if (MinimumSize > 0.0)
             {
                 Constraint cst = solver.AddConstraint(
-                    LeftBorderNode.Variable, RightBorderNode.Variable, MinimumSize - leftBorderWidth/2 - rightBorderWidth/2);
+                    LeftBorderNode.Variable, RightBorderNode.Variable, MinimumSize - (leftBorderWidth/2) - (rightBorderWidth/2));
                 Debug.Assert(null != cst, "Minimum Cluster size: unexpected null cst");
 #if VERBOSE
                     Console.WriteLine(" {0} MinClusterSizeCst {1} -> {2} g {3:F5}", isHorizontal ? "H" : "V"
@@ -889,7 +889,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
          List<OverlapRemovalNode> GetLeftNeighbours(OverlapRemovalParameters parameters, ScanLine scanLine,
                                     OverlapRemovalNode currentNode, bool isHorizontal)
         {
-            List<OverlapRemovalNode> lstNeighbours = new List<OverlapRemovalNode>();
+            List<OverlapRemovalNode> lstNeighbours = [];
             OverlapRemovalNode nextNode = scanLine.NextLeft(currentNode);
             for (; null != nextNode; nextNode = scanLine.NextLeft(nextNode))
             {
@@ -909,7 +909,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Core.Geometry
          List<OverlapRemovalNode> GetRightNeighbours(OverlapRemovalParameters parameters, ScanLine scanLine,
                                     OverlapRemovalNode currentNode, bool isHorizontal)
         {
-            List<OverlapRemovalNode> lstNeighbours = new List<OverlapRemovalNode>();
+            List<OverlapRemovalNode> lstNeighbours = [];
             OverlapRemovalNode nextNode = scanLine.NextRight(currentNode);
             for (; null != nextNode; nextNode = scanLine.NextRight(nextNode))
             {

@@ -13,7 +13,7 @@ public sealed class GitGraphL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGitGraphFixtureDirectory(),
-            new[] { "simple", "branch-history", "merge" },
+            ["simple", "branch-history", "merge"],
             Contract =>
                 Contract.Nodes.Count > 0
                 && Contract.Nodes.Any(Node => Node.Shape == "commit")
@@ -25,7 +25,7 @@ public sealed class GitGraphL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGitGraphFixtureDirectory(),
-            new[] { "branch-history", "merge", "commit-args", "accessibility" },
+            ["branch-history", "merge", "commit-args", "accessibility"],
             Contract => !Contract.SourceStatements.Any(Statement => Statement.LineTypeId == "gitGraph.body"));
     }
 
@@ -34,7 +34,7 @@ public sealed class GitGraphL3AxisGateTests
     {
         WaveKindL3AxisGateTestHelper.AssertAxis(
             RecognitionFixturePaths.GetGitGraphFixtureDirectory(),
-            new[] { "simple", "branch-history", "merge" },
+            ["simple", "branch-history", "merge"],
             Contract => Contract.Edges.Count > 0);
     }
 

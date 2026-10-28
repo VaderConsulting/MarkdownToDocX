@@ -17,7 +17,7 @@ public sealed class EnterpriseAnalysisResult
     public EnterpriseAnalysisResult(EnterpriseDocument Document, List<EnterpriseDiagnostic> Diagnostics)
     {
         _Document = Document ?? new EnterpriseDocument();
-        _Diagnostics = Diagnostics ?? new List<EnterpriseDiagnostic>();
+        _Diagnostics = Diagnostics ?? [];
     }
 
     /// <summary>Gets the parsed document.</summary>
@@ -43,7 +43,7 @@ public sealed class EnterpriseAnalysisResult
     {
         get
         {
-            List<EnterpriseDiagnostic> Errors = new List<EnterpriseDiagnostic>();
+            List<EnterpriseDiagnostic> Errors = [];
             foreach (EnterpriseDiagnostic Diagnostic in _Diagnostics)
             {
                 if (Diagnostic.Severity == MermaidDiagnosticSeverity.Error)

@@ -568,7 +568,7 @@ public static class FlowchartSpineGraphHelper
 
     private static double GetTypicalNodeWidth(IEnumerable<FlowchartLayoutNodeBounds> Bounds)
     {
-        List<double> Widths = Bounds.Select(Bound => Bound.Width).OrderBy(Width => Width).ToList();
+        List<double> Widths = [.. Bounds.Select(Bound => Bound.Width).OrderBy(Width => Width)];
         if (Widths.Count == 0)
         {
             return 120.0;

@@ -167,7 +167,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Tuple<Station, Station> couple = u < v ? new Tuple<Station, Station>(u, v) : new Tuple<Station, Station>(v, u);
             if (edgeInfoDictionary.TryGetValue(couple, out StationEdgeInfo? cw))
             {
-                return cw.Width + (cw.Count - 1) * edgeSeparation;
+                return cw.Width + ((cw.Count - 1) * edgeSeparation);
             }
 
             return 0;
@@ -229,7 +229,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             Polyline polyline = (Polyline)edge.Curve;
 
             Stack<Point> stack = new Stack<Point>();
-            Set<Point> seen = new Set<Point>();
+            Set<Point> seen = [];
             for (PolylinePoint p = polyline.EndPoint; p != null; p = p.Prev) {
                 Point v = p.Point;
                 if (seen.Contains(p.Point)) {
@@ -330,7 +330,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Routing.Spline.Bundling {
             }
 
             foreach (Station s in Stations) {
-                s.Neighbors = neighbors[s].ToArray();
+                s.Neighbors = [.. neighbors[s]];
             }
         }
 

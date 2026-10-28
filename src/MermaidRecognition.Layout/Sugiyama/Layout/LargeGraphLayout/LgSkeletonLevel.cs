@@ -47,7 +47,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         internal List<SymmetricSegment> GetNodePortSegments() {
-            List<SymmetricSegment> segs = new List<SymmetricSegment>();
+            List<SymmetricSegment> segs = [];
             foreach (LgNodeInfo node in NodeCenters.Keys) {
                 Point[] pts = PathRouter.GetPortVertices(node);
                 Point center = node.BoundingBox.Center;
@@ -65,20 +65,18 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 rtree.Add(shrinkedRect, shrinkedRect);
             }
 
-            List<VisibilityEdge> edges = (from edge in PathRouter.GetAllEdgesVisibilityEdges()
+            List<VisibilityEdge> edges = [.. (from edge in PathRouter.GetAllEdgesVisibilityEdges()
                 let qrect1 = new Rectangle(edge.SourcePoint, edge.SourcePoint)
                 let qrect2 = new Rectangle(edge.TargetPoint, edge.TargetPoint)
                 where rtree.GetAllIntersecting(qrect1).Any() || rtree.GetAllIntersecting(qrect2).Any()
-                select edge).ToList();
+                select edge)];
 
             return edges;
         }
 
         internal List<SymmetricSegment> GetAllGraphEdgeSegments() {
             List<SymmetricSegment> segs =
-                PathRouter.GetAllEdgesVisibilityEdges()
-                    .Select(edge => new SymmetricSegment(edge.SourcePoint, edge.TargetPoint))
-                    .ToList();
+                [.. PathRouter.GetAllEdgesVisibilityEdges().Select(edge => new SymmetricSegment(edge.SourcePoint, edge.TargetPoint))];
             return segs;
         }
 
@@ -110,7 +108,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
                 Rectangle bbox = node.BoundingBox.Clone();
                 bbox.ScaleAroundCenter(0.9);
                 NodePortEdges[node] = [];
-                List<SymmetricSegment> segInt = rtree.GetAllIntersecting(bbox).ToList();
+                List<SymmetricSegment> segInt = [.. rtree.GetAllIntersecting(bbox)];
                 foreach (SymmetricSegment? seg in segInt) {
                     if (RectSegIntersection.Intersect(bbox, seg.A, seg.B)) {
                         NodePortEdges[node].Add(seg);
@@ -137,7 +135,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         internal static List<Point> GetSubdividedBox(Rectangle rect, int nx, int ny) {
-            List<Point> pts = new List<Point>();
+            List<Point> pts = [];
             Point dx = (rect.RightBottom - rect.LeftBottom)*1.0/nx;
             Point dy = (rect.RightTop - rect.RightBottom)*1.0/ny;
             Point p = rect.LeftBottom;
@@ -192,7 +190,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
         }
 
         internal Set<Point> GetPointsOnSavedTrajectories() {
-            Set<Point> points = new Set<Point>();
+            Set<Point> points = [];
             foreach (List<Point> edgeTrajectory in _edgeTrajectories.Values) {
                 points.InsertRange(edgeTrajectory);
             }
@@ -206,7 +204,7 @@ namespace MermaidRecognition.Layout.Sugiyama.Layout.LargeGraphLayout {
             PathRouter.RemoveVisibilityEdges(unusedEdges);
         }
 
-        internal List<VisibilityEdge> GetUnusedGraphEdges() => PathRouter.GetAllEdgesVisibilityEdges().Where(e => !PathRouter.IsEdgeUsed(e)).ToList();
+        internal List<VisibilityEdge> GetUnusedGraphEdges() => [.. PathRouter.GetAllEdgesVisibilityEdges().Where(e => !PathRouter.IsEdgeUsed(e))];
 
         IEnumerable<SymmetricSegment> SymSegsOfPointList(List<Point> ps) {
             for (int i = 0; i < ps.Count - 1; i++)

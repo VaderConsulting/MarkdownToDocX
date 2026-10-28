@@ -222,7 +222,7 @@ public static class EnterpriseElementCatalog
 
     private static Dictionary<EnterpriseElementType, EnterpriseElementMetadata> BuildByType()
     {
-        Dictionary<EnterpriseElementType, EnterpriseElementMetadata> Map = new Dictionary<EnterpriseElementType, EnterpriseElementMetadata>();
+        Dictionary<EnterpriseElementType, EnterpriseElementMetadata> Map = [];
         Add(Map, EnterpriseElementType.ApplicationComponent, "application-component", "ApplicationComponent", EnterpriseLayer.Application, EnterpriseAspect.Active, "component", EnterpriseBoxKind.Rectangle);
         Add(Map, EnterpriseElementType.ApplicationCollaboration, "application-collaboration", "ApplicationCollaboration", EnterpriseLayer.Application, EnterpriseAspect.Active, "collaboration", EnterpriseBoxKind.Rectangle);
         Add(Map, EnterpriseElementType.ApplicationInterface, "application-interface", "ApplicationInterface", EnterpriseLayer.Application, EnterpriseAspect.Active, "interface", EnterpriseBoxKind.Rectangle);
@@ -322,18 +322,20 @@ public static class EnterpriseElementCatalog
 
     private static Dictionary<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata> BuildRelationships()
     {
-        Dictionary<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata> Map = new Dictionary<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata>();
-        Map[EnterpriseRelationshipKind.Composition] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Composition, "composition", 'c', "solid", "diamondFilled", null);
-        Map[EnterpriseRelationshipKind.Aggregation] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Aggregation, "aggregation", 'g', "solid", "diamondHollow", null);
-        Map[EnterpriseRelationshipKind.Assignment] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Assignment, "assignment", 'i', "solid", "dot", "arrowFilled");
-        Map[EnterpriseRelationshipKind.Realization] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Realization, "realization", 'r', "dotted", null, "triangleHollow");
-        Map[EnterpriseRelationshipKind.Serving] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Serving, "serving", 'v', "solid", null, "arrowOpen");
-        Map[EnterpriseRelationshipKind.Access] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Access, "access", 'a', "dotted", null, "arrowOpenSmall");
-        Map[EnterpriseRelationshipKind.Influence] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Influence, "influence", 'n', "dashed", null, "arrowOpen");
-        Map[EnterpriseRelationshipKind.Triggering] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Triggering, "triggering", 't', "solid", null, "arrowFilled");
-        Map[EnterpriseRelationshipKind.Flow] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Flow, "flow", 'f', "dashed", null, "arrowFilled");
-        Map[EnterpriseRelationshipKind.Specialization] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Specialization, "specialization", 's', "solid", null, "triangleHollow");
-        Map[EnterpriseRelationshipKind.Association] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Association, "association", 'o', "solid", null, null);
+        Dictionary<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata> Map = new Dictionary<EnterpriseRelationshipKind, EnterpriseRelationshipMetadata>
+        {
+            [EnterpriseRelationshipKind.Composition] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Composition, "composition", 'c', "solid", "diamondFilled", null),
+            [EnterpriseRelationshipKind.Aggregation] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Aggregation, "aggregation", 'g', "solid", "diamondHollow", null),
+            [EnterpriseRelationshipKind.Assignment] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Assignment, "assignment", 'i', "solid", "dot", "arrowFilled"),
+            [EnterpriseRelationshipKind.Realization] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Realization, "realization", 'r', "dotted", null, "triangleHollow"),
+            [EnterpriseRelationshipKind.Serving] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Serving, "serving", 'v', "solid", null, "arrowOpen"),
+            [EnterpriseRelationshipKind.Access] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Access, "access", 'a', "dotted", null, "arrowOpenSmall"),
+            [EnterpriseRelationshipKind.Influence] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Influence, "influence", 'n', "dashed", null, "arrowOpen"),
+            [EnterpriseRelationshipKind.Triggering] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Triggering, "triggering", 't', "solid", null, "arrowFilled"),
+            [EnterpriseRelationshipKind.Flow] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Flow, "flow", 'f', "dashed", null, "arrowFilled"),
+            [EnterpriseRelationshipKind.Specialization] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Specialization, "specialization", 's', "solid", null, "triangleHollow"),
+            [EnterpriseRelationshipKind.Association] = new EnterpriseRelationshipMetadata(EnterpriseRelationshipKind.Association, "association", 'o', "solid", null, null)
+        };
         return Map;
     }
 
