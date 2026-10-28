@@ -27,6 +27,7 @@ internal static partial class EnterpriseBandPlacement
         private readonly Dictionary<string, string?> Parents;
         private readonly int Inset;
         private readonly bool PreviousBandPadding;
+        private readonly bool WidthConstrained;
 
         /// <summary>Largest measured horizontal run; used only to enumerate whole-cell wrapping candidates.</summary>
         internal int MaximumWidth { get; private set; }
@@ -44,10 +45,13 @@ internal static partial class EnterpriseBandPlacement
         /// <param name="Nodes">Cell-owned initial nodes.</param>
         /// <param name="Classes">Semantic membership, including inferred unlayered neighbours.</param>
         /// <param name="PreviousBandPadding">Diagnostic replay only; reproduces the old empty-cell separator with every other algorithm unchanged.</param>
-        internal BandPlan(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, IReadOnlyDictionary<string, Classification> Classes, bool PreviousBandPadding)
+        /// <param name="WidthConstrained">Whether AH enables additional width-targeted rank-row candidates.</param>
+        internal BandPlan(DiagramContract Contract, List<DiagramGridLayout.GridNode> Nodes, IReadOnlyDictionary<string, Classification> Classes, bool PreviousBandPadding,
+            bool WidthConstrained = false)
         {
             this.Contract = Contract; this.Nodes = Nodes; this.Classes = Classes;
             this.PreviousBandPadding = PreviousBandPadding;
+            this.WidthConstrained = WidthConstrained;
             Original = Nodes[0].CellNode!.Grid.Capture().Regions.ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.Ordinal);
             Parents = Contract.Groups.ToDictionary(Group => Group.Id, Group => Group.ParentGroupId, StringComparer.Ordinal);
             Inset = (int)Math.Ceiling(DiagramGridMetrics.NODE_GAP_PX / Nodes[0].CellNode!.Grid.Configuration.CellWidth);
@@ -99,6 +103,7 @@ internal static partial class EnterpriseBandPlacement
             var Ordered = DagreLayoutEngine.OrderCompleteBandBlocks(Order, Vertices, Links, PreservesHorizontalRanks);
             CrossingsBefore = Ordered.Before; CrossingsAfter = Ordered.After;
             PackColumns(Targets, Ordered.Order);
+            if (WidthConstrained) WrapIndependentRankRows(Targets, Wrap);
             PlacePartnerElements(Targets, Ordered.Order, Wrap);
             OrderPlateaus(Contract, Classes, Targets);
             ArrangeImplementationTimelines(Contract, Classes, Targets, Wrap);

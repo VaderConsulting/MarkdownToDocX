@@ -23,3 +23,23 @@ The Complete Enterprise sample renders at 2146 x 1666 with 25 visible nodes, 20 
 The production band path currently excludes single-layer Enterprise graphs. Dense linked ranks, solid group blocks, explicit horizontal chains and placement hints also restrict which regions can wrap. These cases must be distinguished before changing selection policy. The fixtures include single-layer free nodes, a same-layer fan, a cross-layer fan, nested groups with parallel endpoints, and an explicit LR chain.
 
 The existing band tests `CrowdedBandGapGrowsAtomicallyBeforeRouting` and `WrapSelectionPublishesTheCheapestFullyRoutedCandidate` fail both before and after the option plumbing. A separate build using the pre-option context, routing entry point and wrap/corridor files reproduced both failures. Captures are in `out/incremental-layout-tests/pre-options-failures.trx` and `layout-options-regression.trx`. The seven new engine option tests and the LiveEditor flag test pass.
+
+## First AH experiment
+
+AH now offers single-layer Enterprise band candidates and can split peers in vertical ranks into additional whole-cell rows. Candidate columns include the requested width and a narrower neighbour, within the existing candidate limit. The additional rank folding retains the existing producer for groups, explicit placement hints and horizontal main-axis chains. All complete alternatives still pass the existing legality checks; accepted candidates retain every hint honoured by the unwrapped baseline.
+
+The experimental selection policy minimises overflow of the requested width, then uses the existing weighted bend/crossing cost, then height, then the existing complete score. This makes the width trade-off explicit and leaves canonical rule values unchanged. Candidate bounds include nodes, frames, route points and diagram padding. Final SVG dimensions are measured separately: label/title postprocessing and later route completion can still extend the footprint. The target is a preference, and the benchmark reports whether the final SVG meets it; it is not a proof of minimum feasible width.
+
+| Fixture | A: current | B: AH at 700 px | Bends A -> B | Crossings A -> B |
+| --- | --- | --- | --- | --- |
+| Single-layer free nodes | 166 x 1756 | 526 x 556 | 0 -> 0 | 0 -> 0 |
+| Single-layer fan | 1006 x 1396 | 586 x 736 | 4 -> 13 | 0 -> 0 |
+| Cross-layer fan | 526 x 1516 | 526 x 1516 | 6 -> 6 | 0 -> 0 |
+| Nested groups / parallel endpoints | 346 x 706 | 346 x 706 | 0 -> 0 | 0 -> 0 |
+| Explicit LR chain | 1426 x 106 | 1426 x 106 | 0 -> 0 | 0 -> 0 |
+
+All relationships remain present; these cases have zero hard route findings. The Complete sample with AH at 1200 px remains 2146 x 1666, with 19 bends and one crossing. This experiment does not solve its group/hint constraints. All six flag-off geometry, findings and SVG hashes match the initial baseline exactly. These are focused fixture results, not a full production catalogue certification or performance improvement claim.
+
+Seven new width tests cover rank folding, mixed measured spans, route legality, inactive options, explicit direction/hints and alternating A/B cache entries. With the seven option tests and existing band/render tests, the focused suite has 51 passes and the same two reproduced pre-existing failures. The LiveEditor flag test also passes.
+
+Next width tasks are presets and fit-to-width viewing, final label-aware candidate comparison, and generation of narrower constrained group layouts. Incremental relationship editing still requires the retained-state foundation described in the plan.

@@ -61,7 +61,9 @@ internal static partial class EnterpriseBandPlacement
         if (Nodes.Count == 0 || Nodes.Any(Node => Node.CellNode == null)) return false;
         var Classes = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
             .ToDictionary(Node => Node.Id, Node => Classify(Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)), StringComparer.Ordinal);
-        if (Classes.Values.Where(Item => Item.Conventional).Select(Item => Item.Band).Distinct().Count() <= 1) return false;
+        int BandCount = Classes.Values.Where(Item => Item.Conventional).Select(Item => Item.Band).Distinct().Count();
+        bool WidthConstrained = Context?.LayoutOptions.EnableWidthConstrainedLayout == true;
+        if (BandCount == 0 || BandCount <= 1 && !WidthConstrained) return false;
         foreach (var Node in Nodes.Where(Node => !Classes.TryGetValue(Node.Id, out var Item) || !Item.Conventional))
         {
             var Neighbours = Contract.Edges.Where(Edge => Edge.SourceId == Node.Id || Edge.TargetId == Node.Id)
@@ -73,7 +75,7 @@ internal static partial class EnterpriseBandPlacement
         }
         var Grid = Nodes[0].CellNode!.Grid;
         var Before = Grid.Capture();
-        var Planner = new BandPlan(Contract, Nodes, Classes, Context?.UsePreviousEnterpriseBandPaddingForTests ?? false);
+        var Planner = new BandPlan(Contract, Nodes, Classes, Context?.UsePreviousEnterpriseBandPaddingForTests ?? false, WidthConstrained);
         var Targets = Planner.Build(Context?.EnterpriseBandWrapWidth ?? int.MaxValue);
         var FixedPlacement = Context?.InitialBandPlacement;
         var SelectedGaps = new List<FlowchartCellGapGrowth>();
@@ -112,6 +114,14 @@ internal static partial class EnterpriseBandPlacement
             Context.BandSpaceDiagnostics.AddRange(Planner.ConnectionClearanceDiagnostics);
             Context.EnterpriseBandWrapWidths = new[] { int.MaxValue, Planner.PreferredWidth }.Concat(Enumerable.Range(1, FlowchartLayoutRules.RepairCandidateMoves)
                 .Select(Rows => (int)Math.Ceiling((double)Planner.MaximumWidth / Rows))).Distinct().Take(FlowchartLayoutRules.RepairCandidateMoves).ToArray();
+            if (WidthConstrained)
+            {
+                double Available = Context.LayoutOptions.TargetWidthPx - 2 * MermaidRecognition.Render.FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx;
+                int Columns = (int)Math.Clamp(Math.Floor((Available + Grid.Configuration.ColumnGap)
+                    / (Grid.Configuration.CellWidth + Grid.Configuration.ColumnGap)), 1, Math.Max(1, Planner.MaximumWidth));
+                Context.EnterpriseBandWrapWidths = new[] { int.MaxValue, Columns, Math.Max(1, Columns - 1) }
+                    .Concat(Context.EnterpriseBandWrapWidths).Distinct().Take(FlowchartLayoutRules.RepairCandidateMoves).ToArray();
+            }
             Context.BandSpaceDiagnostics.Add("BAND_GRAPH|blocks=" + Planner.BlockCount + "|relationships=" + Contract.Edges.Count
                 + "|crossings=" + Planner.CrossingsBefore + "->" + Planner.CrossingsAfter);
         }

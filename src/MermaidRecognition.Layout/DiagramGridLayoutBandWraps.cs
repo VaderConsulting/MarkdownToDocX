@@ -18,10 +18,12 @@ public static partial class DiagramGridLayout
     private static FlowchartLayoutResult ApplyWithRoutedBands(DiagramContract Contract, FlowchartLayoutResult LaidOut, FlowchartRenderContext? RenderContext)
     {
         var Context = RenderContext ?? LaidOut.RenderContext;
+        bool WidthConstrained = Context.LayoutOptions.EnableWidthConstrainedLayout;
+        int LayerCount = Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
+            .Select(Node => EnterpriseElementCatalog.Elements[Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)].Layer)
+            .Distinct().Count();
         if (!Context.UseCellRegions || Contract.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open
-            || Contract.Nodes.Where(Node => Node.Metadata.ContainsKey("enterpriseElementType"))
-                .Select(Node => EnterpriseElementCatalog.Elements[Enum.Parse<EnterpriseElementType>(((RawMetadata)Node.Metadata["enterpriseElementType"]).RawValue)].Layer)
-                .Distinct().Count() <= 1)
+            || LayerCount == 0 || LayerCount <= 1 && !WidthConstrained)
             return ApplyCore(Contract, LaidOut, RenderContext, false);
         var OriginalHints = new BandHintState(Contract);
         Context.EnterpriseBandWrapWidth = int.MaxValue;
@@ -33,7 +35,10 @@ public static partial class DiagramGridLayout
         var BestHints = new BandHintState(Contract);
         var SelectedPlacement = Best;
         bool NeedsCapacity = Context.InitialBandCapacityNeeded;
-        var BestCost = FlowchartLayoutScore.Measure(Contract, Best, false).Cost;
+        var BestScore = FlowchartLayoutScore.Measure(Contract, Best, false);
+        var BestCost = BestScore.Cost;
+        int RequiredHints = BestScore.HintsHonoured;
+        double Padding = MermaidRecognition.Render.FlowchartRenderOptions.FromContract(Contract).DiagramPaddingPx;
         bool Legal = BandLayoutIsLegal(Contract, Best);
         BandWrapCandidateObserver?.Invoke(int.MaxValue, Best, BestCost, Legal);
         double BestSpan = FlowchartLayoutScore.PlacementWidth(Best);
@@ -54,12 +59,14 @@ public static partial class DiagramGridLayout
             bool CandidateLegal = BandLayoutIsLegal(Contract, Candidate);
             BandWrapCandidateObserver?.Invoke(CandidateWidth, Candidate, Score.Cost, CandidateLegal);
             double CandidateSpan = FlowchartLayoutScore.PlacementWidth(Candidate);
-            bool Keep = CandidateLegal && (!Legal
-                || CandidateSpan < BestSpan - 1e-9
-                || Math.Abs(CandidateSpan - BestSpan) <= 1e-9 && Score.Cost < BestCost);
+            bool Keep = CandidateLegal && (!WidthConstrained || Score.HintsHonoured >= RequiredHints && BestHints.ActiveHintsRetained()) && (!Legal
+                || (WidthConstrained
+                    ? PreferWidthCandidate(Score, BestScore, Context.LayoutOptions.TargetWidthPx, Padding)
+                    : CandidateSpan < BestSpan - 1e-9 || Math.Abs(CandidateSpan - BestSpan) <= 1e-9 && Score.Cost < BestCost));
             Records.Add($"BAND_WRAP|width={CandidateWidth}|legal={CandidateLegal}|span={CandidateSpan:R}|score={Score.OptimizationScore:R}|bends={Score.Bends}|crossings={Score.Crossings}|keep={Keep}");
             if (!Keep) continue;
             Width = CandidateWidth; BestCost = Score.Cost; BestSpan = CandidateSpan; Legal = true;
+            BestScore = Score;
             SelectedPlacement = Candidate; NeedsCapacity = CandidateContext.InitialBandCapacityNeeded;
         }
         // A trial owns a separate grid, routes and caches. Confirm the winner in
@@ -107,6 +114,9 @@ public static partial class DiagramGridLayout
     {
         private readonly (PlacementHintContract Hint, bool Active, string? Reason)[] Placement;
         private readonly (RoutingHintContract Hint, bool Active, string? Reason)[] Routing;
+
+        internal bool ActiveHintsRetained() => Placement.All(Item => !Item.Active || Item.Hint.IsActive)
+            && Routing.All(Item => !Item.Active || Item.Hint.IsActive);
         /// <summary>Captures original statuses before a private layout can reject a conflicting hint.</summary>
         /// <param name="Contract">Original hint-bearing declarations.</param>
         internal BandHintState(DiagramContract Contract)

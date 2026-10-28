@@ -2,7 +2,7 @@
 
 Status: proposed implementation plan. 28 October 2026.
 
-Progress: the plan is committed in `9ab0801`; default-off AF/AG/AH switches, request options, scoped Enterprise propagation and geometry-cache isolation are implemented in `700dbcb`. A dedicated `tools/DiagramLayoutBench` captures width and routing evidence. The initial Complete sample is 2146 x 1666; its current wrap candidates cannot materially reduce width. Width policy and incremental edit operations remain to be implemented. See the benchmark README and baseline JSON under `docs/bench` for evidence and known pre-existing test failures.
+Progress: the plan is committed in `9ab0801`; default-off AF/AG/AH switches, request options, scoped Enterprise propagation and geometry-cache isolation are implemented in `700dbcb`. The benchmark and initial baseline are committed in `ad3ac08`. The first AH experiment adds single-layer and vertical rank-row candidates and target-width selection. At a 700 px target the same-layer fan changes from 1006 x 1396 to 586 x 736, with bends 4 to 13, crossings 0 and hard findings 0. The Complete sample remains 2146 x 1666 because existing group/hint/rank constraints still limit its candidates. Width presets, final-label-aware selection, broader constrained packing and incremental edit operations remain unfinished. See `tools/DiagramLayoutBench/README.md` and the baseline/results JSON under `docs/bench`.
 
 ## Intended outcome
 

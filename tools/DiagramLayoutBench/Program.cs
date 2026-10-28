@@ -92,6 +92,7 @@ foreach (var Item in Cases)
     {
         Item.Id, SourceHash = Hash(Item.Source), Options, UseCellRegions = new FlowchartRenderContext().UseCellRegions,
         Milliseconds = Clock.Elapsed.TotalMilliseconds, RenderedWidthPx = WidthPx, RenderedHeightPx = HeightPx,
+        WidthTargetMet = Failure != null || !Options.EnableWidthConstrainedLayout ? (bool?)null : WidthPx <= Options.TargetWidthPx,
         Reference12PxTextAt1200PxFitWidth = 12 * Math.Min(1, 1200 / Math.Max(1, WidthPx)),
         SvgHash = Hash(Svg), Model, Wraps, Stages, Failure
     };
