@@ -15,6 +15,7 @@ using LiveEditor.Editor;
 using MDConverter;
 using MermaidRecognition.Diagnostics;
 using MermaidRecognition.Kinds.Enterprise;
+using MermaidRecognition.Layout;
 
 namespace LiveEditor;
 
@@ -52,7 +53,14 @@ public partial class MainForm : Form
 
     private bool _RenderWorkerRunning;
 
-    private string? _PendingRenderSource;
+    private RenderRequest? _PendingRender;
+    private RetainedEnterprisePreview _RetainedPreview = new();
+    private DiagramLayoutOptions? _SessionLayoutOptions;
+    private bool? _SessionLegacyPreview;
+    internal string? LastRetainedUpdateKind { get; private set; }
+    internal string[] LastRebuiltRouteIds { get; private set; } = [];
+    private sealed record RenderRequest(string Source, int Generation, int TextVersion, bool LegacyPreview,
+        DiagramLayoutOptions Options, RetainedEnterprisePreview Retained, CancellationToken Token);
     private byte[]? _LastPngBytes;
     private string? _LastSvg;
     private readonly PreviewHoverWindow _PreviewHoverWindow = new PreviewHoverWindow();
@@ -360,6 +368,7 @@ public partial class MainForm : Form
         RecentFilesMenuItem.Enabled = LiveEditorFeatureGate.U_RecentFiles;
         AzureMenuItem.Enabled = LiveEditorFeatureGate.AE_AzureResourceGraphImport;
         SamplesMenu.Enabled = LiveEditorFeatureGate.K_SampleGallery;
+        AutoLayoutMenuItem.Visible = LiveEditorFeatureGate.AF_IncrementalDiagramRouting;
     }
 
     private void ApplySettings()
@@ -625,6 +634,9 @@ public partial class MainForm : Form
 
     private void QueueRender()
     {
+        int Revision = Interlocked.Increment(ref _RenderGeneration);
+        _RenderCancellation?.Cancel();
+        _RetainedPreview.Observe(Revision);
         RenderTimer.Stop();
         RenderTimer.Start();
     }
@@ -637,137 +649,140 @@ public partial class MainForm : Form
 
     private void StartRender(string Source)
     {
-        lock (_RenderWorkerGate)
+        bool LegacyPreview = LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview;
+        DiagramLayoutOptions Options = LiveEditorFeatureGate.CaptureLayoutOptions();
+        if (_SessionLayoutOptions != Options || _SessionLegacyPreview != LegacyPreview)
         {
-            _PendingRenderSource = Source;
+            ResetRetainedPreview("Layout options or renderer changed.");
+            _SessionLayoutOptions = Options; _SessionLegacyPreview = LegacyPreview;
         }
-
         _RenderCancellation?.Cancel();
         _RenderCancellation?.Dispose();
         _RenderCancellation = new CancellationTokenSource();
-        CancellationToken Token = _RenderCancellation.Token;
-        int Generation = Interlocked.Increment(ref _RenderGeneration);
-        _RenderTextVersion = _EditorTextVersion;
-        if (string.IsNullOrWhiteSpace(Source) || IsCommentOnly(Source))
+        var Request = new RenderRequest(Source, _RenderGeneration, _EditorTextVersion, LegacyPreview,
+            Options, _RetainedPreview, _RenderCancellation.Token);
+        if (!Options.EnableIncrementalRouting && (string.IsNullOrWhiteSpace(Source) || IsCommentOnly(Source)))
         {
-            lock (_RenderWorkerGate)
-            {
-                _RenderWorkerRunning = false;
-                _PendingRenderSource = null;
-            }
-
-            _DiagramMetadata = DiagramMetadata.Empty(Generation);
+            lock (_RenderWorkerGate) { _PendingRender = null; }
+            _DiagramMetadata = DiagramMetadata.Empty(_RenderGeneration);
             _DiagramMetadata.ReportProgress(0, "Idle");
             SetStatus("Idle");
             return;
         }
-
+        bool StartWorker;
         lock (_RenderWorkerGate)
         {
-            if (_RenderWorkerRunning)
-            {
-                return;
-            }
-
+            _PendingRender = Request;
+            StartWorker = !_RenderWorkerRunning;
             _RenderWorkerRunning = true;
         }
-
         SetStatus(CaretStatusOr("Rendering..."));
-        bool LegacyPreview = LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview;
-        Task.Run(() => RenderWorkerLoop(Generation, LegacyPreview, Token), Token);
+        if (StartWorker) Task.Run(RenderWorkerLoop);
     }
 
-    private void RenderWorkerLoop(int InitialGeneration, bool LegacyPreview, CancellationToken Token)
+    private void ResetRetainedPreview(string Reason)
     {
-        int Generation = InitialGeneration;
-        try
+        _RetainedPreview.Invalidate(Reason);
+        _RetainedPreview = new();
+        _RetainedPreview.Observe(_RenderGeneration);
+    }
+
+    internal void AutoLayout()
+    {
+        ResetRetainedPreview("Explicit Auto layout.");
+        QueueRender();
+    }
+
+    private void AutoLayoutMenuItem_Click(object? Sender, EventArgs E) => AutoLayout();
+
+    private void RenderWorkerLoop()
+    {
+        while (true)
         {
-            while (true)
-            {
-                string Source;
-                lock (_RenderWorkerGate)
-                {
-                    Source = _PendingRenderSource ?? string.Empty;
-                    _PendingRenderSource = null;
-                }
-
-                RenderWorkerPass(Source, Generation, LegacyPreview, Token);
-
-                lock (_RenderWorkerGate)
-                {
-                    if (_PendingRenderSource == null)
-                    {
-                        _RenderWorkerRunning = false;
-                        break;
-                    }
-
-                    Generation = _RenderGeneration;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
+            RenderRequest Request;
             lock (_RenderWorkerGate)
             {
-                _RenderWorkerRunning = false;
-                string? Pending = _PendingRenderSource;
-                if (Pending != null)
-                {
-                    BeginInvoke(() => StartRender(Pending));
-                }
+                if (_PendingRender == null) { _RenderWorkerRunning = false; return; }
+                Request = _PendingRender; _PendingRender = null;
             }
+            try { RenderWorkerPass(Request); }
+            catch (OperationCanceledException) { }
         }
     }
 
-    private void RenderWorkerPass(string Source, int Generation, bool LegacyPreview, CancellationToken Token)
+    private void RenderWorkerPass(RenderRequest Request)
     {
         Stopwatch Timer = Stopwatch.StartNew();
+        int Generation = Request.Generation;
+        CancellationToken Token = Request.Token;
+        bool Retained = Request.Options.EnableIncrementalRouting && !Request.LegacyPreview
+            && EnterpriseParser.IsEnterpriseSource(Request.Source);
         try
         {
             Token.ThrowIfCancellationRequested();
-            EnterpriseAnalysisResult? EnterpriseAnalysis = null;
-            DiagramMetadata Metadata;
-            if (EnterpriseParser.IsEnterpriseSource(Source))
-            {
-                EnterpriseAnalysis = EnterpriseValidator.Analyze(Source);
-                Metadata = DiagramMetadata.BuildFromAnalysis(EnterpriseAnalysis, Generation);
-            }
-            else
-            {
-                Metadata = DiagramMetadata.Build(Source, Generation);
-            }
-
+            EnterpriseAnalysisResult? Analysis = EnterpriseParser.IsEnterpriseSource(Request.Source)
+                ? EnterpriseValidator.Analyze(Request.Source) : null;
+            Retained = Retained && Analysis?.Document.LayoutMode != MermaidRecognition.Config.DiagramLayoutMode.Open;
+            DiagramMetadata Metadata = Analysis != null ? DiagramMetadata.BuildFromAnalysis(Analysis, Generation)
+                : DiagramMetadata.Build(Request.Source, Generation);
             BeginInvoke(() => PublishDiagramMetadata(Metadata));
             Token.ThrowIfCancellationRequested();
-            ReportRenderProgress(Generation, 10, "Laying out");
-            Token.ThrowIfCancellationRequested();
-            if (IsHandleCreated)
+            string? Svg, Failure = null, Advisory;
+            byte[]? Png;
+            RetainedEnterprisePreview.Prepared? Candidate = null;
+            if (Retained)
             {
-                Invoke(() =>
-                {
-                    _IgnorePreviewSelection = true;
-                });
+                Candidate = Request.Retained.Prepare(Request.Source, Generation, Analysis!, Request.Options);
+                Svg = Candidate.Svg;
+                Png = MermaidPreviewRender.RasterizeAcceptedSvg(Svg, out Advisory);
+                if (Png == null || Png.Length == 0) Failure = "The retained drawing could not be rasterised.";
+                if (Candidate.RebuildReason != null) Advisory = "Layout rebuilt: " + Candidate.RebuildReason;
             }
             else
             {
-                _IgnorePreviewSelection = true;
+                Preview.PrepareImage(Request.Source, Analysis, Request.LegacyPreview, Request.Options,
+                    out Svg, out Png, out Failure, out Advisory);
+                if (Request.Options.EnableIncrementalRouting && !Request.LegacyPreview
+                    && Analysis?.Document.LayoutMode == MermaidRecognition.Config.DiagramLayoutMode.Open && Failure == null)
+                    Advisory = "Incremental routing requires grid layout; showing the open-layout preview.";
             }
-
-            Preview.UseLegacyRenderer = LegacyPreview;
-            Preview.Load(Source, EnterpriseAnalysis);
             Token.ThrowIfCancellationRequested();
-            Timer.Stop();
-            ReportRenderProgress(Generation, 95, "Showing picture");
-            BeginInvoke(() => CompleteRender(Generation, Timer.ElapsedMilliseconds, LegacyPreview));
+            if (Failure != null || Png == null || string.IsNullOrWhiteSpace(Svg))
+                throw new InvalidOperationException(Failure ?? "Diagram preview failed.");
+            // Publication, including the source index and export bytes, belongs to one
+            // current UI revision. Debounced edits already supersede a running request.
+            Invoke(() =>
+            {
+                if (Token.IsCancellationRequested || Generation != _RenderGeneration || IsDisposed
+                    || Request.TextVersion != _EditorTextVersion || Request.Retained != _RetainedPreview) return;
+                _IgnorePreviewSelection = true;
+                try
+                {
+                    PublishDiagramMetadata(Metadata);
+                    Preview.UseLegacyRenderer = Request.LegacyPreview;
+                    if (!Preview.LoadAccepted(Request.Source, Svg, Png, Advisory, Candidate is { Rebuild: false },
+                        () => Candidate == null || Request.Retained.TryCommit(Candidate))) return;
+                    if (Candidate == null && Request.Options.EnableIncrementalRouting && !Request.LegacyPreview)
+                        ResetRetainedPreview("Diagram kind or layout mode changed.");
+                    LastRetainedUpdateKind = Candidate?.Kind;
+                    LastRebuiltRouteIds = Candidate?.RebuiltRouteIds ?? [];
+                    _RenderTextVersion = Request.TextVersion;
+                    CompleteRender(Generation, Timer.ElapsedMilliseconds, Request.LegacyPreview);
+                }
+                finally { _IgnorePreviewSelection = false; }
+            });
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
+        catch (OperationCanceledException) { throw; }
         catch (Exception Ex)
         {
-            Timer.Stop();
-            BeginInvoke(() => ApplyRenderFailure(Generation, Ex.Message, Timer.ElapsedMilliseconds));
+            if (!IsDisposed && IsHandleCreated)
+                BeginInvoke(() =>
+                {
+                    if (!Token.IsCancellationRequested && Request.TextVersion == _EditorTextVersion)
+                        ApplyRenderFailure(Generation, Request.Options.EnableIncrementalRouting && !Request.LegacyPreview
+                                ? "Preview stale: " + Ex.Message : Ex.Message,
+                            Timer.ElapsedMilliseconds, Request.Options.EnableIncrementalRouting && !Request.LegacyPreview);
+                });
         }
     }
 
@@ -847,7 +862,7 @@ public partial class MainForm : Form
         return Stream.ToArray();
     }
 
-    private void ApplyRenderFailure(int Generation, string Message, long ElapsedMilliseconds)
+    private void ApplyRenderFailure(int Generation, string Message, long ElapsedMilliseconds, bool RetainAccepted = false)
     {
         if (Generation != _RenderGeneration || IsDisposed)
         {
@@ -860,7 +875,7 @@ public partial class MainForm : Form
         }
 
         _BrokenSince ??= DateTime.Now;
-        if (!LiveEditorFeatureGate.Q_KeepLastGoodPreview)
+        if (!RetainAccepted && !LiveEditorFeatureGate.Q_KeepLastGoodPreview)
         {
             _IgnorePreviewSelection = true;
             try
@@ -1330,6 +1345,7 @@ public partial class MainForm : Form
 
     private void ClearPreviewSelectionForNewContent()
     {
+        ResetRetainedPreview("Document changed.");
         RenderTimer.Stop();
         _RenderCancellation?.Cancel();
         _RenderCancellation?.Dispose();
@@ -2037,6 +2053,8 @@ public partial class MainForm : Form
 
         try
         {
+            if (LiveEditorFeatureGate.CaptureLayoutOptions().EnableIncrementalRouting && _LastSvg == null)
+                throw new InvalidOperationException("No accepted diagram is available to export.");
             string Svg = _LastSvg ?? MermaidDiagramExport.RenderSvg(CodeView.Editor.Text);
             _LastSvg = Svg;
             using SaveFileDialog Dialog = new SaveFileDialog
@@ -2331,6 +2349,7 @@ public partial class MainForm : Form
         Preview.SelectionColour = SessionSettings.ParseColour(_Settings.SelectionColour);
         _EditorSplitDistanceApplied = false;
         ApplyEditorPreferences();
+        UpdateFeatureAvailability();
         ApplyWorkspaceLayout();
         _Settings.Save();
         QueueHighlight();
@@ -2688,6 +2707,7 @@ public partial class MainForm : Form
         }
 
         SaveSession();
+        _RetainedPreview.Invalidate("Editor closed.");
         _RenderCancellation?.Cancel();
         _RenderCancellation?.Dispose();
         _RenderCancellation = null;

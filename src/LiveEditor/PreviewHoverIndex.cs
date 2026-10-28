@@ -209,6 +209,10 @@ internal sealed partial class PreviewHoverIndex
             }
         }
 
+        var Origin = SvgOrigin(Svg);
+        ShiftX -= Origin.X;
+        ShiftY -= Origin.Y;
+
         int Index = 0;
         while (Index < Svg.Length)
         {
@@ -254,6 +258,18 @@ internal sealed partial class PreviewHoverIndex
                 AddStroke(Document, Tag, ClassName, Body, ShiftX, ShiftY);
             }
         }
+    }
+
+    internal static (double X, double Y) SvgOrigin(string? Svg)
+    {
+        if (string.IsNullOrWhiteSpace(Svg)) return (0, 0);
+        int Start = Svg.IndexOf("<svg", StringComparison.Ordinal);
+        int End = Start < 0 ? -1 : Svg.IndexOf('>', Start);
+        if (End < 0) return (0, 0);
+        string[] Values = ReadStringAttribute(Svg.Substring(Start, End - Start), "viewBox")
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return Values.Length == 4 && double.TryParse(Values[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double X)
+            && double.TryParse(Values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double Y) ? (X, Y) : (0, 0);
     }
 
     private void AddShape(EnterpriseDocument Document, string Tag, string Body, double ShiftX, double ShiftY)

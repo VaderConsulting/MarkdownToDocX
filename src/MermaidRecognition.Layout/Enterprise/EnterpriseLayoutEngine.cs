@@ -40,7 +40,15 @@ internal static class EnterpriseLayoutEngine
 
     private const double NODE_SEPARATION = 35;
 
-    internal static EnterpriseLayoutResult Layout(EnterpriseDocument Document)
+    internal static EnterpriseLayoutResult Layout(EnterpriseDocument Document) => Build(Document, null);
+
+    internal static EnterpriseLayoutResult FromGeometry(EnterpriseDocument Document, EnterpriseFlowchartRoutingContext Geometry)
+    {
+        if (Geometry.SvgRects.Count == 0) throw new ArgumentException("The retained drawing has no node geometry.", nameof(Geometry));
+        return Build(Document, Geometry);
+    }
+
+    private static EnterpriseLayoutResult Build(EnterpriseDocument Document, EnterpriseFlowchartRoutingContext? SuppliedGeometry)
     {
         Dictionary<string, EnterpriseLayoutNode> Nodes = new Dictionary<string, EnterpriseLayoutNode>(StringComparer.Ordinal);
         foreach (EnterpriseGroup Group in Document.Groups.Values)
@@ -97,7 +105,13 @@ internal static class EnterpriseLayoutEngine
         }
 
         EnterpriseFlowchartRoutingContext? RoutingContext = null;
-        bool HasRoutingContext = EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(Document, Nodes, out RoutingContext);
+        bool HasRoutingContext;
+        if (SuppliedGeometry != null)
+        {
+            RoutingContext = SuppliedGeometry;
+            HasRoutingContext = true;
+        }
+        else { HasRoutingContext = EnterpriseFlowchartEdgeRouter.TryBuildRoutingContext(Document, Nodes, out RoutingContext); }
         if (HasRoutingContext && RoutingContext != null && RoutingContext.SvgRects.Count > 0)
         {
             ApplyFlowchartSvgRects(Nodes, RoutingContext);

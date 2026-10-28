@@ -65,6 +65,36 @@ public static partial class EnterpriseSvgRenderer
         }
 
         EnterpriseLayoutResult Layout = Measure("enterprise-layout", () => EnterpriseLayoutEngine.Layout(Document));
+        string Unstyled = BuildDrawing(Document, Layout);
+        lock (_GeometryCacheGate)
+        {
+            if (_GeometryCacheByKey.ContainsKey(GeometryKey))
+            {
+                _GeometryCacheByKey[GeometryKey] = Unstyled;
+                _GeometryCacheOrder.Remove(GeometryKey);
+                _GeometryCacheOrder.AddLast(GeometryKey);
+            }
+            else
+            {
+                _GeometryCacheByKey[GeometryKey] = Unstyled;
+                _GeometryCacheOrder.AddLast(GeometryKey);
+                while (_GeometryCacheOrder.Count > GEOMETRY_CACHE_CAPACITY)
+                {
+                    string EvictKey = _GeometryCacheOrder.First!.Value;
+                    _GeometryCacheOrder.RemoveFirst();
+                    _GeometryCacheByKey.Remove(EvictKey);
+                }
+            }
+        }
+
+        return Finish(Document, Unstyled);
+    }
+
+    internal static string RenderRetained(EnterpriseDocument Document, EnterpriseFlowchartRoutingContext Geometry)
+        => Finish(Document, BuildDrawing(Document, EnterpriseLayoutEngine.FromGeometry(Document, Geometry), true));
+
+    private static string BuildDrawing(EnterpriseDocument Document, EnterpriseLayoutResult Layout, bool Retained = false)
+    {
         EnterpriseFlowchartRoutingContext? RoutingContext = Layout.RoutingContext;
         List<EnterpriseRoutedEdge> RoutedEdges = Measure("enterprise-edge-routing", () => RoutingContext == null
             ? EnterpriseFlowchartEdgeRouter.Route(Document, Layout.Nodes)
@@ -80,6 +110,30 @@ public static partial class EnterpriseSvgRenderer
             Height = Math.Max(Height, Caption.Y + Caption.Height + TitleHeight + 20);
         }
         double DiagramWidth = Width;
+        double MinX = 0, MinY = 0;
+        if (Retained)
+        {
+            foreach (EnterpriseLayoutNode Node in Layout.Nodes.Values)
+            {
+                MinX = Math.Min(MinX, Node.AbsoluteX - 20);
+                MinY = Math.Min(MinY, Node.AbsoluteY + TitleHeight - 20);
+            }
+            foreach (EnterpriseRoutedEdge Edge in RoutedEdges)
+            {
+                foreach (var Point in Edge.SvgPoints)
+                {
+                    MinX = Math.Min(MinX, Point.X - 20);
+                    MinY = Math.Min(MinY, Point.Y + TitleHeight - 20);
+                }
+                if (Edge.Label.Length > 0)
+                {
+                    MinX = Math.Min(MinX, Edge.LabelX - Edge.LabelWidth / 2 - 20);
+                    MinY = Math.Min(MinY, Edge.LabelY - Edge.LabelHeight / 2 + TitleHeight - 20);
+                }
+            }
+            MinX = Math.Floor(MinX); MinY = Math.Floor(MinY);
+            Width -= MinX; Height -= MinY;
+        }
         if (!string.IsNullOrEmpty(Document.Title))
         {
             // Reserve the literal bold title, including punctuation and Unicode.
@@ -101,7 +155,8 @@ public static partial class EnterpriseSvgRenderer
             .Append(EnterpriseSvgFormat.Number(Width))
             .Append("\" height=\"")
             .Append(EnterpriseSvgFormat.Number(Height))
-            .Append("\" viewBox=\"0 0 ")
+            .Append("\" viewBox=\"").Append(EnterpriseSvgFormat.Number(MinX)).Append(' ')
+            .Append(EnterpriseSvgFormat.Number(MinY)).Append(' ')
             .Append(EnterpriseSvgFormat.Number(Width))
             .Append(' ')
             .Append(EnterpriseSvgFormat.Number(Height))
@@ -118,7 +173,8 @@ public static partial class EnterpriseSvgRenderer
             Builder.Append("<desc>").Append(EnterpriseSvgFormat.Escape(Document.AccessibilityDescription)).Append("</desc>");
         }
 
-        Builder.Append("<rect x=\"0\" y=\"0\" width=\"")
+        Builder.Append("<rect x=\"").Append(EnterpriseSvgFormat.Number(MinX))
+            .Append("\" y=\"").Append(EnterpriseSvgFormat.Number(MinY)).Append("\" width=\"")
             .Append(EnterpriseSvgFormat.Number(Width))
             .Append("\" height=\"")
             .Append(EnterpriseSvgFormat.Number(Height))
@@ -133,7 +189,7 @@ public static partial class EnterpriseSvgRenderer
         }
 
         Builder.Append("<g transform=\"translate(")
-            .Append(EnterpriseSvgFormat.Number((Width - DiagramWidth) / 2.0))
+            .Append(EnterpriseSvgFormat.Number(Retained ? 0 : (Width - DiagramWidth) / 2.0))
             .Append(',')
             .Append(EnterpriseSvgFormat.Number(TitleHeight))
             .Append(")\">");
@@ -166,28 +222,7 @@ public static partial class EnterpriseSvgRenderer
         SvgBuildTimer.Stop();
         StageTimingObserver?.Invoke("enterprise-svg-build", SvgBuildTimer.Elapsed.TotalMilliseconds);
         string Unstyled = FlowchartSvgLineJump.Apply(Builder.ToString());
-        lock (_GeometryCacheGate)
-        {
-            if (_GeometryCacheByKey.ContainsKey(GeometryKey))
-            {
-                _GeometryCacheByKey[GeometryKey] = Unstyled;
-                _GeometryCacheOrder.Remove(GeometryKey);
-                _GeometryCacheOrder.AddLast(GeometryKey);
-            }
-            else
-            {
-                _GeometryCacheByKey[GeometryKey] = Unstyled;
-                _GeometryCacheOrder.AddLast(GeometryKey);
-                while (_GeometryCacheOrder.Count > GEOMETRY_CACHE_CAPACITY)
-                {
-                    string EvictKey = _GeometryCacheOrder.First!.Value;
-                    _GeometryCacheOrder.RemoveFirst();
-                    _GeometryCacheByKey.Remove(EvictKey);
-                }
-            }
-        }
-
-        return Finish(Document, Unstyled);
+        return Unstyled;
     }
 
     /// <summary>

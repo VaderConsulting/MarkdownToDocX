@@ -73,17 +73,34 @@ internal sealed class DiagramSourceUpdateService
     {
         lock (Gate)
         {
-            DiagramContract Model = DiagramSourceModel.Copy(Committed.Model);
-            FlowchartLayoutResult Layout = Committed.Geometry.Fork().Layout;
-            // A renderer must see full presentation/source facts on its accepted guides too.
-            var Edges = Model.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
-            Layout.ResolvedEdgeGuides = Layout.ResolvedEdgeGuides?.Select(Guide =>
-                new FlowchartResolvedGuide(Edges[Guide.Edge.Id!], Guide.Points.ToList(), Guide.RouteKind)).ToList();
-            Layout.RenderContext.CachedRouteContract = Model;
-            Layout.RenderContext.CachedRouteGuides = Layout.ResolvedEdgeGuides;
-            return new(DocumentId, Committed.SourceRevision, LatestSourceRevision, Revision,
-                Committed.SourceText, Model, Committed.Identities, Layout, InvalidationReason);
+            return CopySnapshotCore(Committed, Revision);
         }
+    }
+
+    // Draw/rasterise an isolated candidate before publication. A drawing failure cannot
+    // accept source/geometry that the host has never successfully displayed.
+    internal Snapshot CopyCandidateSnapshot(Update Candidate)
+    {
+        lock (Gate)
+        {
+            if (!ReferenceEquals(Candidate.Owner, this) || Candidate.Value == null)
+                throw new ArgumentException("No drawable candidate belongs to this session.", nameof(Candidate));
+            return CopySnapshotCore(Candidate.Value, Candidate.BaseRevision + 1);
+        }
+    }
+
+    private Snapshot CopySnapshotCore(Accepted Value, long AcceptedRevision)
+    {
+        DiagramContract Model = DiagramSourceModel.Copy(Value.Model);
+        FlowchartLayoutResult Layout = Value.Geometry.Fork().Layout;
+        // A renderer must see full presentation/source facts on its accepted guides too.
+        var Edges = Model.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
+        Layout.ResolvedEdgeGuides = Layout.ResolvedEdgeGuides?.Select(Guide =>
+            new FlowchartResolvedGuide(Edges[Guide.Edge.Id!], Guide.Points.ToList(), Guide.RouteKind)).ToList();
+        Layout.RenderContext.CachedRouteContract = Model;
+        Layout.RenderContext.CachedRouteGuides = Layout.ResolvedEdgeGuides;
+        return new(DocumentId, Value.SourceRevision, LatestSourceRevision, AcceptedRevision,
+            Value.SourceText, Model, Value.Identities, Layout, InvalidationReason);
     }
 
     internal sealed record Snapshot(string DocumentId, long SourceRevision, long ObservedSourceRevision,

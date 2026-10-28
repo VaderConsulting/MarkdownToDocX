@@ -412,14 +412,37 @@ internal static class EnterpriseFlowchartEdgeRouter
         }
 
         FlowchartLayoutResult Layout = new();
-        FlowchartRenderContext RenderContext = new FlowchartRenderContext { LayoutOptions = FlowchartRenderContext.Current.LayoutOptions };
+        FlowchartRenderContext RenderContext = new FlowchartRenderContext
+        {
+            LayoutOptions = FlowchartRenderContext.Current.LayoutOptions,
+            UseCellRegions = FlowchartRenderContext.Current.LayoutOptions.EnableIncrementalRouting
+                || !AppContext.TryGetSwitch(FlowchartRenderContext.CellRegionsSwitch, out bool Cells) || Cells
+        };
         if (!Measure("enterprise-shared-flowchart-layout", () => FlowchartSugiyamaLayoutEngine.TryLayout(Contract, RenderContext, out Layout)))
         {
             return false;
         }
 
+        return TryBuildRetainedContext(Contract, Layout, null, out Context);
+    }
+
+    // Supplied geometry only: never calls initial placement or route completion.
+    internal static bool TryBuildRetainedContext(DiagramContract Contract, FlowchartLayoutResult Layout,
+        FlowchartSvgCoordinateFrame? FixedFrame, out EnterpriseFlowchartRoutingContext Context)
+    {
+        Context = new EnterpriseFlowchartRoutingContext();
         FlowchartSvgCoordinateFrame Frame = new();
-        if (!Measure("enterprise-coordinate-frame", () => FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out Frame)))
+        if (FixedFrame != null)
+        {
+            Frame = new FlowchartSvgCoordinateFrame
+            {
+                Layout = Layout, MinLeft = FixedFrame.MinLeft, MaxTop = FixedFrame.MaxTop,
+                DiagramPaddingPx = FixedFrame.DiagramPaddingPx,
+                RouteClassByEdgeKey = FlowchartEdgeRoutingIntentAnalyzer.BuildRouteClassNamesByEdgeKey(
+                    Contract, Layout, FlowchartDirectionNormalizer.Normalize(Contract.Direction))
+            };
+        }
+        else if (!Measure("enterprise-coordinate-frame", () => FlowchartSvgCoordinateFrameResolver.TryResolve(Contract, Layout, out Frame)))
         {
             return false;
         }

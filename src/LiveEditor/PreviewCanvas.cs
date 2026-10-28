@@ -28,6 +28,8 @@ internal sealed partial class PreviewCanvas : UserControl
     private double _Zoom = 1.0;
 
     private bool _FitToWindow = true;
+    private Point _ViewPadding;
+    private Size _MinimumCameraExtent;
 
     private Rectangle _FitObstacle;
 
@@ -371,6 +373,8 @@ internal sealed partial class PreviewCanvas : UserControl
                 return;
             }
 
+            _ViewPadding = Point.Empty;
+            _MinimumCameraExtent = Size.Empty;
             ApplyPrepared(Source, Svg, Png, Failure, Advisory);
         };
         if (IsHandleCreated && InvokeRequired)
@@ -381,6 +385,44 @@ internal sealed partial class PreviewCanvas : UserControl
         {
             Apply();
         }
+    }
+
+    // UI-thread publication of a worker's completed image; no layout entry point.
+    internal bool LoadAccepted(string Source, string Svg, byte[] Png, string? Advisory, bool PreserveViewport,
+        Func<bool>? Publish = null)
+    {
+        // Decode and build all source hit-test/error metadata before accepting the
+        // engine transaction. No publication happens if any of this fails.
+        PreviewHoverIndex NextIndex = PreviewHoverIndex.Build(Svg, Source);
+        List<PreviewError> NextErrors = PreviewError.FromScript(NextIndex.Objects, Source);
+        using MemoryStream Stream = new(Png);
+        using Image Decoded = Image.FromStream(Stream);
+        Bitmap PreparedBitmap = new(Decoded);
+        if (Publish != null && !Publish()) { PreparedBitmap.Dispose(); return false; }
+        bool HasCamera = PreserveViewport && Image != null && _Index is { Width: > 0 };
+        double ModelScale = HasCamera ? DiagramPicture.Width / _Index!.Width : 1;
+        Point Position = DiagramPicture.Location;
+        var PreviousOrigin = PreviewHoverIndex.SvgOrigin(_RenderedSvg);
+        var NextOrigin = PreviewHoverIndex.SvgOrigin(Svg);
+        if (!PreserveViewport) { _ViewPadding = Point.Empty; _MinimumCameraExtent = Size.Empty; }
+        Interlocked.Increment(ref _LoadSequence);
+        ApplyPrepared(Source, Svg, Png, null, Advisory, PreparedBitmap, NextIndex, NextErrors);
+        if (HasCamera)
+        {
+            // Keep the same model-to-screen transform, including a fitted view's
+            // margins and preview raster downscaling. Fit remains an explicit command.
+            int Left = Position.X + (int)Math.Round((NextOrigin.X - PreviousOrigin.X) * ModelScale);
+            int Top = Position.Y + (int)Math.Round((NextOrigin.Y - PreviousOrigin.Y) * ModelScale);
+            _Zoom = ModelScale * _Index!.Width / Image!.Width;
+            _FitToWindow = false;
+            _ViewPadding = new Point(Math.Max(0, Left), Math.Max(0, Top));
+            _MinimumCameraExtent = new Size(Math.Max(0, -Left) + Viewport.Width,
+                Math.Max(0, -Top) + Viewport.Height);
+            Viewport.AutoScrollPosition = Point.Empty;
+            ApplyView();
+            Viewport.AutoScrollPosition = new Point(Math.Max(0, -Left), Math.Max(0, -Top));
+        }
+        return true;
     }
 
     /// <summary>
@@ -452,6 +494,8 @@ internal sealed partial class PreviewCanvas : UserControl
     /// </summary>
     public void Clear()
     {
+        _ViewPadding = Point.Empty;
+        _MinimumCameraExtent = Size.Empty;
         Interlocked.Increment(ref _LoadSequence);
         DetachItems();
         ClearBitmap();
@@ -472,10 +516,16 @@ internal sealed partial class PreviewCanvas : UserControl
         out byte[]? Png,
         out string? Failure,
         out string? Advisory)
+        => PrepareImage(Source, EnterpriseAnalysis, _UseLegacyRenderer, LiveEditorFeatureGate.CaptureLayoutOptions(),
+            out Svg, out Png, out Failure, out Advisory);
+
+    internal void PrepareImage(string Source, EnterpriseAnalysisResult? EnterpriseAnalysis, bool LegacyRenderer,
+        MermaidRecognition.Layout.DiagramLayoutOptions Options,
+        out string? Svg, out byte[]? Png, out string? Failure, out string? Advisory)
     {
         using IDisposable LayoutScope = MermaidRecognition.Layout.FlowchartRenderContext.Activate(new()
         {
-            LayoutOptions = LiveEditorFeatureGate.CaptureLayoutOptions()
+            LayoutOptions = Options
         });
         Svg = null;
         Png = null;
@@ -488,7 +538,7 @@ internal sealed partial class PreviewCanvas : UserControl
 
         try
         {
-            if (_UseLegacyRenderer)
+            if (LegacyRenderer)
             {
                 Svg = MermaidDiagramExport.RenderSvg(Source);
                 if (string.IsNullOrWhiteSpace(Svg))
@@ -544,7 +594,8 @@ internal sealed partial class PreviewCanvas : UserControl
         }
     }
 
-    private void ApplyPrepared(string Source, string? Svg, byte[]? Png, string? Failure, string? Advisory)
+    private void ApplyPrepared(string Source, string? Svg, byte[]? Png, string? Failure, string? Advisory,
+        Bitmap? PreparedBitmap = null, PreviewHoverIndex? PreparedIndex = null, List<PreviewError>? PreparedErrors = null)
     {
         _Applying = true;
         try
@@ -559,11 +610,12 @@ internal sealed partial class PreviewCanvas : UserControl
             if (Png != null && Png.Length > 0 && !string.IsNullOrWhiteSpace(Svg))
             {
                 _LastPreviewPngBytes = Png;
-                ShowPng(Png);
+                if (PreparedBitmap != null) ShowBitmap(PreparedBitmap);
+                else ShowPng(Png);
                 _RenderedSvg = Svg;
                 _RenderFailure = null;
                 _PreviewAdvisory = Advisory;
-                _Index = PreviewHoverIndex.Build(Svg, Source);
+                _Index = PreparedIndex ?? PreviewHoverIndex.Build(Svg, Source);
             }
             else
             {
@@ -575,7 +627,7 @@ internal sealed partial class PreviewCanvas : UserControl
                 _Index = PreviewHoverIndex.FromScript(Source);
             }
 
-            ReplaceErrors(PreviewError.FromScript(_Index.Objects, Source));
+            ReplaceErrors(PreparedErrors ?? PreviewError.FromScript(_Index.Objects, Source));
             AttachItems();
             List<PreviewObject> Restored = [];
             foreach (string Key in SelectedKeys)
@@ -753,6 +805,11 @@ internal sealed partial class PreviewCanvas : UserControl
         using MemoryStream Stream = new MemoryStream(Png);
         using Image Loaded = Image.FromStream(Stream);
         Bitmap Copy = new Bitmap(Loaded);
+        ShowBitmap(Copy);
+    }
+
+    private void ShowBitmap(Bitmap Copy)
+    {
         Image? Previous = DiagramPicture.Image;
         DiagramPicture.Image = Copy;
         if (Previous != null && !ReferenceEquals(Previous, Copy))
@@ -999,10 +1056,11 @@ internal sealed partial class PreviewCanvas : UserControl
             int Width = Math.Max(1, (int)Math.Round(DiagramPicture.Image.Width * _Zoom));
             int Height = Math.Max(1, (int)Math.Round(DiagramPicture.Image.Height * _Zoom));
             DiagramPicture.Dock = DockStyle.None;
-            DiagramPicture.Location = Point.Empty;
+            DiagramPicture.Location = _ViewPadding;
             DiagramPicture.Size = new Size(Width, Height);
             DiagramPicture.SizeMode = PictureBoxSizeMode.Zoom;
-            Viewport.AutoScrollMinSize = new Size(Width, Height);
+            Viewport.AutoScrollMinSize = new Size(Math.Max(Width + _ViewPadding.X, _MinimumCameraExtent.Width),
+                Math.Max(Height + _ViewPadding.Y, _MinimumCameraExtent.Height));
         }
 
         DiagramPicture.Visible = true;
@@ -1048,6 +1106,8 @@ internal sealed partial class PreviewCanvas : UserControl
 
         _FitToWindow = false;
         _Zoom = 1;
+        _ViewPadding = Point.Empty;
+        _MinimumCameraExtent = Size.Empty;
         ApplyView();
         Viewport.AutoScrollPosition = new Point(0, 0);
         ZoomChanged?.Invoke(this, EventArgs.Empty);
@@ -1062,6 +1122,8 @@ internal sealed partial class PreviewCanvas : UserControl
         }
 
         _FitToWindow = true;
+        _ViewPadding = Point.Empty;
+        _MinimumCameraExtent = Size.Empty;
         ApplyView();
         ZoomChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -1705,6 +1767,8 @@ internal sealed partial class PreviewCanvas : UserControl
         }
 
         GetImagePointUnderClient(ClientPoint, out double ImageX, out double ImageY);
+        _ViewPadding = Point.Empty;
+        _MinimumCameraExtent = Size.Empty;
         _Zoom = NewZoom;
         _FitToWindow = false;
         ApplyView();
@@ -1733,8 +1797,8 @@ internal sealed partial class PreviewCanvas : UserControl
 
         Point Scroll = Viewport.AutoScrollPosition;
         double Scale = Math.Max(0.0001, _Zoom);
-        ImageX = (ClientPoint.X - Scroll.X) / Scale;
-        ImageY = (ClientPoint.Y - Scroll.Y) / Scale;
+        ImageX = (ClientPoint.X - Scroll.X - _ViewPadding.X) / Scale;
+        ImageY = (ClientPoint.Y - Scroll.Y - _ViewPadding.Y) / Scale;
     }
 
     private double DisplayedZoom()

@@ -12,6 +12,10 @@ namespace MDConverter;
 /// </summary>
 public static class MermaidPreviewRender
 {
+    /// <summary>Rasterises an already accepted drawing with the preview's size budget.</summary>
+    public static byte[]? RasterizeAcceptedSvg(string Svg, out string? PreviewAdvisory)
+        => DocxWriter.TryRasterizeSvgToPreviewPng(Svg, out PreviewAdvisory);
+
     /// <summary>
     /// Renders SVG and a preview PNG using the same pipeline as the live preview.
     /// </summary>

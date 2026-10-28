@@ -77,6 +77,7 @@ namespace LiveEditor
             ZoomOutMenuItem = new ToolStripMenuItem();
             ZoomResetMenuItem = new ToolStripMenuItem();
             FitPreviewMenuItem = new ToolStripMenuItem();
+            AutoLayoutMenuItem = new ToolStripMenuItem();
             ToggleDiagnosticsMenuItem = new ToolStripMenuItem();
             ToggleMinimapMenuItem = new ToolStripMenuItem();
             ToggleLegacyPreviewMenuItem = new ToolStripMenuItem();
@@ -536,7 +537,7 @@ namespace LiveEditor
             // 
             // ViewMenu
             // 
-            ViewMenu.DropDownItems.AddRange(new ToolStripItem[] { ToggleThemeMenuItem, ToggleSplitOrientationMenuItem, ZoomInMenuItem, ZoomOutMenuItem, ZoomResetMenuItem, FitPreviewMenuItem, ToggleDiagnosticsMenuItem, ToggleMinimapMenuItem, ToggleLegacyPreviewMenuItem });
+            ViewMenu.DropDownItems.AddRange(new ToolStripItem[] { ToggleThemeMenuItem, ToggleSplitOrientationMenuItem, ZoomInMenuItem, ZoomOutMenuItem, ZoomResetMenuItem, FitPreviewMenuItem, AutoLayoutMenuItem, ToggleDiagnosticsMenuItem, ToggleMinimapMenuItem, ToggleLegacyPreviewMenuItem });
             ViewMenu.Name = "ViewMenu";
             ViewMenu.Size = new Size(55, 24);
             ViewMenu.Text = "&View";
@@ -585,6 +586,10 @@ namespace LiveEditor
             FitPreviewMenuItem.Size = new Size(315, 26);
             FitPreviewMenuItem.Text = "&Fit preview";
             FitPreviewMenuItem.Click += FitPreviewMenuItem_Click;
+            AutoLayoutMenuItem.Name = "AutoLayoutMenuItem";
+            AutoLayoutMenuItem.Text = "Auto layout";
+            AutoLayoutMenuItem.Visible = false;
+            AutoLayoutMenuItem.Click += AutoLayoutMenuItem_Click;
             // 
             // ToggleDiagnosticsMenuItem
             // 
@@ -1353,6 +1358,7 @@ namespace LiveEditor
         private ToolStripMenuItem ZoomOutMenuItem;
         private ToolStripMenuItem ZoomResetMenuItem;
         private ToolStripMenuItem FitPreviewMenuItem;
+        private ToolStripMenuItem AutoLayoutMenuItem;
         private ToolStripMenuItem ToggleDiagnosticsMenuItem;
         private ToolStripMenuItem ToggleMinimapMenuItem;
         private ToolStripMenuItem ToggleLegacyPreviewMenuItem;
