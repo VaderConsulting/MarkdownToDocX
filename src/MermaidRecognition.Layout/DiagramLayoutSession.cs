@@ -78,12 +78,12 @@ internal sealed class DiagramLayoutSession
     /// No initial placement or whole-diagram routing entry point is reachable here.
     /// </summary>
     internal Update PrepareMove(long SourceRevision, IReadOnlyDictionary<string, FlowchartCellRegion> Targets,
-        int? RouteLimit = null)
+        int? RouteLimit = null, bool AllowContainedGroupMoves = false)
     {
         ArgumentNullException.ThrowIfNull(Targets);
         return Prepare(SourceRevision, Candidate =>
         {
-            string? Failure = Candidate.TryMove(Targets, Limit(RouteLimit), out var Affected, out var Rebuilt);
+            string? Failure = Candidate.TryMove(Targets, Limit(RouteLimit), out var Affected, out var Rebuilt, AllowContainedGroupMoves);
             return (Failure, Affected, Rebuilt);
         });
     }

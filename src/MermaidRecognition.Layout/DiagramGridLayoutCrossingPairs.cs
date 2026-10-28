@@ -69,7 +69,7 @@ public static partial class DiagramGridLayout
 
                             HashSet<FlowchartLayoutEdgeRoute> Affected = [.. Layout.EdgeRoutes.Where(Route => !Equal(Route, Paths[Route]))];
                         if (Affected.Count == 0) { Reason = "unchanged"; continue; }
-                        if (Affected.Count > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit"; continue; }
+                        if (Affected.Count > FlowchartLayoutRules.RepairChainLines) { Reason = FlowchartLayoutRules.RepairChainLines + "-line-limit"; continue; }
                         if (FlowchartRouteRuleChecker.HasProperCrossing(Pair.First, Pair.Second)) { Reason = "pair-still-crosses"; continue; }
                         int Bends = RouteBends(Layout), Crossings = TerminalCrossings(Layout);
                         double ExtraLength = RouteLength(Layout) - BeforeLength;
@@ -124,7 +124,7 @@ public static partial class DiagramGridLayout
                 foreach ((string Key, FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second) Pair in Pairs.Where(Pair => FlowchartRouteRuleChecker.HasProperCrossing(Pair.First, Pair.Second)))
                 {
                     CrossingPairCandidateObserver?.Invoke(Pair.Key, "remaining", Examined >= FlowchartLayoutRules.RepairCandidateMoves
-                        ? "16-candidate-limit" : "no-improving-generated-assignment");
+                        ? FlowchartLayoutRules.RepairCandidateMoves + "-candidate-limit" : "no-improving-generated-assignment");
                 }
             }
             finally { foreach ((string Key, FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second, IEnumerator<(string Kind, Func<bool> Build)> Options) Queue in Queues)
@@ -264,7 +264,7 @@ public static partial class DiagramGridLayout
             // <summary>Reallocates the complete endpoint inventory before rerouting every slot-dependent line.</summary>
             // <param name="First">First crossing link.</param>
             // <param name="Second">Second crossing link.</param>
-            // <returns>Alternative side assignments with the ordinary twelve-line closure limit.</returns>
+            // <returns>Alternative side assignments with the configured closure limit.</returns>
             IEnumerable<(string Kind, Func<bool> Build)> Sides(FlowchartLayoutEdgeRoute First, FlowchartLayoutEdgeRoute Second)
             {
                 foreach (string Side in new[] { "left", "right", "top", "bottom" })
@@ -297,7 +297,7 @@ public static partial class DiagramGridLayout
                         if (Affected.Count > FlowchartLayoutRules.RepairChainLines)
                         {
                             CrossingPairCandidateObserver?.Invoke(First.EdgeId + " x " + Second.EdgeId,
-                                "side-closure", "12-line-limit:" + Affected.Count);
+                                "side-closure", FlowchartLayoutRules.RepairChainLines + "-line-limit:" + Affected.Count);
                             return false;
                         }
                         Rebuild(Affected); return true;

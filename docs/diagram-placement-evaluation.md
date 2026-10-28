@@ -1,0 +1,15 @@
+# Bounded retained placement evaluation
+
+`DiagramPlacementEvaluator` owns a detached accepted cell scene and its document/source/layout revision identity. Shared callers can use it without enabling an editor feature. It never publishes a candidate, changes the caller's accepted state, refits groups or invokes initial placement.
+
+`EvaluateMove` accepts complete whole-cell targets and a local route limit. Row and column changes are independent; routes retain the existing orthogonal policy. Spans remain fixed. Explicit locks, mandatory placement/route hints, cell ownership and semantic conventions are authoritative. A no-op on an explicitly locked position is permitted. Occupied cells, broken hint gaps and route-budget failures return an unpublishable trial with a reason and actual affected/rebuilt route identities.
+
+`Explore` takes one stable visible relationship identity. It first submits the existing scoped port allocation/path refinement with mandatory routing hints intact. It then nominates source, target and node bodies obstructing the allocated-port chord. Existing cell candidate machinery interleaves single-node peer-boundary and compass alternatives, excluding output-chain/group moves. Explicitly locked and hinted nodes are reported as skipped. Trials use the same accepted baseline rather than accumulating speculative movement. Duplicate proposals are visited once; the candidate bound includes the first routing trial. Budget exhaustion states a search limit, not that no legal arrangement exists. Coordinate overflow terminates generation with an explicit reason.
+
+The default maximum reads canonical `repair_candidate_moves` (currently 48), and retained routing uses canonical `repair_chain_lines` (currently 24). A caller may request smaller bounds. The values remain unchanged and provisional under the rulebook's release/performance requirement. Crossing/final-repair diagnostic messages now report those actual configured limits rather than historical literals 16/12.
+
+Contained-member trials may use vacant cells inside their existing group frames. Every ancestor remains fixed; canonical member inset and measured title strips are protected. Membership, frame position/size, cell spans and unrelated geometry remain unchanged. Leaving a frame or entering its title rejects the candidate. This is a distinct engine opt-in; source/GUI grouped movement and group refitting retain their existing boundaries until their own source publication work is complete.
+
+Trial results own their candidate state privately. Each `CopyCandidate` returns fresh model, route and grid objects, so rendering or scoring a copy cannot corrupt another trial. Origin revisions describe the accepted scene; they do not authorize publishing the result into a newer scene. A later selected suggestion must pass the ordinary source/revision transaction again.
+
+QUALITY-2 provides candidate generation, local routing and rejection evidence. Whole-diagram ranking, verified suggestions, visual preview and undoable source publication are the following tasks. Evaluating a legal candidate alone makes no quality or speed claim.

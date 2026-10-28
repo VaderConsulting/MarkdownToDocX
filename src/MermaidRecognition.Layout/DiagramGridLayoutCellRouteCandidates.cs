@@ -47,8 +47,10 @@ public static partial class DiagramGridLayout
     /// <param name="Placed">Complete cell-bound diagram.</param>
     /// <param name="Horizontal">Whether cross-axis intervals use rows.</param>
     /// <param name="Ids">Endpoints nominated by bent or missing routes.</param>
+    /// <param name="IncludeOutputChains">Whether to offer multi-node output-chain units as well as single owners.</param>
     /// <returns>Unpublished translations, bounded and interleaved using the existing move limit.</returns>
-    internal static IEnumerable<CellRouteMoveTarget> CellRouteMoveCandidates(DiagramContract Contract, List<GridNode> Placed, bool Horizontal, IEnumerable<string> Ids)
+    internal static IEnumerable<CellRouteMoveTarget> CellRouteMoveCandidates(DiagramContract Contract, List<GridNode> Placed, bool Horizontal, IEnumerable<string> Ids,
+        bool IncludeOutputChains = true)
     {
         Dictionary<string, FlowchartCellRegion> Regions = new Dictionary<string, FlowchartCellRegion>(FlowchartCellRepair.Capture(Placed).Regions, StringComparer.Ordinal);
         Dictionary<string, GridNode> ById = IndexPlaced(Placed);
@@ -67,7 +69,7 @@ public static partial class DiagramGridLayout
             .OrderBy(Id => CellSourceOrder(Contract, Regions, Id, Horizontal)).ThenBy(Id => Declared.GetValueOrDefault(Id, int.MaxValue)))
         {
             List<IReadOnlyList<GridNode>> Units = [Placed.Where(Node => Node.Id == Id || IsInsideGroup(Contract, Node.Id, Id)).ToArray()];
-            if (ById.TryGetValue(Id, out GridNode? Start))
+            if (IncludeOutputChains && ById.TryGetValue(Id, out GridNode? Start))
             {
                 IReadOnlyList<GridNode> Tail = CellOutputChain(Start, ById, Edges);
                 if (Tail.Count > 1)

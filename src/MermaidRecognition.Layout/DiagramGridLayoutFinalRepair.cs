@@ -155,7 +155,7 @@ public static partial class DiagramGridLayout
                         })];
                         if (CountUnrelatedFrameOverlaps(State.Contract, PublishedFrames) != 0) { Reason = "frame-overlap"; continue; }
                         int Changed = Original.ChangedLines();
-                        if (Changed > FlowchartLayoutRules.RepairChainLines) { Reason = "12-line-limit:" + Changed; continue; }
+                        if (Changed > FlowchartLayoutRules.RepairChainLines) { Reason = FlowchartLayoutRules.RepairChainLines + "-line-limit:" + Changed; continue; }
                         ExtraLength = RouteLength(Layout) - BeforeLength;
                         double? Cap = FinalRepairLengthCapForTests;
                         if (Cap.HasValue && ExtraLength > Cap.Value) { Reason = $"measurement-length:{ExtraLength:R}>{Cap.Value:R}"; continue; }

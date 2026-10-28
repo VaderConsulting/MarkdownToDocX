@@ -133,7 +133,7 @@ public static partial class DiagramGridLayout
         }
 
         internal string? TryMove(IReadOnlyDictionary<string, FlowchartCellRegion> Targets, int RouteLimit,
-            out string[] AffectedIds, out string[] RebuiltIds)
+            out string[] AffectedIds, out string[] RebuiltIds, bool AllowContainedGroupMoves = false)
         {
             AffectedIds = []; RebuiltIds = [];
             using IDisposable Scope = FlowchartRenderContext.Activate(Layout.RenderContext);
@@ -144,7 +144,8 @@ public static partial class DiagramGridLayout
                 if (Region.RowSpan != Target.Value.RowSpan || Region.ColumnSpan != Target.Value.ColumnSpan) { return "Cell resizing requires a separate operation."; }
                 GridNode Node = State.Placed.Single(Node => Node.Id == Target.Key);
                 if (Node.PlacementHintLocked && Region != Target.Value) { return "The move would change a locked placement hint."; }
-                if (!string.IsNullOrEmpty(Node.GroupId) && Region != Target.Value) { return "Moving a grouped node requires a group containment operation."; }
+                if (!AllowContainedGroupMoves && !string.IsNullOrEmpty(Node.GroupId) && Region != Target.Value)
+                    return "Moving a grouped node requires a group containment operation.";
             }
             if (!Grid.TryPrepare(Targets, [], out FlowchartLogicalGrid.Snapshot? After)
                 || !FlowchartPlacementHints.CellHintsMatch(State.Contract, State.Placed, After!.Regions))
@@ -166,8 +167,37 @@ public static partial class DiagramGridLayout
                 }
             }
             Layout.BumpGeometryVersion();
+            string? Containment = ValidateFrozenContainment(Targets.Where(Target => Before.Regions[Target.Key] != Target.Value).Select(Target => Target.Key));
+            if (Containment != null) return Containment;
             HashSet<FlowchartLayoutEdgeRoute> Affected = Original.RoutesAffectedBy(State);
             return Complete(Original, ExistingFindings, Affected, RouteLimit, out AffectedIds, out RebuiltIds);
+        }
+
+        // A contained-member trial may use vacant cells inside existing frames.
+        // It cannot refit a frame, change membership or occupy an ancestor's title.
+        private string? ValidateFrozenContainment(IEnumerable<string> Ids)
+        {
+            if (State.Contract.Groups.Count == 0) return null;
+            var Boxes = Layout.NodeBounds.Concat(Layout.ClusterBounds).ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
+            var Bands = FlowchartFrameTitleBandHelper.Build(State.Contract, Boxes);
+            foreach (string Id in Ids)
+            {
+                var Node = State.Placed.Single(Node => Node.Id == Id);
+                var Box = Boxes[Id];
+                HashSet<string> Seen = new(StringComparer.Ordinal);
+                for (string? Group = Node.GroupId; !string.IsNullOrEmpty(Group); Group = ParentGroup(State.Contract, Group))
+                {
+                    if (!Seen.Add(Group) || !Boxes.TryGetValue(Group, out var Frame)) return "The containing group inventory is invalid.";
+                    double Pad = FlowchartLayoutRules.GroupMemberMinimumInset;
+                    double Left = Box.CenterX - Box.Width / 2, Right = Box.CenterX + Box.Width / 2;
+                    double Bottom = Box.CenterY - Box.Height / 2, Top = Box.CenterY + Box.Height / 2;
+                    if (Left < Frame.CenterX - Frame.Width / 2 + Pad || Right > Frame.CenterX + Frame.Width / 2 - Pad
+                        || Bottom < Frame.CenterY - Frame.Height / 2 + Pad || Top > Frame.CenterY + Frame.Height / 2 - Pad
+                        || Bands.Any(Band => Band.GroupId == Group && Left < Band.Right && Right > Band.Left && Bottom < Band.Top && Top > Band.Bottom))
+                        return "The move leaves a frozen containing group or enters its title band.";
+                }
+            }
+            return null;
         }
 
         private string? Complete(RetainedRouteSnapshot Original, HashSet<FlowchartRouteRuleChecker.Finding> ExistingFindings,

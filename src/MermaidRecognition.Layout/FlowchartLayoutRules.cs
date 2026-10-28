@@ -50,7 +50,7 @@ internal static class FlowchartLayoutRules
     internal static int RepairSearchPatience => checked((int)Get("repair_search_patience"));
     internal static int RepairSearchPatienceStress => checked((int)Get("repair_search_patience_stress"));
     internal static int RepairSearchPatienceStressMinRoutes => checked((int)Get("repair_search_patience_stress_min_routes"));
-    /// <summary>Evaluates the approved complete-fan limit without changing the ordinary twelve-line bound.</summary>
+    /// <summary>Evaluates the approved complete-fan limit without changing the ordinary configured bound.</summary>
     /// <param name="FanLineCount">Number of declared lines in the complete fan being moved atomically.</param>
     /// <returns>The exact fan inventory size, never a fixed replacement for the ordinary limit.</returns>
     /// <exception cref="InvalidDataException">The canonical expression is absent or unsupported.</exception>
