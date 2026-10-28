@@ -4,6 +4,37 @@ namespace MermaidRecognition.Layout.Tests;
 [TestFixture]
 public sealed class FlowchartCellFanPackingTests
 {
+    [TestCase(false), TestCase(true)]
+    public void MandatoryCapacityGrowthReportsPublicationEvenWhenTheFanWidens(bool Horizontal)
+    {
+        var (Nodes, Hub, Leaves, Grid) = Fixture(20);
+        var Before = Grid.Capture();
+        double Width = FlowchartCellCandidateScore.MeasureWidth(Nodes, Before);
+        Assert.That(FlowchartFanPacking.ApplyCellFan(Nodes, Hub, Leaves, true, Horizontal, false, 120, 6), Is.True);
+        var After = Grid.Capture();
+        Assert.That(After, Is.Not.SameAs(Before));
+        Assert.That(FlowchartCellCandidateScore.MeasureWidth(Nodes, After), Is.GreaterThan(Width));
+        Assert.That(FlowchartFanPacking.ApplyCellFan(Nodes, Hub, Leaves, true, Horizontal, false, 120, 6), Is.False);
+        Assert.That(Grid.Capture(), Is.SameAs(After));
+    }
+
+    [Test]
+    public void UnrelatedWideComponentCannotMaskTheLocalFanPackOrItsSuccess()
+    {
+        var (Nodes, Hub, Leaves, Grid) = Fixture(8);
+        Assert.That(Grid.TryPlace("Independent", new(0, 100, 1, 1)), Is.True);
+        var Other = new DiagramGridLayout.GridNode { Id = "Independent" }; Other.BindCells(Grid); Nodes.Add(Other);
+        var Before = Grid.Capture();
+        var OtherGeometry = (Other.X, Other.Y, Other.Width, Other.Height);
+        double Width = FlowchartCellCandidateScore.MeasureWidth(Nodes, Before);
+        Assert.That(FlowchartFanPacking.ApplyCellFan(Nodes, Hub, Leaves, true, false, false, 60, 6), Is.True);
+        Assert.That(Grid.Capture(), Is.Not.SameAs(Before));
+        Assert.That(FlowchartCellCandidateScore.MeasureWidth(Nodes, Grid.Capture()), Is.EqualTo(Width));
+        Assert.That((Other.X, Other.Y, Other.Width, Other.Height), Is.EqualTo(OtherGeometry));
+        Assert.That(Grid.RegionOf("Independent"), Is.EqualTo(Before.Regions["Independent"]));
+        Assert.That(Leaves.Select(Node => Grid.RegionOf(Node.Id).StartColumn).Distinct().Count(), Is.GreaterThan(1));
+    }
+
     /// <summary>Large fans occupy both rows and columns while only measured hub capacity changes its spans.</summary>
     /// <param name="Count">Declared simple fan size.</param>
     /// <param name="Horizontal">Whether primary flow uses columns.</param>

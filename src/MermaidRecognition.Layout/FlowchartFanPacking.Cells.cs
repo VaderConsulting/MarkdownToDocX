@@ -33,9 +33,18 @@ internal static partial class FlowchartFanPacking
         int OriginRow = Leaves.Append(Hub).Min(Node => Before.Regions[Node.Id].StartRow);
         int OriginColumn = Leaves.Append(Hub).Min(Node => Before.Regions[Node.Id].StartColumn);
         double Usable = FlowchartLayoutRules.DiagramUsableWidthPx;
-        double BeforeWidth = FlowchartCellCandidateScore.MeasureWidth(Nodes, Before);
-        double BestScore = MandatoryGrowth ? double.PositiveInfinity : FlowchartCellCandidateScore.Measure(Nodes, Before).Score;
-        double BestWidth = BeforeWidth;
+        (double Width, double Height) Overflow(FlowchartLogicalGrid.Snapshot State)
+        {
+            double Width = FlowchartCellCandidateScore.MeasureWidth(Leaves, State);
+            double Area = FlowchartCellCandidateScore.Measure(Leaves, State, IncludeEmptySpace: false).Area;
+            return (Math.Max(0, Width - Usable), Math.Max(0, Area / Width - Usable));
+        }
+        // Rule 2.18 wraps the fan block using its own measured footprint.
+        // Unrelated components and mandatory hub/channel growth cannot make a
+        // valid local pack ineligible merely because the whole diagram widens.
+        var BestOverflow = Overflow(Before);
+        var Initial = FlowchartCellCandidateScore.Measure(Nodes, Before);
+        double BestScore = Initial.Score, BestArea = Initial.Area;
         FlowchartCellRepair.Assignment? Best = null;
         // Initial packing has one finite option per declared column count,
         // matching the existing fan planner. No route search occurs here.
@@ -96,14 +105,15 @@ internal static partial class FlowchartFanPacking
                 continue;
             }
 
-            double Width = FlowchartCellCandidateScore.MeasureWidth(Nodes, Plan.After);
-            double Score = FlowchartCellCandidateScore.Measure(Nodes, Plan.After).Score;
-            bool Better = (Width <= Usable + 1e-9 && BestWidth > Usable + 1e-9)
-                || ((Width <= Usable + 1e-9) == (BestWidth <= Usable + 1e-9)
-                    && (Width < BestWidth - 1e-9 || (Math.Abs(Width - BestWidth) <= 1e-9 && Score < BestScore - 0.0001)));
-            if (Better) { Best = Plan; BestScore = Score; BestWidth = Width; }
+            var CandidateOverflow = Overflow(Plan.After);
+            var Candidate = FlowchartCellCandidateScore.Measure(Nodes, Plan.After);
+            int WrapComparison = CandidateOverflow.CompareTo(BestOverflow);
+            bool Better = (Best == null && MandatoryGrowth) || WrapComparison < 0
+                || (WrapComparison == 0 && (Candidate.Score < BestScore - 0.0001
+                    || (Math.Abs(Candidate.Score - BestScore) < 0.0001 && Candidate.Area < BestArea - 0.0001)));
+            if (Better) { Best = Plan; BestScore = Candidate.Score; BestArea = Candidate.Area; BestOverflow = CandidateOverflow; }
         }
-        return Best?.TryApply() == true && BestWidth < BeforeWidth - 1e-9;
+        return Best?.TryApply() == true;
     }
 
     /// <summary>Finds a whole-cell slot stride whose guaranteed external clearance meets a measured need.</summary>
