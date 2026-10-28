@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using LiveEditor.Editor;
@@ -22,7 +23,17 @@ public sealed class SettingsFormLayoutTests
     {
         using SettingsForm Dialog = Open(Scale);
         List<string> Problems = new List<string>();
-        Check(Dialog, Problems);
+        TabControl Tabs = Require<TabControl>(Dialog, "SettingsTabs");
+        foreach (TabPage Page in Tabs.TabPages)
+        {
+            Tabs.SelectedTab = Page;
+            Dialog.PerformLayout();
+            Application.DoEvents();
+            Check(Dialog, Problems);
+            using Bitmap Image = new Bitmap(Dialog.Width, Dialog.Height);
+            Dialog.DrawToBitmap(Image, new Rectangle(Point.Empty, Image.Size));
+            Image.Save(Path.Combine(TestContext.CurrentContext.TestDirectory, "settings-" + Page.Name + "-" + Scale.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + ".png"));
+        }
 
         Assert.That(Problems, Is.Empty, string.Join(Environment.NewLine, Problems));
     }

@@ -12,6 +12,8 @@ Start with native Enterprise diagrams in LiveEditor. Put reusable routing and pl
 
 ## Feature guards
 
+LiveEditor Settings exposes the three switches on a Diagram layout tab, alongside the target width. Choices are saved with the session and applied on OK before refreshing the preview; Cancel preserves the current session and running options. Existing sessions retain default-off experiments and a 1200 px target. AF and AG currently reserve modes for upcoming operations; AH enables the initial width experiment. The dialog keeps control construction and static layout in its Designer partial and is checked at normal, 150% and 200% font sizes.
+
 All behaviour changes remain behind default-off A/B flags. The proposed names are currently available in `LiveEditorFeatureGate`.
 
 | Flag | A: off | B: on |

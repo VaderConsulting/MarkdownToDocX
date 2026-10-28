@@ -29,6 +29,11 @@ internal partial class SettingsForm : Form
         EditorLeftRadio.Checked = Settings.EditorOnLeft;
         EditorRightRadio.Checked = !Settings.EditorOnLeft;
         ShowSelectionColour(SessionSettings.ParseColour(Settings.SelectionColour));
+        IncrementalRoutingCheckBox.Checked = Settings.IncrementalDiagramRouting;
+        RouteAwareConstructionCheckBox.Checked = Settings.RouteAwareDiagramConstruction;
+        WidthConstrainedLayoutCheckBox.Checked = Settings.WidthConstrainedLayout;
+        TargetWidthNumeric.Value = SessionSettings.ClampDiagramTargetWidth(Settings.DiagramTargetWidthPx);
+        UpdateLayoutFeatureControls();
     }
 
     /// <summary>Gets or sets the selection colour shown on the swatch.</summary>
@@ -59,6 +64,54 @@ internal partial class SettingsForm : Form
         Settings.WideToolbar = WideToolbarRadio.Checked;
         Settings.EditorOnLeft = EditorLeftRadio.Checked;
         Settings.SelectionColour = SessionSettings.FormatColour(_SelectionColour);
+        Settings.IncrementalDiagramRouting = IncrementalRoutingCheckBox.Checked;
+        Settings.RouteAwareDiagramConstruction = RouteAwareConstructionCheckBox.Checked;
+        Settings.WidthConstrainedLayout = WidthConstrainedLayoutCheckBox.Checked;
+        Settings.DiagramTargetWidthPx = Decimal.ToInt32(TargetWidthNumeric.Value);
+    }
+
+    protected override void OnLoad(EventArgs E)
+    {
+        base.OnLoad(E);
+        SizeToContents();
+    }
+
+    protected override void OnFontChanged(EventArgs E)
+    {
+        base.OnFontChanged(E);
+        if (IsHandleCreated && SettingsTabs != null)
+        {
+            SizeToContents();
+        }
+    }
+
+    private void SizeToContents()
+    {
+        Size General = SettingsLayout.GetPreferredSize(Size.Empty);
+        Size Layout = DiagramLayoutPanel.GetPreferredSize(Size.Empty);
+        Size Actions = ButtonPanel.GetPreferredSize(Size.Empty);
+        int Width = Math.Max(General.Width + GeneralTabPage.Padding.Horizontal,
+            Layout.Width + DiagramLayoutTabPage.Padding.Horizontal);
+        int Height = Math.Max(General.Height + GeneralTabPage.Padding.Vertical,
+            Layout.Height + DiagramLayoutTabPage.Padding.Vertical);
+        int TabWidth = SettingsTabs.Width - SettingsTabs.DisplayRectangle.Width;
+        int TabHeight = SettingsTabs.Height - SettingsTabs.DisplayRectangle.Height;
+        Size Chrome = Size - ClientSize;
+        Rectangle ScreenArea = Screen.FromControl(this).WorkingArea;
+        ClientSize = new Size(
+            Math.Min(ScreenArea.Width - Chrome.Width, Math.Max(Width, Actions.Width) + TabWidth + Padding.Horizontal),
+            Math.Min(ScreenArea.Height - Chrome.Height, Height + TabHeight + Actions.Height + ButtonPanel.Margin.Vertical + Padding.Vertical));
+    }
+
+    private void WidthConstrainedLayoutCheckBox_CheckedChanged(object? Sender, EventArgs E)
+    {
+        UpdateLayoutFeatureControls();
+    }
+
+    private void UpdateLayoutFeatureControls()
+    {
+        TargetWidthLabel.Enabled = WidthConstrainedLayoutCheckBox.Checked;
+        TargetWidthNumeric.Enabled = WidthConstrainedLayoutCheckBox.Checked;
     }
 
     private void SelectionColourButton_Click(object? Sender, EventArgs E)
