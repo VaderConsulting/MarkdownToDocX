@@ -95,6 +95,28 @@ public sealed class KeyboardShortcutTests
     }
 
     [Test]
+    public void UndoWorksFromReadOnlyTextBoxesAndOtherControls()
+    {
+        using var Form = CreateForm();
+        var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+        Editor.Text = Script;
+        Editor.Select(Editor.TextLength, 0);
+        Editor.SelectedText = "%% typed\n";
+        string Typed = Editor.Text;
+        foreach (string Name in new[] { "FactsBox", "DescriptionBox", "MinimapBox" })
+        {
+            var Box = (TextBoxBase)Form.Controls.Find(Name, true).Single();
+            Box.Visible = true; Box.Parent!.Visible = true;
+            Box.Focus();
+            if (!Box.Focused) continue;
+            Assert.That(Send(Form, Keys.Control | Keys.Z), Is.True, Name);
+            Assert.That(Editor.Text, Is.EqualTo(Script), Name);
+            Assert.That(Send(Form, Keys.Control | Keys.Y), Is.True, Name);
+            Assert.That(Editor.Text, Is.EqualTo(Typed), Name);
+        }
+    }
+
+    [Test]
     public void TextBoxesKeepTheirOwnUndoAndTheEditorKeepsNativeHandling()
     {
         using var Form = CreateForm();

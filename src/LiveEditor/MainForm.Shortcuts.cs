@@ -20,8 +20,9 @@ public partial class MainForm
     {
         Control? Focused = FocusedControl();
         bool InSourceEditor = ReferenceEquals(Focused, CodeView.Editor);
-        // The source editor already handles undo, redo and the clipboard natively; other text boxes (find, replace) keep theirs.
-        bool OwnsTextEditing = Focused is TextBoxBase;
+        // Editable text boxes (the source editor, find and replace) keep their native undo and clipboard handling.
+        // Read-only ones (details panel, minimap) have nothing to undo, so the shortcut acts on the script.
+        bool OwnsTextEditing = Focused is TextBoxBase { ReadOnly: false };
         switch (KeyData)
         {
             case Keys.Control | Keys.Shift | Keys.Z when !OwnsTextEditing || InSourceEditor:
