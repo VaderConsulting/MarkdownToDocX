@@ -1,6 +1,6 @@
 # Enterprise diagram syntax
 
-This guide documents the Enterprise (ArchiMate) diagram syntax parsed by MarkdownToDocX. It is a dedicated grammar, not ordinary Mermaid flowchart syntax: declare typed Enterprise elements and use the relationship forms below. Mermaid-style shapes and arrows such as `A --> B` are not accepted in an Enterprise diagram.
+This guide documents the Enterprise diagram syntax parsed by MarkdownToDocX. It is a dedicated grammar, not ordinary Mermaid flowchart syntax: declare typed Enterprise elements and use the relationship forms below. Mermaid-style shapes and arrows such as `A --> B` are not accepted in an Enterprise diagram.
 
 The parser implementation is [`EnterpriseParser`](../src/MermaidRecognition/Kinds/Enterprise/EnterpriseParser.cs). The supported element/relationship pairings for each language version are in [`enterprise-rules.json`](enterprise/enterprise-rules.json). The repository's [`enterprise.md`](../enterprise.md) is the progressive recognition and rendering catalogue, with examples and expected diagnostics.
 
@@ -45,7 +45,7 @@ Write an element declaration as:
 
 The canonical kebab-case type tokens are:
 
-| ArchiMate aspect | Element types |
+| Enterprise aspect | Element types |
 | --- | --- |
 | Application | `application-component`, `application-collaboration`, `application-interface`, `application-function`, `application-interaction`, `application-process`, `application-event`, `application-service`, `data-object` |
 | Technology and physical | `node`, `device`, `system-software`, `technology-collaboration`, `technology-interface`, `path`, `communication-network`, `technology-function`, `technology-process`, `technology-interaction`, `technology-event`, `technology-service`, `artifact`, `equipment`, `facility`, `distribution-network`, `material` |
@@ -83,7 +83,7 @@ A plain connection uses at least three dashes and must connect a note at one or 
 <drawing-item> --- <drawing-item> [<routing-hints>]
 ```
 
-It is a visual connection, not a typed ArchiMate relationship. Extra dashes can request a longer connection. Notes and plain connections can use placement and routing hints.
+It is a visual connection, not a typed Enterprise relationship. Extra dashes can request a longer connection. Notes and plain connections can use placement and routing hints.
 
 ## Relationships
 
@@ -190,6 +190,6 @@ Enterprise diagrams support `config.layout: grid` (default) or `config.layout: o
 
 ## Rendering and scope
 
-Enterprise (ArchiMate) diagrams use the native shared-grid layout, routing, and SVG rendering path for DOCX output. The Enterprise parser also underlies the native EIP path. It is distinct from Mermaid's `architecture-beta` diagram, which is a separate Mermaid kind. Other Mermaid diagram kinds may be recognized without having a native Enterprise renderer.
+Enterprise diagrams use the native shared-grid layout, routing, and SVG rendering path for DOCX output. The Enterprise parser also underlies the native EIP path. Mermaid's `architecture-beta` is a separate diagram kind. Other Mermaid diagram kinds may be recognized without having a native Enterprise renderer.
 
 See the top-level [README](../README.md) for the current renderer table and [`currentstatus.md`](currentstatus.md) for project status and recognition gates.

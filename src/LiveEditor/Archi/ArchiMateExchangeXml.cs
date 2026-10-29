@@ -7,7 +7,7 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace LiveEditor.Archi;
 
 /// <summary>
-/// Reads and writes Open Group ArchiMate Model Exchange XML (3.0).
+/// Reads and writes the external Model Exchange XML format (3.0).
 /// </summary>
 internal static class ArchiMateExchangeXml
 {
@@ -151,7 +151,7 @@ internal static class ArchiMateExchangeXml
 
         if (Model.Elements.Count == 0 && Model.Relationships.Count == 0)
         {
-            ErrorMessage = "No enterprise/ArchiMate content was found in the Model Exchange file.";
+            ErrorMessage = "No supported Enterprise content was found in the Model Exchange file.";
             return false;
         }
 

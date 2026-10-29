@@ -27,7 +27,7 @@ internal static class EnterpriseArchiMapper
 
         if (!EnterpriseParser.IsEnterpriseSource(Source))
         {
-            ErrorMessage = "Archi import/export requires an enterprise (ArchiMate) diagram.";
+            ErrorMessage = "Model import/export requires an Enterprise diagram.";
             return false;
         }
 

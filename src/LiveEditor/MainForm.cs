@@ -3008,8 +3008,8 @@ public partial class MainForm : Form
 
         using OpenFileDialog Dialog = new OpenFileDialog
         {
-            Filter = "ArchiMate model (*.archimate)|*.archimate|All files (*.*)|*.*",
-            Title = "Import ArchiMate file"
+            Filter = "Enterprise model (*.archimate)|*.archimate|All files (*.*)|*.*",
+            Title = "Import Enterprise model"
         };
         if (Dialog.ShowDialog(this) != DialogResult.OK)
         {
@@ -3023,7 +3023,7 @@ public partial class MainForm : Form
             return;
         }
 
-        ApplyImportedSource(MermaidSource, null, null, WarningSummary, "Imported ArchiMate file");
+        ApplyImportedSource(MermaidSource, null, null, WarningSummary, "Imported Enterprise model");
     }
 
     private void ExportExchangeMenuItem_Click(object? Sender, EventArgs E)
@@ -3052,8 +3052,8 @@ public partial class MainForm : Form
     {
         using SaveFileDialog Dialog = new SaveFileDialog
         {
-            Filter = "ArchiMate model (*.archimate)|*.archimate|All files (*.*)|*.*",
-            Title = "Export ArchiMate file",
+            Filter = "Enterprise model (*.archimate)|*.archimate|All files (*.*)|*.*",
+            Title = "Export Enterprise model",
             FileName = "model.archimate"
         };
         if (Dialog.ShowDialog(this) != DialogResult.OK)
@@ -3067,7 +3067,7 @@ public partial class MainForm : Form
             return;
         }
 
-        SetStatus(string.IsNullOrEmpty(WarningSummary) ? "Exported ArchiMate file" : TruncateStatus(WarningSummary));
+        SetStatus(string.IsNullOrEmpty(WarningSummary) ? "Exported Enterprise model" : TruncateStatus(WarningSummary));
     }
 
     private void OpenCoArchiFolderMenuItem_Click(object? Sender, EventArgs E)

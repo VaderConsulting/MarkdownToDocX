@@ -114,7 +114,7 @@ public sealed class EnterpriseParser : Parser
     }
 
     /// <summary>
-    /// Parses an enterprise diagram block into the ArchiMate document.
+    /// Parses an enterprise diagram block into the Enterprise document model.
     /// </summary>
     /// <param name="Source">Diagram source. Line 1 is the first line of the block.</param>
     /// <returns>Document and parser diagnostics.</returns>
@@ -130,7 +130,7 @@ public sealed class EnterpriseParser : Parser
     }
 
     /// <summary>
-    /// Parses an enterprise diagram block into the ArchiMate document.
+    /// Parses an enterprise diagram block into the Enterprise document model.
     /// </summary>
     /// <param name="Source">Diagram source. Line 1 is the first line of the block.</param>
     /// <returns>Document and parser diagnostics.</returns>

@@ -1078,7 +1078,7 @@ namespace LiveEditor
             // 
             ImportArchimateMenuItem.Name = "ImportArchimateMenuItem";
             ImportArchimateMenuItem.Size = new Size(260, 26);
-            ImportArchimateMenuItem.Text = "Import ArchiMate file...";
+            ImportArchimateMenuItem.Text = "Import Enterprise model...";
             ImportArchimateMenuItem.Click += ImportArchimateMenuItem_Click;
             // 
             // ArchiSeparator
@@ -1097,7 +1097,7 @@ namespace LiveEditor
             // 
             ExportArchimateMenuItem.Name = "ExportArchimateMenuItem";
             ExportArchimateMenuItem.Size = new Size(260, 26);
-            ExportArchimateMenuItem.Text = "Export ArchiMate file...";
+            ExportArchimateMenuItem.Text = "Export Enterprise model...";
             ExportArchimateMenuItem.Click += ExportArchimateMenuItem_Click;
             // 
             // CoArchiMenu

@@ -67,7 +67,7 @@ internal static class CoArchiWorkingCopy
         string GitPath = Path.Combine(FolderPath, ".git");
         if (!Directory.Exists(GitPath) && !File.Exists(GitPath))
         {
-            ErrorMessage = "Folder has model.archimate but no .git directory. Save only into a coArchi working copy, or use Export ArchiMate file for a standalone archive.";
+            ErrorMessage = "Folder has model.archimate but no .git directory. Save only into a coArchi working copy, or export an Enterprise model file instead.";
             return false;
         }
 
