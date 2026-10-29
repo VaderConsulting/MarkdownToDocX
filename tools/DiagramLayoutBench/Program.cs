@@ -17,7 +17,9 @@ if (args.Length == 0)
     return 1;
 }
 var Options = args.Length > 2
-    ? new DiagramLayoutOptions { EnableWidthConstrainedLayout = true, TargetWidthPx = double.Parse(args[2], CultureInfo.InvariantCulture) }
+    ? new DiagramLayoutOptions { EnableWidthConstrainedLayout = true, TargetWidthPx = double.Parse(args[2], CultureInfo.InvariantCulture),
+        EnableIncrementalRouting = Environment.GetEnvironmentVariable("DIAGRAM_BENCH_ALL_FLAGS") == "1",
+        EnableRouteAwareConstruction = Environment.GetEnvironmentVariable("DIAGRAM_BENCH_ALL_FLAGS") == "1" }
     : DiagramLayoutOptions.Default;
 string Selection = args.Length > 1 ? args[1] : "@fixtures";
 IEnumerable<(string Id, string Source)> Cases = Selection switch

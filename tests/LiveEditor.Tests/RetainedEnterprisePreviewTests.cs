@@ -937,6 +937,80 @@ public sealed partial class RetainedEnterprisePreviewTests
         finally { Restore(Previous); }
     }
     [Test]
+    public void SerialChainLaysOutTopToBottomWithAllExperimentsOn()
+    {
+        const string Script = "enterprise\n  title Web shop\n  application-component A \"A\"\n  application-service B \"B\"\n  data-object C \"C\"\n  A -serving-> B\n  B -access(write)-> C\n";
+        var All = new DiagramLayoutOptions { EnableIncrementalRouting = true, EnableRouteAwareConstruction = true, EnableWidthConstrainedLayout = true, TargetWidthPx = 2048 };
+        foreach (var (Label, Opt) in new[] { ("AF", Options), ("AF+AG+AH2048", All) })
+        {
+            var Session = new RetainedEnterprisePreview();
+            Session.Observe(1);
+            var Candidate = Session.Prepare(Script, 1, EnterpriseValidator.Analyze(Script), Opt);
+            Assert.That(Session.TryCommit(Candidate), Is.True);
+            var Index = PreviewHoverIndex.Build(Candidate.Svg, Script);
+            var A = Index.FindObject("node\u001fA")!; var B = Index.FindObject("node\u001fB")!; var C = Index.FindObject("node\u001fC")!;
+            Assert.That(B.Top, Is.GreaterThan(A.Bottom), Label); Assert.That(C.Top, Is.GreaterThan(B.Bottom), Label);
+            Assert.That(B.Left, Is.EqualTo(A.Left).Within(0.5), Label); Assert.That(C.Left, Is.EqualTo(A.Left).Within(0.5), Label);
+        }
+    }
+
+    [Test]
+    public void PastingAScriptOverAnExistingDiagramGivesTheSameLayoutAsAFreshOne()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            const string Script = "enterprise\n  title Web shop\n  application-component A \"A\"\n  application-service B \"B\"\n  data-object C \"C\"\n  A -serving-> B\n  B -access(write)-> C\n";
+            using var Form = new MainForm(new SessionSettings { IncrementalDiagramRouting = true, RouteAwareDiagramConstruction = true,
+                WidthConstrainedLayout = true, DiagramTargetWidthPx = 2048, RenderDelayMilliseconds = 50, HighlightDelayMilliseconds = 40 });
+            Form.ShowInTaskbar = false; Form.ClientSize = new Size(1200, 800); _ = Form.Handle;
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            foreach (string Before in new[] { LiveEditor.Editor.SampleCatalog.Find("enterprise")!.SimpleSource, LiveEditor.Editor.SampleCatalog.Find("enterprise")!.FullSource, Source, "enterprise\n  title Web shop\n  application-component A \"A\"\n", "enterprise\n" })
+            {
+                Editor.Text = Before;
+                Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+                int G = Form.DiagramMetadata.Generation;
+                Editor.Text = Script;
+                Wait(() => Form.DiagramMetadata.Generation > G && Form.DiagramMetadata.PercentRendered == 100);
+                var A = Preview.Index!.FindObject("node\u001fA")!; var B = Preview.Index.FindObject("node\u001fB")!; var C = Preview.Index.FindObject("node\u001fC")!;
+                Assert.That(B.Top, Is.GreaterThan(A.Bottom)); Assert.That(C.Top, Is.GreaterThan(B.Bottom));
+                Assert.That(B.Left, Is.EqualTo(A.Left).Within(0.5)); Assert.That(C.Left, Is.EqualTo(A.Left).Within(0.5));
+            }
+        }
+        finally { Restore(Previous); }
+    }
+
+    [Test]
+    public void DraggingTheAnchorOfAChainKeepsTheWholeChainInPlace()
+    {
+        // A is placed relative to C and B relative to A, so C has no free peer and is pinned absolutely.
+        const string Script = "enterprise\n  title Web shop\n  application-component A \"A\" NE C +0 +1\n  application-service B \"B\" left-of A +1\n"
+            + "  data-object C \"C\"\n  A -serving-> B\n  B -access(write)-> C\n";
+        var Session = new RetainedEnterprisePreview();
+        var Initial = Accept(Session, Script, 1);
+        var Index = PreviewHoverIndex.Build(Initial.Svg, Script);
+        var Grid = new PreviewNodePlacement.GridSnap(Script, Index.Objects, Session.CopyPlacementLayout()!);
+        var A = Index.FindObject("node\u001fA")!;
+        var Drop = new PointF((float)((A.Left + A.Right) / 2), (float)((A.Top + A.Bottom) / 2 + 260));
+        var Before = Session.CopyPlacementLayout()!.NodeBounds.ToDictionary(N => N.NodeId, StringComparer.Ordinal);
+        Assert.That(PreviewNodePlacement.TryCreate(Script, "C", Index.Objects, Drop, out var Edit, out var Reason, Grid), Is.True, Reason);
+        string Updated = Edit!.Apply(Script);
+        var Document = EnterpriseValidator.Analyze(Updated).Document;
+        Assert.That(Document.Elements["C"].PlacementHint!.Kind, Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
+        Assert.That(Document.Elements["A"].PlacementHint!.Kind, Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
+        Assert.That(Document.Elements["B"].PlacementHint!.Kind, Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.LeftOf));
+        var Moved = Accept(Session, Updated, 2);
+        Assert.That(Moved.Kind, Is.EqualTo("LocalRouting"));
+        var After = Session.CopyPlacementLayout()!.NodeBounds.ToDictionary(N => N.NodeId, StringComparer.Ordinal);
+        foreach (string Id in new[] { "A", "B" })
+        {
+            Assert.That(After[Id].CenterX, Is.EqualTo(Before[Id].CenterX).Within(0.5), Id);
+            Assert.That(After[Id].CenterY, Is.EqualTo(Before[Id].CenterY).Within(0.5), Id);
+        }
+        Assert.That(After["C"].CenterY, Is.Not.EqualTo(Before["C"].CenterY).Within(0.5));
+    }
+    [Test]
     public void DraggingAHubMovesOnlyTheHubAndLeavesItsConnectedNodesInPlace()
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();

@@ -581,7 +581,17 @@ Change: the node-drag edit now also rewrites every element or note whose active 
 
 Validation: `DraggingAHubMovesOnlyTheHubAndLeavesItsConnectedNodesInPlace` fails without the change and passes with it (both neighbours keep their exact positions, hold `at` pins and the single undo restores the script). The two earlier tests that asserted dependents follow their anchor were updated to the new rule. LiveEditor project 391 of 395, the same four older failures. Rollbacks: **0**. Not covered: placement suggestions (`TryCreateAt`) still move an anchor's dependents with it.
 
-Not covered: grouped nodes. Re-moving an endpoint on a relationship whose pending edit was rejected restarts from its accepted endpoints, because the gesture is built from the accepted route.
+### Follow-up: pasting a new script over a diagram no longer lays it out cell by cell (29 October 2026)
+
+Reported: editing the Web Shop sample into an A, B, C script (A serving B, B access C) and pasting it gave A, B, C in a row, left to right. A fresh load of the same text stacks them top to bottom. All three experiments on, target 2048, made no difference.
+
+Cause: the paste removed the three Web Shop nodes and inserted three new ones. The update classifier treated that as three ungrouped node additions and removals, a local update, so the new nodes were placed into free cells one at a time without any initial layout and ignoring the relationships.
+
+Change: `DiagramSourceUpdateService.Classify` now returns a rebuild ("Most of the diagram was replaced; laying it out again.") when an edit both removes and adds nodes, at least three in total, and more than the nodes retained. Pure additions, pure removals, one-node changes and edits that keep most of the diagram stay local, so adding nodes one at a time, removing everything and undo are unaffected. Rebuilding is the explicit, recorded exception to the no-silent-rebuild rule because no accepted arrangement survives.
+
+Also: `DiagramLayoutBench` can enable AF and AG together with AH (`DIAGRAM_BENCH_ALL_FLAGS=1` and a width argument). Fresh A, B, C stays vertical under every flag combination tried.
+
+Validation: `PastingAScriptOverAnExistingDiagramGivesTheSameLayoutAsAFreshOne` (all three experiments on, 2048; starts from the Web Shop sample, the Complete sample and others) fails before the change and passes after; `SerialChainLaysOutTopToBottomWithAllExperimentsOn` and `DraggingTheAnchorOfAChainKeepsTheWholeChainInPlace` (your pasted anchored chain; fails on the build before dependents were pinned) are new. LiveEditor project: only the same four older failures. Shared layout subset (187 tests): only `LayoutStages_RunPlacementHintsBeforeAutomaticPlacementAndRouting`, which fails without these changes. Rollbacks: **0**. Note: these changes are in this branch's worktree only, not in `C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX`.
 
 ## Safe pause checkpoint (29 October 2026) - resolved
 
