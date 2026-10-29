@@ -6,7 +6,7 @@ using System.Text;
 namespace LiveEditor.Archi;
 
 /// <summary>
-/// Reads and writes standalone Archi <c>.archimate</c> ZIP archives.
+/// Reads and writes standalone Enterprise <c>.archimate</c> ZIP archives.
 /// </summary>
 internal static class ArchiMateArchive
 {
@@ -26,7 +26,7 @@ internal static class ArchiMateArchive
 
         if (string.IsNullOrWhiteSpace(Path) || !File.Exists(Path))
         {
-            ErrorMessage = "ArchiMate file not found.";
+            ErrorMessage = "Enterprise model file not found.";
             return false;
         }
 
@@ -115,7 +115,7 @@ internal static class ArchiMateArchive
         Xml = Encoding.UTF8.GetString(Bytes);
         if (Xml.IndexOf("<", StringComparison.Ordinal) < 0)
         {
-            ErrorMessage = "File is neither a ZIP .archimate archive nor Archi model XML.";
+            ErrorMessage = "File is neither a ZIP .archimate archive nor compatible model XML.";
             return false;
         }
 

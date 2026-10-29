@@ -16,16 +16,16 @@ A .NET library and command-line tool that converts Markdown files to Word `.docx
 
 ### Mermaid recognition
 
-Nine Mermaid diagram kinds have recognition gates at level L4: flowchart, sequence, class, state, entity-relationship, gantt, pie, mindmap, and git graph. The recogniser parses source into a typed `DiagramContract` (nodes, edges, groups, styles, and configuration). Enterprise (ArchiMate 3.2) diagrams use a dedicated parser and model.
+Nine Mermaid diagram kinds have recognition gates at level L4: flowchart, sequence, class, state, entity-relationship, gantt, pie, mindmap, and git graph. The recogniser parses source into a typed `DiagramContract` (nodes, edges, groups, styles, and configuration). Enterprise diagrams use a dedicated parser and model.
 
 Many additional kinds are detected at level L1 smoke only. Recognition level and renderer support are separate; see [`currentstatus.md`](docs/currentstatus.md) for the full gate registry.
 
 ### Native layout and rendering
 
-DOCX conversion uses native SVG rendering for flowcharts/graphs, Enterprise (ArchiMate 3.2) and EIP diagrams, and pie charts.
+DOCX conversion uses native SVG rendering for flowcharts/graphs, Enterprise 3.2/3.1 and EIP diagrams, and pie charts.
 
 - **Flowcharts and graphs** use native Sugiyama placement and routing, with the vendored [Naiad](extern/Naiad/) renderer as a fallback if native rendering fails.
-- **Enterprise and EIP** diagrams use the native shared-grid layout, native routing, and SVG renderer. Enterprise supports ArchiMate 3.2 by default and 3.1 when selected in the source.
+- **Enterprise and EIP** diagrams use the native shared-grid layout, native routing, and SVG renderer. Enterprise version 3.2 is the default; version 3.1 can be selected in the source.
 - **Pie charts** use a native SVG renderer.
 
 Other recognized diagram kinds continue to use Naiad until their native renderers are available.
@@ -35,14 +35,14 @@ Other recognized diagram kinds continue to use Naiad until their native renderer
 | Diagram type | Parser | Renderer |
 | --- | --- | --- |
 | Flowchart / graph | MermaidRecognition | Native layout and routing; Naiad fallback |
-| Enterprise (ArchiMate 3.2 / 3.1), EIP | Enterprise parser | Native shared-grid layout, routing, and SVG |
+| Enterprise 3.2 / 3.1, EIP | Enterprise parser | Native shared-grid layout, routing, and SVG |
 | Pie | MermaidRecognition | Native SVG |
 | Sequence, class, state, ER, gantt, mindmap, git graph | MermaidRecognition | Naiad |
 | Timeline, user journey, quadrant, C4, kanban, requirement, Mermaid architecture, sankey, block, packet, radar, treemap, XY chart | Naiad detect + parse | Naiad |
 
 Kinds detected but not rendered (for example `eventmodeling`, `treeView`, `ishikawa`, `venn`, `wardley`, `info`) appear as code blocks in the DOCX.
 
-Enterprise uses a `mermaid` code fence. Its element and relationship grammar, placement and routing hints, styling, accessibility, and layout configuration are covered in the [Enterprise syntax guide](docs/enterprise-syntax.md); allowed relationships are listed in [`enterprise-rules.json`](docs/enterprise/enterprise-rules.json). Mermaid's `architecture-beta` diagram is distinct from an ArchiMate Enterprise diagram.
+Enterprise uses a `mermaid` code fence. Its element and relationship grammar, placement and routing hints, styling, accessibility, and layout configuration are covered in the [Enterprise syntax guide](docs/enterprise-syntax.md); allowed relationships are listed in [`enterprise-rules.json`](docs/enterprise/enterprise-rules.json). Mermaid's `architecture-beta` is a separate diagram kind.
 
 ---
 

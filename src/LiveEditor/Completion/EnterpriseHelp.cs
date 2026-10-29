@@ -47,7 +47,7 @@ internal static class EnterpriseHelp
         ["data-object"] = "Declares data used or produced by application behaviour.",
         ["business-actor"] = "Declares a person, organisation, or system that performs business behaviour.",
         ["business-process"] = "Declares a sequence of business behaviour that achieves a result.",
-        ["grouping"] = "Declares a visual frame around elements that belong together. It is not an ArchiMate layer.",
+        ["grouping"] = "Declares a visual frame around elements that belong together. It is not a semantic layer.",
         ["group"] = "Declares a group. It takes the same parameters as grouping.",
         ["and-junction"] = "Declares an AND junction. Every incoming path must be active before the outgoing path continues.",
         ["junction-and"] = "Declares an AND junction. Every incoming path must be active before the outgoing path continues.",

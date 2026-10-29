@@ -1,6 +1,6 @@
 # Pinned Archi relationship tables
 
-These files are copies of Archi `com.archimatetool.model/model/relationships.xml` used only as relationship-rule data.
+These files are copies of `com.archimatetool.model/model/relationships.xml` used only as relationship-rule data.
 
 | Version | Archi commit | Release |
 |---|---|---|
@@ -9,4 +9,4 @@ These files are copies of Archi `com.archimatetool.model/model/relationships.xml
 
 Upstream: https://github.com/archimatetool/archi
 
-See the repository-root `THIRD-PARTY-NOTICES.md` for the MIT licence and trademark notes. No Archi notation, figures, icons, or code are used.
+See the repository-root `THIRD-PARTY-NOTICES.md` for the licence and attribution notes. No vendor notation, figures, icons, or code are used.

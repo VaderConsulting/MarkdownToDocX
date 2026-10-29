@@ -8,7 +8,7 @@ using MermaidRecognition.Kinds.Enterprise;
 namespace LiveEditor.Archi;
 
 /// <summary>
-/// Reads and writes Archi's native <c>model.xml</c> / coArchi <c>model.archimate</c> XML.
+/// Reads and writes the external <c>model.xml</c> / coArchi <c>model.archimate</c> XML format.
 /// </summary>
 internal static class ArchiNativeModelXml
 {
@@ -134,7 +134,7 @@ internal static class ArchiNativeModelXml
 
         if (Model.Elements.Count == 0 && Model.Relationships.Count == 0)
         {
-            ErrorMessage = "No enterprise/ArchiMate elements or relationships were found in the Archi model.";
+            ErrorMessage = "No supported Enterprise elements or relationships were found in the model XML.";
             return false;
         }
 

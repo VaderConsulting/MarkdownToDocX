@@ -80,19 +80,19 @@ internal static class Program
 
             if (!ArchiInterop.TryExportArchimateFile(Source, ArchimatePath, out _, out Error))
             {
-                Console.Error.WriteLine("ArchiMate export failed: " + Error);
+                Console.Error.WriteLine("Enterprise model export failed: " + Error);
                 return 1;
             }
 
             if (!ArchiInterop.TryImportArchimateFile(ArchimatePath, out string FromArchimate, out _, out Error))
             {
-                Console.Error.WriteLine("ArchiMate import failed: " + Error);
+                Console.Error.WriteLine("Enterprise model import failed: " + Error);
                 return 1;
             }
 
             if (FromArchimate.IndexOf("webShop", StringComparison.Ordinal) < 0)
             {
-                Console.Error.WriteLine("ArchiMate round-trip lost webShop.");
+                Console.Error.WriteLine("Enterprise model round-trip lost webShop.");
                 return 1;
             }
 
