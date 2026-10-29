@@ -77,6 +77,7 @@ public partial class MainForm : Form
     private int _CaretAtPreviewClear = -1;
     private int _EditorTextVersion;
     private int _PreviewIndexTextVersion = -1;
+    private int _FailedLocalUpdateTextVersion = -1;
     private int _RenderTextVersion;
     private EnterpriseDocument? _CaretDocument;
     private int _CaretDocumentVersion = -1;
@@ -917,6 +918,7 @@ public partial class MainForm : Form
         }
 
         _BrokenSince ??= DateTime.Now;
+        if (RetainAccepted) _FailedLocalUpdateTextVersion = _EditorTextVersion;
         if (!RetainAccepted && !LiveEditorFeatureGate.Q_KeepLastGoodPreview)
         {
             _IgnorePreviewSelection = true;

@@ -761,6 +761,41 @@ public sealed partial class RetainedEnterprisePreviewTests
         finally { Restore(Previous); }
     }
 
+    [Test]
+    public void RejectedGuiDropDoesNotPreventAnotherMoveAndReturningToTheAcceptedCellClearsTheFailure()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            string Initial = Preview.RenderedSvg!;
+            var B = Preview.Index!.FindObject("node\u001fb")!;
+            var X = Preview.Index.FindObject("node\u001fx")!;
+            PointF Home = new((float)((B.Left + B.Right) / 2), (float)((B.Top + B.Bottom) / 2));
+            Assert.That(Form.MovePreviewNode("b", new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2))), Is.True);
+            Wait(() => Form.DiagramMetadata.RenderFailed);
+            Assert.That(Preview.CanMoveNode!(Preview.Index!.FindObject("node\u001fb")!), Is.True);
+            Assert.That(Preview.CreateNodeMoveSnap!(Preview.Index.FindObject("node\u001fb")!), Is.Not.Null);
+            // The accepted picture is unchanged, so dropping back on the accepted cell must still rewrite the rejected hint.
+            Assert.That(Form.MovePreviewNode("b", Home), Is.True);
+            Assert.That(Editor.Text, Is.EqualTo(Source));
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.RenderedSvg, Is.EqualTo(Initial));
+            // Typing after a rejection makes the accepted picture too old to drag from.
+            Assert.That(Form.MovePreviewNode("b", new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2))), Is.True);
+            Wait(() => Form.DiagramMetadata.RenderFailed);
+            Editor.AppendText("%% newer source\n");
+            string Typed = Editor.Text;
+            Assert.That(Form.MovePreviewNode("b", Home), Is.False);
+            Assert.That(Editor.Text, Is.EqualTo(Typed));
+        }
+        finally { Restore(Previous); }
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void GuiMovementRequiresAnAcceptedRetainedGridPreview(bool OpenLayout)

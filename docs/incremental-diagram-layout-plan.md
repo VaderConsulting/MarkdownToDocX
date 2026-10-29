@@ -532,6 +532,14 @@ Validation: tooling builds with no warnings; all 16 cases rendered with no failu
 
 Task rollbacks: **0**. Next: BASE-2 trace of why the wide cases (Landgate, Complete, horizontal chain, LR fan, quadrant pin) stay wide, including formed/rejected wrap candidates and reasons, then BASE-3 edit metrics (affected routes, moved nodes, fallback reason) and BASE-4 targets/known failures. All experiments stay default off.
 
+## Completed fix - a rejected placement no longer blocks further node moves (29 October 2026)
+
+Reported problem: after a drop was rejected by the local routing/placement transaction, the editor showed the stale accepted preview but refused every later drag, so the user could not move the node again (or back) without first editing the source by hand. Cause: node-drag eligibility used the same gate as a fully current preview (`PreviewIndexIsCurrent`, `!RenderFailed`), and a rejected update leaves the preview index at the older text version with `RenderFailed` set.
+
+Fix: `ApplyRenderFailure` records the editor text version of a retained (accepted-picture-kept) failure. `CanEditRetainedPreview` takes an opt-in `AllowFailedLocalUpdate`, used only by node dragging. It then allows a drag while the editor still holds exactly the rejected text, the accepted picture/session are intact and options/legacy gates still pass. The moved node's declaration must also sit on the same line and parent in the last accepted source, so the hint rewrite targets the correct line. While corrective, dropping on the accepted cell is not treated as a no-op, because the rejected hint is still in the source and must be rewritten. Relationship gestures, commands and suggestions keep their stricter checks. Any further typing, a document/option/Auto-layout change, or a parse error still blocks dragging until the next accepted render. A rejected hint on another node still makes a different node's move fail with the same reason, as mixed changes publish together.
+
+Validation: new `RejectedGuiDropDoesNotPreventAnotherMoveAndReturningToTheAcceptedCellClearsTheFailure` fails without the fix and passes with it; it checks the drag gate and snap, rewriting the rejected hint back to the original source, recovery to an unfailed accepted render with an identical SVG, and refusal after later typing. The full retained-preview editor class passes 92 cases. Task rollbacks: **0**. BASE-2/3/4 remain next.
+
 ## Safe pause checkpoint (29 October 2026) - resolved
 
 The pause checkpoint is closed by the BASE-1 task above. Earlier text is kept for history: paused at the user's explicit request, latest completed task commit **4ccb6e5** (QUALITY-4), completed checks 355 shared, 267 editor and 86 parser cases. The three setup files described there are now committed with the BASE-1 tooling; `in/Landgate.csv` remains an uncommitted local fixture.

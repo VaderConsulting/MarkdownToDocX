@@ -10,15 +10,23 @@ public partial class MainForm
     private bool HasRelationshipCommandSelection => _RelationshipCommandSelection is { } Command
         && (CodeView.Editor.Text == Command.Source || CodeView.Editor.Text == Command.OtherSource);
 
-    private bool CanEditRetainedPreview()
+    private bool CanEditRetainedPreview(bool AllowFailedLocalUpdate = false)
     {
         var Options = LiveEditorFeatureGate.CaptureLayoutOptions();
-        return Options.EnableIncrementalRouting && Options == _SessionLayoutOptions
+        if (!(Options.EnableIncrementalRouting && Options == _SessionLayoutOptions
             && !(LiveEditorFeatureGate.S_LegacyPreview && _Settings.LegacyPreview)
-            && LastRetainedUpdateKind != null && PreviewIndexIsCurrent
-            && _DiagramMetadata.Generation == _RenderGeneration && !_DiagramMetadata.RenderFailed
-            && _DiagramMetadata.PercentRendered == 100;
+            && LastRetainedUpdateKind != null)) return false;
+        if (PreviewIndexIsCurrent && _DiagramMetadata.Generation == _RenderGeneration && !_DiagramMetadata.RenderFailed
+            && _DiagramMetadata.PercentRendered == 100) return true;
+        return AllowFailedLocalUpdate && HasFailedLocalUpdateOnCurrentText;
     }
+
+    /// <summary>
+    /// True while the editor still holds exactly the text whose local update was rejected: the accepted picture and
+    /// retained session are intact, so a corrective edit can be made.
+    /// </summary>
+    private bool HasFailedLocalUpdateOnCurrentText => Preview.Index != null && _FailedLocalUpdateTextVersion == _EditorTextVersion
+        && _DiagramMetadata.Generation == _RenderGeneration && _DiagramMetadata.RenderFailed;
 
     private PreviewRelationshipMove? CreateRelationshipMove(PreviewObject Item)
     {
