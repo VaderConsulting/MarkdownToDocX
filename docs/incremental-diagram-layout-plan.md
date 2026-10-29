@@ -581,6 +581,16 @@ Change: the node-drag edit now also rewrites every element or note whose active 
 
 Validation: `DraggingAHubMovesOnlyTheHubAndLeavesItsConnectedNodesInPlace` fails without the change and passes with it (both neighbours keep their exact positions, hold `at` pins and the single undo restores the script). The two earlier tests that asserted dependents follow their anchor were updated to the new rule. LiveEditor project 391 of 395, the same four older failures. Rollbacks: **0**. Not covered: placement suggestions (`TryCreateAt`) still move an anchor's dependents with it.
 
+### Follow-up: Ctrl+Z and the other edit shortcuts (29 October 2026)
+
+Reported: Ctrl+Z did not undo. Cause: Undo, Redo, Cut, Copy and Paste carry only a display label ("Ctrl+Z", ...) with no real shortcut, so they worked only through the text box's native handling. After a click or drag in the preview, keyboard focus is on the preview's focus sink, which does not handle them, so undoing a drag from the keyboard did nothing.
+
+Change: `MainForm.ProcessCmdKey` (new `MainForm.Shortcuts.cs`) now applies Ctrl+Z, Ctrl+Y, Ctrl+X, Ctrl+C and Ctrl+V to the script whenever focus is not in a text box, exactly like the Edit menu items, and adds Ctrl+Shift+Z as a Redo alternative. The source editor and the find/replace boxes keep their native undo and clipboard handling.
+
+Audit of the documented shortcuts: all menu shortcuts defined with `ShortcutKeys` still run with the preview focused (Ctrl+F checked); the editor chords Ctrl+K Ctrl+C / Ctrl+K Ctrl+U and Ctrl+E V work; Ctrl+K Ctrl+I, Ctrl+Space and Tab/Shift+Tab are handled by the editor/IntelliSense key handlers; Ctrl+Z/Y inside the editor stay native. Not exercised by tests because they open modal dialogs or need real input: New/Open/Save, Go to line, rename (F2), command palette and zoom keys.
+
+Validation: `KeyboardShortcutTests` (4): undo/redo/Ctrl+Shift+Z after a drag with the preview focused (fails without the change), text boxes and the editor keep native handling, editor chords, Ctrl+F with the preview focused. LiveEditor project: only the same four older failures. Rollbacks: **0**.
+
 ### Follow-up: object-based rename (29 October 2026)
 
 Requested: renaming an object should rename every instance of that object, thinking in objects rather than text. The existing F2 "Rename symbol" was a whole-word text replace, so it also rewrote labels, comments, `title` text, class names and anything else spelled the same, and it never checked for a clash with an existing id.
