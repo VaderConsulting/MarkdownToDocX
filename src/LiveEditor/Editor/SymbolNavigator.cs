@@ -73,21 +73,6 @@ internal static class SymbolNavigator
         return Results;
     }
 
-    public static string Rename(string Source, string OldId, string NewId)
-    {
-        if (string.IsNullOrEmpty(Source) || string.IsNullOrEmpty(OldId) || string.IsNullOrEmpty(NewId))
-        {
-            return Source;
-        }
-
-        if (!LiveEditor.Archi.ArchiObjectIds.IsValidMermaidId(NewId))
-        {
-            throw new ArgumentException("New id is not a valid Mermaid identifier.", nameof(NewId));
-        }
-
-        return Regex.Replace(Source, @"\b" + Regex.Escape(OldId) + @"\b", NewId);
-    }
-
     public static int FindNextOccurrence(string Source, string Token, int FromIndex)
     {
         if (string.IsNullOrEmpty(Source) || string.IsNullOrEmpty(Token))

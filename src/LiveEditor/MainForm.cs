@@ -2315,31 +2315,36 @@ public partial class MainForm : Form
         }
 
         string? OldId = SymbolNavigator.IdAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
-        if (string.IsNullOrEmpty(OldId))
+        if (string.IsNullOrEmpty(OldId) || !EnterpriseRename.IsRenameable(CodeView.Editor.Text, OldId))
         {
-            SetStatus("Place the caret on a symbol");
+            SetStatus("Place the caret on an element, group or note to rename");
             return;
         }
 
         string NewId = Microsoft.VisualBasic.Interaction.InputBox($"Rename '{OldId}' to:", "Rename symbol", OldId);
-        if (string.IsNullOrWhiteSpace(NewId) || string.Equals(NewId, OldId, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(NewId) || string.Equals(NewId.Trim(), OldId, StringComparison.Ordinal))
         {
             return;
         }
 
-        try
+        string Source = CodeView.Editor.Text;
+        EnterpriseRename.Result Result = EnterpriseRename.Rename(Source, OldId, NewId);
+        if (Result.Updated == null)
         {
-            int Caret = CodeView.Editor.SelectionStart;
-            CodeView.Editor.Text = SymbolNavigator.Rename(CodeView.Editor.Text, OldId, NewId.Trim());
-            CodeView.Editor.SelectionStart = Math.Min(Caret, CodeView.Editor.TextLength);
-            SetStatus($"Renamed '{OldId}' to '{NewId.Trim()}'");
+            MessageBox.Show(this, Result.Failure, "Rename failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
         }
-        catch (ArgumentException Ex)
-        {
-            MessageBox.Show(this, Ex.Message, "Rename failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-    }
 
+        // One replacement of the changed span is one undo step and leaves the rest of the script untouched.
+        int First = 0, Suffix = 0;
+        while (First < Source.Length && First < Result.Updated.Length && Source[First] == Result.Updated[First]) First++;
+        while (Suffix < Source.Length - First && Suffix < Result.Updated.Length - First
+            && Source[^(Suffix + 1)] == Result.Updated[^(Suffix + 1)]) Suffix++;
+        int Caret = CodeView.Editor.SelectionStart;
+        CodeView.ReplaceSourceSpan(First, Source.Length - First - Suffix, Result.Updated.Substring(First, Result.Updated.Length - First - Suffix));
+        CodeView.Editor.SelectionStart = Math.Min(Caret, CodeView.Editor.TextLength);
+        SetStatus($"Renamed '{OldId}' to '{NewId.Trim()}' ({Result.References} references)");
+    }
     private void FindReferencesMenuItem_Click(object? Sender, EventArgs E)
     {
         string? Id = SymbolNavigator.IdAt(CodeView.Editor.Text, CodeView.Editor.SelectionStart);
