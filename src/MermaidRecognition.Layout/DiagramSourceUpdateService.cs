@@ -163,6 +163,7 @@ internal sealed class DiagramSourceUpdateService
             return Failure(DiagramSourceUpdateKind.Rejected, Reconciliation.FailureReason!);
         }
         DiagramContract Bound = DiagramSourceModel.Bind(Parsed, Identities);
+        CarryForwardLayoutDeactivatedHints(Previous.Model, Bound);
         var Classification = Classify(Previous.Model, Bound);
         if (Classification.Reason != null) { return Failure(DiagramSourceUpdateKind.RebuildRequired, Classification.Reason); }
         var Requested = Classification.Edges.Concat(AdditionalRouteSeeds ?? []).Distinct(StringComparer.Ordinal).ToArray();
@@ -325,6 +326,31 @@ internal sealed class DiagramSourceUpdateService
         return new(Hints.Count != 0 || Edges.Count != 0 || RemovedNodes.Length != 0 ? DiagramSourceUpdateKind.LocalRouting
             : Labels.Count > 0 || Json(Paint(Old)) != Json(Paint(New)) ? DiagramSourceUpdateKind.Redraw : DiagramSourceUpdateKind.MetadataOnly,
             Hints.ToArray(), Edges.ToArray(), Labels: Labels.ToArray());
+    }
+
+    // Initial layout deactivates hints it cannot honour (for example rule 2.21(g)), but a fresh parse sees the same
+    // source hint as active. Without this, every edit would look like a changed hint, replan it and be rejected.
+    // A hint the parser itself rejected (missing peer, other group, circle) is not carried forward, so it can revive.
+    private static void CarryForwardLayoutDeactivatedHints(DiagramContract Old, DiagramContract New)
+    {
+        var OldNodes = Old.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
+        string? ParentOf(string Id) => OldNodes.TryGetValue(Id, out var Node) ? Node.ParentGroupId
+            : Old.Groups.FirstOrDefault(Group => Group.Id == Id)?.ParentGroupId;
+        bool Exists(string Id) => OldNodes.ContainsKey(Id) || Old.Groups.Any(Group => Group.Id == Id);
+        foreach (NodeContract Node in New.Nodes)
+        {
+            if (Node.PlacementHint is not { IsActive: true } Hint || !OldNodes.TryGetValue(Node.Id, out var Previous)
+                || Previous.PlacementHint is not { IsActive: false } Before
+                || Json(Spec(Before)) != Json(Spec(Hint))) continue;
+            bool ParserRejectable = Before.Kind != PlacementHintKind.Push && Before.Kind != PlacementHintKind.At
+                && (string.IsNullOrEmpty(Before.PeerId) || !Exists(Before.PeerId)
+                    || ParentOf(Before.PeerId) != Previous.ParentGroupId
+                    || Before.UnhonouredReason?.Contains("peer circle", StringComparison.Ordinal) == true);
+            if (ParserRejectable) continue;
+            Hint.IsActive = false;
+            Hint.UnhonouredReason = Before.UnhonouredReason;
+        }
+        static object Spec(PlacementHintContract Value) => new { Value.Kind, Value.PeerId, Value.Offset, Value.ColumnOffset, Value.Direction, Value.CellRow, Value.CellColumn };
     }
 
     private static string Json(object? Value) => JsonSerializer.Serialize(Value);

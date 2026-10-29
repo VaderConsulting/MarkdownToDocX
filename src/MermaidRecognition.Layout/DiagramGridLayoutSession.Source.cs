@@ -48,6 +48,7 @@ public static partial class DiagramGridLayout
             State.Nodes = State.Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
             string? Failure = DiagramSourcePlacementHints.Plan(State.Contract, SizedRegions, ChangedHints, out var Targets, Restored);
             if (Failure != null) { return Failure; }
+            RelaxConventionForMovedNodes(Targets, Before.Regions);
             if (!Grid.TryPrepare(Targets, [], out var After)
                 || !FlowchartPlacementHints.CellHintsMatch(State.Contract, State.Placed, After!.Regions))
             {
@@ -118,6 +119,41 @@ public static partial class DiagramGridLayout
             State.Contract = CopyRoutingInputs(Model);
             State.Nodes = State.Contract.Nodes.ToDictionary(Node => Node.Id, StringComparer.Ordinal);
             PublishGuides(State, Layout.ResolvedEdgeGuides);
+        }
+
+        private sealed record UserMoveConvention(Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>? Inner,
+            IReadOnlyDictionary<string, FlowchartCellRegion> Baseline);
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+            Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool>, UserMoveConvention> UserMoveConventions = new();
+
+        // The initial layout's convention (fixed band placement, shared level rows, partner alignment) stops repairs from
+        // moving nodes. It must not veto an explicit source-hint move, so moved nodes are judged at their baseline
+        // position by it and by their actual position against the semantic layer bands. Unmoved nodes stay fully protected.
+        private void RelaxConventionForMovedNodes(IReadOnlyDictionary<string, FlowchartCellRegion> Targets,
+            IReadOnlyDictionary<string, FlowchartCellRegion> Before)
+        {
+            Dictionary<string, FlowchartCellRegion> Baseline = Targets.Where(Pair => Before.TryGetValue(Pair.Key, out var Old) && Old != Pair.Value)
+                .ToDictionary(Pair => Pair.Key, Pair => Before[Pair.Key], StringComparer.Ordinal);
+            if (Baseline.Count == 0) return;
+            var Current = Grid.RegionConvention;
+            var Inner = Current;
+            if (Current != null && UserMoveConventions.TryGetValue(Current, out var Existing))
+            {
+                Inner = Existing.Inner;
+                foreach (var Pair in Existing.Baseline) Baseline[Pair.Key] = Pair.Value;
+            }
+            var FrozenInputs = State.Contract;
+            Func<IReadOnlyDictionary<string, FlowchartCellRegion>, bool> Composite = Regions =>
+            {
+                if (!Enterprise.EnterpriseBandPlacement.RetainedAssignmentIsLegal(FrozenInputs, Regions)) return false;
+                if (Inner == null) return true;
+                var Substituted = new Dictionary<string, FlowchartCellRegion>(Regions, StringComparer.Ordinal);
+                foreach (var Pair in Baseline) if (Substituted.ContainsKey(Pair.Key)) Substituted[Pair.Key] = Pair.Value;
+                return Inner(Substituted);
+            };
+            UserMoveConventions.Add(Composite, new(Inner, Baseline));
+            Grid.RegionConvention = Composite;
+            Grid.RegionConventionSnapshot = () => Composite;
         }
     }
 }

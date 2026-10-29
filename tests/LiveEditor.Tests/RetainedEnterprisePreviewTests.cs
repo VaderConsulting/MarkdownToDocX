@@ -867,6 +867,65 @@ public sealed partial class RetainedEnterprisePreviewTests
         finally { Restore(Previous); }
     }
 
+    [Test]
+    public void LayoutDeactivatedHintsDoNotMakeAnUnchangedOrUndoneSourceLookEdited()
+    {
+        string Full = LiveEditor.Editor.SampleCatalog.Find("enterprise")!.FullSource;
+        string Bad = Full.Replace("review \"Review\" push W", "review \"Review\" SW cancel +0 +3");
+        Assert.That(Bad, Is.Not.EqualTo(Full));
+        var Session = new RetainedEnterprisePreview();
+        Accept(Session, Full, 1);
+        // Rule 2.21(g) leaves delay, cancel, split and choice inactive in the accepted model but active when parsed again.
+        Session.Observe(2);
+        Assert.That(Session.Prepare(Full, 2, EnterpriseValidator.Analyze(Full), Options).Kind, Is.EqualTo("MetadataOnly"));
+        Session.Observe(3);
+        Assert.That(() => Session.Prepare(Bad, 3, EnterpriseValidator.Analyze(Bad), Options),
+            Throws.InvalidOperationException.With.Message.Contains("cell ownership"));
+        Session.Observe(4);
+        var Restored = Session.Prepare(Full, 4, EnterpriseValidator.Analyze(Full), Options);
+        Assert.That(Restored.Kind, Is.EqualTo("MetadataOnly"));
+        Assert.That(Session.TryCommit(Restored), Is.True);
+    }
+
+    [Test]
+    public void CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveCanBeUndone()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            string Full = LiveEditor.Editor.SampleCatalog.Find("enterprise")!.FullSource;
+            Editor.Text = Full;
+            Full = Editor.Text;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var Review = Preview.Index!.FindObject("node\u001freview")!;
+            PointF Centre = new((float)((Review.Left + Review.Right) / 2), (float)((Review.Top + Review.Bottom) / 2));
+
+            // The fixed initial band placement must not veto an explicit move inside the node's own band.
+            int Generation = Form.DiagramMetadata.Generation;
+            Assert.That(Form.MovePreviewNode("review", new(Centre.X - 300, Centre.Y)), Is.True);
+            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.DiagramMetadata.RenderFailed, Is.False);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+            Editor.Undo();
+            Wait(() => Preview.RenderedSvg != null && Form.PreviewIndexIsCurrent && !Form.DiagramMetadata.RenderFailed);
+
+            // A move into another semantic band is rejected, but dragging stays available and undo restores everything.
+            Review = Preview.Index!.FindObject("node\u001freview")!;
+            Centre = new((float)((Review.Left + Review.Right) / 2), (float)((Review.Top + Review.Bottom) / 2));
+            Generation = Form.DiagramMetadata.Generation;
+            Assert.That(Form.MovePreviewNode("review", new(Centre.X, Centre.Y + 300)), Is.True);
+            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
+            Assert.That(Preview.CanMoveNode!(Preview.Index!.FindObject("node\u001freview")!), Is.True);
+            Editor.Undo();
+            Assert.That(Editor.Text, Is.EqualTo(Full));
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Preview.CanMoveNode!(Preview.Index!.FindObject("node\u001freview")!), Is.True);
+        }
+        finally { Restore(Previous); }
+    }
     [TestCase(false)]
     [TestCase(true)]
     public void GuiMovementRequiresAnAcceptedRetainedGridPreview(bool OpenLayout)
