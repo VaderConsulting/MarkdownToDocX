@@ -617,6 +617,32 @@ Also: `DiagramLayoutBench` can enable AF and AG together with AH (`DIAGRAM_BENCH
 
 Validation: `PastingAScriptOverAnExistingDiagramGivesTheSameLayoutAsAFreshOne` (all three experiments on, 2048; starts from the Web Shop sample, the Complete sample and others) fails before the change and passes after; `SerialChainLaysOutTopToBottomWithAllExperimentsOn` and `DraggingTheAnchorOfAChainKeepsTheWholeChainInPlace` (your pasted anchored chain; fails on the build before dependents were pinned) are new. LiveEditor project: only the same four older failures. Shared layout subset (187 tests): only `LayoutStages_RunPlacementHintsBeforeAutomaticPlacementAndRouting`, which fails without these changes. Rollbacks: **0**. Note: these changes are in this branch's worktree only, not in `C:\Users\windo\OneDrive\Documents\Development\MarkdownToDocX`.
 
+## Planned work added 29 October 2026 (not started unless marked)
+
+Requested by the user and agreed in conversation. Group work is the next feature; none of it is implemented. The current engine has no local group operations: group edits are classified as an explicit rebuild, groups cannot take `at` pins, group frames are frozen in retained sessions and grouped nodes cannot be dragged.
+
+**Group dragging**
+- [ ] **GROUP-1 (first):** Make a group draggable in the preview. Allow container objects to start a drag (today only ungrouped nodes can), show the snapped outline sized to the group frame, and cancel/undo like a node drag. Reject the drag with a reason when the group has no usable peer.
+- [ ] **GROUP-2:** Write the result as one undoable placement hint on the group declaration (relative `above/below/left-of/right-of`, `NW/NE/SE/SW` or `push`; groups cannot use `at`). The hint rewrite must handle the trailing `{` of `group id "Label" {` and a nested group's parent. Peers are siblings in the same parent group.
+- [ ] **GROUP-3:** Moving a group moves everything inside it, including nested groups and notes. A connection with both ends inside the group moves with it. A connection with one end inside keeps its other end on the node it is connected to. Dropping the group keeps every connection but re-routes it, and may move connection points to reduce bends or crossings (routes crossing the frame boundary included). Nodes that are placed relative to the group stay in place (same rule as node drags: they are pinned with `at`); groups placed relative to it cannot be pinned and need GROUP-5.
+- [ ] **GROUP-4:** First implementation may use the existing rebuild path (a group hint change re-lays the diagram out); record the instability that causes (other automatically placed nodes may move) and measure it. Then replace it with a local retained operation: translate the member cells by one whole-cell delta, refit the frame, expand the affected-route closure to every route that crosses or ends in the group, re-route with the existing legality checks and exact rollback, no initial layout and no whole-diagram fallback.
+- [ ] **GROUP-5:** Allow `at row column` on groups (a group containment operation) so a dragged group and the groups placed relative to it can be pinned without moving.
+- [ ] **GROUP-6:** Dragging nodes that are inside a group (grouped node gestures, frame refit, membership changes, grouped insertion/removal/sizing, grouped label sizing) remains unsupported and needs its own task.
+
+**Group resizing**
+- [ ] **GROUP-7:** Add resize grips at the four corners of a selected group with snapped feedback in whole grid cells. Decision needed first: how a size is stored in the script. Proposed: a `size <columns> <rows>` clause on the group declaration that is a minimum extent (the frame grows when the members need more). The user was asked and the reply was cut off, so confirm the syntax before building. Needs parser, validator, completion/help, Archi property round-trip, initial layout and retained-session support, one undoable source edit, and tests for members that do not fit and for nested groups.
+
+**Other open work found during this session**
+- [ ] Drag feedback still offers targets that cross into another semantic layer band; they are refused only on release and rolled back. Expose the band convention to the snap so illegal cells are not offered.
+- [ ] Renaming one object (F2) forces a full layout because it counts as one removed plus one added node. Add a rename identity map to the source update service so retained geometry survives a rename.
+- [ ] Placement suggestions (View menu) still move an anchor's dependents with it; align them with the "drag moves only that node" rule.
+- [ ] Re-moving an endpoint of a relationship whose pending edit was rejected restarts from the accepted endpoints.
+- [ ] Four older LiveEditor tests fail without any of this session's changes: `EnterpriseMetadataListsEveryNodeInSourceOrder`, `TheEditorAttachesMetadataToItsDiagramAndFinishesAtOneHundredPercent`, `ClickingTheMarginAroundTheDiagramClearsTheSelection`, `TheEditorAppliesTheSessionAndTheViewCommands`. One shared-layout test also fails: `LayoutStages_RunPlacementHintsBeforeAutomaticPlacementAndRouting`.
+- [ ] Keyboard shortcuts not exercised by tests (they open dialogs or need real input): New, Open, Save, Go to line, F2 rename, command palette, zoom, Ctrl+K Ctrl+I, Ctrl+Space, Tab and Shift+Tab. Verify them by hand or add dialog-free tests.
+- [ ] Confirm whether double-clicking inside a quoted label should select the whole quoted string; today it selects one word without the surrounding spaces.
+- [ ] Housekeeping in the main checkout: `stash@{0}` ("pre-merge: uncommitted BASE-1 setup changes") holds superseded local changes and can be dropped after review; untracked `Merge/`, `README.old.md` and the `docs/bench` logs are not part of any commit.
+- [ ] Phase 0 baselines BASE-2/3/4, the width tasks WIDTH-1 to WIDTH-5, AG route-aware construction (Phase 5), consolidation of the node-move API (Phase 6) and the large-profile limits and rollout criteria listed in the earlier sections remain open.
+
 ## Safe pause checkpoint (29 October 2026) - resolved
 
 The pause checkpoint is closed by the BASE-1 task above. Earlier text is kept for history: paused at the user's explicit request, latest completed task commit **4ccb6e5** (QUALITY-4), completed checks 355 shared, 267 editor and 86 parser cases. The three setup files described there are now committed with the BASE-1 tooling; `in/Landgate.csv` remains an uncommitted local fixture.
