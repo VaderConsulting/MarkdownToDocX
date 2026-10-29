@@ -26,9 +26,28 @@ internal static partial class PreviewNodePlacement
             var Shown = Items.FirstOrDefault(Item => Item.Kind == PreviewObjectKind.Node && Item.Id == NodeId);
             if (Shown == null) return null;
             var Before = Moving.Bounds(Moving.Region, PageCoordinates: true);
+            // A node should follow what it is related to, not whatever happens to be nearest when it is dropped.
+            HashSet<string> Related = new(StringComparer.Ordinal);
+            foreach (var Edge in Document.Relationships)
+            {
+                if (Edge.SourceId == NodeId && Edge.TargetId != NodeId) Related.Add(Edge.TargetId);
+                else if (Edge.TargetId == NodeId && Edge.SourceId != NodeId) Related.Add(Edge.SourceId);
+            }
+            SnappedPlacement? Best = null;
+            foreach (bool RelatedOnly in new[] { true, false })
+            {
+                if (RelatedOnly && Related.Count == 0) continue;
+                Best = Nearest(RelatedOnly ? Related : null);
+                if (Best != null) return Best;
+            }
+            return SnapAbsolute(Moving, Shown, Drop);
+
+            SnappedPlacement? Nearest(HashSet<string>? Allowed)
+            {
             SnappedPlacement? Best = null;
             double BestDistance = double.PositiveInfinity;
-            foreach (var Peer in Items.Where(Item => Item.Kind == PreviewObjectKind.Node && Item.Id != NodeId)
+            foreach (var Peer in Items.Where(Item => Item.Kind == PreviewObjectKind.Node && Item.Id != NodeId
+                && (Allowed == null || Allowed.Contains(Item.Id)))
                 .OrderBy(Item => Item.Id, StringComparer.Ordinal))
             {
                 if (!Cells.TryGetValue(Peer.Id, out var PeerCell) || !Document.Elements.TryGetValue(Peer.Id, out var Other)
@@ -76,7 +95,8 @@ internal static partial class PreviewNodePlacement
                     }
                 }
             }
-            return Best ?? SnapAbsolute(Moving, Shown, Drop);
+            return Best;
+            }
         }
 
         private static SnappedPlacement SnapAbsolute(FlowchartCellNode Moving, PreviewObject Shown, PointF Drop)

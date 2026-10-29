@@ -565,6 +565,14 @@ Change: GUI gestures (node drag, endpoint reconnect, relationship add/delete) no
 
 Validation: `RejectedGuiDropIsRolledBackAndKeepsAcceptedExportAndTheNextMoveWorks` (rejected drop restores the exact text and SVG, then another node moves), `CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveIsRolledBack` (Complete sample), and the typed-error repair tests (now creating the failure by typing) pass; retained-preview class 96 of 96. Full LiveEditor project 389 of 393, the same four older failures. Rollbacks: **0**. Remaining: drag feedback still offers illegal band-crossing targets before release.
 
+### Follow-up: a dropped node anchors to what it is related to (29 October 2026)
+
+Reported: node 1 dropped near node 2 but related to node 3 did not follow node 3 when node 3 moved. The drag chose its anchor by distance alone, and because quadrant hints can reach any position from any peer, candidates tie and the first node by ID won, so the hint ignored relationships.
+
+Decision (user-selected): anchor to the related node. `GridSnap.Snap` now considers eligible peers that share a relationship with the moving node first, and only falls back to all eligible peers (then an absolute `at` pin) when none can anchor it. Eligibility is unchanged (same group and layer, no hint cycle), so a related node in another layer band cannot be an anchor and the nearest eligible peer is still used. Anchored dependents already move with their anchor in the shared source update, so moving node 3 now carries node 1 and anything anchored to node 1.
+
+Validation: `DroppedNodeIsAnchoredToItsRelatedNodeNotTheNearestOne` fails without the change (hint written relative to the nearer, unrelated node) and passes with it, including that moving the related node carries the dropped one with an unchanged offset. Full LiveEditor project 390 of 394, the same four older failures. Rollbacks: **0**. Not changed: a node already anchored to another node keeps that hint until it is dragged again; no automatic re-anchoring of existing scripts.
+
 Not covered: grouped nodes. Re-moving an endpoint on a relationship whose pending edit was rejected restarts from its accepted endpoints, because the gesture is built from the accepted route.
 
 ## Safe pause checkpoint (29 October 2026) - resolved

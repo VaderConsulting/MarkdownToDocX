@@ -891,6 +891,38 @@ public sealed partial class RetainedEnterprisePreviewTests
     }
 
     [Test]
+    public void DroppedNodeIsAnchoredToItsRelatedNodeNotTheNearestOne()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            // n is related to t only. m sorts before t and would win every tie between equally good peers.
+            const string Script = "enterprise\napplication-component m \"M\"\napplication-component t \"T\" right-of m +6\n"
+                + "application-component n \"N\" below m +2\nn -flow-> t\n";
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Script;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var M = Preview.Index!.FindObject("node\u001fm")!;
+            Assert.That(Form.MovePreviewNode("n", new((float)((M.Left + M.Right) / 2), (float)((M.Top + M.Bottom) / 2 + 800))), Is.True);
+            string Line = Editor.Text.Split('\n').Single(L => L.Contains("application-component n "));
+            Assert.That(Line, Does.Contain(" t ").And.Not.Contain(" m "));
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
+            static double Dx(PreviewHoverIndex Index) => (Index.FindObject("node\u001fn")!.Left - Index.FindObject("node\u001ft")!.Left);
+            static double Dy(PreviewHoverIndex Index) => (Index.FindObject("node\u001fn")!.Top - Index.FindObject("node\u001ft")!.Top);
+            double X = Dx(Preview.Index!), Y = Dy(Preview.Index!);
+
+            // Moving t carries n with it, because n's placement now depends on t.
+            var T = Preview.Index!.FindObject("node\u001ft")!;
+            Assert.That(Form.MovePreviewNode("t", new((float)((T.Left + T.Right) / 2), (float)((T.Top + T.Bottom) / 2 + 400))), Is.True);
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
+            Assert.That(Dx(Preview.Index!), Is.EqualTo(X).Within(0.5));
+            Assert.That(Dy(Preview.Index!), Is.EqualTo(Y).Within(0.5));
+        }
+        finally { Restore(Previous); }
+    }
+    [Test]
     public void CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveIsRolledBack()
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
