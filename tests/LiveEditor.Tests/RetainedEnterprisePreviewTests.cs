@@ -796,6 +796,77 @@ public sealed partial class RetainedEnterprisePreviewTests
         finally { Restore(Previous); }
     }
 
+    [Test]
+    public void RejectedGuiDropCanBeFixedByMovingTheBlockingNode()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var X = Preview.Index!.FindObject("node\u001fx")!;
+            PointF XCentre = new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2));
+            Assert.That(Form.MovePreviewNode("b", XCentre), Is.True);
+            Wait(() => Form.DiagramMetadata.RenderFailed);
+            string Rejected = Editor.Text;
+            // x blocks the cell b asked for; moving x is a different node, so the rejected b hint stays in the source.
+            Assert.That(Form.MovePreviewNode("x", new(XCentre.X + 600, XCentre.Y)), Is.True);
+            Assert.That(Editor.Text, Does.Contain("right-of a +5").And.Not.EqualTo(Rejected));
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+        }
+        finally { Restore(Previous); }
+    }
+
+    [Test]
+    public void RejectedEditCanBeFixedByAChainOfNodeAndRelationshipMoves()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Source;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var X = Preview.Index!.FindObject("node\u001fx")!;
+            PointF XCentre = new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2));
+            int Generation = Form.DiagramMetadata.Generation;
+            Assert.That(Form.MovePreviewNode("b", XCentre), Is.True);
+            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
+
+            // First fix attempt: delete the x -> y relationship. It does not unblock b, so the failure persists
+            // while the declaration lines below it have moved up.
+            Generation = Form.DiagramMetadata.Generation;
+            Form.SelectPreviewObject(Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Relationship && Item.SourceId == "x"));
+            Assert.That(Form.DeletePreviewRelationship(), Is.True);
+            Assert.That(Editor.Text, Does.Not.Contain("x -flow-> y"));
+            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
+
+            // Second attempt: reconnect a -> b using the accepted picture, now several lines after the edits.
+            Generation = Form.DiagramMetadata.Generation;
+            var Line = Preview.Items.Single(Item => Item.Kind == PreviewObjectKind.Relationship && Item.SourceId == "a");
+            Form.SelectPreviewObject(Line);
+            var Move = Preview.CreateRelationshipMove!(Line);
+            Assert.That(Move, Is.Not.Null);
+            var Original = Move!.Original(false);
+            var Target = Move.Targets(false).First(Point => Point.NodeId == Original.NodeId && Point.Direction == Original.Direction && Point.Step != Original.Step);
+            Assert.That(Form.MovePreviewRelationship(Move, false, Target), Is.True);
+            Assert.That(Editor.Text, Does.Contain("a -flow-> b").And.Contain("[leave"));
+            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
+
+            // Final fix: move the blocking node away. The combined change from the accepted picture is now valid.
+            Assert.That(Form.MovePreviewNode("x", new(XCentre.X + 600, XCentre.Y)), Is.True);
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
+            Assert.That(Form.LastRetainedUpdateKind, Is.EqualTo("LocalRouting"));
+            Assert.That(Preview.Items.Count(Item => Item.Kind == PreviewObjectKind.Relationship), Is.EqualTo(1));
+        }
+        finally { Restore(Previous); }
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void GuiMovementRequiresAnAcceptedRetainedGridPreview(bool OpenLayout)

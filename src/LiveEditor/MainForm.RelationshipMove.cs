@@ -30,13 +30,13 @@ public partial class MainForm
 
     private PreviewRelationshipMove? CreateRelationshipMove(PreviewObject Item)
     {
-        if (!CanEditRetainedPreview() || _RetainedPreview.CopyInteractionSnapshot() is not { } Snapshot) return null;
-        return PreviewRelationshipMove.Create(CodeView.Editor.Text, Item, Preview.Items, Snapshot);
+        if (!CanEditRetainedPreview(AllowFailedLocalUpdate: true) || _RetainedPreview.CopyInteractionSnapshot() is not { } Snapshot) return null;
+        return PreviewRelationshipMove.Create(CodeView.Editor.Text, Item, Preview.Items, Snapshot, AllowFailedUpdate: true);
     }
 
     internal bool MovePreviewRelationship(PreviewRelationshipMove Move, bool SourceEnd, PreviewRelationshipMove.Target Target)
     {
-        if (!CanEditRetainedPreview() || CodeView.Editor.Text != Move.SourceText
+        if (!CanEditRetainedPreview(AllowFailedLocalUpdate: true) || CodeView.Editor.Text != Move.SourceText
             || _RetainedPreview.CopyInteractionSnapshot() is not { } Snapshot || Snapshot.DocumentId != Move.DocumentId
             || !Snapshot.Identities.Bindings.Any(Binding => Binding.Id == Move.Identity)) return false;
         if (!Move.TryCreateEdit(SourceEnd, Target, out var Edit, out var Reason))

@@ -37,10 +37,10 @@ internal static class PreviewRelationshipCommands
         : Document.Notes.TryGetValue(Id, out var Note) && string.IsNullOrEmpty(Note.ParentId);
 
     internal static bool TryAdd(string Source, string From, string To, Kind Kind, DiagramSourceUpdateService.Snapshot Snapshot,
-        out Edit? Change, out string Reason)
+        out Edit? Change, out string Reason, bool AllowFailedUpdate = false)
     {
         Change = null; Reason = "Choose an eligible node for a self-relationship, or two nodes source first, and an allowed type.";
-        if (Snapshot.IsStale || Snapshot.SourceText != Source) return false;
+        if (Snapshot.InvalidationReason != null || (Snapshot.SourceText == Source ? Snapshot.IsStale : !AllowFailedUpdate)) return false;
         var Analysis = EnterpriseValidator.Analyze(Source);
         if (Analysis.HasErrors || !AllowedKinds(Analysis.Document, From, To).Any(Allowed => Allowed.Relationship == Kind.Relationship)) return false;
         var Boxes = Snapshot.Layout.NodeBounds.ToDictionary(Box => Box.NodeId, StringComparer.Ordinal);
@@ -75,14 +75,15 @@ internal static class PreviewRelationshipCommands
         Change = new(Source.Length, 0, Prefix + Line + Newline, LineNumber, Updated); Reason = string.Empty; return true;
     }
 
-    internal static bool TryDelete(string Source, PreviewObject Item, out Edit? Change, out string Reason)
+    internal static bool TryDelete(string Source, PreviewObject Item, out Edit? Change, out string Reason, int? Line = null)
     {
         Change = null; Reason = "Select a current relationship declaration.";
+        int Number = Line ?? Item.LineNumber;
         if (Item.Kind != PreviewObjectKind.Relationship) return false;
         var Analysis = EnterpriseValidator.Analyze(Source);
-        if (Analysis.HasErrors || PreviewRelationshipMove.IndexAtLine(Analysis.Document, Item.LineNumber) < 0
-            || !PreviewSelection.TryGetLineSelection(Source, Item.LineNumber, out int Start, out int Length)) return false;
-        int RemovedIndex = Analysis.Document.Relationships.FindIndex(Edge => Edge.LineNumber == Item.LineNumber);
+        if (Analysis.HasErrors || PreviewRelationshipMove.IndexAtLine(Analysis.Document, Number) < 0
+            || !PreviewSelection.TryGetLineSelection(Source, Number, out int Start, out int Length)) return false;
+        int RemovedIndex = Analysis.Document.Relationships.FindIndex(Edge => Edge.LineNumber == Number);
         if (RemovedIndex >= 0)
         {
             var Edge = Analysis.Document.Relationships[RemovedIndex];
@@ -93,7 +94,7 @@ internal static class PreviewRelationshipCommands
                 && Analysis.Document.Elements.TryGetValue(Edge.TargetId, out var TargetElement) && TargetElement.ElementType == EnterpriseElementType.Plateau)
             { Reason = "Changing this timeline requires Auto layout."; return false; }
         }
-        else if (!Analysis.Document.PlainConnections.Any(Edge => Edge.LineNumber == Item.LineNumber && Edge.SourceId == Item.SourceId && Edge.TargetId == Item.TargetId)) return false;
+        else if (!Analysis.Document.PlainConnections.Any(Edge => Edge.LineNumber == Number && Edge.SourceId == Item.SourceId && Edge.TargetId == Item.TargetId)) return false;
         int End = Start + Length;
         if (End < Source.Length && Source[End] == '\r') End++;
         if (End < Source.Length && Source[End] == '\n') End++;
@@ -114,7 +115,7 @@ internal static class PreviewRelationshipCommands
         int First = 0, Suffix = 0;
         while (First < Source.Length && First < Updated.Length && Source[First] == Updated[First]) First++;
         while (Suffix < Source.Length - First && Suffix < Updated.Length - First && Source[^(Suffix + 1)] == Updated[^(Suffix + 1)]) Suffix++;
-        Change = new(First, Source.Length - First - Suffix, Updated.Substring(First, Updated.Length - First - Suffix), Item.LineNumber, Updated);
+        Change = new(First, Source.Length - First - Suffix, Updated.Substring(First, Updated.Length - First - Suffix), Number, Updated);
         Reason = string.Empty; return true;
     }
 }

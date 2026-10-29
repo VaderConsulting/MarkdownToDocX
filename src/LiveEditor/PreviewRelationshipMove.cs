@@ -27,11 +27,11 @@ internal sealed class PreviewRelationshipMove
     internal IReadOnlyList<Target> Targets(bool Source) => Eligible[Source ? 0 : 1];
 
     private PreviewRelationshipMove(string Source, EnterpriseDocument Document, DiagramSourceUpdateService.Snapshot Snapshot,
-        int EdgeIndex, int Line, Target[] Ends, IReadOnlyList<Target>[] Eligible)
+        int AcceptedIndex, int EdgeIndex, int Line, Target[] Ends, IReadOnlyList<Target>[] Eligible)
     {
         SourceText = Source; this.Document = Document; DocumentId = Snapshot.DocumentId;
         this.EdgeIndex = EdgeIndex; LineNumber = Line; OriginalEnds = Ends; this.Eligible = Eligible;
-        Identity = Snapshot.Identities.Bindings.Single(Binding => Binding.ParsedEdgeIndex == EdgeIndex).Id;
+        Identity = Snapshot.Identities.Bindings.Single(Binding => Binding.ParsedEdgeIndex == AcceptedIndex).Id;
     }
 
     internal static int IndexAtLine(EnterpriseDocument Document, int Line)
@@ -41,16 +41,35 @@ internal sealed class PreviewRelationshipMove
         return Array.IndexOf(Lines, Line);
     }
 
+    /// <param name="AllowFailedUpdate">
+    /// Builds the gesture from the accepted picture while the editor holds text whose local update was rejected;
+    /// the edit still targets the current text and is validated as part of the combined change.
+    /// </param>
     internal static PreviewRelationshipMove? Create(string Source, PreviewObject Item, IReadOnlyList<PreviewObject> Items,
-        DiagramSourceUpdateService.Snapshot Snapshot)
+        DiagramSourceUpdateService.Snapshot Snapshot, bool AllowFailedUpdate = false)
     {
-        if (Item.Kind != PreviewObjectKind.Relationship || Snapshot.IsStale || Snapshot.SourceText != Source) return null;
+        bool Same = Snapshot.SourceText == Source;
+        if (Item.Kind != PreviewObjectKind.Relationship || Snapshot.InvalidationReason != null
+            || (Same ? Snapshot.IsStale : !AllowFailedUpdate)) return null;
         var Analysis = EnterpriseValidator.Analyze(Source);
         if (Analysis.HasErrors) return null;
         var Document = Analysis.Document;
-        int Index = IndexAtLine(Document, Item.LineNumber);
-        if (Index < 0 || Index >= Snapshot.Model.Edges.Count) return null;
-        var Edge = Snapshot.Model.Edges[Index];
+        var AcceptedDocument = Document;
+        int Line = Item.LineNumber;
+        if (!Same)
+        {
+            if (SourceLineMap.Map(Snapshot.SourceText, Source, Item.LineNumber) is not { } Mapped) return null;
+            var Accepted = EnterpriseValidator.Analyze(Snapshot.SourceText);
+            if (Accepted.HasErrors) return null;
+            Line = Mapped; AcceptedDocument = Accepted.Document;
+        }
+        int AcceptedIndex = IndexAtLine(AcceptedDocument, Item.LineNumber);
+        int Index = IndexAtLine(Document, Line);
+        if (Index < 0 || AcceptedIndex < 0 || AcceptedIndex >= Snapshot.Model.Edges.Count) return null;
+        // A relationship cannot turn into a plain connection (or back) between the accepted and current text.
+        if ((AcceptedIndex < AcceptedDocument.Relationships.Count(Candidate => !Candidate.HiddenByNesting))
+            != (Index < Document.Relationships.Count(Candidate => !Candidate.HiddenByNesting))) return null;
+        var Edge = Snapshot.Model.Edges[AcceptedIndex];
         if (Edge.SourceId != Item.SourceId || Edge.TargetId != Item.TargetId) return null;
         var Route = Snapshot.Layout.EdgeRoutes.SingleOrDefault(Route => Route.EdgeId == Edge.Id);
         if (Route == null || Route.Points.Count < 2) return null;
@@ -86,13 +105,13 @@ internal sealed class PreviewRelationshipMove
             string SourceId = SourceEnd ? Id : Edge.SourceId, TargetId = SourceEnd ? Edge.TargetId : Id;
             if (Relationship == null)
                 return SourceId != TargetId && (Document.Notes.ContainsKey(SourceId) || Document.Notes.ContainsKey(TargetId))
-                    && !Document.PlainConnections.Any(Line => Line.LineNumber != Item.LineNumber && Line.SourceId == SourceId && Line.TargetId == TargetId);
+                    && !Document.PlainConnections.Any(Other => Other.LineNumber != Line && Other.SourceId == SourceId && Other.TargetId == TargetId);
             if (!Document.Elements.ContainsKey(SourceId) || !Document.Elements.ContainsKey(TargetId)) return false;
             string SourceType = EnterpriseElementCatalog.GetKebabName(Document.Elements[SourceId].ElementType);
             string TargetType = EnterpriseElementCatalog.GetKebabName(Document.Elements[TargetId].ElementType);
             return EnterpriseRulesCatalog.Instance.GetAllowedLetters(Document.Version, SourceType, TargetType)
                 .Contains(EnterpriseElementCatalog.GetLetter(Relationship.Kind))
-                && !Document.Relationships.Any(Other => Other.LineNumber != Item.LineNumber && Other.SourceId == SourceId && Other.TargetId == TargetId
+                && !Document.Relationships.Any(Other => Other.LineNumber != Line && Other.SourceId == SourceId && Other.TargetId == TargetId
                     && Other.Kind == Relationship.Kind && Other.AccessKind == Relationship.AccessKind
                     && Other.InfluenceStrength == Relationship.InfluenceStrength && Other.DirectedAssociation == Relationship.DirectedAssociation);
         }
@@ -107,7 +126,7 @@ internal sealed class PreviewRelationshipMove
                     || Point.Direction != (SourceEnd ? Finish.Direction : Start.Direction) || Point.Step != (SourceEnd ? Finish.Step : Start.Step))
                 .Where(Point => !Reserved.Contains((Point.NodeId, (LayoutHintDirection?)Point.Direction, (int?)Point.Step)))];
         }
-        return new(Source, Document, Snapshot, Index, Item.LineNumber, [Start, Finish], [Candidates(true), Candidates(false)]);
+        return new(Source, Document, Snapshot, AcceptedIndex, Index, Line, [Start, Finish], [Candidates(true), Candidates(false)]);
     }
 
     internal bool TryCreateEdit(bool SourceEnd, Target Target, out Edit? Change, out string Reason)
