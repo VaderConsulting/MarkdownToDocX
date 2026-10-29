@@ -288,12 +288,12 @@ internal sealed class DiagramSourceUpdateService
                 return Rebuild("Grouped label sizing requires a containment operation: " + Node.Id);
             if (SizeOrLabel || Json(Hint(Previous.PlacementHint)) != Json(Hint(Node.PlacementHint))) { Hints.Add(Node.Id); }
         }
-        int AddedNodes = New.Nodes.Count(Node => !OldNodes.ContainsKey(Node.Id)), RetainedNodes = New.Nodes.Count - AddedNodes;
-        // Incremental construction places one node at a time into free cells. Replacing most of a diagram (a paste, or a
-        // rename of everything) has no arrangement to retain, and cell-by-cell insertion would ignore the relationships.
-        if (AddedNodes > 0 && RemovedNodes.Length > 0 && AddedNodes + RemovedNodes.Length >= 3 && AddedNodes + RemovedNodes.Length > RetainedNodes)
+        int AddedNodes = New.Nodes.Count(Node => !OldNodes.ContainsKey(Node.Id));
+        // Incremental construction places one node at a time into free cells. Replacing nodes (a paste or a rename) can change
+        // the relationships between them, which need a real layout; a single added or removed node is still local.
+        if (AddedNodes > 0 && RemovedNodes.Length > 0 && AddedNodes + RemovedNodes.Length >= 2)
         {
-            return Rebuild("Most of the diagram was replaced; laying it out again.");
+            return Rebuild("Nodes were replaced; laying the diagram out again.");
         }
         var OldEdges = Old.Edges.ToDictionary(Edge => Edge.Id!, StringComparer.Ordinal);
         List<string> Edges = [];

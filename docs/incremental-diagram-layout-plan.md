@@ -587,7 +587,7 @@ Reported: editing the Web Shop sample into an A, B, C script (A serving B, B acc
 
 Cause: the paste removed the three Web Shop nodes and inserted three new ones. The update classifier treated that as three ungrouped node additions and removals, a local update, so the new nodes were placed into free cells one at a time without any initial layout and ignoring the relationships.
 
-Change: `DiagramSourceUpdateService.Classify` now returns a rebuild ("Most of the diagram was replaced; laying it out again.") when an edit both removes and adds nodes, at least three in total, and more than the nodes retained. Pure additions, pure removals, one-node changes and edits that keep most of the diagram stay local, so adding nodes one at a time, removing everything and undo are unaffected. Rebuilding is the explicit, recorded exception to the no-silent-rebuild rule because no accepted arrangement survives.
+Change: `DiagramSourceUpdateService.Classify` now returns a rebuild ("Nodes were replaced; laying the diagram out again.") when an edit both removes and adds nodes and two or more nodes change in total (user rule: fewer than two never needs a new layout, two or more always does, however many nodes are retained). Pure additions, pure removals, a single added or removed node stay local, but renaming even one node id (one removed plus one added) now rebuilds, so adding nodes one at a time, removing everything and undo are unaffected. Rebuilding is the explicit, recorded exception to the no-silent-rebuild rule because no accepted arrangement survives.
 
 Also: `DiagramLayoutBench` can enable AF and AG together with AH (`DIAGRAM_BENCH_ALL_FLAGS=1` and a width argument). Fresh A, B, C stays vertical under every flag combination tried.
 
