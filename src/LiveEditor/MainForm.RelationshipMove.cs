@@ -44,7 +44,7 @@ public partial class MainForm
         HidePreviewHover();
         _SelectedRelationshipIdentity = (Move.DocumentId, Move.Identity);
         _SyncingSelectionFromPreview = true;
-        try { CodeView.ReplaceSourceSpan(Edit!.Start, Edit.Length, Edit.Replacement); }
+        try { ApplyGestureEdit(Edit!.Start, Edit.Length, Edit.Replacement); }
         finally { _SyncingSelectionFromPreview = false; }
         return true;
     }

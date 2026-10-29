@@ -557,6 +557,14 @@ Result: moving "Review" along its band succeeds as one `LocalRouting` update; mo
 
 Validation: `LayoutDeactivatedHintsDoNotMakeAnUnchangedOrUndoneSourceLookEdited` and `CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveCanBeUndone` pass (the first fails without defect 1, the second without either). LiveEditor project: 389 of 393, the same four older failures as before. Shared layout filter: 183 of 184; `LayoutStages_RunPlacementHintsBeforeAutomaticPlacementAndRouting` fails identically without these changes and stays open. Rollbacks: **0**.
 
+### Follow-up: a rejected drag is rolled back instead of left in the script (29 October 2026)
+
+Reported again on the Complete sample: a rejected move of "Review" left the failure showing and no second node could then be moved. The rejected hint stayed in the source, so every other gesture was judged together with it and failed the same way. Re-dragging the same node was the only recovery, which is not acceptable for an accidental or illegal drop.
+
+Change: GUI gestures (node drag, endpoint reconnect, relationship add/delete) now apply their source edit through `ApplyGestureEdit`. If the local update is rejected while that gesture's edit is still the only change since the accepted text, the edit is undone (verified to restore the previous text exactly, otherwise left in place), the accepted picture stays, and the banner/status read "Move not applied: <reason>". The script is valid again, so any node can be dragged straight away. Typed text is never rolled back (CORE-11 unchanged), and a gesture made while a typed error is already pending is kept as one step of repairing it, so multi-step fixes still work.
+
+Validation: `RejectedGuiDropIsRolledBackAndKeepsAcceptedExportAndTheNextMoveWorks` (rejected drop restores the exact text and SVG, then another node moves), `CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveIsRolledBack` (Complete sample), and the typed-error repair tests (now creating the failure by typing) pass; retained-preview class 96 of 96. Full LiveEditor project 389 of 393, the same four older failures. Rollbacks: **0**. Remaining: drag feedback still offers illegal band-crossing targets before release.
+
 Not covered: grouped nodes. Re-moving an endpoint on a relationship whose pending edit was rejected restarts from its accepted endpoints, because the gesture is built from the accepted route.
 
 ## Safe pause checkpoint (29 October 2026) - resolved

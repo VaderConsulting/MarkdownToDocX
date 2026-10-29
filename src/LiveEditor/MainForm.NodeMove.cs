@@ -56,7 +56,7 @@ public partial class MainForm
         {
             // One RichEdit replacement is one undoable command. TextChanged is
             // the only render submission, exactly as for a typed hint.
-            CodeView.ReplaceSourceSpan(Edit.Start, Edit.Length, Edit.Replacement);
+            ApplyGestureEdit(Edit.Start, Edit.Length, Edit.Replacement);
         }
         finally { _SyncingSelectionFromPreview = false; }
         return true;

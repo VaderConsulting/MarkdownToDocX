@@ -58,7 +58,7 @@ public partial class MainForm
         _RelationshipCommandSelection = (Document, SelectionSource, SelectionSource == Source ? Edit.Updated : Source, Edit.RelationshipLine);
         _SelectedRelationshipIdentity = null;
         _SyncingSelectionFromPreview = true;
-        try { CodeView.ReplaceSourceSpan(Edit.Start, Edit.Length, Edit.Replacement); }
+        try { ApplyGestureEdit(Edit.Start, Edit.Length, Edit.Replacement); }
         finally { _SyncingSelectionFromPreview = false; }
         return true;
     }

@@ -733,7 +733,7 @@ public sealed partial class RetainedEnterprisePreviewTests
     }
 
     [Test]
-    public void RejectedGuiDropKeepsTypedHintAndAcceptedExportAndCanBeUndone()
+    public void RejectedGuiDropIsRolledBackAndKeepsAcceptedExportAndTheNextMoveWorks()
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
         try
@@ -744,21 +744,28 @@ public sealed partial class RetainedEnterprisePreviewTests
             Editor.Text = Source;
             Wait(() => Form.DiagramMetadata.PercentRendered == 100);
             string Initial = Preview.RenderedSvg!;
-            byte[] Png = Preview.LastPreviewPngBytes!;
             var X = Preview.Index!.FindObject("node\u001fx")!;
             Assert.That(Form.MovePreviewNode("b", new((float)((X.Left + X.Right) / 2),
                 (float)((X.Top + X.Bottom) / 2))), Is.True);
-            Wait(() => Form.DiagramMetadata.RenderFailed);
-            Assert.That(Editor.Text, Does.Contain("right-of a +5"));
-            Assert.That(Preview.RenderedSvg, Is.EqualTo(Initial));
-            Assert.That(Preview.LastPreviewPngBytes, Is.SameAs(Png));
-            Editor.Undo();
-            Assert.That(Editor.Text, Is.EqualTo(Source));
-            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
+            // The rejected hint is rolled back, so the script stays valid and the next gesture is judged on its own.
+            Wait(() => Editor.Text == Source && !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
             Assert.That(Preview.RenderedSvg, Is.EqualTo(Initial));
             Assert.That(Form.LastRebuiltRouteIds, Is.Empty);
+            var Y = Preview.Index!.FindObject("node\u001fy")!;
+            Assert.That(Preview.CanMoveNode!(Preview.Index.FindObject("node\u001fx")!), Is.True);
+            Assert.That(Form.MovePreviewNode("x", new((float)((Y.Left + Y.Right) / 2 + 300), (float)((Y.Top + Y.Bottom) / 2))), Is.True);
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
+            Assert.That(Editor.Text, Is.Not.EqualTo(Source));
         }
         finally { Restore(Previous); }
+    }
+
+    // A hand-typed hint that initial placement rejects: unlike a gesture edit, typed text is never rolled back.
+    private static void TypeRejectedBHint(RichTextBox Editor, PreviewCanvas Preview, MainForm Form)
+    {
+        int Generation = Form.DiagramMetadata.Generation;
+        Editor.Text = Source.Replace("application-component b \"B\" below a +2", "application-component b \"B\" right-of a +5");
+        Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
     }
 
     [Test]
@@ -776,8 +783,7 @@ public sealed partial class RetainedEnterprisePreviewTests
             var B = Preview.Index!.FindObject("node\u001fb")!;
             var X = Preview.Index.FindObject("node\u001fx")!;
             PointF Home = new((float)((B.Left + B.Right) / 2), (float)((B.Top + B.Bottom) / 2));
-            Assert.That(Form.MovePreviewNode("b", new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2))), Is.True);
-            Wait(() => Form.DiagramMetadata.RenderFailed);
+            TypeRejectedBHint(Editor, Preview, Form);
             Assert.That(Preview.CanMoveNode!(Preview.Index!.FindObject("node\u001fb")!), Is.True);
             Assert.That(Preview.CreateNodeMoveSnap!(Preview.Index.FindObject("node\u001fb")!), Is.Not.Null);
             // The accepted picture is unchanged, so dropping back on the accepted cell must still rewrite the rejected hint.
@@ -786,8 +792,7 @@ public sealed partial class RetainedEnterprisePreviewTests
             Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
             Assert.That(Preview.RenderedSvg, Is.EqualTo(Initial));
             // Typing after a rejection makes the accepted picture too old to drag from.
-            Assert.That(Form.MovePreviewNode("b", new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2))), Is.True);
-            Wait(() => Form.DiagramMetadata.RenderFailed);
+            TypeRejectedBHint(Editor, Preview, Form);
             Editor.AppendText("%% newer source\n");
             string Typed = Editor.Text;
             Assert.That(Form.MovePreviewNode("b", Home), Is.False);
@@ -809,8 +814,7 @@ public sealed partial class RetainedEnterprisePreviewTests
             Wait(() => Form.DiagramMetadata.PercentRendered == 100);
             var X = Preview.Index!.FindObject("node\u001fx")!;
             PointF XCentre = new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2));
-            Assert.That(Form.MovePreviewNode("b", XCentre), Is.True);
-            Wait(() => Form.DiagramMetadata.RenderFailed);
+            TypeRejectedBHint(Editor, Preview, Form);
             string Rejected = Editor.Text;
             // x blocks the cell b asked for; moving x is a different node, so the rejected b hint stays in the source.
             Assert.That(Form.MovePreviewNode("x", new(XCentre.X + 600, XCentre.Y)), Is.True);
@@ -834,9 +838,8 @@ public sealed partial class RetainedEnterprisePreviewTests
             Wait(() => Form.DiagramMetadata.PercentRendered == 100);
             var X = Preview.Index!.FindObject("node\u001fx")!;
             PointF XCentre = new((float)((X.Left + X.Right) / 2), (float)((X.Top + X.Bottom) / 2));
-            int Generation = Form.DiagramMetadata.Generation;
-            Assert.That(Form.MovePreviewNode("b", XCentre), Is.True);
-            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
+            int Generation;
+            TypeRejectedBHint(Editor, Preview, Form);
 
             // First fix attempt: delete the x -> y relationship. It does not unblock b, so the failure persists
             // while the declaration lines below it have moved up.
@@ -888,7 +891,7 @@ public sealed partial class RetainedEnterprisePreviewTests
     }
 
     [Test]
-    public void CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveCanBeUndone()
+    public void CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveIsRolledBack()
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
         try
@@ -917,12 +920,13 @@ public sealed partial class RetainedEnterprisePreviewTests
             Centre = new((float)((Review.Left + Review.Right) / 2), (float)((Review.Top + Review.Bottom) / 2));
             Generation = Form.DiagramMetadata.Generation;
             Assert.That(Form.MovePreviewNode("review", new(Centre.X, Centre.Y + 300)), Is.True);
-            Wait(() => Form.DiagramMetadata.Generation > Generation && Form.DiagramMetadata.RenderFailed);
+            // The rejected hint is rolled back automatically, leaving a valid script from which any node can be moved.
+            Wait(() => Form.DiagramMetadata.Generation > Generation && Editor.Text == Full && !Form.DiagramMetadata.RenderFailed
+                && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
             Assert.That(Preview.CanMoveNode!(Preview.Index!.FindObject("node\u001freview")!), Is.True);
-            Editor.Undo();
-            Assert.That(Editor.Text, Is.EqualTo(Full));
-            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100);
-            Assert.That(Preview.CanMoveNode!(Preview.Index!.FindObject("node\u001freview")!), Is.True);
+            var Delay = Preview.Index!.FindObject("node\u001fdelay")!;
+            Assert.That(Preview.CanMoveNode!(Delay), Is.True);
+            Assert.That(Preview.CreateNodeMoveSnap!(Delay), Is.Not.Null);
         }
         finally { Restore(Previous); }
     }
