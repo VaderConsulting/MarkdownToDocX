@@ -312,6 +312,7 @@ public static class DiagramGridRouteBuilder
         FlowchartDirection Direction,
         IReadOnlySet<FlowchartLayoutEdgeRoute>? OnlyRoutes = null)
     {
+        FlowchartRenderContext.ReportOperationCount("submitted-rebuild-route-instances", OnlyRoutes?.Count ?? Copy.EdgeRoutes.Count);
         Dictionary<string, FlowchartLayoutNodeBounds> BoundsById = BuildBounds(Placed, Frames);
         bool Horizontal = Direction == FlowchartDirection.LeftToRight
             || Direction == FlowchartDirection.RightToLeft;

@@ -16,6 +16,8 @@ public static partial class EnterpriseSvgRenderer
 {
     internal static Action<string, double>? StageTimingObserver { get; set; }
     internal static Action<string>? RenderedSvgObserver { get; set; }
+    /// <summary>Read-only diagnostics for the exact uncached scene used by the drawing.</summary>
+    internal static Action<EnterpriseLayoutResult, IReadOnlyList<EnterpriseRoutedEdge>>? SceneObserver { get; set; }
     private const double FONT_SIZE = 12;
 
     private const double LINE_HEIGHT = 15;
@@ -233,6 +235,7 @@ public static partial class EnterpriseSvgRenderer
         SvgBuildTimer.Stop();
         StageTimingObserver?.Invoke("enterprise-svg-build", SvgBuildTimer.Elapsed.TotalMilliseconds);
         string Unstyled = FlowchartSvgLineJump.Apply(Builder.ToString());
+        SceneObserver?.Invoke(Layout, RoutedEdges);
         return Unstyled;
     }
 

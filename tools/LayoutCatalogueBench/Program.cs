@@ -22,6 +22,18 @@ internal static class Program
 
     private static int Main(string[] Args)
     {
+        if (Args.Length == 2 && Args[0] == "@landgate-enterprise-source")
+        {
+            string Csv = Path.Combine(FindRepositoryRoot(), "in", "Landgate.csv");
+            if (!AzureResourceGraphInterop.TryImportFile(Csv, AzureResourceGraphImportOptions.CreateEnterpriseDefaults(), out var Source, out var Notes, out var Failure))
+            { Console.Error.WriteLine(Failure); return 1; }
+            string Output = Path.GetFullPath(Args[1]);
+            Directory.CreateDirectory(Path.GetDirectoryName(Output)!);
+            File.WriteAllText(Output, Source, new UTF8Encoding(false));
+            Console.WriteLine(Output);
+            if (Notes.Length > 0) Console.WriteLine(Notes);
+            return 0;
+        }
         if (Args.Length > 0 && string.Equals(Args[0], LIVEEDITOR_ENTERPRISE_COMPLETE_FLAG, StringComparison.OrdinalIgnoreCase))
         {
             string[] Rest = Args.Length > 1 ? Args[1..] : Array.Empty<string>();
