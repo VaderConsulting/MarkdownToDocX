@@ -14,6 +14,16 @@ dotnet tools/DiagramLayoutBench/bin/Release/net10.0/DiagramLayoutBench.dll out/i
 
 Quote selectors beginning with `@` in PowerShell. Use a fresh process per invocation: geometry caching and diagnostic observers belong to the process. Observers are restored after each case. A render exception makes the command fail and is retained in the JSONL. Legality findings are measurements, so compare them explicitly rather than interpreting a successful render as a clean quality gate.
 
+Additional selectors: `@baseline` (original plus expanded fixtures), `@baseline-small` (expanded fixtures only) and `@case:ID` (one fixture or `enterprise-complete`). Each record also includes `RouteRebuildInstances` (route instances submitted to rebuild), every internal operation counter, and the hash and size of the exact scene drawn by the renderer. Set `DIAGRAM_BENCH_OPERATIONS=0` for timing-only runs, because counters alter a few internal paths.
+
+## Reproducible baseline
+
+```powershell
+pwsh tools/DiagramLayoutBench/Run-Baseline.ps1 -Repeat 3
+```
+
+The driver runs every case in a fresh process: one diagnostic run with counters and `-Repeat` timing runs without them. Timing runs must reproduce the diagnostic SVG, geometry and findings hashes. It writes `docs/bench/layout-baseline.json`. The large import fixture is optional: place `in/Landgate.csv` in the repository (it is not committed); the driver exports its Enterprise source through `LayoutCatalogueBench '@landgate-enterprise-source'` into the working directory and measures it as `landgate-enterprise`. The summary holds only measurements and hashes, never the imported source or SVG.
+
 `docs/bench/incremental-layout-baseline.json` records the first all-flags-off capture, including hashes and the fact that pre-existing uncommitted workspace changes were present. It is a baseline for this experiment, not a replacement for the production catalogue audit. Timings are individual observations, not speed claims.
 
 ## Initial diagnosis

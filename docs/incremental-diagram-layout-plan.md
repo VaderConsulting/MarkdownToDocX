@@ -1,6 +1,6 @@
 # Incremental diagram editing and readable layout
 
-Status: implementation in progress. Updated 29 October 2026. AF supports grid-snapped GUI node drops through the shared source update worker, with one undoable placement-hint edit per release. NW/NE/SE/SW hints allow independent row/column gaps; `at row column` allows anchors and lone nodes to move without a reference peer. Display labels do not determine drag capability. Relationships retain orthogonal segments and bends. Supported source edits draw accepted geometry without initial layout; failed edits preserve typed text and show a stale-preview reason. Selected relationships now expose endpoint handles that snap to eligible actual points and submit one undoable retained source edit. All experiments remain default off.
+Status: resumed after the 29 October 2026 pause; BASE-1 is complete and BASE-2/3/4 remain open. Updated 29 October 2026. AF supports grid-snapped GUI node drops through the shared source update worker, with one undoable placement-hint edit per release. NW/NE/SE/SW hints allow independent row/column gaps; `at row column` allows anchors and lone nodes to move without a reference peer. Display labels do not determine drag capability. Relationships retain orthogonal segments and bends. Supported source edits draw accepted geometry without initial layout; failed edits preserve typed text and show a stale-preview reason. Selected relationships now expose endpoint handles that snap to eligible actual points and submit one undoable retained source edit. All experiments remain default off.
 
 Progress: the plan is committed in `9ab0801`; default-off AF/AG/AH switches, request options, scoped Enterprise propagation and geometry-cache isolation are implemented in `700dbcb`. The benchmark and initial baseline are committed in `ad3ac08`. The first AH experiment adds single-layer and vertical rank-row candidates and target-width selection. At a 700 px target the same-layer fan changes from 1006 x 1396 to 586 x 736, with bends 4 to 13, crossings 0 and hard findings 0. The Complete sample remains 2146 x 1666 because existing group/hint/rank constraints still limit its candidates. Width presets, final-label-aware selection, broader constrained packing and incremental editor integration remain unfinished. See `tools/DiagramLayoutBench/README.md` and the baseline/results JSON under `docs/bench`.
 
@@ -8,7 +8,7 @@ Current foundation status: empty-canvas construction, explicit node additions/mo
 
 Validation: the expanded editor selection passes 267 cases and the expanded shared-engine selection passes 355, in addition to two corrected compact-geometry cases. The expanded parser selection passes 86. The wider catalogue/profile audit remains incomplete; three compact quality cases and large-profile time limits are active work. Details are in each completed task entry; remaining phase criteria stay open.
 
-Next work: expand BASE-1/2/3/4 evidence and width diagnosis, then width targets/selection, AG construction and remaining quality acceptance. The earlier cell rejection/frame-overlap, return-route/cardinal-hub, standalone artifact-container and fan-packing cases are resolved. A72 and A110 now check their actual authoritative geometry rather than a previous producer's row arrangement. Ungrouped node and relationship labels now use local measured transactions and exact undo. Group containment/format/font changes retain explicit rebuild semantics. AF/AG/AH remain default off.
+Next work: BASE-2 width diagnosis (the Landgate import renders 58066 px wide), BASE-3 edit metrics and BASE-4 targets/known failures, then width targets/selection, AG construction and remaining quality acceptance. The earlier cell rejection/frame-overlap, return-route/cardinal-hub, standalone artifact-container and fan-packing cases are resolved. A72 and A110 now check their actual authoritative geometry rather than a previous producer's row arrangement. Ungrouped node and relationship labels now use local measured transactions and exact undo. Group containment/format/font changes retain explicit rebuild semantics. AF/AG/AH remain default off.
 
 ## Working rule
 
@@ -50,7 +50,7 @@ Existing behaviour, scoring and rules remain unchanged when flags are off. New c
 
 ## Phase 0 - Evidence and acceptance criteria
 
-- [ ] **BASE-1:** Capture current output and timings for small fixtures, parallel relationships, self-loops, nested groups, constrained/hinted layouts, disconnected components and representative large diagrams. Include the Complete Enterprise sample and the existing large import fixture when available.
+- [x] **BASE-1:** Capture current output and timings for small fixtures, parallel relationships, self-loops, nested groups, constrained/hinted layouts, disconnected components and representative large diagrams. Include the Complete Enterprise sample and the existing large import fixture when available. *(Done 29 October 2026; `docs/bench/layout-baseline.json`.)*
 - [ ] **BASE-2:** Trace why the wide examples remain wide: declared direction, explicit row constraints, group sizes, band/chain/component wrapping candidates, routing corridors and final rendered extents. Record formed and rejected wrap candidates and rejection reasons.
 - [ ] **BASE-3:** Record rendered width/height, label size at a declared fit-to-width viewport, bends, crossings, legality findings, layout time and route-rebuild count. For edits, also record affected-route count, moved nodes and fallback reason.
 - [ ] **BASE-4:** Establish baseline geometry/findings hashes, known failures and practical latency/readability targets before changing algorithms. Preserve existing independent checkers.
@@ -501,4 +501,37 @@ Source pins for contained members now share the evaluator's frozen ancestor/inse
 
 Validation: all 355 expanded shared cases, 267 editor regressions and 86 parser cases pass (22 new cases). Coverage includes source-fork isolation/identity, contained source pin/undo/rejection, initial note/member pins, real dialog content, AG/AF guards, zero placement calls, exact accepted exports on cancellation, one source edit, preflight/publication equality, undo/redo, stale review rejection, typing cancellation and an explicit unsupported-input no-initial-layout guard. The actual small native dialog was rendered and visually inspected at out/suggestion-preview-dialog.png; diagrams, metrics and buttons are readable and unclipped. This does not complete representative large-diagram visual rollout. Builds retain existing nullable warnings only. Logs: out/suggestion-preview-build.log, out/suggestion-preview-layout-targeted.log, out/suggestion-preview-pins-targeted.log, out/suggestion-preview-parser-regressions.log, out/suggestion-preview-targeted.log, out/suggestion-preview-dialog.log, out/suggestion-preview-layout-regressions.log and out/suggestion-preview-editor-regressions.log. [placement-suggestions.md](placement-suggestions.md) documents workflow, persistence and limits.
 
-Task rollbacks: **0**. Phase 4 criteria are complete for documented supported operations. Next: BASE-1/2/3/4 expanded reproducible measurements/width diagnosis before finishing width and AG construction. A100/A112/A117, large-profile limits, initial-construction acceptance, move-API consolidation and complete flag/performance/visual rollout remain open. All experiments stay default off.
+Task rollbacks: **0**. Phase 4 criteria are complete for documented supported operations. Next: BASE-2/3/4 width diagnosis, edit metrics and targets before finishing width and AG construction. A100/A112/A117, large-profile limits, initial-construction acceptance, move-API consolidation and complete flag/performance/visual rollout remain open. All experiments stay default off.
+
+## Completed task - reproducible baseline capture, BASE-1 (29 October 2026)
+
+Resumed from the pause checkpoint (the three uncommitted setup files were carried onto this branch after fast-forwarding to `4ccb6e5`). `DiagramLayoutBench` now records, per case, the number of route instances submitted for rebuild (`submitted-rebuild-route-instances`), all internal operation counters and a hash/size of the exact scene the renderer drew; `DIAGRAM_BENCH_OPERATIONS=0` disables counters for timing-only runs. Nine fixtures were added to the original five: single node, small chain, parallel relationships, self-loops, nested groups with cross/feedback links, cardinal hints, quadrant plus `at` pin hints, three disconnected components with loose nodes, and an LR fan with a sink. `@case:ID` selects one fixture. `LayoutCatalogueBench '@landgate-enterprise-source'` exports the Landgate CSV import to Enterprise source without rendering. `tools/DiagramLayoutBench/Run-Baseline.ps1` runs each case in a fresh process (one diagnostic run plus three timing runs) and writes `docs/bench/layout-baseline.json`; the summary holds only measurements and hashes, not the private import source or SVG.
+
+Baseline (commit `d564fa1`, clean tree, all flags off, 12 logical processors; medians of three cold runs, observations rather than speed claims):
+
+| Case | Width x height | Bends | Crossings | Hard findings | Route-rebuild instances | Median ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| single-node | 166 x 106 | 0 | 0 | 0 | 0 | 297 |
+| small-chain | 166 x 406 | 0 | 0 | 0 | 10 | 357 |
+| parallel-relationships | 346 x 256 | 0 | 0 | 0 | 980 | 1370 |
+| self-loops | 298 x 256 | 6 | 0 | 0 | 1942 | 795 |
+| nested-groups-cross-links | 796 x 1066 | 4 | 0 | 0 | 567 | 1414 |
+| hinted-cardinal | 706 x 406 | 1 | 0 | 0 | 20 | 454 |
+| hinted-quadrant-and-pin | 1966 x 856 | 2 | 0 | 0 | 1882 | 1098 |
+| disconnected-components | 826 x 1456 | 4 | 0 | 0 | 3723 | 1967 |
+| row-constrained-lr-with-fan | 856 x 646 | 18 | 1 | 0 (three rule 5.9 findings) | 4949 | 4034 |
+| single-layer-free / fan | 166 x 1756 / 718 x 796 | 0 / 11 | 0 / 0 | 0 / 0 | 0 / 3380 | 344 / 3363 |
+| cross-layer-fan | 526 x 1516 | 6 | 0 | 0 | 12030 | 6061 |
+| nested-and-parallel / horizontal-chain | 346 x 706 / 1426 x 106 | 0 / 0 | 0 / 0 | 0 / 0 | 286 / 35 | 592 / 360 |
+| enterprise-complete | 2146 x 1666 | 19 | 1 | 0 | 10811 | 9400 |
+| landgate-enterprise (154 nodes, 20 routes) | 58066 x 1516 | 19 | 0 | 0 (rules 5.8, 4.11 and 5.9 once each) | 12695 | 96740 |
+
+Every timing run reproduced its diagnostic SVG, geometry and findings hashes in a fresh process, which also shows that the counters and scene observer do not change output. The Complete sample and four of the five original fixtures match `incremental-layout-baseline.json` exactly. The same-layer fan now renders 718 x 796 (11 bends) instead of 1006 x 1396 (4 bends) with all flags off, so geometry changed between the old capture and the 63 commits merged since; `layout-baseline.json` supersedes the old reference and the difference is retained rather than hidden. The Landgate import is by far the widest case: 154 nodes but only 20 routes lay out 58066 px wide and take about 97 s, almost entirely in `enterprise-layout`. It is the primary BASE-2 target.
+
+Validation: tooling builds with no warnings; all 16 cases rendered with no failures. The 50 retained-session/option layout tests also pass after the two production diagnostic hooks.
+
+Task rollbacks: **0**. Next: BASE-2 trace of why the wide cases (Landgate, Complete, horizontal chain, LR fan, quadrant pin) stay wide, including formed/rejected wrap candidates and reasons, then BASE-3 edit metrics (affected routes, moved nodes, fallback reason) and BASE-4 targets/known failures. All experiments stay default off.
+
+## Safe pause checkpoint (29 October 2026) - resolved
+
+The pause checkpoint is closed by the BASE-1 task above. Earlier text is kept for history: paused at the user's explicit request, latest completed task commit **4ccb6e5** (QUALITY-4), completed checks 355 shared, 267 editor and 86 parser cases. The three setup files described there are now committed with the BASE-1 tooling; `in/Landgate.csv` remains an uncommitted local fixture.
