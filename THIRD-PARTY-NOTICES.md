@@ -2,7 +2,7 @@
 
 ## Archi relationship-rule data
 
-`docs/enterprise/enterprise-rules.json` (embedded in MermaidRecognition) contains relationship-rule data derived from the Archi® project's `relationships.xml` (ArchiMate 3.1: commit 9ba0559c, release_4.6.0; ArchiMate 3.2: commit 0469def6, release_5.0.0; content-identical through release_5.10.0), converted to JSON. Only relationship-rule data is used; no Archi notation, figures, icons or code are used. Archi reflects its maintainers' reading of the relationship tables in The Open Group ArchiMate® Specification; it is not an official Open Group publication, and neither is this file.
+`docs/enterprise/enterprise-rules.json` (embedded in MermaidRecognition) contains relationship-rule data derived from the Archi® project's `relationships.xml` files for language versions 3.1 (commit `9ba0559c`, release_4.6.0) and 3.2 (commit `0469def6`, release_5.0.0; content-identical through release_5.10.0), converted to JSON. Only relationship-rule data is used; no vendor specification text, notation, figures, icons, or code are included. The data reflects the Archi maintainers' interpretation of relationship tables and is not an official publication of The Open Group. This project is independent and is not affiliated with, endorsed by, sponsored by, or certified by The Open Group.
 
 The MIT License (MIT)
 
@@ -27,3 +27,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ArchiMate® is a registered trademark of The Open Group. Archi® is a registered trademark of Phillip Beauvoir.
+
+Trademark references in this notice are descriptive only. No Open Group mark is used as this product's name, service name, logo, or claim of certification. See [The Open Group Trademark Guidelines](https://www.opengroup.org/trademarks) and [Permissions](https://www.opengroup.org/permissions).
