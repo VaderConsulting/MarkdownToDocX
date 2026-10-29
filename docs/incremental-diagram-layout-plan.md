@@ -573,6 +573,14 @@ Decision (user-selected): anchor to the related node. `GridSnap.Snap` now consid
 
 Validation: `DroppedNodeIsAnchoredToItsRelatedNodeNotTheNearestOne` fails without the change (hint written relative to the nearer, unrelated node) and passes with it, including that moving the related node carries the dropped one with an unchanged offset. Full LiveEditor project 390 of 394, the same four older failures. Rollbacks: **0**. Not changed: a node already anchored to another node keeps that hint until it is dragged again; no automatic re-anchoring of existing scripts.
 
+### Follow-up: dragging a node moves only that node (29 October 2026)
+
+Requested: with node 1 and node 3 both connected to node 2, dragging node 2 must not move node 1 or node 3. The previous follow-up anchored a dropped node to a related node, so a hub dragged by the user dragged all its anchored neighbours with it. User choice: a drag moves only that node, and no invisible nodes are needed.
+
+Change: the node-drag edit now also rewrites every element or note whose active relative hint names the dragged node as its peer to `at <row> <column>`, using its current cell from the retained geometry, in the same single undoable edit (one combined text span; undo restores every line). The result is re-parsed and each pin checked; if a dependent has no single-statement declaration line, or its position is unknown, the drag is refused with a reason and nothing is written. Dependents of the pinned nodes need no change because those nodes do not move. Anchoring a dropped node to a related node (previous follow-up) is unchanged, so relationships still determine the hint a node receives; the consequence is that moving that anchor later pins the node instead of carrying it. Group peers and grouped nodes remain out of scope.
+
+Validation: `DraggingAHubMovesOnlyTheHubAndLeavesItsConnectedNodesInPlace` fails without the change and passes with it (both neighbours keep their exact positions, hold `at` pins and the single undo restores the script). The two earlier tests that asserted dependents follow their anchor were updated to the new rule. LiveEditor project 391 of 395, the same four older failures. Rollbacks: **0**. Not covered: placement suggestions (`TryCreateAt`) still move an anchor's dependents with it.
+
 Not covered: grouped nodes. Re-moving an endpoint on a relationship whose pending edit was rejected restarts from its accepted endpoints, because the gesture is built from the accepted route.
 
 ## Safe pause checkpoint (29 October 2026) - resolved

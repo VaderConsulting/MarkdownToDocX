@@ -19,6 +19,8 @@ internal static partial class PreviewNodePlacement
         private readonly Dictionary<string, FlowchartCellNode> Cells = (Layout.CellNodes ?? [])
             .Where(Node => Node.CellNode != null).ToDictionary(Node => Node.Id, Node => Node.CellNode!, StringComparer.Ordinal);
 
+        internal FlowchartCellRegion? RegionOf(string Id) => Cells.TryGetValue(Id, out var Cell) ? Cell.Region : null;
+
         internal SnappedPlacement? Snap(string NodeId, PointF Drop)
         {
             if (!float.IsFinite(Drop.X) || !float.IsFinite(Drop.Y) || !Cells.TryGetValue(NodeId, out var Moving)

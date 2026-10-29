@@ -569,7 +569,18 @@ public sealed partial class RetainedEnterprisePreviewTests
             Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
         var Moved = Accept(Session, Edit.Apply(Script), 2);
         Assert.That(Moved.Kind, Is.EqualTo("LocalRouting"));
-        Assert.That(Moved.RebuiltRouteIds.Length, Is.EqualTo(2));
+        // order moves alone; webShop and orderApi, anchored to it, are pinned where they were.
+        var Parsed = EnterpriseValidator.Analyze(Edit.Apply(Script)).Document;
+        foreach (string Id in new[] { "webShop", "orderApi" })
+            Assert.That(Parsed.Elements[Id].PlacementHint!.Kind, Is.EqualTo(MermaidRecognition.Contract.PlacementHintKind.At));
+        var Before = PreviewHoverIndex.Build(Initial.Svg, Script);
+        var After = PreviewHoverIndex.Build(Moved.Svg, Edit.Apply(Script));
+        var BeforeOrigin = PreviewHoverIndex.SvgOrigin(Initial.Svg); var AfterOrigin = PreviewHoverIndex.SvgOrigin(Moved.Svg);
+        foreach (string Id in new[] { "webShop", "orderApi" })
+        {
+            Assert.That(After.FindObject("node\u001f" + Id)!.Left - AfterOrigin.X, Is.EqualTo(Before.FindObject("node\u001f" + Id)!.Left - BeforeOrigin.X).Within(0.5));
+            Assert.That(After.FindObject("node\u001f" + Id)!.Top - AfterOrigin.Y, Is.EqualTo(Before.FindObject("node\u001f" + Id)!.Top - BeforeOrigin.Y).Within(0.5));
+        }
         Assert.That(Moved.Svg, Is.Not.EqualTo(Initial.Svg));
     }
 
@@ -891,7 +902,7 @@ public sealed partial class RetainedEnterprisePreviewTests
     }
 
     [Test]
-    public void DroppedNodeIsAnchoredToItsRelatedNodeNotTheNearestOne()
+    public void DroppedNodeIsAnchoredToItsRelatedNodeAndDraggingTheAnchorLeavesItInPlace()
     {
         var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
         try
@@ -909,19 +920,56 @@ public sealed partial class RetainedEnterprisePreviewTests
             string Line = Editor.Text.Split('\n').Single(L => L.Contains("application-component n "));
             Assert.That(Line, Does.Contain(" t ").And.Not.Contain(" m "));
             Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
-            static double Dx(PreviewHoverIndex Index) => (Index.FindObject("node\u001fn")!.Left - Index.FindObject("node\u001ft")!.Left);
-            static double Dy(PreviewHoverIndex Index) => (Index.FindObject("node\u001fn")!.Top - Index.FindObject("node\u001ft")!.Top);
-            double X = Dx(Preview.Index!), Y = Dy(Preview.Index!);
-
-            // Moving t carries n with it, because n's placement now depends on t.
+            // Dragging t moves only t: n, which was anchored to it, is pinned where it is.
             var T = Preview.Index!.FindObject("node\u001ft")!;
+            var N = Preview.Index.FindObject("node\u001fn")!;
+            double NLeft = N.Left, NTop = N.Top, TTop = T.Top;
             Assert.That(Form.MovePreviewNode("t", new((float)((T.Left + T.Right) / 2), (float)((T.Top + T.Bottom) / 2 + 400))), Is.True);
             Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
-            Assert.That(Dx(Preview.Index!), Is.EqualTo(X).Within(0.5));
-            Assert.That(Dy(Preview.Index!), Is.EqualTo(Y).Within(0.5));
+            Assert.That(Editor.Text.Split('\n').Single(L => L.Contains("application-component n ")), Does.Contain(" at "));
+            var After = Preview.Index!.FindObject("node\u001fn")!;
+            Assert.That(After.Left, Is.EqualTo(NLeft).Within(0.5));
+            Assert.That(After.Top, Is.EqualTo(NTop).Within(0.5));
+            Assert.That(Preview.Index.FindObject("node\u001ft")!.Top, Is.Not.EqualTo(TTop).Within(0.5));
+            Editor.Undo();
+            Assert.That(Editor.Text, Does.Not.Contain(" at "));
         }
         finally { Restore(Previous); }
     }
+    [Test]
+    public void DraggingAHubMovesOnlyTheHubAndLeavesItsConnectedNodesInPlace()
+    {
+        var Previous = LiveEditorFeatureGate.CaptureLayoutOptions();
+        try
+        {
+            const string Script = "enterprise\napplication-component hub \"Hub\"\napplication-component a \"A\" left-of hub +2\n"
+                + "application-component c \"C\" right-of hub +2\na -flow-> hub\nc -flow-> hub\n";
+            using var Form = CreateForm(true);
+            var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+            var Preview = (PreviewCanvas)Form.Controls.Find("Preview", true)[0];
+            Editor.Text = Script;
+            Wait(() => Form.DiagramMetadata.PercentRendered == 100);
+            var Index = Preview.Index!;
+            var Origin = PreviewHoverIndex.SvgOrigin(Preview.RenderedSvg!);
+            (double, double) Place(PreviewHoverIndex Items, string Id) => (Items.FindObject("node\u001f" + Id)!.Left, Items.FindObject("node\u001f" + Id)!.Top);
+            var A = Place(Index, "a"); var C = Place(Index, "c");
+            var Hub = Index.FindObject("node\u001fhub")!;
+            Assert.That(Form.MovePreviewNode("hub", new((float)((Hub.Left + Hub.Right) / 2), (float)((Hub.Top + Hub.Bottom) / 2 + 500))), Is.True);
+            Wait(() => !Form.DiagramMetadata.RenderFailed && Form.DiagramMetadata.PercentRendered == 100 && Form.PreviewIndexIsCurrent);
+            var NewOrigin = PreviewHoverIndex.SvgOrigin(Preview.RenderedSvg!);
+            foreach (string Id in new[] { "a", "c" })
+                Assert.That(Editor.Text.Split('\n').Single(L => L.Contains("application-component " + Id + " ")), Does.Contain(" at "));
+            var NewA = Place(Preview.Index!, "a"); var NewC = Place(Preview.Index!, "c");
+            Assert.That(NewA.Item1 - NewOrigin.X, Is.EqualTo(A.Item1 - Origin.X).Within(0.5));
+            Assert.That(NewA.Item2 - NewOrigin.Y, Is.EqualTo(A.Item2 - Origin.Y).Within(0.5));
+            Assert.That(NewC.Item1 - NewOrigin.X, Is.EqualTo(C.Item1 - Origin.X).Within(0.5));
+            Assert.That(NewC.Item2 - NewOrigin.Y, Is.EqualTo(C.Item2 - Origin.Y).Within(0.5));
+            Editor.Undo();
+            Assert.That(Editor.Text, Is.EqualTo(Script));
+        }
+        finally { Restore(Previous); }
+    }
+
     [Test]
     public void CompleteSampleNodeCanMoveWithinItsBandAndARejectedMoveIsRolledBack()
     {

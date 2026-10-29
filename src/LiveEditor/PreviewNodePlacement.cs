@@ -20,6 +20,54 @@ internal static partial class PreviewNodePlacement
     internal static bool TryCreate(string Source, string NodeId, IReadOnlyList<PreviewObject> Items,
         PointF Drop, out Edit? Change, out string Reason, GridSnap? Grid = null)
     {
+        if (!TryCreateCore(Source, NodeId, Items, Drop, out Change, out Reason, Grid)) return false;
+        // Dragging moves one node. Whatever was placed relative to it keeps its current cell instead of following.
+        return Grid == null || TryPinDependents(Source, NodeId, Grid, ref Change, ref Reason);
+    }
+
+    private static bool TryPinDependents(string Source, string NodeId, GridSnap Grid, ref Edit? Change, ref string Reason)
+    {
+        var Document = EnterpriseValidator.Analyze(Source).Document;
+        var Dependents = Document.Elements.Values.Select(Element => (Element.Id, Element.LineNumber, Element.PlacementHint))
+            .Concat(Document.Notes.Values.Select(Note => (Note.Id, Note.LineNumber, Note.PlacementHint)))
+            .Where(Item => Item.PlacementHint is { IsActive: true, Kind: not PlacementHintKind.Push and not PlacementHintKind.At } Hint
+                && Hint.PeerId == NodeId)
+            .OrderBy(Item => Item.LineNumber).ToArray();
+        if (Dependents.Length == 0) return true;
+        string Updated = Change!.Apply(Source);
+        var Pins = new List<(string Id, int Row, int Column)>();
+        foreach (var Dependent in Dependents)
+        {
+            if (Grid.RegionOf(Dependent.Id) is not { } Region)
+            {
+                Change = null; Reason = "Another element is placed relative to this one and its position is not known."; return false;
+            }
+            string Pin = "at " + Region.StartRow.ToString(CultureInfo.InvariantCulture) + " " + Region.StartColumn.ToString(CultureInfo.InvariantCulture);
+            if (!TryRewrite(Updated, Dependent.LineNumber, Pin, out var PinEdit))
+            {
+                Change = null; Reason = "An element placed relative to this one must have its own declaration line to stay in place."; return false;
+            }
+            Updated = PinEdit!.Apply(Updated);
+            Pins.Add((Dependent.Id, Region.StartRow, Region.StartColumn));
+        }
+        var Parsed = EnterpriseValidator.Analyze(Updated);
+        if (Parsed.HasErrors || Pins.Any(Pin => !Parsed.Document.Elements.TryGetValue(Pin.Id, out var Element)
+            ? !(Parsed.Document.Notes.TryGetValue(Pin.Id, out var Note) && Note.PlacementHint is { Kind: PlacementHintKind.At } NoteHint
+                && NoteHint.CellRow == Pin.Row && NoteHint.CellColumn == Pin.Column)
+            : Element.PlacementHint is not { Kind: PlacementHintKind.At } Placed || Placed.CellRow != Pin.Row || Placed.CellColumn != Pin.Column))
+        {
+            Change = null; Reason = "Elements placed relative to this one could not be kept in place without changing a declaration."; return false;
+        }
+        int First = 0, Suffix = 0;
+        while (First < Source.Length && First < Updated.Length && Source[First] == Updated[First]) First++;
+        while (Suffix < Source.Length - First && Suffix < Updated.Length - First && Source[^(Suffix + 1)] == Updated[^(Suffix + 1)]) Suffix++;
+        Change = new(First, Source.Length - First - Suffix, Updated.Substring(First, Updated.Length - First - Suffix), Change.Hint);
+        return true;
+    }
+
+    private static bool TryCreateCore(string Source, string NodeId, IReadOnlyList<PreviewObject> Items,
+        PointF Drop, out Edit? Change, out string Reason, GridSnap? Grid)
+    {
         Change = null;
         Reason = "Drop near another element in the same group and layer.";
         if (!float.IsFinite(Drop.X) || !float.IsFinite(Drop.Y))
