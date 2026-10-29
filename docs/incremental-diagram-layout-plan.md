@@ -581,6 +581,14 @@ Change: the node-drag edit now also rewrites every element or note whose active 
 
 Validation: `DraggingAHubMovesOnlyTheHubAndLeavesItsConnectedNodesInPlace` fails without the change and passes with it (both neighbours keep their exact positions, hold `at` pins and the single undo restores the script). The two earlier tests that asserted dependents follow their anchor were updated to the new rule. LiveEditor project 391 of 395, the same four older failures. Rollbacks: **0**. Not covered: placement suggestions (`TryCreateAt`) still move an anchor's dependents with it.
 
+### Follow-up: double-click selects only the word (29 October 2026)
+
+Reported: double-clicking a word in the editor also selected the spaces around it. The rich text box selects a double-clicked word with the space after (or before) it, and the double-click handler also gave up on identifier highlighting whenever the selection contained a space, so such words were never highlighted.
+
+Change: `CodeEditor.TrimDoubleClickSelection` runs first in the double-click handler and trims whitespace from both ends of the selection (a selection that is only whitespace is left as it is). Identifier highlighting then works on the trimmed word. Quoted strings select word by word, as before; only the surrounding spaces are removed.
+
+Validation: `DoubleClickSelectsOnlyTheWordNotTheSurroundingSpaces` fails without the change (`"Web "`) and passes with it; LiveEditor project: only the same four older failures. Rollbacks: **0**. This work was made directly in the main checkout.
+
 ### Follow-up: Ctrl+Z and the other edit shortcuts (29 October 2026)
 
 Reported: Ctrl+Z did not undo. Cause: Undo, Redo, Cut, Copy and Paste carry only a display label ("Ctrl+Z", ...) with no real shortcut, so they worked only through the text box's native handling. After a click or drag in the preview, keyboard focus is on the preview's focus sink, which does not handle them, so undoing a drag from the keyboard did nothing.

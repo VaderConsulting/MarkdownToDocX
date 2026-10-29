@@ -526,8 +526,24 @@ internal sealed partial class CodeEditor : UserControl
         RefreshScrollMarks();
     }
 
+    // The rich text box selects a double-clicked word together with the spaces after (or before) it.
+    // Only the word, or the string, should be selected. A selection that is all whitespace is left alone.
+    internal void TrimDoubleClickSelection()
+    {
+        string Text = SourceEditor.SelectedText;
+        int Start = 0, End = Text.Length;
+        while (Start < End && char.IsWhiteSpace(Text[Start])) Start++;
+        while (End > Start && char.IsWhiteSpace(Text[End - 1])) End--;
+        if (Start == End || (Start == 0 && End == Text.Length)) return;
+        int Origin = SourceEditor.SelectionStart;
+        _SuppressCaretUi = true;
+        try { SourceEditor.Select(Origin + Start, End - Start); }
+        finally { _SuppressCaretUi = false; }
+    }
+
     private void SourceEditor_MouseDoubleClick(object? Sender, MouseEventArgs E)
     {
+        TrimDoubleClickSelection();
         string Selected = SourceEditor.SelectedText;
         if (Selected.Length == 0 || Selected.IndexOfAny(['\r', '\n', ' ', '\t']) >= 0)
         {

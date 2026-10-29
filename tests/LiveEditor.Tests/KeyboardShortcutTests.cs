@@ -117,6 +117,29 @@ public sealed class KeyboardShortcutTests
     }
 
     [Test]
+    public void DoubleClickSelectsOnlyTheWordNotTheSurroundingSpaces()
+    {
+        using var Form = CreateForm();
+        var Editor = (RichTextBox)Form.Controls.Find("SourceEditor", true)[0];
+        Editor.Text = "enterprise\n  application-component shop \"Web Shop\"\n";
+        Editor.Focus();
+        // The rich text box selects the word with the space after it (or before it); the handler trims that.
+        string Selected(int Start, int Length)
+        {
+            Editor.Select(Start, Length);
+            DoubleClick(Editor);
+            return Editor.SelectedText;
+        }
+        Assert.That(Selected(Editor.Text.IndexOf("Web ", StringComparison.Ordinal), 4), Is.EqualTo("Web"));
+        Assert.That(Selected(Editor.Text.IndexOf("shop", StringComparison.Ordinal) - 1, 6), Is.EqualTo("shop"));
+        Assert.That(Selected(Editor.Text.IndexOf("  application", StringComparison.Ordinal), 2), Is.EqualTo("  "), "only whitespace is left alone");
+    }
+
+    private static void DoubleClick(Control Target)
+        => typeof(Control).GetMethod("OnMouseDoubleClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(Target, [new MouseEventArgs(MouseButtons.Left, 2, 5, 5, 0)]);
+
+    [Test]
     public void TextBoxesKeepTheirOwnUndoAndTheEditorKeepsNativeHandling()
     {
         using var Form = CreateForm();
