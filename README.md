@@ -16,32 +16,33 @@ A .NET library and command-line tool that converts Markdown files to Word `.docx
 
 ### Mermaid recognition
 
-Nine diagram kinds have recognition gates at level L4 (flowchart, sequence, class, state, entity-relationship, gantt, pie, mindmap, and git graph). The recogniser detects diagram kind, parses source into `DiagramContract` (nodes, edges, groups, styles, and configuration), and feeds the render pipeline.
+Nine Mermaid diagram kinds have recognition gates at level L4: flowchart, sequence, class, state, entity-relationship, gantt, pie, mindmap, and git graph. The recogniser parses source into a typed `DiagramContract` (nodes, edges, groups, styles, and configuration). Enterprise (ArchiMate 3.2) diagrams use a dedicated parser and model.
 
-Many additional kinds are detected at level L1 smoke only. See [`currentstatus.md`](docs/currentstatus.md) for the full gate registry.
+Many additional kinds are detected at level L1 smoke only. Recognition level and renderer support are separate; see [`currentstatus.md`](docs/currentstatus.md) for the full gate registry.
 
-### Flowchart layout and routing (native path)
+### Native layout and rendering
 
-Flowcharts are the default native render path in DOCX output:
+DOCX conversion uses native SVG rendering for flowcharts/graphs, Enterprise (ArchiMate 3.2) and EIP diagrams, and pie charts.
 
-1. **Placement** - a C# port of [dagre](https://github.com/dagrejs/dagre) in `src/MermaidRecognition.Layout/Dagre/` places nodes and subgraphs the same way Mermaid does (merged in PR #4).
-2. **Routing** - edges follow layout waypoints as smooth `curveBasis` curves; aligned ports draw as a single straight segment. Decision diamonds use the diagram standard width at twice the height (PR #7). Retry loops and similar special cases use rounded orthogonal paths where the router requires them.
-3. **Fallback** - when native render fails, the vendored [Naiad](extern/Naiad/) renderer draws the flowchart instead.
+- **Flowcharts and graphs** use native Sugiyama placement and routing, with the vendored [Naiad](extern/Naiad/) renderer as a fallback if native rendering fails.
+- **Enterprise and EIP** diagrams use the native shared-grid layout, native routing, and SVG renderer. Enterprise supports ArchiMate 3.2 by default and 3.1 when selected in the source.
+- **Pie charts** use a native SVG renderer.
 
-Non-flowchart kinds still render through Naiad until per-kind native adapters exist.
+Other recognized diagram kinds continue to use Naiad until their native renderers are available.
 
 ### Diagram types rendered in DOCX
 
 | Diagram type | Parser | Renderer |
 | --- | --- | --- |
-| Flowchart / graph | MermaidRecognition (default) | Native layout (default) or Naiad |
-| Sequence, class, state, ER | MermaidRecognition | Naiad |
-| Gantt, pie, mindmap, git graph | MermaidRecognition | Naiad |
-| Timeline, user journey, quadrant, C4, kanban, requirement, architecture, sankey, block, packet, radar, treemap, XY chart | Naiad detect + parse | Naiad |
+| Flowchart / graph | MermaidRecognition | Native layout and routing; Naiad fallback |
+| Enterprise (ArchiMate 3.2 / 3.1), EIP | Enterprise parser | Native shared-grid layout, routing, and SVG |
+| Pie | MermaidRecognition | Native SVG |
+| Sequence, class, state, ER, gantt, mindmap, git graph | MermaidRecognition | Naiad |
+| Timeline, user journey, quadrant, C4, kanban, requirement, Mermaid architecture, sankey, block, packet, radar, treemap, XY chart | Naiad detect + parse | Naiad |
 
 Kinds detected but not rendered (for example `eventmodeling`, `treeView`, `ishikawa`, `venn`, `wardley`, `info`) appear as code blocks in the DOCX.
 
-**In progress:** [PR #8](https://github.com/VaderConsulting/MarkdownToDocX/pull/8) adds a shared grid snap and title-band padding for subgraph frames. It is not merged on `master` yet.
+Enterprise uses a `mermaid` code fence. Its element and relationship grammar, placement and routing hints, styling, accessibility, and layout configuration are covered in the [Enterprise syntax guide](docs/enterprise-syntax.md); allowed relationships are listed in [`enterprise-rules.json`](docs/enterprise/enterprise-rules.json). Mermaid's `architecture-beta` diagram is distinct from an ArchiMate Enterprise diagram.
 
 ---
 
