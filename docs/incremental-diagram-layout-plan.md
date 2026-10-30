@@ -165,7 +165,7 @@ Phases 1 and 2 can be developed independently after the baseline. Construction a
 | Final validation and repair | `src/MermaidRecognition.Layout/DiagramGridLayoutFinalRepair.cs` |
 | Width and wrapping | `src/MermaidRecognition.Layout/DiagramGridLayoutBandWraps.cs`, `Enterprise/EnterpriseBandPlan.cs`, chain/component wrapping helpers |
 | Scoring and context | `src/MermaidRecognition.Layout/FlowchartLayoutScore.cs`, `FlowchartRenderContext.cs` |
-| Existing measurements | `docs/LiveEditor-layout-trace.md`, `docs/LiveEditor-render-chokepoints.md`, `tools/LayoutCatalogueBench` |
+| Measurement tooling | `docs/bench/README.md`, `tools/LayoutCatalogueBench`, `tools/DiagramLayoutBench` |
 
 ## Completed step - source relationship identities (28 October 2026)
 
