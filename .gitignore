@@ -6,6 +6,10 @@
 .vs/
 **/TestResults/
 
+# Generated catalogue exports and optional local input data
+/*.docx
+/in/
+
 # Scratch output: probe renders, regression baseline and current renders, logs.
 # The approved fixture SVGs live in tests/FlowchartRegression/approved and are committed.
 out/
@@ -17,3 +21,21 @@ test.zip
 # Editor history and NuGet audit reports
 .history/
 **/.nugetaudit/
+
+# Regenerable benchmark and experiment outputs (keep committed baselines)
+docs/bench/*-verify.jsonl
+docs/bench/*-stages.json
+docs/bench/*.log
+docs/*-profile*.csv
+docs/*-candidates*.csv
+docs/*-bends*.csv
+docs/*-audit*.csv
+docs/*-counts*.csv
+docs/*-differences*.csv
+docs/*-increments*.csv
+docs/*-retention*.csv
+docs/*-costs*.csv
+docs/*-rejections*.csv
+docs/*-census*.csv
+docs/final-repair-*.csv
+docs/diagram-conversion-profile-*.csv

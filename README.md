@@ -188,12 +188,12 @@ FlowchartLayoutFixRender dump-svg-gate <file.mmd> <file.svg>
 | File | Description |
 | --- | --- |
 | [`docs/spec.md`](docs/spec.md) | Normative recognition and rendering specification |
-| [`docs/currentstatus.md`](docs/currentstatus.md) | What is true today, open work and test results |
+| [`docs/currentstatus.md`](docs/currentstatus.md) | Recognition gate summary and active engineering work |
 | [`docs/Mermaid_Specification.md`](docs/Mermaid_Specification.md) | Flowchart geometry and routing rules |
 | [`src/MermaidRecognition/README.md`](src/MermaidRecognition/README.md) | Recogniser scope and architecture |
 | [`src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md`](src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md) | Adopted MSAGL Sugiyama slice policy |
 | [`docs/flowchart/layout-fixes/README.md`](docs/flowchart/layout-fixes/README.md) | Before/after images for flowchart layout changes |
-| [`docs/COMMIT-MESSAGE-STYLE.md`](docs/COMMIT-MESSAGE-STYLE.md) | Commit and pull request writing rules |
+| [`docs/Instructions/COMMIT-MESSAGE-STYLE.md`](docs/Instructions/COMMIT-MESSAGE-STYLE.md) | Commit and pull request writing rules |
 
 `flow.md` is the flowchart visual regression catalogue. It is maintained separately and is not described here.
 

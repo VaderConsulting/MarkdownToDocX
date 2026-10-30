@@ -1,8 +1,8 @@
 # Layout catalogue benchmark
 
-Records SVG **render** wall time and SHA-256 for diagrams in `enterprise.md`, `flow.md`, and `EIP.md`. This matches the harness described in `docs/ENGINE-REVIEW.md` (baseline captured before engine speed work).
+Records SVG **render** wall time and SHA-256 for diagrams in `enterprise.md`, `flow.md`, and `EIP.md`. Use the harness to compare render time and output identity across a fixed catalogue.
 
-The engine speed target is a **75% reduction in render and/or layout time** (`docs/currentstatus.md`). This tool measures **render** end-to-end (layout, routing, and SVG emission in one number). To attribute **layout** separately, use `DiagramGridLayout.LayoutStageTimingObserver` and the enterprise stage observers while profiling a single id (third argument below).
+This tool measures **render** end-to-end (layout, routing, and SVG emission in one number). To attribute **layout** separately, use `DiagramGridLayout.LayoutStageTimingObserver` and the enterprise stage observers while profiling a single id (third argument below).
 
 Some catalogue scenarios are **skipped** (not rendered, not counted as failures). The rules live in `tools/LayoutCatalogueBench/CatalogueBenchExclusions.cs` and follow the gate text in the markdown catalogues:
 
