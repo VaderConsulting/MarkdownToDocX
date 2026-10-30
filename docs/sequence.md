@@ -4,7 +4,7 @@ Progressive Mermaid **sequenceDiagram** scenarios for recognition and render reg
 
 **Spec mapping:** line types in `spec.md` §11.1.14.2; recognition fixtures in `tests/MermaidRecognition.Tests/SequenceRecognition/`.
 
-**Programme note:** Naiad is an interim render baseline only. Recognition truth lives in `MermaidRecognition`; eventual render must not depend on extending Naiad sequence parsers.
+**Rendering:** Recognition and rendering are separate capabilities. See the [README renderer table](../README.md#diagram-types-rendered-in-docx) for the supported output path.
 
 ## Scenario index (complete)
 

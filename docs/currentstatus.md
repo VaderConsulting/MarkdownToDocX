@@ -31,8 +31,6 @@ the gate definitions in [spec.md](spec.md), sections 11.1.13–11.1.14.
 - [Incremental diagram layout plan](incremental-diagram-layout-plan.md) records
   the current implementation status, remaining work, and acceptance criteria
   for retained diagram edits.
-- [View layers roadmap](view-layers-roadmap.md) tracks the separate proposal
-  for filtering diagram content before layout.
 - [Layout rulebook](Instructions/LAYOUT-RULEBOOK.md) defines the authoritative
   geometry, routing, and legality rules.
 - [Benchmark instructions](bench/README.md) document how to capture and compare

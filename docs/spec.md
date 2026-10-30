@@ -1,6 +1,6 @@
 ﻿# Diagram Recognition Specification
 
-- **Programme status:** [`currentstatus.md`](currentstatus.md) (implementation progress, gate registry, fixture counts - not normative).
+- **Project status:** [`currentstatus.md`](currentstatus.md) (recognition gate summary and active engineering work - not normative).
 - **Scope:** recognising the individual aspects involved in turning text into diagrams without naming every scenario as a separate case.
 - **Primary reference catalogue:** `flow.md` (visual regression; not the recognition specification).
 - **Primary implementation reference:** vendored Mermaid flowchart parser/database under `mermaid/packages/mermaid/src/diagrams/flowchart/`, implemented in `src/MermaidRecognition/`.

@@ -189,6 +189,11 @@ FlowchartLayoutFixRender dump-svg-gate <file.mmd> <file.svg>
 | --- | --- |
 | [`docs/spec.md`](docs/spec.md) | Normative recognition and rendering specification |
 | [`docs/currentstatus.md`](docs/currentstatus.md) | Recognition gate summary and active engineering work |
+| [`docs/enterprise-syntax.md`](docs/enterprise-syntax.md) | Enterprise elements, relationships, configuration, and syntax |
+| [`docs/azure-resource-graph.md`](docs/azure-resource-graph.md) | Azure inventory and CSV import |
+| [`docs/anchor-free-placement.md`](docs/anchor-free-placement.md), [`docs/diagonal-placement-hints.md`](docs/diagonal-placement-hints.md) | Absolute and two-axis node placement |
+| [`docs/exact-connection-points.md`](docs/exact-connection-points.md), [`docs/relationship-commands.md`](docs/relationship-commands.md) | Relationship editing and connection points |
+| [`docs/diagram-route-diagnostics.md`](docs/diagram-route-diagnostics.md), [`docs/placement-suggestions.md`](docs/placement-suggestions.md) | Experimental route measurements and placement suggestions |
 | [`docs/Mermaid_Specification.md`](docs/Mermaid_Specification.md) | Flowchart geometry and routing rules |
 | [`src/MermaidRecognition/README.md`](src/MermaidRecognition/README.md) | Recogniser scope and architecture |
 | [`src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md`](src/MermaidRecognition.Layout/SUGIYAMA_ADOPTION.md) | Adopted MSAGL Sugiyama slice policy |
@@ -196,6 +201,11 @@ FlowchartLayoutFixRender dump-svg-gate <file.mmd> <file.svg>
 | [`docs/Instructions/COMMIT-MESSAGE-STYLE.md`](docs/Instructions/COMMIT-MESSAGE-STYLE.md) | Commit and pull request writing rules |
 
 `flow.md` is the flowchart visual regression catalogue. It is maintained separately and is not described here.
+
+The [incremental layout plan](docs/incremental-diagram-layout-plan.md) is an
+engineering work tracker, not a feature guide. Task history and proposals live
+there; standalone reports from past implementation efforts are retained only
+in Git history.
 
 ---
 

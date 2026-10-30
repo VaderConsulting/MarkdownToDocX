@@ -12,4 +12,4 @@ The source adapter preserves labels, quoted hint words, comments, classes and li
 
 Saving source persists the chosen node pin. Reloading runs initial construction with that mandatory cell position; underdetermined route tracks and unpinned nodes may be chosen again, and group frames may be derived again. Copy/export from the main preview always uses the accepted arrangement. Auto layout remains an explicit new-arrangement operation.
 
-The small native dialog has been rendered and visually inspected (`out/suggestion-preview-dialog.png`). This verifies that dialog's diagrams, metrics and controls, not the broader large-diagram visual/readability rollout. Full-scene copying/scoring and source/label preflight still need the plan's latency and memory benchmarks. All experiment defaults remain off.
+AG is experimental and disabled by default. Large-diagram latency, memory use, and visual acceptance remain open in the [engineering plan](incremental-diagram-layout-plan.md).

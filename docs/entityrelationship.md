@@ -4,7 +4,7 @@ Progressive Mermaid **erDiagram** scenarios for recognition and render regressio
 
 **Spec mapping:** line types in `spec.md` §11.1.14.5; recognition fixtures in `tests/MermaidRecognition.Tests/ErRecognition/`.
 
-**Programme note:** Naiad is an interim render baseline only. Recognition advances in `ErKindRecognizer`; entity population and non-Naiad render follow the same pattern as class (§11.1.14.3).
+**Rendering:** Recognition and rendering are separate capabilities. See the [README renderer table](../README.md#diagram-types-rendered-in-docx) for the supported output path.
 
 ## Scenario index (complete)
 

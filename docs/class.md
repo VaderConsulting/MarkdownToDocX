@@ -4,7 +4,7 @@ Progressive Mermaid **classDiagram** scenarios for recognition and render regres
 
 **Spec mapping:** line types in `spec.md` §11.1.14.3; recognition fixtures in `tests/MermaidRecognition.Tests/ClassRecognition/`.
 
-**Programme note:** Naiad is an interim render baseline only. L2 recognition classifies lines in `ClassKindRecognizer`; L3 entity mapping and non-Naiad render are planned in `MermaidRecognition` (see §11.1.14.3).
+**Rendering:** Recognition and rendering are separate capabilities. See the [README renderer table](../README.md#diagram-types-rendered-in-docx) for the supported output path.
 
 ## Scenario index (complete)
 
